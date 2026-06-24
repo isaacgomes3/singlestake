@@ -1,0 +1,27 @@
+# Exemplo Apache — roleta.poupexplay.com → Node (PM2 na porta 3000)
+# Copiar para o servidor (ex.: /etc/apache2/sites-available/roleta.conf) e ajustar caminhos SSL.
+
+<VirtualHost *:443>
+    ServerName roleta.poupexplay.com
+
+    # Certificado SSL (Let's Encrypt, etc.)
+    # SSLEngine on
+    # SSLCertificateFile /etc/letsencrypt/live/roleta.poupexplay.com/fullchain.pem
+    # SSLCertificateKeyFile /etc/letsencrypt/live/roleta.poupexplay.com/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # SSE / WebSocket da roleta ao vivo
+    ProxyPass /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins
+
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+
+    ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    ErrorLog ${APACHE_LOG_DIR}/roleta-error.log
+    CustomLog ${APACHE_LOG_DIR}/roleta-access.log combined
+</VirtualHost>

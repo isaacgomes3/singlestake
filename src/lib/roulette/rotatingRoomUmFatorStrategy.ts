@@ -1,0 +1,977 @@
+/**
+
+ * Sala rotativa / mesa — motor 1 Fator (t1/t2 nos 3 factores; confirmação com 2 no giro actual).
+
+ */
+
+
+
+import {
+
+  detectUmFatorActiveFromHistory,
+
+  evaluateUmFatorRound,
+
+  umFatorAlertLabel,
+
+  umFatorTriggerMatchCount,
+
+  umFatorTriggerMatchTierFromActive,
+
+  UM_FATOR_MAX_RECOVERY,
+
+  type UmFatorActive,
+
+} from "@/lib/roulette/umFatorStrategy";
+
+import { doisFatoresFactorLabel, type DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
+
+import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
+import { tableAcceptableForRotatingRoomEntry } from "@/lib/roulette/liveTableBettingWindow";
+import {
+  isUmFatorFormationRecommended,
+  rankUmFatorPicksByLearning,
+} from "@/lib/roulette/umFatorPatternLearning";
+
+import {
+
+  recordRotatingRoomSessionWin,
+
+  recordRotatingRoomSessionPartialLoss,
+
+  recordRotatingRoomSessionFinalLoss,
+
+  recordUmFatorMatchTierWin,
+
+  recordUmFatorMatchTierLoss,
+
+} from "@/lib/roulette/entryWinBreakdown";
+
+
+
+export { UM_FATOR_MAX_RECOVERY };
+
+
+
+function spinHead(history: readonly number[]): string {
+
+  if (history.length === 0) return "0";
+
+  return `${history.length}:${history[0]}`;
+
+}
+
+
+
+export type UmFatorPendingEntry = {
+
+  active: UmFatorActive;
+
+  /** Cabeçalho do histórico no giro em que o alerta foi formado. */
+
+  armedHead: string;
+
+};
+
+
+
+export type UmFatorMachineState = {
+
+  recovery: number;
+
+  lastEvaluatedHead: string | null;
+
+  lastSpinHeadByTable: Record<string, string>;
+
+  /** Alerta armado à espera do giro de resultado. */
+
+  pendingByTable: Record<string, UmFatorPendingEntry>;
+
+  /** Giro de resultado já liquidado no placar. */
+
+  settledSpinHeadByTable: Record<string, string>;
+
+  /** Legado — não usado na lógica actual. */
+
+  tablePlacarLosses: Record<string, number>;
+
+  /** Legado — não usado na lógica actual. */
+
+  lastLostTableId: number | null;
+
+  lastActive: UmFatorActive | null;
+
+  lastActiveTableId: number | null;
+
+  /** Mesa com entrada pendente — evita trocar indicação antes do resultado. */
+  focusLockTableId: number | null;
+
+};
+
+
+
+export type UmFatorPlacarFlash = {
+
+  resultNumber: number;
+
+  won: boolean;
+
+  tableId: number;
+
+  kind: "win" | "loss" | "recovery";
+
+  factor1?: DoisFatoresFactor;
+
+  triggerNumbers?: number[];
+
+} | null;
+
+
+
+export type UmFatorTableScan = {
+
+  tableId: number;
+
+  hasTriggerPair: boolean;
+
+  alertLabel: string | null;
+
+  status: "idle" | "alert";
+
+};
+
+
+
+export type UmFatorLiveView = {
+
+  globalTableId: number | null;
+
+  globalActive: UmFatorActive | null;
+
+  tableScan: UmFatorTableScan[];
+
+};
+
+
+
+export function defaultUmFatorMachineState(): UmFatorMachineState {
+
+  return {
+
+    recovery: 0,
+
+    lastEvaluatedHead: null,
+
+    lastSpinHeadByTable: {},
+
+    pendingByTable: {},
+
+    settledSpinHeadByTable: {},
+
+    tablePlacarLosses: {},
+
+    lastLostTableId: null,
+
+    lastActive: null,
+
+    lastActiveTableId: null,
+
+    focusLockTableId: null,
+
+  };
+
+}
+
+
+
+function isResultAlreadySettled(
+
+  machine: UmFatorMachineState,
+
+  tableId: number,
+
+  head: string,
+
+): boolean {
+
+  return machine.settledSpinHeadByTable[String(tableId)] === head;
+
+}
+
+
+
+function pendingForTable(
+
+  machine: UmFatorMachineState,
+
+  tableId: number,
+
+): UmFatorPendingEntry | null {
+
+  return machine.pendingByTable[String(tableId)] ?? null;
+
+}
+
+
+
+/** Entrada pendente ainda não liquidada neste giro (aguarda resultado ou avaliação). */
+function isPendingEntryOpen(
+  machine: UmFatorMachineState,
+  tableId: number,
+  history: readonly number[],
+): boolean {
+  const pending = pendingForTable(machine, tableId);
+  if (!pending) return false;
+  const head = spinHead(history);
+  return !isResultAlreadySettled(machine, tableId, head);
+}
+
+function anyTablePendingEntryOpen(
+  machine: UmFatorMachineState,
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+): boolean {
+  return tableIds.some((tableId) =>
+    isPendingEntryOpen(machine, tableId, histories[tableId] ?? []),
+  );
+}
+
+
+
+function pendingReadyToEvaluate(
+
+  machine: UmFatorMachineState,
+
+  tableId: number,
+
+  head: string,
+
+): boolean {
+
+  const pending = pendingForTable(machine, tableId);
+
+  return pending != null && pending.armedHead !== head;
+
+}
+
+
+
+function orderTableIdsForTick(
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]>,
+
+  machine: UmFatorMachineState,
+
+): number[] {
+
+  const needsEval: number[] = [];
+
+  const withPending: number[] = [];
+
+  const withFormation: number[] = [];
+
+  const rest: number[] = [];
+
+
+
+  for (const tableId of tableIds) {
+
+    const history = histories[tableId] ?? [];
+
+    const head = spinHead(history);
+
+    if (pendingReadyToEvaluate(machine, tableId, head)) {
+
+      needsEval.push(tableId);
+
+    } else if (pendingForTable(machine, tableId) != null) {
+
+      withPending.push(tableId);
+
+    } else if (
+
+      !isResultAlreadySettled(machine, tableId, head) &&
+
+      detectUmFatorActiveFromHistory(history) != null &&
+
+      tableAcceptableForRotatingRoomEntry(tableId, history)
+
+    ) {
+
+      withFormation.push(tableId);
+
+    } else {
+
+      rest.push(tableId);
+
+    }
+
+  }
+
+
+
+  const sortIds = (ids: number[]) => ids.sort((a, b) => a - b);
+
+  return [
+
+    ...sortIds(needsEval),
+
+    ...sortIds(withPending),
+
+    ...sortIds(withFormation),
+
+    ...sortIds(rest),
+
+  ];
+
+}
+
+
+
+function activeForDisplay(
+
+  machine: UmFatorMachineState,
+
+  tableId: number,
+
+  history: readonly number[],
+
+): UmFatorActive | null {
+
+  const head = spinHead(history);
+
+  const pending = pendingForTable(machine, tableId);
+
+  if (!pending) return null;
+  if (isResultAlreadySettled(machine, tableId, head)) return null;
+  return pending.active;
+
+}
+
+
+
+function scanUmFatorTables(
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]>,
+
+  machine: UmFatorMachineState,
+
+): UmFatorTableScan[] {
+
+  return tableIds.map((tableId) => {
+
+    const h = histories[tableId] ?? [];
+
+    const active = activeForDisplay(machine, tableId, h);
+
+    return {
+
+      tableId,
+
+      hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1]!, h[2]!) === 3,
+
+      alertLabel: active ? umFatorAlertLabel(active) : null,
+
+      status: active ? ("alert" as const) : ("idle" as const),
+
+    };
+
+  });
+
+}
+
+
+
+function pickGlobalUmFatorAlert(
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]>,
+
+  machine: UmFatorMachineState,
+
+): { tableId: number; active: UmFatorActive } | null {
+
+  const picks: { tableId: number; active: UmFatorActive }[] = [];
+
+  for (const tableId of tableIds) {
+
+    const history = histories[tableId] ?? [];
+
+    const active = activeForDisplay(machine, tableId, history);
+
+    if (active) picks.push({ tableId, active });
+
+  }
+
+  if (picks.length === 0) return null;
+
+  const pendingOpen = picks.filter((p) =>
+    isPendingEntryOpen(machine, p.tableId, histories[p.tableId] ?? []),
+  );
+
+  if (pendingOpen.length > 0) {
+    if (machine.focusLockTableId != null) {
+      const locked = pendingOpen.find((p) => p.tableId === machine.focusLockTableId);
+      if (locked) return locked;
+    }
+    if (machine.lastActiveTableId != null) {
+      const sticky = pendingOpen.find((p) => p.tableId === machine.lastActiveTableId);
+      if (sticky) return sticky;
+    }
+    pendingOpen.sort((a, b) => a.tableId - b.tableId);
+    return pendingOpen[0]!;
+  }
+
+  if (machine.lastActiveTableId != null) {
+    const sticky = picks.find((p) => p.tableId === machine.lastActiveTableId);
+    if (sticky) return sticky;
+  }
+
+  const ranked = rankUmFatorPicksByLearning(
+    picks,
+    histories,
+    (p) => p.tableId,
+  );
+  return ranked[0]!;
+}
+
+
+
+export function buildUmFatorLiveView(
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]>,
+
+  machine: UmFatorMachineState,
+
+): UmFatorLiveView {
+
+  const pick = pickGlobalUmFatorAlert(tableIds, histories, machine);
+
+  return {
+
+    globalTableId: pick?.tableId ?? null,
+
+    globalActive: pick?.active ?? null,
+
+    tableScan: scanUmFatorTables(tableIds, histories, machine),
+
+  };
+
+}
+
+
+
+export function tickUmFatorPlacar(
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]>,
+
+  machine: UmFatorMachineState,
+
+  stats: RotatingRoomSessionStats,
+
+  maxRecovery: number = UM_FATOR_MAX_RECOVERY,
+
+): {
+
+  nextMachine: UmFatorMachineState;
+
+  stats: RotatingRoomSessionStats;
+
+  statsChanged: boolean;
+
+  flash: UmFatorPlacarFlash;
+
+} {
+
+  let nextMachine: UmFatorMachineState = {
+
+    ...machine,
+
+    lastSpinHeadByTable: { ...machine.lastSpinHeadByTable },
+
+    pendingByTable: { ...machine.pendingByTable },
+
+    settledSpinHeadByTable: { ...(machine.settledSpinHeadByTable ?? {}) },
+
+  };
+
+  let nextStats = stats;
+
+  let statsChanged = false;
+
+  let flash: UmFatorPlacarFlash = null;
+
+
+
+  const globalHead = tableIds
+
+    .map((id) => `${id}:${spinHead(histories[id] ?? [])}`)
+
+    .join("|");
+
+
+
+  const hasWork = tableIds.some((tableId) => {
+
+    const history = histories[tableId] ?? [];
+
+    const head = spinHead(history);
+
+    if (pendingReadyToEvaluate(machine, tableId, head)) return true;
+
+    if (pendingForTable(machine, tableId) != null) return false;
+
+    if (isResultAlreadySettled(machine, tableId, head)) return false;
+
+    return (
+
+      detectUmFatorActiveFromHistory(history) != null &&
+
+      tableAcceptableForRotatingRoomEntry(tableId, history)
+
+    );
+
+  });
+
+
+
+  if (globalHead === machine.lastEvaluatedHead && !hasWork) {
+
+    return { nextMachine, stats: nextStats, statsChanged, flash };
+
+  }
+
+
+
+  const orderedIds = orderTableIdsForTick(tableIds, histories, machine);
+
+
+
+  for (const tableId of orderedIds) {
+
+    const history = histories[tableId] ?? [];
+
+    const head = spinHead(history);
+
+    const prevHead = machine.lastSpinHeadByTable[String(tableId)];
+
+    const headChanged = head !== prevHead;
+
+    if (headChanged) {
+
+      nextMachine.lastSpinHeadByTable[String(tableId)] = head;
+
+    }
+
+
+
+    const pending = pendingForTable(nextMachine, tableId);
+
+
+
+    if (pending && pending.armedHead !== head) {
+
+      const resultNumber = history[0]!;
+
+      const outcome = evaluateUmFatorRound(resultNumber, pending.active);
+
+      const recoveryBefore = nextMachine.recovery;
+
+      const matchTier = umFatorTriggerMatchTierFromActive(pending.active);
+
+      const pendingByTable = { ...nextMachine.pendingByTable };
+
+      delete pendingByTable[String(tableId)];
+
+
+
+      nextMachine = {
+
+        ...nextMachine,
+
+        pendingByTable,
+
+        lastActive: pending.active,
+
+        lastActiveTableId: tableId,
+
+        focusLockTableId: null,
+
+        settledSpinHeadByTable: {
+
+          ...nextMachine.settledSpinHeadByTable,
+
+          [String(tableId)]: head,
+
+        },
+
+      };
+
+
+
+      if (outcome === "W") {
+
+        nextStats = recordRotatingRoomSessionWin(nextStats, recoveryBefore, maxRecovery);
+
+        if (matchTier != null) nextStats = recordUmFatorMatchTierWin(nextStats, matchTier);
+
+        statsChanged = true;
+
+        nextMachine.recovery = 0;
+
+        nextMachine.tablePlacarLosses = {};
+
+        nextMachine.lastLostTableId = null;
+
+        flash = {
+          resultNumber,
+          won: true,
+          tableId,
+          kind: "win",
+          factor1: pending.active.alertFactor,
+          triggerNumbers: history.slice(0, 4),
+        };
+
+      } else {
+
+        const nextRecovery = recoveryBefore + 1;
+
+        if (matchTier != null) nextStats = recordUmFatorMatchTierLoss(nextStats, matchTier);
+
+        if (nextRecovery > maxRecovery) {
+
+          nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery);
+
+          statsChanged = true;
+
+          nextMachine.recovery = 0;
+
+          nextMachine.tablePlacarLosses = {};
+
+          nextMachine.lastLostTableId = tableId;
+
+          flash = {
+            resultNumber,
+            won: false,
+            tableId,
+            kind: "loss",
+            factor1: pending.active.alertFactor,
+            triggerNumbers: history.slice(0, 4),
+          };
+
+        } else {
+
+          nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recoveryBefore, maxRecovery);
+
+          statsChanged = true;
+
+          nextMachine.recovery = nextRecovery;
+
+          flash = { resultNumber, won: false, tableId, kind: "recovery" };
+
+        }
+
+      }
+
+      break;
+
+    }
+
+
+
+    if (pending) continue;
+
+    if (isResultAlreadySettled(nextMachine, tableId, head)) continue;
+
+    if (anyTablePendingEntryOpen(nextMachine, tableIds, histories)) continue;
+
+    const formation = detectUmFatorActiveFromHistory(history);
+
+    if (!formation) continue;
+
+    if (!isUmFatorFormationRecommended(formation, history)) continue;
+
+    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
+
+
+
+    nextMachine = {
+
+      ...nextMachine,
+
+      pendingByTable: {
+
+        ...nextMachine.pendingByTable,
+
+        [String(tableId)]: { active: formation, armedHead: head },
+
+      },
+
+      lastActive: formation,
+
+      lastActiveTableId: tableId,
+
+      focusLockTableId: tableId,
+
+    };
+
+    break;
+
+  }
+
+
+
+  nextMachine.lastEvaluatedHead = globalHead;
+
+  return { nextMachine, stats: nextStats, statsChanged, flash };
+
+}
+
+
+
+export function seedUmFatorMachineAfterPlacarReset(
+
+  machine: UmFatorMachineState,
+
+  tableIds: readonly number[],
+
+  histories: Record<number, readonly number[]> = {},
+
+): UmFatorMachineState {
+
+  const lastSpinHeadByTable: Record<string, string> = {};
+
+  for (const tableId of tableIds) {
+
+    lastSpinHeadByTable[String(tableId)] = spinHead(histories[tableId] ?? []);
+
+  }
+
+  const globalHead = tableIds
+
+    .map((id) => `${id}:${spinHead(histories[id] ?? [])}`)
+
+    .join("|");
+
+  return {
+
+    ...machine,
+
+    recovery: 0,
+
+    lastEvaluatedHead: globalHead,
+
+    lastSpinHeadByTable,
+
+    pendingByTable: {},
+
+    settledSpinHeadByTable: {},
+
+    tablePlacarLosses: {},
+
+    lastLostTableId: null,
+
+    lastActive: null,
+
+    lastActiveTableId: null,
+
+    focusLockTableId: null,
+
+  };
+
+}
+
+
+
+export function sanitizeUmFatorMachineForTableIds(
+
+  machine: UmFatorMachineState,
+
+  tableIds: readonly number[],
+
+): UmFatorMachineState {
+
+  const allowed = new Set(tableIds.map(String));
+
+  const lastSpinHeadByTable: Record<string, string> = {};
+
+  for (const [k, v] of Object.entries(machine.lastSpinHeadByTable)) {
+
+    if (allowed.has(k)) lastSpinHeadByTable[k] = v;
+
+  }
+
+  const settledSpinHeadByTable: Record<string, string> = {};
+
+  for (const [k, v] of Object.entries(machine.settledSpinHeadByTable ?? {})) {
+
+    if (allowed.has(k)) settledSpinHeadByTable[k] = v;
+
+  }
+
+  const pendingByTable: Record<string, UmFatorPendingEntry> = {};
+
+  for (const [k, v] of Object.entries(machine.pendingByTable ?? {})) {
+
+    if (allowed.has(k)) pendingByTable[k] = v;
+
+  }
+
+  const lastActiveTableId =
+
+    machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId)
+
+      ? machine.lastActiveTableId
+
+      : null;
+
+  const focusLockTableId =
+
+    machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId)
+
+      ? machine.focusLockTableId
+
+      : null;
+
+  return {
+
+    ...machine,
+
+    lastSpinHeadByTable,
+
+    pendingByTable,
+
+    settledSpinHeadByTable,
+
+    tablePlacarLosses: {},
+
+    lastLostTableId: null,
+
+    lastActiveTableId,
+
+    focusLockTableId,
+
+  };
+
+}
+
+
+
+export function umFatorScanFactorLabels(row: UmFatorTableScan): {
+
+  factor1Label: string | null;
+
+  factor2Label: string | null;
+
+} {
+
+  if (!row.alertLabel) return { factor1Label: null, factor2Label: null };
+
+  return { factor1Label: row.alertLabel, factor2Label: null };
+
+}
+
+
+
+export function umFatorActiveFactorLabels(active: UmFatorActive): {
+
+  factor1Label: string;
+
+  factor2Label: string | null;
+
+} {
+
+  return {
+
+    factor1Label: doisFatoresFactorLabel(active.alertFactor),
+
+    factor2Label: null,
+
+  };
+
+}
+
+
+
+export function normalizeUmFatorMachineOnLoad(
+
+  machine: UmFatorMachineState,
+
+  stats: RotatingRoomSessionStats,
+
+): UmFatorMachineState {
+
+  const entries = stats.wins + stats.losses;
+
+  const settled = machine.settledSpinHeadByTable ?? {};
+
+  const pending = machine.pendingByTable ?? {};
+
+  const partialLosses = (stats.lossesAtRecovery ?? []).reduce((sum, n) => sum + (Number(n) || 0), 0);
+
+  const orphanSettled =
+
+    Object.keys(settled).length > 0 && entries === 0 && partialLosses === 0 && Object.keys(pending).length === 0;
+
+  const recoveryMismatch = machine.recovery > 0 && machine.recovery > partialLosses;
+
+
+
+  if (orphanSettled || recoveryMismatch) {
+
+    return {
+
+      ...machine,
+
+      pendingByTable: {},
+
+      settledSpinHeadByTable: {},
+
+      tablePlacarLosses: {},
+
+      lastLostTableId: null,
+
+      lastEvaluatedHead: null,
+
+      focusLockTableId: null,
+
+      recovery: partialLosses > 0 ? partialLosses : 0,
+
+    };
+
+  }
+
+
+
+  return {
+
+    ...machine,
+
+    pendingByTable: pending,
+
+    tablePlacarLosses: {},
+
+    lastLostTableId: null,
+
+    focusLockTableId:
+
+      machine.focusLockTableId != null && pending[String(machine.focusLockTableId)]
+
+        ? machine.focusLockTableId
+
+        : null,
+
+  };
+
+}
+
+

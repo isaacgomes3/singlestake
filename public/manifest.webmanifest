@@ -1,0 +1,17 @@
+{
+  "name": "Game Odds Glow — Roletas",
+  "short_name": "GOG Roletas",
+  "description": "Sinais de roleta ao vivo — 2 Fatores e 1 Fator",
+  "start_url": "/mobile",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <title>GOG Sala Rotativa</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        width: 300px;
+        font: 12px/1.4 system-ui, sans-serif;
+        background: #0a0f1a;
+        color: #cbd5e1;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: #a5b4fc;
+      }
+      h2 {
+        margin: 10px 0 6px;
+        font-size: 11px;
+        color: #94a3b8;
+        font-weight: 700;
+      }
+      pre {
+        margin: 0;
+        padding: 8px;
+        border-radius: 8px;
+        background: #060a14;
+        border: 1px solid #1e293b;
+        font-size: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 160px;
+        overflow: auto;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      button {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #334155;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 8px;
+      }
+      .muted {
+        color: #64748b;
+        font-size: 10px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sala Rotativa — extensão v0.2</h1>
+    <pre id="out">A carregar…</pre>
+
+    <h2>Calibrar Pragmatic (aba da mesa activa)</h2>
+    <label>
+      <input type="checkbox" id="dryRun" checked />
+      Só destacar (não apostar)
+    </label>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Testar Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Testar Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Vermelho</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" id="scan">Varredura 6 apostas</button>
+    </div>
+
+    <p class="muted">Protótipo educativo. Use «Só destacar» até confirmar o alvo certo.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>

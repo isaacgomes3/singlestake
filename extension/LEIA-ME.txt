@@ -1,0 +1,24 @@
+EXTENSAO CHROME — GAME ODDS GLOW (Sala Rotativa)
+
+Esta pasta NAO esta vazia. O Chrome, ao pedir "diretorio da extensao",
+so mostra SUBPASTAS na lista — os ficheiros .js e .json nao aparecem.
+
+Ficheiros desta pasta:
+  manifest.json
+  background.js
+  content-app.js
+  content-casino.js
+  popup.html
+  popup.js
+
+COMO INSTALAR:
+1. chrome://extensions
+2. Modo de programador ON
+3. Carregar sem compactacao
+4. Selecione ESTA pasta (mesmo que a lista pareca vazia)
+5. Clique "Selecionar pasta"
+
+COPIA NO AMBIENTE DE TRABALHO:
+  C:\Users\PC\Desktop\game-odds-glow-extension
+
+Se o Explorador nao mostrar ficheiros, use a pasta do Ambiente de Trabalho acima.
