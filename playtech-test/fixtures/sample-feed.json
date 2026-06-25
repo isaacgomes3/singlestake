@@ -1,0 +1,16 @@
+{
+  "source": "playtech",
+  "tables": [
+    { "id": 1, "key": "macao", "label": "Roulette Macao" },
+    { "id": 2, "key": "speed_roulette_1", "label": "Speed Roulette 1" }
+  ],
+  "events": [
+    { "tableId": 1, "number": 32, "at": "2026-06-24T10:00:00Z" },
+    { "tableId": 2, "number": 5, "at": "2026-06-24T10:00:20Z" },
+    { "tableId": 1, "number": 36, "at": "2026-06-24T10:01:00Z" },
+    { "tableId": 1, "number": 19, "at": "2026-06-24T10:02:00Z" },
+    { "tableId": 1, "number": 34, "at": "2026-06-24T10:03:00Z" },
+    { "tableId": 2, "number": 15, "at": "2026-06-24T10:03:30Z" },
+    { "tableId": 1, "number": 17, "at": "2026-06-24T10:04:00Z" }
+  ]
+}

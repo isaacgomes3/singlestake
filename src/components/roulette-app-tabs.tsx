@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 
+import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { LiveMultiTableNumeracaoStrip } from "@/components/live-multi-table-numeracao-strip";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
+import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 
 const base =
   "inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-transparent px-3 text-sm font-semibold text-slate-400 transition hover:text-slate-100";
@@ -15,21 +16,22 @@ type RouletteAppTabsProps = {
 
 export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const onDashboard = pathname === "/";
+  const onCassino = pathname === "/cassino";
   const onRua = pathname === "/ruas";
   const onRua9 = pathname === "/ruas-10pct";
   const onRua25 = pathname === "/ruas-25pct";
   const onNums28 = pathname === "/numeros-28pct";
-  const { liveApiEnabled, toggleLiveApi } = useRouletteLiveApi();
 
-  /** Números 2,8% / Ruas 9% / Ruas 25%: barra mínima (só voltar ao lobby). */
+  const onSalaRotativa = pathname === "/sala-rotativa-um-fator" || pathname.startsWith("/sala-rotativa");
+
+  /** Números 2,8% / Ruas 9% / Ruas 25% / Sala rotativa: barra mínima. */
   if (
     onRua9 ||
     onRua25 ||
     onNums28 ||
     pathname === "/um-fator" ||
-    pathname === "/dois-fatores" ||
-    pathname === "/sala-rotativa" ||
-    pathname === "/sala-rotativa-um-fator" ||
+    onSalaRotativa ||
     pathname === "/super-trunfo" ||
     pathname === "/football-blitz"
   ) {
@@ -42,8 +44,22 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
           to="/"
           className={`${base} inline-flex w-fit border-cyan-500/45 bg-cyan-500/10 px-4 text-cyan-100 hover:text-white`}
         >
-          ← Voltar ao lobby
+          ← Dashboard
         </Link>
+        <Link
+          to="/cassino"
+          className={`${base} inline-flex w-fit border-slate-700/80 px-4 hover:border-cyan-500/30`}
+        >
+          Cassino ao vivo
+        </Link>
+        {onSalaRotativa ? (
+          <div className="flex flex-col gap-2 border-t border-slate-800/80 pt-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <LiveApiToggleButton compact />
+            </div>
+            <RotatingRoomExtensionStatus compact />
+          </div>
+        ) : null}
       </nav>
     );
   }
@@ -58,9 +74,12 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
           <Link
             to="/"
-            className={`${base} !h-auto min-h-0 items-center px-2 py-1.5 ${pathname === "/" ? active : ""}`}
+            className={`${base} !h-auto min-h-0 items-center px-2 py-1.5 ${onDashboard ? active : ""}`}
           >
             <SinglestakeLogo className="h-14 w-[min(400px,90vw)] sm:h-16" />
+          </Link>
+          <Link to="/cassino" className={`${base} ${onCassino ? active : ""}`}>
+            Cassino ao vivo
           </Link>
           <Link to="/ruas" className={`${base} ${onRua ? active : ""}`}>
             Ruas 20%
@@ -78,19 +97,7 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
         {children ? (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
         ) : null}
-        <button
-          type="button"
-          onClick={toggleLiveApi}
-          className={`inline-flex h-9 shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition ${
-            liveApiEnabled
-              ? "border-rose-500/50 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25"
-              : "border-emerald-500/50 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25"
-          }`}
-          aria-pressed={liveApiEnabled}
-          aria-label="API"
-        >
-          {liveApiEnabled ? "Desligar API" : "Ligar API"}
-        </button>
+        <LiveApiToggleButton />
       </div>
     </nav>
   );

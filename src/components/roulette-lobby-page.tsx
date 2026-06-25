@@ -1,21 +1,16 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { DamasLobbyGrid } from "@/components/damas/DamasLobbyGrid";
+import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
-import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { setStrategySoundSuppressed } from "@/lib/sound/strategySoundGate";
-import { RouletteSimulatorPanel } from "@/components/roulette-simulator-panel";
-import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
-import {
-  FootballBlitzTopCardLobbyCard,
-  SuperTrunfoLobbyCard,
-} from "@/components/football-blitz-lobby-card";
-import { LobbyLiveRouletteColdBlock } from "@/components/lobby-live-table-cold-stats";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
 import { cn } from "@/lib/utils";
 import { MinhaContaPanel } from "@/components/minha-conta-panel";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   PROFILE_ICON_CHANGED_EVENT,
   ProfileIconAvatar,
@@ -24,6 +19,7 @@ import {
 } from "@/components/profile-icon-gallery";
 import {
   Bell,
+  Briefcase,
   Calendar,
   CircleDot,
   Crown,
@@ -31,16 +27,14 @@ import {
   Gift,
   Headphones,
   Layers,
+  LayoutDashboard,
   LogOut,
   Menu,
   Pencil,
   PiggyBank,
   Smartphone,
-  BarChart3,
-  Coins,
   Gamepad2,
   Sparkles,
-  Target,
   Trophy,
   Volleyball,
   Wallet,
@@ -57,13 +51,14 @@ import {
   type RouletteLiveTableHistoryDetail,
 } from "@/lib/roulette/historyStorage";
 import { lobbyTableCardPhotoStyle, lobbyTableCardPhotoUrl } from "@/lib/roulette/lobbyTableCardAssets";
-import { LOBBY_MACAO_SLOT_INDEX, ROULETTE_MACAO_TABLE_ID, LOBBY_ROLETAS_STRATEGY_MENU_ORDER, lobbyTableDisplayName, readLobbyRoletasStrategyTab, resolveLobbyCardTableIds, ROTATING_ROOM_FIXED_TABLE_IDS, resolveRotatingRoomTableIds, writeLobbyRoletasStrategyTab, type LobbyRoletasStrategyTab } from "@/lib/roulette/lobbyTables";
+import { LOBBY_MACAO_SLOT_INDEX, ROULETTE_MACAO_TABLE_ID, lobbyTableDisplayName, resolveLobbyCardTableIds, ROTATING_ROOM_FIXED_TABLE_IDS, resolveRotatingRoomTableIds, type LobbyRoletasStrategyTab } from "@/lib/roulette/lobbyTables";
 import {
   ROULETTE_LIVE_TABLE_CONFIG_EVENT,
   getLiveRouletteTableIds,
   getPrimaryLiveTableId,
 } from "@/lib/roulette/liveTableConfig";
 import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
+import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import {
   clearUserCasinoEmbedUrl,
   getCasinoEmbedUrlForTable,
@@ -78,17 +73,9 @@ import {
   lobbyTableHasRotatingRoomSignal,
   type RotatingRoomLobbySession,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
-import { resetAllDoisFatoresCrossingSessions, DOIS_FATORES_CROSSING_RESET_EVENT } from "@/lib/roulette/doisFatoresCrossingStrategy";
-import { resetAllUmFatorSessions, UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
-import {
-  readRotatingRoomCrossingSessionStats,
-  resetRotatingRoomCrossingSession,
-  ROTATING_ROOM_CROSSING_CHANGED_EVENT,
-  ROTATING_ROOM_CROSSING_RESET_EVENT,
-} from "@/lib/roulette/rotatingRoomCrossingSession";
+import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
 import {
   readRotatingRoomUmFatorSessionStats,
-  resetRotatingRoomUmFatorSession,
   ROTATING_ROOM_UM_FATOR_CHANGED_EVENT,
   ROTATING_ROOM_UM_FATOR_RESET_EVENT,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
@@ -300,32 +287,21 @@ function useLobbyLiveHistories(tableIds: readonly number[]): Record<number, numb
 
 type CasinoLiveRoletasStrategyTab = LobbyRoletasStrategyTab;
 
-const LOBBY_CASINO_LIVE_STRATEGY_TABS = LOBBY_ROLETAS_STRATEGY_MENU_ORDER;
+const CASINO_LIVE_STRATEGY: CasinoLiveRoletasStrategyTab = "um1fator";
 
-function readLobbyFatoresRotatingRoomStats(
-  strategy: CasinoLiveRoletasStrategyTab,
-): ReturnType<typeof readRotatingRoomUmFatorSessionStats> {
-  return strategy === "um1fator"
-    ? readRotatingRoomUmFatorSessionStats()
-    : readRotatingRoomCrossingSessionStats();
+function readLobbyFatoresRotatingRoomStats(): ReturnType<typeof readRotatingRoomUmFatorSessionStats> {
+  return readRotatingRoomUmFatorSessionStats();
 }
 
-function isLobbyCasinoLiveStrategyTab(tab: CasinoLiveRoletasStrategyTab): boolean {
-  return LOBBY_CASINO_LIVE_STRATEGY_TABS.includes(tab);
-}
-
-function lobbyCasinoLiveStrategyLabel(tab: CasinoLiveRoletasStrategyTab): string {
-  if (tab === "dois2fatores") return "2 Fatores";
+function lobbyCasinoLiveStrategyLabel(_tab: CasinoLiveRoletasStrategyTab): string {
   return "1 Fator";
 }
 
-function lobbyCasinoLiveStrategyRoute(tab: CasinoLiveRoletasStrategyTab): string {
-  if (tab === "dois2fatores") return "/dois-fatores";
+function lobbyCasinoLiveStrategyRoute(_tab: CasinoLiveRoletasStrategyTab): string {
   return "/um-fator";
 }
 
-function lobbySalaRotativaRoute(tab: CasinoLiveRoletasStrategyTab): string {
-  if (tab === "dois2fatores") return "/sala-rotativa";
+function lobbySalaRotativaRoute(_tab: CasinoLiveRoletasStrategyTab): string {
   return "/sala-rotativa-um-fator";
 }
 
@@ -340,23 +316,19 @@ function lobbyHistoryForStrategyPlacar(
 
 /** Mesa do lobby com mais vitórias seguidas no placar da estratégia escolhida; empate → menor `tableId`. */
 function lobbyStrategyPlacarOutcomes(
-  strategy: CasinoLiveRoletasStrategyTab,
-  hHour: readonly number[],
+  _strategy: CasinoLiveRoletasStrategyTab,
+  _hHour: readonly number[],
   _tableId: number,
 ): StreetPlacarOutcome[] {
-  if (strategy === "dois2fatores" || strategy === "um1fator") return [];
   return [];
 }
 
 function lobbyStrategyAproveitamentoPct(
-  strategy: CasinoLiveRoletasStrategyTab,
-  hHour: readonly number[],
-  tableId: number,
+  _strategy: CasinoLiveRoletasStrategyTab,
+  _hHour: readonly number[],
+  _tableId: number,
 ): number {
-  if (strategy === "dois2fatores" || strategy === "um1fator") {
-    return rotatingRoomSessionAproveitamentoPct(readLobbyFatoresRotatingRoomStats(strategy));
-  }
-  return 0;
+  return rotatingRoomSessionAproveitamentoPct(readLobbyFatoresRotatingRoomStats());
 }
 
 /** Ordem no grid: mesa com sinal da sala rotativa primeiro; depois maior aproveitamento global. */
@@ -369,8 +341,7 @@ function sortLobbyTableIdsByAproveitamento(
   const signalRank = (tid: number): number => {
     if (
       rotatingRoomSession &&
-      (strategy === "dois2fatores" || strategy === "um1fator") &&
-      lobbyTableHasRotatingRoomSignal(tid, strategy, rotatingRoomSession)
+      lobbyTableHasRotatingRoomSignal(tid, CASINO_LIVE_STRATEGY, rotatingRoomSession)
     ) {
       return 2;
     }
@@ -393,25 +364,6 @@ function sortLobbyTableIdsByAproveitamento(
     if (pctB !== pctA) return pctB - pctA;
     return a - b;
   });
-}
-
-function computeLobbyStreakLeaderId(
-  tableIds: readonly number[],
-  histories: Record<number, number[]>,
-  strategy: CasinoLiveRoletasStrategyTab,
-): number | null {
-  const rows = tableIds.map((tid) => {
-    const h = histories[tid] ?? [];
-    const hHour = lobbyHistoryForStrategyPlacar(strategy, tid, h);
-    const outcomes = lobbyStrategyPlacarOutcomes(strategy, hHour, tid);
-    const streak = currentConsecutiveStreaksFromPlacarOutcomes(outcomes).consecutiveWins;
-    return { tid, streak };
-  });
-  const maxStreak = Math.max(0, ...rows.map((r) => r.streak));
-  if (maxStreak <= 0) return null;
-  const tied = rows.filter((r) => r.streak === maxStreak);
-  tied.sort((a, b) => a.tid - b.tid);
-  return tied[0]!.tid;
 }
 
 /** Aproveitamento da estratégia (valor já calculado a partir do histórico ao vivo da mesa). */
@@ -474,9 +426,8 @@ function LobbyCard({
   isStreakLeader: boolean;
   rotatingRoomSession?: RotatingRoomLobbySession | null;
 }) {
-  const isDois2Fatores = strategyTab === "dois2fatores";
   const isUm1Fator = strategyTab === "um1fator";
-  const isFatoresTab = isDois2Fatores || isUm1Fator;
+  const isFatoresTab = isUm1Fator;
   const usesRotatingRoomPlacar = isFatoresTab && rotatingRoomSession != null;
   const display = liveHistory.slice(0, LOBBY_HISTORY_LEN);
   const title = lobbyTableDisplayName(tableId, macaoTableId);
@@ -546,7 +497,7 @@ function LobbyCard({
     <article
       className={`flex flex-col overflow-visible rounded-2xl border bg-[#0d1524] shadow-xl ${borderShell}`}
     >
-      {isLobbyCasinoLiveStrategyTab(strategyTab) ? (
+      {strategyTab === "um1fator" ? (
         <div
           className={cn(
             "relative z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5",
@@ -613,7 +564,7 @@ function LobbyCard({
             </span>
           </div>
         ) : null}
-        {isLobbyCasinoLiveStrategyTab(strategyTab) ? (
+        {strategyTab === "um1fator" ? (
           <>
             {hasActiveSignal ? <LobbyTableActiveSignalBadge strategyLabel={strategyLabel} /> : null}
             <LobbyTableAproveitamentoBadge pct={pct} compact={isFatoresTab} />
@@ -639,7 +590,7 @@ function LobbyCard({
             <h2 className="min-w-0 truncate text-[11px] font-bold leading-tight tracking-tight text-white sm:text-xs">
               {title}
             </h2>
-            {isLobbyCasinoLiveStrategyTab(strategyTab) && !isFatoresTab ? (
+            {strategyTab === "um1fator" && !isFatoresTab ? (
               <span
                 className="shrink-0 whitespace-nowrap text-[8px] leading-tight sm:text-[9px]"
                 aria-live="polite"
@@ -672,7 +623,7 @@ function LobbyCard({
 
   const linkTo = lobbyCasinoLiveStrategyRoute(strategyTab);
 
-  if (isLobbyCasinoLiveStrategyTab(strategyTab)) {
+  if (strategyTab === "um1fator") {
     const leaderHint = isStreakLeader
       ? ` Recomendado por vitórias seguidas no ${strategyLabel}.`
       : "";
@@ -694,229 +645,9 @@ function LobbyCard({
 }
 
 /** Sub-abas dentro de «Cassino ao vivo». */
-type CasinoLiveSubTab = "roletas" | "simulador" | "outros" | "estatisticas";
+type CasinoLiveSubTab = "roletas";
 
-type LobbyCasinoLiveStatisticsPanelProps = {
-  tableIds: readonly number[];
-  histories: Record<number, number[]>;
-  streakLeaderId: number | null;
-  strategyTab: CasinoLiveRoletasStrategyTab;
-  onStrategyTabChange: (tab: CasinoLiveRoletasStrategyTab) => void;
-  rotatingRoomSession?: RotatingRoomLobbySession | null;
-};
-
-function LobbyCasinoLiveStatisticsPanel({
-  tableIds,
-  histories,
-  streakLeaderId,
-  strategyTab,
-  onStrategyTabChange,
-  rotatingRoomSession,
-}: LobbyCasinoLiveStatisticsPanelProps) {
-  const [selectedTid, setSelectedTid] = useState<number>(() => tableIds[0] ?? 0);
-  const [placarRevision, setPlacarRevision] = useState(0);
-
-  useEffect(() => {
-    const bump = () => setPlacarRevision((v) => v + 1);
-    window.addEventListener(DOIS_FATORES_CROSSING_RESET_EVENT, bump);
-    window.addEventListener(UM_FATOR_RESET_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_CROSSING_RESET_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_CROSSING_CHANGED_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
-    return () => {
-      window.removeEventListener(DOIS_FATORES_CROSSING_RESET_EVENT, bump);
-      window.removeEventListener(UM_FATOR_RESET_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_CROSSING_RESET_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_CROSSING_CHANGED_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (tableIds.length === 0) return;
-    if (!tableIds.includes(selectedTid)) {
-      setSelectedTid(tableIds[0]!);
-    }
-  }, [tableIds, selectedTid]);
-
-  const strategyTitle = lobbyCasinoLiveStrategyLabel(strategyTab);
-
-  const rows = useMemo(() => {
-    return tableIds.map((tid) => {
-      const h = histories[tid] ?? [];
-      const hHour = lobbyHistoryForStrategyPlacar(strategyTab, tid, h);
-      if (strategyTab === "dois2fatores" || strategyTab === "um1fator") {
-        const stats = readLobbyFatoresRotatingRoomStats(strategyTab);
-        const w = stats.wins;
-        const l = stats.losses;
-        const decided = w + l;
-        const pct = rotatingRoomSessionAproveitamentoPct(stats);
-        const isFocus =
-          rotatingRoomSession != null &&
-          lobbyTableHasRotatingRoomSignal(tid, strategyTab, rotatingRoomSession);
-        return {
-          tid,
-          name: lobbyTableDisplayName(tid),
-          spinCount: hHour.length,
-          placarW: w,
-          placarL: l,
-          placarD: 0,
-          decided,
-          pct,
-          vitSeguidas: 0,
-          isLeader: isFocus,
-        };
-      }
-      const outcomes = lobbyStrategyPlacarOutcomes(strategyTab, hHour, tid);
-      const w = outcomes.filter((x) => x === "W").length;
-      const l = outcomes.filter((x) => x === "L").length;
-      const d = 0;
-      const decided = w + l;
-      const pct = lobbyStrategyAproveitamentoPct(strategyTab, hHour, tid);
-      const vitSeguidas = currentConsecutiveStreaksFromPlacarOutcomes(outcomes).consecutiveWins;
-      const isLeader = streakLeaderId !== null && tid === streakLeaderId;
-      return {
-        tid,
-        name: lobbyTableDisplayName(tid),
-        spinCount: hHour.length,
-        placarW: w,
-        placarL: l,
-        placarD: d,
-        decided,
-        pct,
-        vitSeguidas,
-        isLeader,
-      };
-    });
-  }, [tableIds, histories, strategyTab, streakLeaderId, placarRevision, rotatingRoomSession]);
-
-  return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-900/35 p-4 shadow-inner sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-          Resumo ao vivo ({strategyTitle})
-        </p>
-        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 p-1.5 sm:rounded-full">
-          {LOBBY_ROLETAS_STRATEGY_MENU_ORDER.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => onStrategyTabChange(tab)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:rounded-full sm:px-4 sm:py-2 sm:text-sm",
-                strategyTab === tab
-                  ? "bg-violet-500/20 text-violet-100 shadow-inner shadow-violet-500/10"
-                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
-              )}
-            >
-              {lobbyCasinoLiveStrategyLabel(tab)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-800/80">
-        <table className="w-full min-w-[520px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2.5 sm:px-4">Mesa</th>
-              <th className="px-3 py-2.5 sm:px-4">ID</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Giros</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">W / L / D</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Aproveit.</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Vit. seg.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.tid}
-                className={`border-b border-slate-800/60 last:border-0 ${
-                  r.isLeader ? "bg-emerald-950/35" : "hover:bg-slate-800/30"
-                }`}
-              >
-                <td className="px-3 py-2.5 font-medium text-slate-100 sm:px-4">
-                  <span className="inline-flex items-center gap-2">
-                    {r.name}
-                    {r.isLeader ? (
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
-                        Líder vitórias
-                      </span>
-                    ) : null}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 tabular-nums text-slate-500 sm:px-4">{r.tid}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300 sm:px-4">{r.spinCount}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300 sm:px-4">
-                  <span className="text-emerald-400/95">{r.placarW}</span>
-                  <span className="text-slate-600"> / </span>
-                  <span className="text-rose-400/90">{r.placarL}</span>
-                  <span className="text-slate-600"> / </span>
-                  <span className="text-amber-300/85">{r.placarD}</span>
-                </td>
-                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-cyan-200 sm:px-4">
-                  {r.decided > 0 ? `${r.pct.toFixed(1)}%` : "—"}
-                </td>
-                <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-400 sm:px-4">
-                  {r.vitSeguidas}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-10">
-        <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-              Estatística detalhada por mesa
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              Escolhe a roleta para ver ruas, números frios, duplas ruas e cruzamentos só dessa mesa. Valores em azul
-              = giros desde a última ocorrência na zona.
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col gap-1 sm:min-w-[12rem]">
-            <label
-              htmlFor="lobby-stat-mesa-select"
-              className="text-[10px] font-bold uppercase tracking-wide text-slate-500"
-            >
-              Roleta
-            </label>
-            <select
-              id="lobby-stat-mesa-select"
-              value={selectedTid}
-              onChange={(e) => setSelectedTid(Number(e.target.value))}
-              className={cn(
-                "rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 shadow-inner",
-                "focus:border-cyan-500/55 focus:outline-none focus:ring-2 focus:ring-cyan-500/25",
-              )}
-            >
-              {tableIds.map((tid) => (
-                <option key={tid} value={tid}>
-                  {lobbyTableDisplayName(tid)} — mesa {tid}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-5 max-w-3xl">
-          <LobbyLiveRouletteColdBlock
-            tableId={selectedTid}
-            mesaTitle={lobbyTableDisplayName(selectedTid)}
-            historyNewestFirst={histories[selectedTid] ?? []}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type LobbyMainTab = "tabuleiro" | "casino" | "casinoLive" | "esporte" | "suporte";
+type LobbyMainTab = "dashboard" | "tabuleiro" | "casino" | "casinoLive" | "esporte" | "suporte";
 
 /** Sub-abas dentro de «Jogos de Tabuleiro». */
 type BoardGamesSubTab = "damasOnline";
@@ -942,23 +673,43 @@ function SidebarNav({
   casinoLiveSubTab: CasinoLiveSubTab;
   setCasinoLiveSubTab: (t: CasinoLiveSubTab) => void;
 }) {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const onDashboard = pathname === "/";
+  const onBackOffice = pathname === "/back-office" || pathname.startsWith("/back-office/");
+  const onCassinoRoute = pathname === "/cassino";
   const linkBase =
-    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/5 hover:text-white";
-  const activeTabuleiro = mainTab === "tabuleiro" ? "bg-cyan-500/10 text-cyan-300" : "";
-  const activeCasinoLive = mainTab === "casinoLive" ? "bg-cyan-500/10 text-cyan-300" : "";
-  const activeCasino = mainTab === "casino" ? "bg-cyan-500/10 text-cyan-300" : "";
-  const activeEsporte = mainTab === "esporte" ? "bg-cyan-500/10 text-cyan-300" : "";
-  const activeSuporte = mainTab === "suporte" ? "bg-cyan-500/10 text-cyan-300" : "";
+    "theme-sidebar-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium";
+  const activeNav = "theme-sidebar-item-active";
 
   return (
     <nav
       className={`flex flex-col gap-1 ${mobile ? "p-4" : "px-3 py-2"}`}
       aria-label="Menu principal"
     >
+      <Link
+        to="/"
+        className={`${linkBase} ${onDashboard ? activeNav : ""}`}
+        onClick={() => onNavigate?.()}
+      >
+        <LayoutDashboard className="h-5 w-5 shrink-0 text-info" aria-hidden />
+        Dashboard
+      </Link>
+      <Link
+        to="/back-office"
+        className={`${linkBase} ${onBackOffice ? activeNav : ""}`}
+        onClick={() => onNavigate?.()}
+      >
+        <Briefcase className="h-5 w-5 shrink-0 text-info" aria-hidden />
+        Back office
+      </Link>
       <button
         type="button"
-        className={`${linkBase} w-full text-left ${activeTabuleiro}`}
+        className={`${linkBase} w-full text-left ${mainTab === "tabuleiro" ? activeNav : ""}`}
         onClick={() => {
+          if (onCassinoRoute) {
+            navigate({ to: "/" });
+          }
           setMainTab("tabuleiro");
           setBoardGamesSubTab("damasOnline");
           onNavigate?.();
@@ -972,10 +723,8 @@ function SidebarNav({
           type="button"
           className={cn(
             linkBase,
-            "w-full border-l-2 border-cyan-500/35 py-2 pl-5 text-left text-[13px]",
-            boardGamesSubTab === "damasOnline"
-              ? "bg-cyan-500/10 text-cyan-200"
-              : "text-slate-400 hover:text-slate-200",
+            "w-full border-l-2 border-info/35 py-2 pl-5 text-left text-[13px]",
+            boardGamesSubTab === "damasOnline" ? activeNav : "",
           )}
           onClick={() => {
             setMainTab("tabuleiro");
@@ -987,118 +736,60 @@ function SidebarNav({
           Dama on line
         </button>
       ) : null}
-      <button
-        type="button"
-        className={`${linkBase} w-full text-left ${activeCasinoLive}`}
+      <Link
+        to="/cassino"
+        className={`${linkBase} ${onCassinoRoute ? activeNav : ""}`}
         onClick={() => {
           setMainTab("casinoLive");
           setCasinoLiveSubTab("roletas");
           onNavigate?.();
         }}
       >
-        <Sparkles className="h-5 w-5 shrink-0 text-cyan-400" aria-hidden />
+        <Sparkles className="h-5 w-5 shrink-0 text-info" aria-hidden />
         Cassino ao vivo
-      </button>
-      {mainTab === "casinoLive" ? (
-        <>
-          <button
-            type="button"
-            className={cn(
-              linkBase,
-              "w-full border-l-2 border-cyan-500/35 py-2 pl-5 text-left text-[13px]",
-              casinoLiveSubTab === "roletas"
-                ? "bg-cyan-500/10 text-cyan-200"
-                : "text-slate-400 hover:text-slate-200",
-            )}
-            onClick={() => {
-              setMainTab("casinoLive");
-              setCasinoLiveSubTab("roletas");
-              onNavigate?.();
-            }}
-          >
-            <CircleDot className="h-4 w-4 shrink-0 text-cyan-400/80" aria-hidden />
-            Roletas
-          </button>
-          <button
-            type="button"
-            className={cn(
-              linkBase,
-              "w-full border-l-2 border-cyan-500/35 py-2 pl-5 text-left text-[13px]",
-              casinoLiveSubTab === "simulador"
-                ? "bg-cyan-500/10 text-cyan-200"
-                : "text-slate-400 hover:text-slate-200",
-            )}
-            onClick={() => {
-              setMainTab("casinoLive");
-              setCasinoLiveSubTab("simulador");
-              onNavigate?.();
-            }}
-          >
-            <Coins className="h-4 w-4 shrink-0 text-amber-400/85" aria-hidden />
-            Simulador
-          </button>
-          <button
-            type="button"
-            className={cn(
-              linkBase,
-              "w-full border-l-2 border-cyan-500/35 py-2 pl-5 text-left text-[13px]",
-              casinoLiveSubTab === "outros"
-                ? "bg-cyan-500/10 text-cyan-200"
-                : "text-slate-400 hover:text-slate-200",
-            )}
-            onClick={() => {
-              setMainTab("casinoLive");
-              setCasinoLiveSubTab("outros");
-              onNavigate?.();
-            }}
-          >
-            <Gamepad2 className="h-4 w-4 shrink-0 text-amber-400/80" aria-hidden />
-            Outros jogos
-          </button>
-          <button
-            type="button"
-            className={cn(
-              linkBase,
-              "w-full border-l-2 border-cyan-500/35 py-2 pl-5 text-left text-[13px]",
-              casinoLiveSubTab === "estatisticas"
-                ? "bg-cyan-500/10 text-cyan-200"
-                : "text-slate-400 hover:text-slate-200",
-            )}
-            onClick={() => {
-              setMainTab("casinoLive");
-              setCasinoLiveSubTab("estatisticas");
-              onNavigate?.();
-            }}
-          >
-            <BarChart3 className="h-4 w-4 shrink-0 text-violet-400/90" aria-hidden />
-            Estatísticas
-          </button>
-        </>
+      </Link>
+      {onCassinoRoute && mainTab === "casinoLive" ? (
+        <button
+          type="button"
+          className={cn(
+            linkBase,
+            "w-full border-l-2 border-info/35 py-2 pl-5 text-left text-[13px]",
+            activeNav,
+          )}
+          onClick={() => {
+            setMainTab("casinoLive");
+            setCasinoLiveSubTab("roletas");
+            onNavigate?.();
+          }}
+        >
+          <CircleDot className="h-4 w-4 shrink-0 text-cyan-400/80" aria-hidden />
+          Roletas
+        </button>
       ) : null}
       <button
         type="button"
-        className={`${linkBase} w-full text-left ${activeCasino}`}
+        className={`${linkBase} w-full text-left ${mainTab === "casino" ? activeNav : ""}`}
         onClick={() => {
           setMainTab("casino");
           onNavigate?.();
         }}
       >
-        <CircleDot className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+        <CircleDot className="h-5 w-5 shrink-0 text-text-secondary" aria-hidden />
         Cassino
       </button>
       <button
         type="button"
-        className={`${linkBase} w-full text-left ${activeEsporte}`}
+        className={`${linkBase} w-full text-left ${mainTab === "esporte" ? activeNav : ""}`}
         onClick={() => {
           setMainTab("esporte");
           onNavigate?.();
         }}
       >
-        <Volleyball className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+        <Volleyball className="h-5 w-5 shrink-0 text-text-secondary" aria-hidden />
         Esporte
       </button>
 
-      <div className="my-1 border-t border-white/5" aria-hidden />
+      <div className="my-1 border-t border-border-color" aria-hidden />
 
       <button
         type="button"
@@ -1111,7 +802,7 @@ function SidebarNav({
       </button>
       <button
         type="button"
-        className={`${linkBase} w-full text-left ${activeSuporte}`}
+        className={`${linkBase} w-full text-left ${mainTab === "suporte" ? activeNav : ""}`}
         onClick={() => {
           setMainTab("suporte");
           onNavigate?.();
@@ -1122,7 +813,7 @@ function SidebarNav({
       </button>
       <button
         type="button"
-        className={`${linkBase} w-full text-left hover:bg-red-950/25 hover:text-red-100`}
+        className={`${linkBase} w-full text-left hover:bg-danger/10 hover:text-danger`}
         onClick={() => {
           onLogout?.();
         }}
@@ -1156,34 +847,32 @@ const BANNER_SLIDES = [
 ];
 
 /**
- * Página inicial: shell estilo lobby (barra lateral, cabeçalho, banners) + roletas ao vivo.
+ * Shell do lobby (barra lateral, cabeçalho, banners) + conteúdo por secção.
  */
-export function RouletteLobbyPage() {
+export type RouletteLobbyHomeView = "dashboard" | "cassino";
+
+export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: RouletteLobbyHomeView }) {
+  const navigate = useNavigate();
   const [, bump] = useState(0);
+  useDgaTableImages();
   const { liveApiEnabled } = useRouletteLiveApi();
-  const [mainTab, setMainTab] = useState<LobbyMainTab>("casinoLive");
+  const [mainTab, setMainTab] = useState<LobbyMainTab>(
+    homeView === "dashboard" ? "dashboard" : "casinoLive",
+  );
   const [boardGamesSubTab, setBoardGamesSubTab] = useState<BoardGamesSubTab>("damasOnline");
   const [casinoLiveSubTab, setCasinoLiveSubTab] = useState<CasinoLiveSubTab>("roletas");
-  const [casinoLiveRoletasStrategy, setCasinoLiveRoletasStrategy] =
-    useState<CasinoLiveRoletasStrategyTab>(() => readLobbyRoletasStrategyTab());
 
   useEffect(() => {
-    writeLobbyRoletasStrategyTab(casinoLiveRoletasStrategy);
-  }, [casinoLiveRoletasStrategy]);
-
-  useEffect(() => {
-    const syncFromStorage = () => {
-      const stored = readLobbyRoletasStrategyTab();
-      setCasinoLiveRoletasStrategy((current) => (current === stored ? current : stored));
-    };
-    syncFromStorage();
-    window.addEventListener("focus", syncFromStorage);
-    return () => window.removeEventListener("focus", syncFromStorage);
-  }, []);
+    if (homeView === "dashboard") {
+      setMainTab("dashboard");
+      return;
+    }
+    setMainTab("casinoLive");
+    setCasinoLiveSubTab("roletas");
+  }, [homeView]);
 
   const lobbyStrategySoundActive =
-    mainTab === "casinoLive" &&
-    (casinoLiveSubTab === "roletas" || casinoLiveSubTab === "outros");
+    mainTab === "casinoLive" && homeView === "cassino";
 
   useEffect(() => {
     setStrategySoundSuppressed(!lobbyStrategySoundActive);
@@ -1232,42 +921,23 @@ export function RouletteLobbyPage() {
   }, [lobbyCardTableIds]);
 
   const rotatingRoomHistories = useRotatingRoomHistories(rotatingRoomTableIds);
-  const rotatingRoomCrossingSession = useRotatingRoomCrossingSession(
+  const rotatingRoomSession = useRotatingRoomUmFatorSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly },
   );
-  const rotatingRoomUmFatorSession = useRotatingRoomUmFatorSession(
-    rotatingRoomTableIds,
-    rotatingRoomHistories,
-    { observeOnly: lobbyRotatingRoomObserveOnly },
-  );
-  const rotatingRoomSession =
-    casinoLiveRoletasStrategy === "um1fator"
-      ? rotatingRoomUmFatorSession
-      : rotatingRoomCrossingSession;
 
-  const ruas9StreakLeaderId = useMemo(
-    () =>
-      casinoLiveRoletasStrategy === "dois2fatores" || casinoLiveRoletasStrategy === "um1fator"
-        ? null
-        : computeLobbyStreakLeaderId(
-            lobbyCardTableIds,
-            lobbyLiveHistories,
-            casinoLiveRoletasStrategy,
-          ),
-    [lobbyCardTableIds, lobbyLiveHistories, casinoLiveRoletasStrategy],
-  );
+  const ruas9StreakLeaderId = useMemo(() => null, []);
 
   const lobbyCardTableIdsByAproveitamento = useMemo(
     () =>
       sortLobbyTableIdsByAproveitamento(
         lobbyCardTableIds,
         lobbyLiveHistories,
-        casinoLiveRoletasStrategy,
+        CASINO_LIVE_STRATEGY,
         rotatingRoomSession,
       ),
-    [lobbyCardTableIds, lobbyLiveHistories, casinoLiveRoletasStrategy, rotatingRoomSession],
+    [lobbyCardTableIds, lobbyLiveHistories, rotatingRoomSession],
   );
 
   useEffect(() => {
@@ -1297,34 +967,29 @@ export function RouletteLobbyPage() {
     window.location.assign("/");
   };
 
-  const handleResetLobbyQuadrosPlacar = () => {
-    if (casinoLiveRoletasStrategy === "dois2fatores") {
-      resetAllDoisFatoresCrossingSessions(lobbyCardTableIds, lobbyLiveHistories);
-      resetRotatingRoomCrossingSession(rotatingRoomTableIds, rotatingRoomHistories);
-      bump((x) => x + 1);
-    } else if (casinoLiveRoletasStrategy === "um1fator") {
-      resetAllUmFatorSessions(lobbyCardTableIds, lobbyLiveHistories);
-      resetRotatingRoomUmFatorSession(rotatingRoomTableIds, rotatingRoomHistories);
-      bump((x) => x + 1);
-    }
-  };
-
   const headerPill = (tab: LobbyMainTab, label: string, Icon: typeof CircleDot) => {
     const active = mainTab === tab;
     return (
       <button
         type="button"
         onClick={() => {
-          setMainTab(tab);
           if (tab === "casinoLive") {
+            navigate({ to: "/cassino" });
+            setMainTab("casinoLive");
             setCasinoLiveSubTab("roletas");
-            setCasinoLiveRoletasStrategy(readLobbyRoletasStrategyTab());
+            return;
           }
+          if (tab === "dashboard") {
+            navigate({ to: "/" });
+            setMainTab("dashboard");
+            return;
+          }
+          setMainTab(tab);
         }}
         className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm ${
           active
-            ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
-            : "border-slate-700/80 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-slate-200"
+            ? "border-info/60 bg-sidebar-active text-text-primary shadow-theme"
+            : "border-border-color bg-bg-card text-text-secondary hover:border-border-color hover:bg-bg-card-hover hover:text-text-primary"
         }`}
       >
         <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -1334,22 +999,24 @@ export function RouletteLobbyPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#080d18] text-slate-100">
+    <div className="flex min-h-screen bg-bg-primary text-text-primary">
       <MinhaContaPanel open={accountPanelOpen} onClose={() => setAccountPanelOpen(false)} />
       {/* Sidebar desktop */}
-      <aside className="relative hidden w-[280px] shrink-0 flex-col border-r border-cyan-950/30 bg-[#060a14] lg:flex">
-        <div className="flex items-center justify-center border-b border-white/5 px-3 py-4">
-          <SinglestakeLogo variant="stacked" className="h-[104px] w-full max-w-[260px]" />
+      <aside className="theme-sidebar relative hidden w-[280px] shrink-0 flex-col border-r lg:flex">
+        <div className="flex items-center justify-center border-b border-sidebar-border-fixed px-3 py-4">
+          <Link to="/" aria-label="Ir para o dashboard">
+            <SinglestakeLogo variant="stacked" className="h-[104px] w-full max-w-[260px]" />
+          </Link>
         </div>
 
-        <div className="border-b border-white/5 px-3 py-4">
+        <div className="border-b border-sidebar-border-fixed px-3 py-4">
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-bold uppercase tracking-wider text-sidebar-fg-muted">
               Recompensas
             </span>
             <button
               type="button"
-              className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300"
+              className="text-[10px] font-semibold text-sidebar-fg hover:opacity-80"
             >
               Ver todos
             </button>
@@ -1359,7 +1026,7 @@ export function RouletteLobbyPage() {
               <button
                 key={i}
                 type="button"
-                className="flex aspect-square items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/60 text-cyan-400/90 transition hover:border-cyan-500/30 hover:bg-slate-800"
+                className="flex aspect-square items-center justify-center rounded-lg border border-sidebar-border-fixed bg-sidebar-hover text-sidebar-fg transition hover:bg-sidebar-active"
                 aria-label="Recompensa"
               >
                 <Icon className="h-5 w-5" />
@@ -1384,32 +1051,32 @@ export function RouletteLobbyPage() {
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-black/70"
+            className="theme-overlay absolute inset-0"
             aria-label="Fechar menu"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative ml-0 flex h-full w-[min(88vw,280px)] flex-col border-r border-cyan-950/40 bg-[#060a14] shadow-2xl">
-            <div className="flex items-center justify-between gap-2 border-b border-white/5 px-3 py-2.5">
+          <div className="theme-sidebar relative ml-0 flex h-full w-[min(88vw,280px)] flex-col border-r shadow-theme">
+            <div className="flex items-center justify-between gap-2 border-b border-sidebar-border-fixed px-3 py-2.5">
               <SinglestakeLogo className="h-16 min-w-0 max-w-[min(340px,82vw)] shrink-0" />
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
+                className="theme-sidebar-item rounded-lg p-2"
                 aria-label="Fechar"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="border-b border-white/5 px-3 py-4">
+            <div className="border-b border-sidebar-border-fixed px-3 py-4">
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-xs font-bold uppercase text-slate-500">Recompensas</span>
-                <span className="text-[10px] text-cyan-400">Ver todos</span>
+                <span className="text-xs font-bold uppercase text-sidebar-fg-muted">Recompensas</span>
+                <span className="text-[10px] text-sidebar-fg">Ver todos</span>
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {[Gift, PiggyBank, Calendar, Trophy].map((Icon, i) => (
                   <div
                     key={i}
-                    className="flex aspect-square items-center justify-center rounded-lg border border-slate-800 bg-slate-900/60 text-cyan-400/90"
+                    className="flex aspect-square items-center justify-center rounded-lg border border-sidebar-border-fixed bg-sidebar-hover text-sidebar-fg"
                   >
                     <Icon className="h-5 w-5" />
                   </div>
@@ -1433,17 +1100,18 @@ export function RouletteLobbyPage() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Cabeçalho: selectores + login / saldo / depositar */}
-        <header className="sticky top-0 z-40 border-b border-cyan-950/25 bg-[#080d18]/95 backdrop-blur-md">
+        <header className="app-top-bar sticky top-0 z-40 backdrop-blur-md">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-lg p-2 text-slate-400 hover:bg-white/5 lg:hidden"
+                className="theme-sidebar-item rounded-lg p-2 lg:hidden"
                 onClick={() => setMobileMenuOpen(true)}
                 aria-label="Abrir menu"
               >
                 <Menu className="h-5 w-5" />
               </button>
+              {headerPill("dashboard", "Dashboard", LayoutDashboard)}
               {headerPill("casinoLive", "Cassino ao vivo", Sparkles)}
               {headerPill("casino", "Cassino", CircleDot)}
               {headerPill("esporte", "Esporte", Volleyball)}
@@ -1451,6 +1119,7 @@ export function RouletteLobbyPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <ThemeToggle compact />
               <Link
                 to="/mobile"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/45 bg-amber-950/30 px-3 py-2 text-xs font-bold text-amber-300 transition hover:bg-amber-950/50 md:hidden"
@@ -1460,35 +1129,35 @@ export function RouletteLobbyPage() {
               </Link>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-400"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-theme transition hover:opacity-90"
               >
                 <Wallet className="h-4 w-4" aria-hidden />
                 Depositar
               </button>
-              <div className="hidden h-8 w-px bg-slate-700 sm:block" aria-hidden />
-              <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5">
-                <span className="text-sm font-semibold tabular-nums text-cyan-300">R$ 0,00</span>
+              <div className="hidden h-8 w-px bg-border-color sm:block" aria-hidden />
+              <div className="flex items-center gap-2 rounded-lg border border-border-color bg-bg-card px-3 py-1.5">
+                <span className="text-sm font-semibold tabular-nums text-info">R$ 0,00</span>
               </div>
               <div className="flex items-center gap-2 pl-1">
                 <button
                   type="button"
                   onClick={() => setAccountPanelOpen(true)}
-                  className="flex min-w-0 max-w-[11rem] items-center gap-2 rounded-lg py-1 pl-0.5 pr-2 text-left transition hover:bg-white/5 sm:max-w-xs"
+                  className="theme-sidebar-item flex min-w-0 max-w-[11rem] items-center gap-2 rounded-lg py-1 pl-0.5 pr-2 text-left sm:max-w-xs"
                   aria-label="Abrir minha conta"
                 >
                   <ProfileIconAvatar id={headerProfileIconId} size="sm" />
                   <div className="hidden min-w-0 sm:block">
-                    <p className="truncate text-xs font-semibold text-white">Visitante</p>
-                    <p className="text-[10px] text-slate-500">Conta demo</p>
+                    <p className="truncate text-xs font-semibold text-text-primary">Visitante</p>
+                    <p className="text-[10px] text-text-secondary">Conta demo</p>
                   </div>
                 </button>
                 <button
                   type="button"
-                  className="relative rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
+                  className="theme-sidebar-item relative rounded-lg p-2"
                   aria-label="Notificações"
                 >
                   <Bell className="h-5 w-5" />
-                  <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-cyan-500 px-0.5 text-[9px] font-bold text-slate-950">
+                  <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-info px-0.5 text-[9px] font-bold text-kpi-foreground">
                     0
                   </span>
                 </button>
@@ -1498,8 +1167,8 @@ export function RouletteLobbyPage() {
         </header>
 
         {/* Banners: fora do header sticky para rolar com a página */}
-        <div className="border-b border-cyan-950/25 bg-[#080d18]">
-          <div className="border-t border-white/5 bg-[#060a14]/50 py-4">
+        <div className="border-b border-border-color bg-bg-primary">
+          <div className="border-t border-border-color bg-bg-secondary/50 py-4">
             <div className="mx-auto w-full max-w-5xl px-3 sm:px-5">
               <div
                 className={`relative overflow-hidden rounded-xl border border-slate-800/80 bg-gradient-to-r p-6 sm:p-8 ${BANNER_SLIDES[bannerIdx]?.tone}`}
@@ -1554,7 +1223,23 @@ export function RouletteLobbyPage() {
 
         {/* Conteúdo centralizado */}
         <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-8 sm:px-6">
-          {mainTab === "esporte" ? (
+          {mainTab === "dashboard" ? (
+            <div className="rounded-2xl border border-slate-800/90 bg-slate-900/35 px-6 py-20 text-center sm:py-24">
+              <LayoutDashboard className="mx-auto h-14 w-14 text-cyan-400/90" aria-hidden />
+              <p className="mt-5 text-xl font-bold text-white">Dashboard</p>
+              <p className="mt-2 text-sm text-slate-400">Em construção.</p>
+              <p className="mx-auto mt-3 max-w-md text-xs leading-relaxed text-slate-500">
+                As roletas ao vivo e o simulador ficam no Cassino ao vivo.
+              </p>
+              <Link
+                to="/cassino"
+                className="mt-8 inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden />
+                Abrir Cassino ao vivo
+              </Link>
+            </div>
+          ) : mainTab === "esporte" ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/30 py-20 text-center">
               <Volleyball className="mx-auto h-12 w-12 text-slate-600" />
               <p className="mt-4 text-lg font-semibold text-slate-300">Área desportiva</p>
@@ -1617,154 +1302,21 @@ export function RouletteLobbyPage() {
                     Cassino ao vivo
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <div
-                    className="grid h-11 w-full max-w-[min(100%,22rem)] shrink-0 grid-cols-2 rounded-xl border border-slate-700/90 bg-[#0a101c] p-0.5 shadow-inner sm:w-[22rem] sm:max-w-none"
-                    role="group"
-                    aria-label="Roletas ou outros jogos ao vivo"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setCasinoLiveSubTab("roletas")}
-                      className={cn(
-                        "flex h-full min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2 text-sm font-semibold transition sm:px-3",
-                        casinoLiveSubTab === "roletas"
-                          ? "bg-cyan-950/95 text-white shadow-md ring-1 ring-cyan-500/35"
-                          : "text-slate-400 hover:text-slate-200",
-                      )}
-                    >
-                      <CircleDot className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
-                      Roletas
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCasinoLiveSubTab("outros")}
-                      className={cn(
-                        "flex h-full min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2 text-sm font-semibold transition sm:px-3",
-                        casinoLiveSubTab === "outros"
-                          ? "bg-cyan-950/95 text-white shadow-md ring-1 ring-cyan-500/35"
-                          : "text-slate-400 hover:text-slate-200",
-                      )}
-                    >
-                      <Gamepad2 className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                      Outros jogos
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCasinoLiveSubTab("simulador")}
-                    className={cn(
-                      "inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 text-sm font-semibold transition sm:rounded-full",
-                      casinoLiveSubTab === "simulador"
-                        ? "border-amber-500/40 bg-amber-500/15 text-amber-100 shadow-inner shadow-amber-500/10"
-                        : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
-                    )}
-                  >
-                    <Coins className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                    Simulador
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCasinoLiveSubTab("estatisticas")}
-                    className={cn(
-                      "inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 text-sm font-semibold transition sm:rounded-full",
-                      casinoLiveSubTab === "estatisticas"
-                        ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-100 shadow-inner shadow-cyan-500/10"
-                        : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
-                    )}
-                  >
-                    <BarChart3 className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                    Estatísticas
-                  </button>
-                </div>
+                <LiveApiToggleButton />
               </nav>
-              {casinoLiveSubTab === "estatisticas" ? (
-                <LobbyCasinoLiveStatisticsPanel
-                  tableIds={lobbyCardTableIds}
-                  histories={lobbyLiveHistories}
-                  streakLeaderId={ruas9StreakLeaderId}
-                  strategyTab={casinoLiveRoletasStrategy}
-                  onStrategyTabChange={setCasinoLiveRoletasStrategy}
-                  rotatingRoomSession={rotatingRoomSession}
-                />
-              ) : casinoLiveSubTab === "simulador" ? (
-                <>
-                  {!liveApiEnabled ? (
-                    <p className="text-center text-sm text-slate-400">
-                      A API ao vivo está desligada. Ligue-a nas páginas de roleta (botão API no topo) para receber giros reais.
-                    </p>
-                  ) : null}
-                  <RouletteSimulatorPanel
-                    tableIds={lobbyCardTableIds}
-                    histories={lobbyLiveHistories}
-                    defaultTableId={primaryId}
-                  />
-                </>
-              ) : casinoLiveSubTab === "outros" ? (
-                <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-2 px-1 sm:gap-3 lg:grid-cols-3">
-                  <Dga24dSpinLobbyCard />
-                  <SuperTrunfoLobbyCard />
-                  <FootballBlitzTopCardLobbyCard />
-                </div>
-              ) : (
-                <>
-                  {!liveApiEnabled ? (
-                    <p className="text-center text-sm text-slate-400">
-                      A API ao vivo está desligada. Ligue-a nas páginas de roleta (botão API no topo).
-                    </p>
-                  ) : null}
+              <>
+                {!liveApiEnabled ? (
+                  <p className="text-center text-sm text-amber-300/90">
+                    A API ao vivo está desligada. Clique em «Ligar API ao vivo» acima para receber giros
+                    e indicações.
+                  </p>
+                ) : null}
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                      Estratégia (roletas)
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {casinoLiveRoletasStrategy === "dois2fatores" ||
-                      casinoLiveRoletasStrategy === "um1fator" ? (
-                        <button
-                          type="button"
-                          onClick={handleResetLobbyQuadrosPlacar}
-                          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-800"
-                        >
-                          Zerar histórico
-                        </button>
-                      ) : null}
-                      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 p-1.5 sm:rounded-full">
-                      {LOBBY_ROLETAS_STRATEGY_MENU_ORDER.map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => setCasinoLiveRoletasStrategy(tab)}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition sm:rounded-full",
-                            casinoLiveRoletasStrategy === tab
-                              ? "bg-violet-500/20 text-violet-100 shadow-inner shadow-violet-500/10"
-                              : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
-                          )}
-                        >
-                          {tab === "um1fator" ? (
-                            <Target className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                          ) : tab === "dois2fatores" ? (
-                            <Sparkles className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                          ) : (
-                            <Layers className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-                          )}
-                          {lobbyCasinoLiveStrategyLabel(tab)}
-                        </button>
-                      ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
                     <RotatingRoomLobbyCard
                       session={rotatingRoomSession}
-                      salaRoute={lobbySalaRotativaRoute(casinoLiveRoletasStrategy)}
-                      salaLabel={
-                        casinoLiveRoletasStrategy === "um1fator"
-                          ? "Sala Rotativa · 1 Fator"
-                          : "Sala Rotativa"
-                      }
+                      salaRoute={lobbySalaRotativaRoute(CASINO_LIVE_STRATEGY)}
+                      salaLabel="Sala Rotativa · 1 Fator"
                     />
                     {lobbyCardTableIdsByAproveitamento.map((tid) => (
                       <LobbyCard
@@ -1773,14 +1325,13 @@ export function RouletteLobbyPage() {
                         macaoTableId={macaoTid}
                         isPrimary={tid === primaryId}
                         liveHistory={lobbyLiveHistories[tid] ?? []}
-                        strategyTab={casinoLiveRoletasStrategy}
+                        strategyTab={CASINO_LIVE_STRATEGY}
                         isStreakLeader={ruas9StreakLeaderId !== null && tid === ruas9StreakLeaderId}
                         rotatingRoomSession={rotatingRoomSession}
                       />
                     ))}
                   </div>
-                </>
-              )}
+              </>
             </div>
           ) : (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/30 py-20 text-center">
@@ -1791,11 +1342,7 @@ export function RouletteLobbyPage() {
                 <button
                   type="button"
                   className="font-medium text-cyan-400 underline decoration-cyan-500/40 underline-offset-2 hover:text-cyan-300"
-                  onClick={() => {
-                    setMainTab("casinoLive");
-                    setCasinoLiveSubTab("roletas");
-                    setCasinoLiveRoletasStrategy(readLobbyRoletasStrategyTab());
-                  }}
+                  onClick={() => navigate({ to: "/cassino" })}
                 >
                   Cassino ao vivo
                 </button>

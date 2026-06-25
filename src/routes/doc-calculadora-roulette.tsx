@@ -1,7 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { throwLegacyTableRedirect } from "@/lib/back-office/legacy-redirects";
 
 export const Route = createFileRoute("/doc-calculadora-roulette")({
-  beforeLoad: () => {
-    throw redirect({ to: "/ruas", replace: true });
+  beforeLoad: ({ search }) => {
+    throwLegacyTableRedirect(search);
   },
+  component: () => null,
 });

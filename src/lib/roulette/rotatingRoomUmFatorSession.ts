@@ -13,6 +13,7 @@ import {
   type UmFatorMachineState,
   type UmFatorPlacarFlash,
 } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
+import { readEffectiveUmFatorMaxRecovery } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import { drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
@@ -131,7 +132,13 @@ export function tickRotatingRoomUmFatorSessionPlacar(
   statsChanged: boolean;
   flash: UmFatorPlacarFlash;
 } {
-  return tickUmFatorPlacar(tableIds, histories, machine, stats, UM_FATOR_MAX_RECOVERY);
+  return tickUmFatorPlacar(
+    tableIds,
+    histories,
+    machine,
+    stats,
+    readEffectiveUmFatorMaxRecovery(UM_FATOR_MAX_RECOVERY),
+  );
 }
 
 /** Tick único a partir do storage — evita corridas entre lobby e sala. */
@@ -158,7 +165,7 @@ export function driveRotatingRoomUmFatorPlacar(
         histories,
         currentMachine,
         currentStats,
-        UM_FATOR_MAX_RECOVERY,
+        readEffectiveUmFatorMaxRecovery(UM_FATOR_MAX_RECOVERY),
       );
       return {
         ...step,

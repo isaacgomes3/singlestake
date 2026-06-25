@@ -1,16 +1,15 @@
 import { Bot, Eraser, MousePointerClick, Puzzle, ScrollText } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   useRotatingRoomClickBotLearning,
   type ClickBotLearningMode,
 } from "@/hooks/useRotatingRoomClickBotLearning";
+import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import {
   isLikelyExtensionBridgeOrigin,
-  pingRotatingRoomExtension,
-  ROTATING_ROOM_EXTENSION_PONG_TYPE,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +20,7 @@ type Props = {
 export function RotatingRoomClickBotPanel({ session }: Props) {
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  const [mode, setMode] = useState<ClickBotLearningMode>("dry");
+  const [mode, setMode] = useState<ClickBotLearningMode>("extension");
 
   const { log, clearLog, currentPlan } = useRotatingRoomClickBotLearning({
     session,
@@ -29,31 +28,10 @@ export function RotatingRoomClickBotPanel({ session }: Props) {
     mode,
   });
 
-  const [extensionPresent, setExtensionPresent] = useState(false);
+  const { present: extensionDetected } = useRotatingRoomExtensionPresent();
+  const extensionPresent = open && mode === "extension" && extensionDetected;
   const pageOrigin =
     typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
-
-  useEffect(() => {
-    if (!open || mode !== "extension") {
-      setExtensionPresent(false);
-      return;
-    }
-
-    const onPong = (event: MessageEvent) => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string };
-      if (data?.type === ROTATING_ROOM_EXTENSION_PONG_TYPE) setExtensionPresent(true);
-    };
-
-    window.addEventListener("message", onPong);
-    pingRotatingRoomExtension();
-    const interval = window.setInterval(pingRotatingRoomExtension, 2000);
-
-    return () => {
-      window.removeEventListener("message", onPong);
-      window.clearInterval(interval);
-    };
-  }, [open, mode]);
 
   return (
     <div className="rounded-xl border border-violet-500/35 bg-violet-950/20">
@@ -64,7 +42,7 @@ export function RotatingRoomClickBotPanel({ session }: Props) {
       >
         <span className="inline-flex items-center gap-1.5">
           <Bot className="h-3.5 w-3.5" aria-hidden />
-          Bot de clique (aprendizagem)
+          Bot de clique — estratégia Um Fator
         </span>
         <span className="text-[10px] text-violet-300/70">{open ? "▲" : "▼"}</span>
       </button>
@@ -72,12 +50,9 @@ export function RotatingRoomClickBotPanel({ session }: Props) {
       {open ? (
         <div className="space-y-3 border-t border-violet-500/25 px-3 py-3">
           <p className="text-[10px] leading-relaxed text-violet-200/75">
-            Lê o estado da <strong className="font-semibold text-violet-100">Sala Rotativa</strong>.
-            Modos <strong className="font-semibold text-violet-100">Só log</strong> e{" "}
-            <strong className="font-semibold text-violet-100">Clicar UI</strong> actuam no painel desta app.
-            Modo <strong className="font-semibold text-violet-100">Extensão</strong> envia o plano à extensão
-            Chrome (pasta <code className="text-violet-100/90">extension/</code>) — aí sim pode injectar no
-            iframe da mesa.
+            Lê o estado da <strong className="font-semibold text-violet-100">Sala Rotativa</strong>{" "}
+            (motor Um Fator) e envia apostas exteriores à extensão Chrome — equivalente funcional ao
+            JARVIS, com a nossa lógica de sinais.
           </p>
 
           {mode === "extension" ? (
@@ -97,17 +72,17 @@ export function RotatingRoomClickBotPanel({ session }: Props) {
               {!extensionPresent ? (
                 <ul className="list-inside list-disc space-y-0.5 text-[10px] text-amber-200/80">
                   <li>
-                    Recarregue esta página (<strong className="font-semibold">F5</strong>) depois de
-                    instalar a extensão.
+                    Instale a pasta <code className="text-amber-100">extension/</code> em{" "}
+                    <code className="text-amber-100">chrome://extensions</code>.
                   </li>
                   <li>
-                    Em <code className="text-amber-100">chrome://extensions</code>, clique{" "}
-                    <strong className="font-semibold">Recarregar</strong> na extensão GOG (v0.1.1).
+                    Recarregue esta página (<strong className="font-semibold">F5</strong>) depois de
+                    activar a extensão.
                   </li>
                   <li>
                     URL actual: <code className="text-amber-100">{pageOrigin}</code>
                     {!isLikelyExtensionBridgeOrigin(pageOrigin)
-                      ? " — não está na lista por defeito; edite manifest.json"
+                      ? " — acrescente ao manifest.json se necessário"
                       : null}
                   </li>
                 </ul>

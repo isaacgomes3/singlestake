@@ -8,7 +8,10 @@ import {
   type LiveSsePayload,
 } from "@/lib/roulette/applyLiveSpinFromSse";
 import { LOBBY_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
-import { setLiveRouletteTableConfigFromServer } from "@/lib/roulette/liveTableConfig";
+import {
+  getLiveRouletteTableIds,
+  setLiveRouletteTableConfigFromServer,
+} from "@/lib/roulette/liveTableConfig";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
 import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
@@ -26,6 +29,10 @@ export function LiveRouletteSseBridge() {
 
   useEffect(() => {
     initLiveSpinDedupeFromStorage();
+
+    if (getLiveRouletteTableIds().length === 0) {
+      setLiveRouletteTableConfigFromServer([...LOBBY_FIXED_TABLE_IDS]);
+    }
 
     if (!liveApiEnabled) {
       setLiveRouletteTableConfigFromServer([]);

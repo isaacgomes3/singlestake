@@ -115,6 +115,18 @@ export function doisFatoresFactorLabel(f: DoisFatoresFactor): string {
   return factorDisplayLabel(f);
 }
 
+/** Grupo do factor para UI / extensão (paridade, cor, altura). */
+export function doisFatoresFactorKindLabel(f: DoisFatoresFactor): "Paridade" | "Cor" | "Altura" {
+  switch (f.kind) {
+    case "cor":
+      return "Cor";
+    case "paridade":
+      return "Paridade";
+    case "altura":
+      return "Altura";
+  }
+}
+
 /** Cores vermelho/preto reservadas só ao factor «cor». */
 export function doisFatoresFactorButtonClass(f: DoisFatoresFactor): string {
   switch (f.kind) {

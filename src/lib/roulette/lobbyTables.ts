@@ -35,12 +35,16 @@ export const LOBBY_MACAO_SLOT_INDEX = 2;
 /** Quatro mesas extra validadas na DGA (Speed/Roulette 3/Roulette 2). */
 export const LOBBY_EXTRA_ROULETTE_TABLE_IDS = [203, 230, 205, 201] as const;
 
-/** Roletas regionais Pragmatic (Turca, Russa, Romena, Brasileira) — `npm run dga:inspect-table-names`. */
-export const LOBBY_REGIONAL_ROULETTE_TABLE_IDS = [224, 221, 233, 237] as const;
+/** Roletas regionais Pragmatic (Turca, Russa, Romena, Coreana, Brasileira) — `npm run dga:inspect-table-names`. */
+export const LOBBY_REGIONAL_ROULETTE_TABLE_IDS = [224, 221, 233, 213, 237] as const;
+
+/** French la Partage (28401) — fora da sala rotativa / automação (tapete diferente). */
+export const ROTATING_ROOM_PREMIUM_TABLE_IDS = [28401] as const;
 
 const LEGACY_LOBBY_ID_SET = new Set<number>(LEGACY_LOBBY_ROULETTE_TABLE_IDS);
 const LOBBY_EXTRA_ID_SET = new Set<number>(LOBBY_EXTRA_ROULETTE_TABLE_IDS);
 const LOBBY_REGIONAL_ID_SET = new Set<number>(LOBBY_REGIONAL_ROULETTE_TABLE_IDS);
+const ROTATING_ROOM_PREMIUM_ID_SET = new Set<number>(ROTATING_ROOM_PREMIUM_TABLE_IDS);
 
 /** Lista fixa dos cartões do lobby (sem duplicar Macao num slot extra). */
 export function buildLobbyFixedTableIds(macaoTableId: number = ROULETTE_MACAO_TABLE_ID): number[] {
@@ -63,7 +67,8 @@ export function resolveMacaoTableIdFromLiveTableIds(liveIds: readonly number[]):
     (id) =>
       !LEGACY_LOBBY_ID_SET.has(id) &&
       !LOBBY_EXTRA_ID_SET.has(id) &&
-      !LOBBY_REGIONAL_ID_SET.has(id),
+      !LOBBY_REGIONAL_ID_SET.has(id) &&
+      !ROTATING_ROOM_PREMIUM_ID_SET.has(id),
   );
   if (macaoCandidates.length === 1) return macaoCandidates[0]!;
   if (macaoCandidates.includes(206)) return 206;
@@ -76,14 +81,15 @@ export function resolveLobbyCardTableIds(liveIds: readonly number[]): number[] {
   return buildLobbyFixedTableIds(macaoId);
 }
 
-/** Speed Roulette 1 (203), Speed Roulette 2 (205) — fora do lobby principal. */
-export const ROTATING_ROOM_EXCLUDED_TABLE_IDS = [203, 205] as const;
+/** Speed Roulette 2 (205) — fora do lobby principal; Speed Roulette 1 (203) está na sala rotativa. */
+export const ROTATING_ROOM_EXCLUDED_TABLE_IDS = [205] as const;
 
 /**
  * Sala rotativa — lista fechada (ordem do rodízio).
- * Roulette 1, Roulette 3, Roulette 2 Extra Time, Macao (dinâmico), Brasileira.
+ * Roulette 1, Speed Roulette 1, Roulette 3, Extra Time, Macao (dinâmico), Brasileira, Coreana.
+ * French la Partage (28401) excluída — tapete diferente, sem extensão.
  */
-export const ROTATING_ROOM_CORE_TABLE_IDS = [227, 230, 201, 237] as const;
+export const ROTATING_ROOM_CORE_TABLE_IDS = [227, 203, 230, 201, 237, 213] as const;
 
 /** @deprecated Sala rotativa usa {@link ROTATING_ROOM_CORE_TABLE_IDS} + Macao. */
 export const ROTATING_ROOM_REGIONAL_TABLE_IDS = [237] as const;
@@ -92,7 +98,7 @@ export const ROTATING_ROOM_REGIONAL_TABLE_IDS = [237] as const;
 export function buildRotatingRoomTableIds(macaoTableId: number = ROULETTE_MACAO_TABLE_ID): number[] {
   const seen = new Set<number>();
   const out: number[] = [];
-  for (const id of [227, 230, 201, macaoTableId, 237]) {
+  for (const id of [227, 203, 230, 201, macaoTableId, 237, 213]) {
     if (seen.has(id)) continue;
     seen.add(id);
     out.push(id);
@@ -172,7 +178,13 @@ export const LOBBY_TABLE_DISPLAY_NAMES: Record<(typeof LOBBY_FIXED_TABLE_IDS)[nu
   224: "Roleta Turca",
   221: "Roleta Russa",
   233: "Roleta Romena",
+  213: "Korean Roulette",
   237: "Brasileira Roleta",
+};
+
+/** Nomes de mesas só na sala rotativa (fora do lobby fixo). */
+const ROTATING_ROOM_TABLE_DISPLAY_NAMES: Record<number, string> = {
+  28401: "French Roulette la Partage",
 };
 
 export function lobbyTableDisplayName(tableId: number, macaoTableId?: number): string {
@@ -184,6 +196,7 @@ export function lobbyTableDisplayName(tableId: number, macaoTableId?: number): s
   if (tableId === macao) return "Roulette Macao";
   return (
     LOBBY_TABLE_DISPLAY_NAMES[tableId as keyof typeof LOBBY_TABLE_DISPLAY_NAMES] ??
+    ROTATING_ROOM_TABLE_DISPLAY_NAMES[tableId] ??
     `Mesa ${tableId}`
   );
 }
@@ -205,7 +218,7 @@ export function resolveRuas9ViewTableId(searchMesa: number | undefined): number 
 }
 
 /** Abas de estratégia no lobby (Cassino ao vivo → Roletas). */
-export type LobbyRoletasStrategyTab = "um1fator" | "dois2fatores";
+export type LobbyRoletasStrategyTab = "um1fator";
 
 /** Legado — rotas directas / sala rotativa antiga; não aparece no menu do lobby. */
 export type LobbyRoletasLegacyStrategyTab = "ruas9pct" | "ruas25pct" | "nums28pct";
@@ -213,22 +226,13 @@ export type LobbyRoletasLegacyStrategyTab = "ruas9pct" | "ruas25pct" | "nums28pc
 export type RotatingRoomStrategyTab = LobbyRoletasStrategyTab | LobbyRoletasLegacyStrategyTab;
 
 /** Ordem no menu. */
-export const LOBBY_ROLETAS_STRATEGY_MENU_ORDER: readonly LobbyRoletasStrategyTab[] = [
-  "dois2fatores",
-  "um1fator",
-];
+export const LOBBY_ROLETAS_STRATEGY_MENU_ORDER: readonly LobbyRoletasStrategyTab[] = ["um1fator"];
 
-export const DEFAULT_LOBBY_ROLETAS_STRATEGY: LobbyRoletasStrategyTab = "dois2fatores";
+export const DEFAULT_LOBBY_ROLETAS_STRATEGY: LobbyRoletasStrategyTab = "um1fator";
 
 const LOBBY_ROLETAS_STRATEGY_STORAGE_KEY = "roulette.lobby.roletasStrategy.v3";
 
 export function readLobbyRoletasStrategyTab(): LobbyRoletasStrategyTab {
-  if (typeof window === "undefined") return DEFAULT_LOBBY_ROLETAS_STRATEGY;
-  const raw = sessionStorage.getItem(LOBBY_ROLETAS_STRATEGY_STORAGE_KEY);
-  if (raw === "um1fator" || raw === "dois2fatores") return raw;
-  if (raw === "nums28pct") return "um1fator";
-  if (raw === "dois2fatoresplus") return DEFAULT_LOBBY_ROLETAS_STRATEGY;
-  if (raw === "ruas9pct" || raw === "ruas25pct") return DEFAULT_LOBBY_ROLETAS_STRATEGY;
   return DEFAULT_LOBBY_ROLETAS_STRATEGY;
 }
 

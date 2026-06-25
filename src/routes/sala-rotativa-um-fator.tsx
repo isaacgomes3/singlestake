@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
-import { StrategyLearningAdvisorPanel } from "@/components/strategy-learning-advisor-panel";
-import { RouletteAppTabs } from "@/components/roulette-app-tabs";
-import { useStrategyLearningAdvisor } from "@/hooks/useStrategyLearningAdvisor";
+import { requireAuth } from "@/lib/auth/guards";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import {
@@ -12,14 +11,29 @@ import {
   correctRotatingRoomUmFatorLastLossAsWin,
   resetRotatingRoomUmFatorSession,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
+import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomViewPrefs";
 import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
   writeLobbyRoletasStrategyTab,
 } from "@/lib/roulette/lobbyTables";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
+import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
+import {
+  readRotatingRoomExtensionEnabled,
+  writeRotatingRoomExtensionEnabled,
+} from "@/lib/roulette/rotatingRoomExtensionPrefs";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
+  beforeLoad: () => {
+    requireAuth("/sala-rotativa-um-fator");
+  },
+  validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {
+    const raw = search.iframe;
+    const iframe =
+      raw === true || raw === 1 || raw === "1" || raw === "true" || raw === "yes";
+    return iframe ? { iframe: true } : {};
+  },
   head: () => ({
     meta: [
       { title: "Sala Rotativa · 1 Fator" },
@@ -34,11 +48,22 @@ export const Route = createFileRoute("/sala-rotativa-um-fator")({
 });
 
 function SalaRotativaUmFatorPage() {
+  const { iframe: openIframe } = Route.useSearch();
+  const { liveApiEnabled, setLiveApiEnabled } = useRouletteLiveApi();
   const [configTick, setConfigTick] = useState(0);
 
   useEffect(() => {
     writeLobbyRoletasStrategyTab("um1fator");
   }, []);
+
+  useEffect(() => {
+    if (!liveApiEnabled) setLiveApiEnabled(true);
+    if (!readRotatingRoomExtensionEnabled()) writeRotatingRoomExtensionEnabled(true);
+  }, [liveApiEnabled, setLiveApiEnabled]);
+
+  useEffect(() => {
+    if (openIframe) prepareRotatingRoomIframeSession();
+  }, [openIframe]);
 
   useEffect(() => {
     const sync = () => setConfigTick((x) => x + 1);
@@ -55,12 +80,11 @@ function SalaRotativaUmFatorPage() {
 
   const histories = useRotatingRoomHistories(tableIds);
   const session = useRotatingRoomUmFatorSession(tableIds, histories);
-  const { snapshot, updateUmSettings } = useStrategyLearningAdvisor(histories);
 
   return (
     <div className="min-h-screen bg-[#080d18] text-slate-100">
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        <RouletteAppTabs />
+        <BackOfficeWorkspaceNav rotatingRoom />
         <SalaRotativaWorkspace
           session={session}
           tableIds={tableIds}
@@ -69,12 +93,6 @@ function SalaRotativaUmFatorPage() {
           panelTitle="Sala Rotativa · 1 Fator"
           onReset={() => resetRotatingRoomUmFatorSession(tableIds, histories)}
           onCorrectLastLoss={() => correctRotatingRoomUmFatorLastLossAsWin()}
-        />
-        <StrategyLearningAdvisorPanel
-          className="mt-4"
-          snapshot={snapshot}
-          activeStrategy="um1fator"
-          onUpdateUmSettings={updateUmSettings}
         />
       </main>
     </div>

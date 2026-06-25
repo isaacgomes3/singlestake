@@ -3,15 +3,16 @@ import { Crop, Layers, Move, RotateCcw, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RotatingRoomPanel } from "@/components/rotating-room-panel";
-import { RotatingRoomClickBotPanel } from "@/components/rotating-room-click-bot-panel";
+import { RotatingRoomExtensionStrip } from "@/components/rotating-room-extension-strip";
 import { CasinoEmbedViewportControls } from "@/components/casino-embed-viewport-controls";
 import { CasinoGameEmbedFrame } from "@/components/casino-game-embed-frame";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useCasinoEmbedViewport } from "@/hooks/useCasinoEmbedViewport";
-import { ROTATING_ROOM_INDICATION_PANEL_ID } from "@/lib/roulette/rotatingRoomClickBotLearning";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
+
+const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import { rotatingRoomLobbyFocusTableId } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
@@ -357,10 +358,16 @@ export function SalaRotativaWorkspace({
               onOpenTable={effectiveIframeMode || signalOnlyMode ? openTableFromSignal : undefined}
             />
           </div>
+
+          <RotatingRoomExtensionStrip
+            session={session}
+            mesaEmbedUrl={iframeEmbedUrl}
+            className={cn("mt-2", effectiveIframeMode && "mx-1 mb-1")}
+          />
         </div>
+
       </div>
 
-      {!signalOnlyMode ? <RotatingRoomClickBotPanel session={session} /> : null}
     </div>
   );
 }

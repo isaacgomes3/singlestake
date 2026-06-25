@@ -72,6 +72,12 @@ export function writeRotatingRoomIframeMode(enabled: boolean): void {
   localStorage.setItem(IFRAME_MODE_KEY, enabled ? "1" : "0");
 }
 
+/** Abre a sala rotativa com iframe activo (ex.: clique no cartão da automação). */
+export function prepareRotatingRoomIframeSession(): void {
+  writeRotatingRoomIframeMode(true);
+  writeRotatingRoomSignalOnlyMode(false);
+}
+
 function parsePanelOffset(): RotatingRoomPanelOffset {
   if (typeof localStorage === "undefined") return { x: 0, y: 0 };
   try {

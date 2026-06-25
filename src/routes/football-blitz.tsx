@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { FootballBlitzStrategyPage } from "@/components/football-blitz-strategy-page";
+import { requireAuth } from "@/lib/auth/guards";
 import { FOOTBALL_BLITZ_TOP_CARD } from "@/lib/pragmatic/dgaFootballBlitzConstants";
 
 export const Route = createFileRoute("/football-blitz")({
+  beforeLoad: () => {
+    requireAuth("/football-blitz");
+  },
   head: () => ({
     meta: [
       { title: "Football Blitz Top Card" },

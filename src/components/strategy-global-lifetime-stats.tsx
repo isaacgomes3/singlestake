@@ -87,8 +87,7 @@ export function StrategyGlobalLifetimeStatsRow({ compact = false, className }: O
   if (!isStrategyGlobalEnabled() || snapshot == null) return null;
 
   return (
-    <div className={cn("grid gap-2 sm:grid-cols-2", className)}>
-      <StrategyGlobalLifetimeStats kind="dois2fatores" compact={compact} />
+    <div className={cn("grid gap-2 sm:grid-cols-1", className)}>
       <StrategyGlobalLifetimeStats kind="um1fator" compact={compact} />
     </div>
   );

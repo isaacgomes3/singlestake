@@ -11,14 +11,13 @@ import {
   resolveMacaoTableIdFromLiveTableIds,
 } from "@/lib/roulette/lobbyTables";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
-import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import { cn } from "@/lib/utils";
 
 type StrategyOption = {
-  id: "dois2fatores" | "um1fator";
+  id: "um1fator";
   title: string;
   subtitle: string;
-  to: "/mobile/roleta/$mesaId/dois2fatores" | "/mobile/roleta/$mesaId/um1fator";
+  to: "/mobile/roleta/$mesaId/um1fator";
 };
 
 function StrategyRow({
@@ -50,23 +49,16 @@ function StrategyRow({
 
 type Props = {
   tableId: number;
-  doisPct?: number | null;
   umPct?: number | null;
 };
 
-export function MobileRouletteStrategiesPage({ tableId, doisPct, umPct }: Props) {
+export function MobileRouletteStrategiesPage({ tableId, umPct }: Props) {
   const mesaId = String(tableId);
   const macaoTableId = resolveMacaoTableIdFromLiveTableIds(getLiveRouletteTableIds());
   const title = lobbyTableDisplayName(tableId, macaoTableId);
   const photoStyle = lobbyTableCardPhotoStyle(tableId, macaoTableId);
 
   const items: StrategyOption[] = [
-    {
-      id: "dois2fatores",
-      title: "2 Fatores",
-      subtitle: "Cruzamento ausente nesta mesa",
-      to: "/mobile/roleta/$mesaId/dois2fatores",
-    },
     {
       id: "um1fator",
       title: "1 Fator",
@@ -107,18 +99,14 @@ export function MobileRouletteStrategiesPage({ tableId, doisPct, umPct }: Props)
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-4">
           <p className="text-lg font-bold text-white">{title}</p>
-          <p className="text-xs text-neutral-400">Escolha a estratégia</p>
+          <p className="text-xs text-neutral-400">Estratégia 1 Fator</p>
         </div>
       </div>
 
       <ul className="mt-5 flex flex-1 flex-col gap-3 px-4 pb-8">
         {items.map((item) => (
           <li key={item.id}>
-            <StrategyRow
-              item={item}
-              mesaId={mesaId}
-              pct={item.id === "dois2fatores" ? (doisPct ?? null) : (umPct ?? null)}
-            />
+            <StrategyRow item={item} mesaId={mesaId} pct={umPct ?? null} />
           </li>
         ))}
       </ul>
@@ -126,4 +114,4 @@ export function MobileRouletteStrategiesPage({ tableId, doisPct, umPct }: Props)
   );
 }
 
-export { rotatingRoomSessionAproveitamentoPct };
+export { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";

@@ -2,7 +2,7 @@ import { doisFatoresFactorLabel, type DoisFatoresActive } from "@/lib/roulette/d
 import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 
-/** Alvos clicáveis só no painel da nossa app (não no iframe do casino). */
+/** Alvos clicáveis no painel da app ou na mesa Pragmatic (via extensão). */
 export type RotatingRoomClickBotTarget = "prepare-open" | "factor-1" | "factor-2";
 
 export const ROTATING_ROOM_CLICK_BOT_TARGET_SELECTOR: Record<RotatingRoomClickBotTarget, string> = {
@@ -23,14 +23,20 @@ export type RotatingRoomClickBotAction =
     };
 
 export type RotatingRoomClickBotSessionSlice = {
-  sessionMode: RotatingRoomSessionMode;
+  sessionMode: RotatingRoomSessionMode | "scanning" | "active";
   showTapeteSignal: boolean;
   prepareTableId: number | null;
   currentTableId: number | null;
   activeCrossing: DoisFatoresActive | null;
+  /** Sala rotativa 1 Fator — só aposta no factor de alerta (factor-1). */
+  singleFactorMode?: boolean;
+  /** Evita repetir aposta no mesmo sinal (extensão). */
+  signalId?: string | null;
+  /** Nível de recuperação (gale) — define valor da ficha na extensão. */
+  currentRecovery?: number;
 };
 
-/** Plano de acções com base no estado actual da estratégia (só UI nossa). */
+/** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
 export function planRotatingRoomClickBotActions(
   session: RotatingRoomClickBotSessionSlice,
 ): RotatingRoomClickBotAction[] {
@@ -45,7 +51,7 @@ export function planRotatingRoomClickBotActions(
         kind: "click",
         target: "prepare-open",
         label: mesa,
-        reason: "Fase POSICIONAR — abrir a mesa indicada no painel",
+        reason: "Fase POSICIONAR — abrir a mesa indicada",
       },
     ];
   }
@@ -54,27 +60,32 @@ export function planRotatingRoomClickBotActions(
     const { factor1, factor2 } = session.activeCrossing;
     const mesa =
       session.currentTableId != null ? lobbyTableDisplayName(session.currentTableId) : "mesa";
-    return [
+    const actions: RotatingRoomClickBotAction[] = [
       {
         kind: "click",
         target: "factor-1",
         label: doisFatoresFactorLabel(factor1),
-        reason: `JOGANDO em ${mesa} — factor 1 (simulação)`,
+        reason: session.singleFactorMode
+          ? `JOGANDO em ${mesa} — aposta 1 Fator`
+          : `JOGANDO em ${mesa} — factor 1`,
       },
-      {
+    ];
+    if (!session.singleFactorMode && factor2) {
+      actions.push({
         kind: "click",
         target: "factor-2",
         label: doisFatoresFactorLabel(factor2),
-        reason: `JOGANDO em ${mesa} — factor 2 (simulação)`,
-      },
-    ];
+        reason: `JOGANDO em ${mesa} — factor 2`,
+      });
+    }
+    return actions;
   }
 
   if (session.sessionMode === "awaiting_queue") {
     return [{ kind: "wait", reason: "Aguardar próxima mesa (recuperação)" }];
   }
 
-  return [{ kind: "wait", reason: "Sem sinal — aguardar cruzamento na sala rotativa" }];
+  return [{ kind: "wait", reason: "Sem sinal — aguardar indicação na sala rotativa" }];
 }
 
 export function rotatingRoomClickBotSessionFingerprint(
@@ -86,6 +97,9 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.showTapeteSignal ? 1 : 0,
     session.prepareTableId ?? "",
     session.currentTableId ?? "",
+    session.signalId ?? "",
+    session.currentRecovery ?? 0,
+    session.singleFactorMode ? 1 : 0,
     f ? `${f.factor1.kind}:${f.factor1.value}|${f.factor2.kind}:${f.factor2.value}` : "",
   ].join("|");
 }

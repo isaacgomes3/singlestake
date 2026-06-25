@@ -23,6 +23,7 @@ export const Route = createFileRoute("/api/roulette/strategy-global/stream")({
           "@/lib/server/strategyGlobal/engine"
         );
         const { subscribeStrategyGlobalHub } = await import("@/lib/server/strategyGlobal/broadcast");
+        const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
 
@@ -40,13 +41,17 @@ export const Route = createFileRoute("/api/roulette/strategy-global/stream")({
               }
             }, SSE_KEEPALIVE_MS);
 
-            const unsubscribe = subscribeStrategyGlobalHub((msg) => {
+            const unsubscribeGlobal = subscribeStrategyGlobalHub((msg) => {
               controller.enqueue(sseData(msg));
+            });
+            const unsubscribeRoulette = subscribeRouletteHub(() => {
+              /* mantém o hub Pragmatic activo enquanto há cliente strategy-global */
             });
 
             const onAbort = () => {
               clearInterval(keepaliveTimer);
-              unsubscribe();
+              unsubscribeGlobal();
+              unsubscribeRoulette();
               try {
                 controller.close();
               } catch {

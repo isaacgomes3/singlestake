@@ -6,6 +6,7 @@ import { RouletteStatCard, type RouletteStatCardSize } from "@/components/roulet
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomPlusSession } from "@/hooks/useRotatingRoomPlusSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
 import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
@@ -28,6 +29,7 @@ import { colorOf } from "@/lib/roulette/streetStrategy";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import {
   readRotatingRoomStatsVisible,
+  prepareRotatingRoomIframeSession,
   writeRotatingRoomStatsVisible,
 } from "@/lib/roulette/rotatingRoomViewPrefs";
 import { cn } from "@/lib/utils";
@@ -618,6 +620,7 @@ export function RotatingRoomPanel({
   onCorrectLastLoss,
   onOpenTable,
 }: PanelProps) {
+  useDgaTableImages();
   const aproveitamento = rotatingRoomSessionAproveitamentoPct(session.sessionStats);
   const [statsVisible, setStatsVisible] = useState(() =>
     floatingChrome ? true : readRotatingRoomStatsVisible(),
@@ -760,13 +763,21 @@ type LobbyCardProps = {
   session: RotatingRoomPanelSession;
   salaRoute?: string;
   salaLabel?: string;
+  /** Integrado num painel (ex.: automação) — sem overlay flutuante. */
+  embedded?: boolean;
+  /** Ao clicar, abre a sala com modo iframe activo. */
+  openInIframe?: boolean;
+  className?: string;
 };
 
 /** Cartão compacto no lobby — sala rotativa. */
 export function RotatingRoomLobbyCard({
   session,
-  salaRoute = "/sala-rotativa",
+  salaRoute = "/sala-rotativa-um-fator",
   salaLabel = "Sala Rotativa",
+  embedded = false,
+  openInIframe = false,
+  className,
 }: LobbyCardProps) {
   const aproveitamento = rotatingRoomSessionAproveitamentoPct(session.sessionStats);
   const focusTableId = rotatingRoomLobbyFocusTableId(session);
@@ -779,41 +790,98 @@ export function RotatingRoomLobbyCard({
 
   const borderShell = hasSignal
     ? isActive
-      ? "border-emerald-400/55 ring-2 ring-emerald-400/35"
-      : "border-amber-400/55 ring-2 ring-amber-400/30"
-    : "border-cyan-500/45 ring-1 ring-cyan-400/15";
+      ? embedded
+        ? "border-success/55 ring-2 ring-success/30"
+        : "border-emerald-400/55 ring-2 ring-emerald-400/35"
+      : embedded
+        ? "border-warning/55 ring-2 ring-warning/25"
+        : "border-amber-400/55 ring-2 ring-amber-400/30"
+    : embedded
+      ? "border-border-color ring-1 ring-border-color/80"
+      : "border-cyan-500/45 ring-1 ring-cyan-400/15";
+
+  const cardClickable = !embedded || openInIframe;
+  const iframeSearch = openInIframe ? { iframe: true as const } : undefined;
 
   return (
-    <div className="relative block h-full min-h-0 rounded-2xl outline-none transition hover:opacity-[0.98] focus-within:ring-2 focus-within:ring-cyan-400 focus-within:ring-offset-2 focus-within:ring-offset-[#060a14]">
-      <Link
-        to={salaRoute}
-        className="absolute inset-0 z-[1] rounded-2xl"
-        aria-label={salaLabel}
-      />
+    <div
+      className={cn(
+        "relative block h-full min-h-0 rounded-2xl outline-none",
+        cardClickable &&
+          "cursor-pointer transition hover:opacity-[0.98] focus-within:ring-2 focus-within:ring-info/50 focus-within:ring-offset-2 focus-within:ring-offset-bg-primary",
+        !embedded &&
+          "focus-within:ring-cyan-400 focus-within:ring-offset-[#060a14]",
+        className,
+      )}
+    >
+      {cardClickable ? (
+        <Link
+          to={salaRoute}
+          search={iframeSearch}
+          className="absolute inset-0 z-[1] rounded-2xl"
+          aria-label={openInIframe ? `${salaLabel} — abrir roleta no iframe` : salaLabel}
+          onClick={() => {
+            if (openInIframe) prepareRotatingRoomIframeSession();
+          }}
+        />
+      ) : null}
       <article
         className={cn(
-          "pointer-events-none relative z-[2] flex h-full min-h-0 flex-col overflow-visible rounded-2xl border bg-[#0d1524] shadow-xl",
+          "relative z-[2] flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border",
+          embedded
+            ? "bg-bg-card shadow-theme"
+            : "pointer-events-none bg-[#0d1524] shadow-xl",
+          cardClickable && "pointer-events-none",
+          !cardClickable && embedded && "pointer-events-none",
           borderShell,
         )}
       >
-        <div className="relative z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b border-cyan-950/40 bg-gradient-to-r from-cyan-950/80 via-slate-900/90 to-cyan-950/80 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5 min-h-[2.25rem] sm:min-h-[2.5rem]">
+        <div
+          className={cn(
+            "relative z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5 min-h-[2.25rem] sm:min-h-[2.5rem]",
+            embedded
+              ? "border-border-color bg-bg-secondary"
+              : "border-cyan-950/40 bg-gradient-to-r from-cyan-950/80 via-slate-900/90 to-cyan-950/80",
+          )}
+        >
           <div className="flex min-w-0 items-center justify-start">
-            <RotateCw className="h-3 w-3 shrink-0 text-cyan-400 sm:h-3.5 sm:w-3.5" aria-hidden />
+            <RotateCw
+              className={cn(
+                "h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5",
+                embedded ? "text-info" : "text-cyan-400",
+              )}
+              aria-hidden
+            />
           </div>
           <div className="flex min-w-0 max-w-full flex-col items-center justify-center px-1 text-center">
-            <p className="text-[7px] font-bold uppercase tracking-[0.16em] text-cyan-300/95 sm:text-[8px]">
+            <p
+              className={cn(
+                "text-[7px] font-bold uppercase tracking-[0.16em] sm:text-[8px]",
+                embedded ? "text-text-secondary" : "text-cyan-300/95",
+              )}
+            >
               {salaLabel}
             </p>
           </div>
           <div className="flex min-w-0 items-center justify-end">
-            <span className="inline-flex shrink-0 items-center rounded-md border border-cyan-600/50 bg-black/70 px-1.5 py-0.5 text-[7px] font-bold tabular-nums text-cyan-200 sm:text-[8px]">
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[7px] font-bold tabular-nums sm:text-[8px]",
+                embedded
+                  ? "border-border-color bg-bg-primary text-text-primary"
+                  : "border-cyan-600/50 bg-black/70 text-cyan-200",
+              )}
+            >
               {aproveitamento.toFixed(0)}%
             </span>
           </div>
         </div>
 
         <div
-          className="relative flex aspect-[16/10] w-full shrink-0 items-center justify-center overflow-hidden"
+          className={cn(
+            "relative flex w-full shrink-0 items-center justify-center overflow-hidden",
+            embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]",
+          )}
           style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
         >
           {photoStyle ? (
@@ -837,14 +905,48 @@ export function RotatingRoomLobbyCard({
               </p>
             </div>
           ) : (
-            <p className="relative px-3 text-center text-xs font-semibold text-slate-400 sm:text-sm">Aguarde no Lobby</p>
+            <p
+              className={cn(
+                "relative px-3 text-center text-xs font-semibold sm:text-sm",
+                embedded ? "text-text-secondary" : "text-slate-400",
+              )}
+            >
+              Aguarde no Lobby
+            </p>
           )}
         </div>
 
-        <div className="flex shrink-0 justify-center border-t border-slate-800/90 px-2 py-2">
-          <p className="text-[10px] font-semibold tabular-nums text-slate-500">
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-2 border-t px-2 py-2",
+            embedded ? "border-border-color bg-bg-secondary/50" : "justify-center border-slate-800/90",
+          )}
+        >
+          <p
+            className={cn(
+              "text-[10px] font-semibold tabular-nums",
+              embedded ? "text-text-secondary" : "text-slate-500",
+            )}
+          >
             {session.sessionStats.wins} · {session.sessionStats.losses}
           </p>
+          {embedded && openInIframe ? (
+            <Link
+              to={salaRoute}
+              search={iframeSearch}
+              className="relative z-[3] pointer-events-auto text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
+              onClick={() => prepareRotatingRoomIframeSession()}
+            >
+              Abrir iframe
+            </Link>
+          ) : embedded ? (
+            <Link
+              to={salaRoute}
+              className="relative z-[3] text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
+            >
+              Abrir sala
+            </Link>
+          ) : null}
         </div>
       </article>
     </div>

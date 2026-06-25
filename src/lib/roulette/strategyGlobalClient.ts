@@ -57,6 +57,18 @@ export function clearStrategyGlobalClientState(): void {
   lastFlashes = null;
 }
 
+export async function bootstrapStrategyGlobalSnapshot(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/roulette/strategy-global");
+    if (!res.ok) return false;
+    const body = (await res.json()) as StrategyGlobalSnapshot;
+    applyStrategyGlobalStreamMessage({ type: "sync", snapshot: body });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function requestStrategyGlobalReset(kind: StrategyGlobalKind | "all"): Promise<void> {
   await fetch("/api/roulette/strategy-global/reset", {
     method: "POST",

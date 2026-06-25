@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { FootballBlitzHistoryGrid11x2Section } from "@/components/football-blitz-history-grid-11x2";
-import { RouletteAppTabs } from "@/components/roulette-app-tabs";
 import { RouletteStatCard } from "@/components/roulette-stat-card";
 import { SuperTrunfoStrategyTable } from "@/components/super-trunfo-strategy-table";
 import { useStrategyIndicationActivatedSound } from "@/hooks/useStrategyIndicationActivatedSound";
 import { useSuperTrunfoPlacar } from "@/hooks/useSuperTrunfoPlacar";
+import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
 import type { FootballBlitzTableConfig } from "@/lib/pragmatic/dgaFootballBlitzConstants";
 import {
   DGA_FOOTBALL_BLITZ_HISTORY_CHANGED_EVENT,
@@ -58,7 +59,7 @@ export function FootballBlitzStrategyPage({ config }: FootballBlitzStrategyPageP
           <span className="text-slate-500"> · mesa {tableKey}</span>
         </p>
 
-        <RouletteAppTabs />
+        <BackOfficeWorkspaceNav />
 
         <section className="mt-6 overflow-x-auto pb-2 [scrollbar-width:thin] md:overflow-visible md:pb-0">
           <div className="mx-auto grid min-w-[28rem] max-w-6xl grid-cols-4 gap-3 md:min-w-0 md:w-full">
@@ -121,8 +122,11 @@ export function FootballBlitzStrategyPage({ config }: FootballBlitzStrategyPageP
         </section>
 
         <p className="mt-4 text-center text-xs text-slate-500">
-          <Link to="/" className="font-semibold text-cyan-400 hover:text-cyan-300">
-            ← Voltar ao lobby
+          <Link
+            to={BACK_OFFICE_PATHS.casinoOutros}
+            className="font-semibold text-cyan-400 hover:text-cyan-300"
+          >
+            ← Voltar ao back office
           </Link>
         </p>
       </main>

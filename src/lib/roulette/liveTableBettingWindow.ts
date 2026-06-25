@@ -7,7 +7,16 @@ export const LIVE_TABLE_BETTING_WINDOW_SEC = 20;
  * Tempo mínimo restante para a sala rotativa trocar de mesa e ainda haver margem
  * para carregar a página e efectuar a entrada.
  */
-export const ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC = 10;
+export const ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC = 11;
+
+/** Espera mínima (s) após o giro DGA antes da extensão clicar na mesa. */
+export const EXTENSION_PRE_BET_WAIT_SEC = 11;
+
+/**
+ * Tempo mínimo restante para **armar** formação Um Fator (só detectar + sinalizar).
+ * Mais permissivo que {@link ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC} — troca de mesa no iframe.
+ */
+export const UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC = 3;
 
 /**
  * Segundos restantes para apostar no giro actual da mesa (0 = janela fechada / a girar).
@@ -36,5 +45,17 @@ export function tableAcceptableForRotatingRoomEntry(
 ): boolean {
   return (
     liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs) >= minRemainingSec
+  );
+}
+
+/** Janela ainda aberta o suficiente para armar alerta Um Fator nesta mesa. */
+export function tableArmableForUmFatorFormation(
+  tableId: number,
+  historyNewestFirst: readonly number[],
+  nowMs?: number,
+): boolean {
+  return (
+    liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs) >=
+    UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC
   );
 }

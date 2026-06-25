@@ -18,30 +18,70 @@ import { Route as SalaRotativaRouteImport } from './routes/sala-rotativa'
 import { Route as Ruas25pctRouteImport } from './routes/ruas-25pct'
 import { Route as Ruas10pctRouteImport } from './routes/ruas-10pct'
 import { Route as RuasRouteImport } from './routes/ruas'
+import { Route as RegistarRouteImport } from './routes/registar'
+import { Route as PragmaticRunnerRouteImport } from './routes/pragmatic-runner'
 import { Route as Numeros28pctRouteImport } from './routes/numeros-28pct'
 import { Route as MobileRouteImport } from './routes/mobile'
 import { Route as FootballBlitzRouteImport } from './routes/football-blitz'
+import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as DoisFatoresRouteImport } from './routes/dois-fatores'
 import { Route as DocCalculadoraRouletteRouteImport } from './routes/doc-calculadora-roulette'
 import { Route as DamasRouteImport } from './routes/damas'
+import { Route as CassinoRouteImport } from './routes/cassino'
 import { Route as CasinoMesaRouteImport } from './routes/casino-mesa'
+import { Route as BackOfficeRouteImport } from './routes/back-office'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MobileIndexRouteImport } from './routes/mobile/index'
+import { Route as BackOfficeIndexRouteImport } from './routes/back-office/index'
 import { Route as MobileUm1fatorRouteImport } from './routes/mobile/um1fator'
 import { Route as MobilePerfilRouteImport } from './routes/mobile/perfil'
 import { Route as MobileDois2fatoresRouteImport } from './routes/mobile/dois2fatores'
+import { Route as BackOfficeSuporteRouteImport } from './routes/back-office/suporte'
+import { Route as BackOfficeGroupIdRouteImport } from './routes/back-office/$groupId'
 import { Route as ApiRawRouteImport } from './routes/api/raw'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiDamasRouteImport } from './routes/api/damas'
+import { Route as BackOfficeGroupIdIndexRouteImport } from './routes/back-office/$groupId/index'
+import { Route as BackOfficeGroupIdModuleIdRouteImport } from './routes/back-office/$groupId/$moduleId'
+import { Route as ApiRouletteTableMetaRouteImport } from './routes/api/roulette/table-meta'
 import { Route as ApiRouletteStrategyGlobalRouteImport } from './routes/api/roulette/strategy-global'
 import { Route as ApiRouletteSpinsRouteImport } from './routes/api/roulette/spins'
+import { Route as ApiRouletteRotatingRoomRouteImport } from './routes/api/roulette/rotating-room'
+import { Route as ApiRouletteAutomationSimRouteImport } from './routes/api/roulette/automation-sim'
 import { Route as ApiPragmaticFootballBlitzSpinsRouteImport } from './routes/api/pragmatic/football-blitz-spins'
 import { Route as ApiPragmatic24dSpinSpinsRouteImport } from './routes/api/pragmatic/24d-spin-spins'
+import { Route as ApiCronDailyAutomationRouteImport } from './routes/api/cron/daily-automation'
+import { Route as ApiBackOfficeWithdrawalsRouteImport } from './routes/api/back-office/withdrawals'
+import { Route as ApiBackOfficeWalletRouteImport } from './routes/api/back-office/wallet'
+import { Route as ApiBackOfficeUsersRouteImport } from './routes/api/back-office/users'
+import { Route as ApiBackOfficeSubscriptionRouteImport } from './routes/api/back-office/subscription'
+import { Route as ApiBackOfficePackagesRouteImport } from './routes/api/back-office/packages'
+import { Route as ApiBackOfficeOverviewRouteImport } from './routes/api/back-office/overview'
+import { Route as ApiBackOfficeLedgerRouteImport } from './routes/api/back-office/ledger'
+import { Route as ApiBackOfficeDepositsRouteImport } from './routes/api/back-office/deposits'
+import { Route as ApiAuthRegisterRouteImport } from './routes/api/auth/register'
+import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as MobileRoletaMesaIdIndexRouteImport } from './routes/mobile/roleta/$mesaId/index'
 import { Route as MobileRoletaMesaIdUm1fatorRouteImport } from './routes/mobile/roleta/$mesaId/um1fator'
 import { Route as MobileRoletaMesaIdDois2fatoresRouteImport } from './routes/mobile/roleta/$mesaId/dois2fatores'
 import { Route as ApiRouletteStrategyGlobalStreamRouteImport } from './routes/api/roulette/strategy-global.stream'
 import { Route as ApiRouletteStrategyGlobalResetRouteImport } from './routes/api/roulette/strategy-global.reset'
+import { Route as ApiRouletteRotatingRoomStreamRouteImport } from './routes/api/roulette/rotating-room.stream'
+import { Route as ApiRouletteAutomationSimStreamRouteImport } from './routes/api/roulette/automation-sim.stream'
+import { Route as ApiBackOfficeWithdrawalsWithdrawalIdRouteImport } from './routes/api/back-office/withdrawals.$withdrawalId'
+import { Route as ApiBackOfficeSubscriptionPayRouteImport } from './routes/api/back-office/subscription/pay'
+import { Route as ApiBackOfficePackagesPurchaseRouteImport } from './routes/api/back-office/packages/purchase'
+import { Route as ApiBackOfficePackagesMineRouteImport } from './routes/api/back-office/packages/mine'
+import { Route as ApiBackOfficeNetworkSubAccountsRouteImport } from './routes/api/back-office/network/sub-accounts'
+import { Route as ApiBackOfficeNetworkQualificationRouteImport } from './routes/api/back-office/network/qualification'
+import { Route as ApiBackOfficeNetworkBonusesRouteImport } from './routes/api/back-office/network/bonuses'
+import { Route as ApiBackOfficeNetworkBinaryRouteImport } from './routes/api/back-office/network/binary'
+import { Route as ApiBackOfficeNetworkAffiliatesRouteImport } from './routes/api/back-office/network/affiliates'
+import { Route as ApiBackOfficeDepositsDepositIdRouteImport } from './routes/api/back-office/deposits.$depositId'
+import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/back-office/automation/daily'
+import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
 
 const UmFatorRoute = UmFatorRouteImport.update({
   id: '/um-fator',
@@ -88,6 +128,16 @@ const RuasRoute = RuasRouteImport.update({
   path: '/ruas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegistarRoute = RegistarRouteImport.update({
+  id: '/registar',
+  path: '/registar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PragmaticRunnerRoute = PragmaticRunnerRouteImport.update({
+  id: '/pragmatic-runner',
+  path: '/pragmatic-runner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Numeros28pctRoute = Numeros28pctRouteImport.update({
   id: '/numeros-28pct',
   path: '/numeros-28pct',
@@ -101,6 +151,11 @@ const MobileRoute = MobileRouteImport.update({
 const FootballBlitzRoute = FootballBlitzRouteImport.update({
   id: '/football-blitz',
   path: '/football-blitz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntrarRoute = EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DoisFatoresRoute = DoisFatoresRouteImport.update({
@@ -118,9 +173,19 @@ const DamasRoute = DamasRouteImport.update({
   path: '/damas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CassinoRoute = CassinoRouteImport.update({
+  id: '/cassino',
+  path: '/cassino',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CasinoMesaRoute = CasinoMesaRouteImport.update({
   id: '/casino-mesa',
   path: '/casino-mesa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BackOfficeRoute = BackOfficeRouteImport.update({
+  id: '/back-office',
+  path: '/back-office',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -132,6 +197,11 @@ const MobileIndexRoute = MobileIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MobileRoute,
+} as any)
+const BackOfficeIndexRoute = BackOfficeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BackOfficeRoute,
 } as any)
 const MobileUm1fatorRoute = MobileUm1fatorRouteImport.update({
   id: '/um1fator',
@@ -148,6 +218,16 @@ const MobileDois2fatoresRoute = MobileDois2fatoresRouteImport.update({
   path: '/dois2fatores',
   getParentRoute: () => MobileRoute,
 } as any)
+const BackOfficeSuporteRoute = BackOfficeSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => BackOfficeRoute,
+} as any)
+const BackOfficeGroupIdRoute = BackOfficeGroupIdRouteImport.update({
+  id: '/$groupId',
+  path: '/$groupId',
+  getParentRoute: () => BackOfficeRoute,
+} as any)
 const ApiRawRoute = ApiRawRouteImport.update({
   id: '/api/raw',
   path: '/api/raw',
@@ -163,6 +243,22 @@ const ApiDamasRoute = ApiDamasRouteImport.update({
   path: '/api/damas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BackOfficeGroupIdIndexRoute = BackOfficeGroupIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BackOfficeGroupIdRoute,
+} as any)
+const BackOfficeGroupIdModuleIdRoute =
+  BackOfficeGroupIdModuleIdRouteImport.update({
+    id: '/$moduleId',
+    path: '/$moduleId',
+    getParentRoute: () => BackOfficeGroupIdRoute,
+  } as any)
+const ApiRouletteTableMetaRoute = ApiRouletteTableMetaRouteImport.update({
+  id: '/api/roulette/table-meta',
+  path: '/api/roulette/table-meta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRouletteStrategyGlobalRoute =
   ApiRouletteStrategyGlobalRouteImport.update({
     id: '/api/roulette/strategy-global',
@@ -174,6 +270,17 @@ const ApiRouletteSpinsRoute = ApiRouletteSpinsRouteImport.update({
   path: '/api/roulette/spins',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRouletteRotatingRoomRoute = ApiRouletteRotatingRoomRouteImport.update({
+  id: '/api/roulette/rotating-room',
+  path: '/api/roulette/rotating-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouletteAutomationSimRoute =
+  ApiRouletteAutomationSimRouteImport.update({
+    id: '/api/roulette/automation-sim',
+    path: '/api/roulette/automation-sim',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPragmaticFootballBlitzSpinsRoute =
   ApiPragmaticFootballBlitzSpinsRouteImport.update({
     id: '/api/pragmatic/football-blitz-spins',
@@ -186,6 +293,73 @@ const ApiPragmatic24dSpinSpinsRoute =
     path: '/api/pragmatic/24d-spin-spins',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCronDailyAutomationRoute = ApiCronDailyAutomationRouteImport.update({
+  id: '/api/cron/daily-automation',
+  path: '/api/cron/daily-automation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeWithdrawalsRoute =
+  ApiBackOfficeWithdrawalsRouteImport.update({
+    id: '/api/back-office/withdrawals',
+    path: '/api/back-office/withdrawals',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeWalletRoute = ApiBackOfficeWalletRouteImport.update({
+  id: '/api/back-office/wallet',
+  path: '/api/back-office/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeUsersRoute = ApiBackOfficeUsersRouteImport.update({
+  id: '/api/back-office/users',
+  path: '/api/back-office/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeSubscriptionRoute =
+  ApiBackOfficeSubscriptionRouteImport.update({
+    id: '/api/back-office/subscription',
+    path: '/api/back-office/subscription',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficePackagesRoute = ApiBackOfficePackagesRouteImport.update({
+  id: '/api/back-office/packages',
+  path: '/api/back-office/packages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeOverviewRoute = ApiBackOfficeOverviewRouteImport.update({
+  id: '/api/back-office/overview',
+  path: '/api/back-office/overview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeLedgerRoute = ApiBackOfficeLedgerRouteImport.update({
+  id: '/api/back-office/ledger',
+  path: '/api/back-office/ledger',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackOfficeDepositsRoute = ApiBackOfficeDepositsRouteImport.update({
+  id: '/api/back-office/deposits',
+  path: '/api/back-office/deposits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRegisterRoute = ApiAuthRegisterRouteImport.update({
+  id: '/api/auth/register',
+  path: '/api/auth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
+  id: '/api/auth/me',
+  path: '/api/auth/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MobileRoletaMesaIdIndexRoute = MobileRoletaMesaIdIndexRouteImport.update({
   id: '/roleta/$mesaId/',
   path: '/roleta/$mesaId/',
@@ -215,16 +389,105 @@ const ApiRouletteStrategyGlobalResetRoute =
     path: '/reset',
     getParentRoute: () => ApiRouletteStrategyGlobalRoute,
   } as any)
+const ApiRouletteRotatingRoomStreamRoute =
+  ApiRouletteRotatingRoomStreamRouteImport.update({
+    id: '/stream',
+    path: '/stream',
+    getParentRoute: () => ApiRouletteRotatingRoomRoute,
+  } as any)
+const ApiRouletteAutomationSimStreamRoute =
+  ApiRouletteAutomationSimStreamRouteImport.update({
+    id: '/stream',
+    path: '/stream',
+    getParentRoute: () => ApiRouletteAutomationSimRoute,
+  } as any)
+const ApiBackOfficeWithdrawalsWithdrawalIdRoute =
+  ApiBackOfficeWithdrawalsWithdrawalIdRouteImport.update({
+    id: '/$withdrawalId',
+    path: '/$withdrawalId',
+    getParentRoute: () => ApiBackOfficeWithdrawalsRoute,
+  } as any)
+const ApiBackOfficeSubscriptionPayRoute =
+  ApiBackOfficeSubscriptionPayRouteImport.update({
+    id: '/pay',
+    path: '/pay',
+    getParentRoute: () => ApiBackOfficeSubscriptionRoute,
+  } as any)
+const ApiBackOfficePackagesPurchaseRoute =
+  ApiBackOfficePackagesPurchaseRouteImport.update({
+    id: '/purchase',
+    path: '/purchase',
+    getParentRoute: () => ApiBackOfficePackagesRoute,
+  } as any)
+const ApiBackOfficePackagesMineRoute =
+  ApiBackOfficePackagesMineRouteImport.update({
+    id: '/mine',
+    path: '/mine',
+    getParentRoute: () => ApiBackOfficePackagesRoute,
+  } as any)
+const ApiBackOfficeNetworkSubAccountsRoute =
+  ApiBackOfficeNetworkSubAccountsRouteImport.update({
+    id: '/api/back-office/network/sub-accounts',
+    path: '/api/back-office/network/sub-accounts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeNetworkQualificationRoute =
+  ApiBackOfficeNetworkQualificationRouteImport.update({
+    id: '/api/back-office/network/qualification',
+    path: '/api/back-office/network/qualification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeNetworkBonusesRoute =
+  ApiBackOfficeNetworkBonusesRouteImport.update({
+    id: '/api/back-office/network/bonuses',
+    path: '/api/back-office/network/bonuses',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeNetworkBinaryRoute =
+  ApiBackOfficeNetworkBinaryRouteImport.update({
+    id: '/api/back-office/network/binary',
+    path: '/api/back-office/network/binary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeNetworkAffiliatesRoute =
+  ApiBackOfficeNetworkAffiliatesRouteImport.update({
+    id: '/api/back-office/network/affiliates',
+    path: '/api/back-office/network/affiliates',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeDepositsDepositIdRoute =
+  ApiBackOfficeDepositsDepositIdRouteImport.update({
+    id: '/$depositId',
+    path: '/$depositId',
+    getParentRoute: () => ApiBackOfficeDepositsRoute,
+  } as any)
+const ApiBackOfficeAutomationDailyRoute =
+  ApiBackOfficeAutomationDailyRouteImport.update({
+    id: '/api/back-office/automation/daily',
+    path: '/api/back-office/automation/daily',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute =
+  ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport.update({
+    id: '/$subAccountId/start',
+    path: '/$subAccountId/start',
+    getParentRoute: () => ApiBackOfficeNetworkSubAccountsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/back-office': typeof BackOfficeRouteWithChildren
   '/casino-mesa': typeof CasinoMesaRoute
+  '/cassino': typeof CassinoRoute
   '/damas': typeof DamasRoute
   '/doc-calculadora-roulette': typeof DocCalculadoraRouletteRoute
   '/dois-fatores': typeof DoisFatoresRoute
+  '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
   '/mobile': typeof MobileRouteWithChildren
   '/numeros-28pct': typeof Numeros28pctRoute
+  '/pragmatic-runner': typeof PragmaticRunnerRoute
+  '/registar': typeof RegistarRoute
   '/ruas': typeof RuasRoute
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
@@ -237,28 +500,67 @@ export interface FileRoutesByFullPath {
   '/api/damas': typeof ApiDamasRoute
   '/api/events': typeof ApiEventsRoute
   '/api/raw': typeof ApiRawRoute
+  '/back-office/$groupId': typeof BackOfficeGroupIdRouteWithChildren
+  '/back-office/suporte': typeof BackOfficeSuporteRoute
   '/mobile/dois2fatores': typeof MobileDois2fatoresRoute
   '/mobile/perfil': typeof MobilePerfilRoute
   '/mobile/um1fator': typeof MobileUm1fatorRoute
+  '/back-office/': typeof BackOfficeIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
+  '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
+  '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
+  '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
+  '/api/back-office/subscription': typeof ApiBackOfficeSubscriptionRouteWithChildren
+  '/api/back-office/users': typeof ApiBackOfficeUsersRoute
+  '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
+  '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
+  '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
+  '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
+  '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
+  '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
+  '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
+  '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
+  '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
+  '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
+  '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
+  '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
+  '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
+  '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
   '/api/roulette/strategy-global/stream': typeof ApiRouletteStrategyGlobalStreamRoute
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/casino-mesa': typeof CasinoMesaRoute
+  '/cassino': typeof CassinoRoute
   '/damas': typeof DamasRoute
   '/doc-calculadora-roulette': typeof DocCalculadoraRouletteRoute
   '/dois-fatores': typeof DoisFatoresRoute
+  '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
   '/numeros-28pct': typeof Numeros28pctRoute
+  '/pragmatic-runner': typeof PragmaticRunnerRoute
+  '/registar': typeof RegistarRoute
   '/ruas': typeof RuasRoute
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
@@ -271,30 +573,69 @@ export interface FileRoutesByTo {
   '/api/damas': typeof ApiDamasRoute
   '/api/events': typeof ApiEventsRoute
   '/api/raw': typeof ApiRawRoute
+  '/back-office/suporte': typeof BackOfficeSuporteRoute
   '/mobile/dois2fatores': typeof MobileDois2fatoresRoute
   '/mobile/perfil': typeof MobilePerfilRoute
   '/mobile/um1fator': typeof MobileUm1fatorRoute
+  '/back-office': typeof BackOfficeIndexRoute
   '/mobile': typeof MobileIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
+  '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
+  '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
+  '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
+  '/api/back-office/subscription': typeof ApiBackOfficeSubscriptionRouteWithChildren
+  '/api/back-office/users': typeof ApiBackOfficeUsersRoute
+  '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
+  '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
+  '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
+  '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
+  '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
+  '/back-office/$groupId': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
+  '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
+  '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
+  '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
+  '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
+  '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
+  '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
+  '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
+  '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
   '/api/roulette/strategy-global/stream': typeof ApiRouletteStrategyGlobalStreamRoute
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/back-office': typeof BackOfficeRouteWithChildren
   '/casino-mesa': typeof CasinoMesaRoute
+  '/cassino': typeof CassinoRoute
   '/damas': typeof DamasRoute
   '/doc-calculadora-roulette': typeof DocCalculadoraRouletteRoute
   '/dois-fatores': typeof DoisFatoresRoute
+  '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
   '/mobile': typeof MobileRouteWithChildren
   '/numeros-28pct': typeof Numeros28pctRoute
+  '/pragmatic-runner': typeof PragmaticRunnerRoute
+  '/registar': typeof RegistarRoute
   '/ruas': typeof RuasRoute
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
@@ -307,31 +648,71 @@ export interface FileRoutesById {
   '/api/damas': typeof ApiDamasRoute
   '/api/events': typeof ApiEventsRoute
   '/api/raw': typeof ApiRawRoute
+  '/back-office/$groupId': typeof BackOfficeGroupIdRouteWithChildren
+  '/back-office/suporte': typeof BackOfficeSuporteRoute
   '/mobile/dois2fatores': typeof MobileDois2fatoresRoute
   '/mobile/perfil': typeof MobilePerfilRoute
   '/mobile/um1fator': typeof MobileUm1fatorRoute
+  '/back-office/': typeof BackOfficeIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
+  '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
+  '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
+  '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
+  '/api/back-office/subscription': typeof ApiBackOfficeSubscriptionRouteWithChildren
+  '/api/back-office/users': typeof ApiBackOfficeUsersRoute
+  '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
+  '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
+  '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
+  '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
+  '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
+  '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
+  '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
+  '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
+  '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
+  '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
+  '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
+  '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
+  '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
+  '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
   '/api/roulette/strategy-global/stream': typeof ApiRouletteStrategyGlobalStreamRoute
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/back-office'
     | '/casino-mesa'
+    | '/cassino'
     | '/damas'
     | '/doc-calculadora-roulette'
     | '/dois-fatores'
+    | '/entrar'
     | '/football-blitz'
     | '/mobile'
     | '/numeros-28pct'
+    | '/pragmatic-runner'
+    | '/registar'
     | '/ruas'
     | '/ruas-10pct'
     | '/ruas-25pct'
@@ -344,28 +725,67 @@ export interface FileRouteTypes {
     | '/api/damas'
     | '/api/events'
     | '/api/raw'
+    | '/back-office/$groupId'
+    | '/back-office/suporte'
     | '/mobile/dois2fatores'
     | '/mobile/perfil'
     | '/mobile/um1fator'
+    | '/back-office/'
     | '/mobile/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/auth/register'
+    | '/api/back-office/deposits'
+    | '/api/back-office/ledger'
+    | '/api/back-office/overview'
+    | '/api/back-office/packages'
+    | '/api/back-office/subscription'
+    | '/api/back-office/users'
+    | '/api/back-office/wallet'
+    | '/api/back-office/withdrawals'
+    | '/api/cron/daily-automation'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
+    | '/api/roulette/automation-sim'
+    | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
+    | '/api/roulette/table-meta'
+    | '/back-office/$groupId/$moduleId'
+    | '/back-office/$groupId/'
+    | '/api/back-office/automation/daily'
+    | '/api/back-office/deposits/$depositId'
+    | '/api/back-office/network/affiliates'
+    | '/api/back-office/network/binary'
+    | '/api/back-office/network/bonuses'
+    | '/api/back-office/network/qualification'
+    | '/api/back-office/network/sub-accounts'
+    | '/api/back-office/packages/mine'
+    | '/api/back-office/packages/purchase'
+    | '/api/back-office/subscription/pay'
+    | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/roulette/automation-sim/stream'
+    | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
     | '/api/roulette/strategy-global/stream'
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/casino-mesa'
+    | '/cassino'
     | '/damas'
     | '/doc-calculadora-roulette'
     | '/dois-fatores'
+    | '/entrar'
     | '/football-blitz'
     | '/numeros-28pct'
+    | '/pragmatic-runner'
+    | '/registar'
     | '/ruas'
     | '/ruas-10pct'
     | '/ruas-25pct'
@@ -378,29 +798,68 @@ export interface FileRouteTypes {
     | '/api/damas'
     | '/api/events'
     | '/api/raw'
+    | '/back-office/suporte'
     | '/mobile/dois2fatores'
     | '/mobile/perfil'
     | '/mobile/um1fator'
+    | '/back-office'
     | '/mobile'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/auth/register'
+    | '/api/back-office/deposits'
+    | '/api/back-office/ledger'
+    | '/api/back-office/overview'
+    | '/api/back-office/packages'
+    | '/api/back-office/subscription'
+    | '/api/back-office/users'
+    | '/api/back-office/wallet'
+    | '/api/back-office/withdrawals'
+    | '/api/cron/daily-automation'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
+    | '/api/roulette/automation-sim'
+    | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
+    | '/api/roulette/table-meta'
+    | '/back-office/$groupId/$moduleId'
+    | '/back-office/$groupId'
+    | '/api/back-office/automation/daily'
+    | '/api/back-office/deposits/$depositId'
+    | '/api/back-office/network/affiliates'
+    | '/api/back-office/network/binary'
+    | '/api/back-office/network/bonuses'
+    | '/api/back-office/network/qualification'
+    | '/api/back-office/network/sub-accounts'
+    | '/api/back-office/packages/mine'
+    | '/api/back-office/packages/purchase'
+    | '/api/back-office/subscription/pay'
+    | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/roulette/automation-sim/stream'
+    | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
     | '/api/roulette/strategy-global/stream'
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId'
+    | '/api/back-office/network/sub-accounts/$subAccountId/start'
   id:
     | '__root__'
     | '/'
+    | '/back-office'
     | '/casino-mesa'
+    | '/cassino'
     | '/damas'
     | '/doc-calculadora-roulette'
     | '/dois-fatores'
+    | '/entrar'
     | '/football-blitz'
     | '/mobile'
     | '/numeros-28pct'
+    | '/pragmatic-runner'
+    | '/registar'
     | '/ruas'
     | '/ruas-10pct'
     | '/ruas-25pct'
@@ -413,30 +872,70 @@ export interface FileRouteTypes {
     | '/api/damas'
     | '/api/events'
     | '/api/raw'
+    | '/back-office/$groupId'
+    | '/back-office/suporte'
     | '/mobile/dois2fatores'
     | '/mobile/perfil'
     | '/mobile/um1fator'
+    | '/back-office/'
     | '/mobile/'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/me'
+    | '/api/auth/register'
+    | '/api/back-office/deposits'
+    | '/api/back-office/ledger'
+    | '/api/back-office/overview'
+    | '/api/back-office/packages'
+    | '/api/back-office/subscription'
+    | '/api/back-office/users'
+    | '/api/back-office/wallet'
+    | '/api/back-office/withdrawals'
+    | '/api/cron/daily-automation'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
+    | '/api/roulette/automation-sim'
+    | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
+    | '/api/roulette/table-meta'
+    | '/back-office/$groupId/$moduleId'
+    | '/back-office/$groupId/'
+    | '/api/back-office/automation/daily'
+    | '/api/back-office/deposits/$depositId'
+    | '/api/back-office/network/affiliates'
+    | '/api/back-office/network/binary'
+    | '/api/back-office/network/bonuses'
+    | '/api/back-office/network/qualification'
+    | '/api/back-office/network/sub-accounts'
+    | '/api/back-office/packages/mine'
+    | '/api/back-office/packages/purchase'
+    | '/api/back-office/subscription/pay'
+    | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/roulette/automation-sim/stream'
+    | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
     | '/api/roulette/strategy-global/stream'
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BackOfficeRoute: typeof BackOfficeRouteWithChildren
   CasinoMesaRoute: typeof CasinoMesaRoute
+  CassinoRoute: typeof CassinoRoute
   DamasRoute: typeof DamasRoute
   DocCalculadoraRouletteRoute: typeof DocCalculadoraRouletteRoute
   DoisFatoresRoute: typeof DoisFatoresRoute
+  EntrarRoute: typeof EntrarRoute
   FootballBlitzRoute: typeof FootballBlitzRoute
   MobileRoute: typeof MobileRouteWithChildren
   Numeros28pctRoute: typeof Numeros28pctRoute
+  PragmaticRunnerRoute: typeof PragmaticRunnerRoute
+  RegistarRoute: typeof RegistarRoute
   RuasRoute: typeof RuasRoute
   Ruas10pctRoute: typeof Ruas10pctRoute
   Ruas25pctRoute: typeof Ruas25pctRoute
@@ -449,10 +948,32 @@ export interface RootRouteChildren {
   ApiDamasRoute: typeof ApiDamasRoute
   ApiEventsRoute: typeof ApiEventsRoute
   ApiRawRoute: typeof ApiRawRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthMeRoute: typeof ApiAuthMeRoute
+  ApiAuthRegisterRoute: typeof ApiAuthRegisterRoute
+  ApiBackOfficeDepositsRoute: typeof ApiBackOfficeDepositsRouteWithChildren
+  ApiBackOfficeLedgerRoute: typeof ApiBackOfficeLedgerRoute
+  ApiBackOfficeOverviewRoute: typeof ApiBackOfficeOverviewRoute
+  ApiBackOfficePackagesRoute: typeof ApiBackOfficePackagesRouteWithChildren
+  ApiBackOfficeSubscriptionRoute: typeof ApiBackOfficeSubscriptionRouteWithChildren
+  ApiBackOfficeUsersRoute: typeof ApiBackOfficeUsersRoute
+  ApiBackOfficeWalletRoute: typeof ApiBackOfficeWalletRoute
+  ApiBackOfficeWithdrawalsRoute: typeof ApiBackOfficeWithdrawalsRouteWithChildren
+  ApiCronDailyAutomationRoute: typeof ApiCronDailyAutomationRoute
   ApiPragmatic24dSpinSpinsRoute: typeof ApiPragmatic24dSpinSpinsRoute
   ApiPragmaticFootballBlitzSpinsRoute: typeof ApiPragmaticFootballBlitzSpinsRoute
+  ApiRouletteAutomationSimRoute: typeof ApiRouletteAutomationSimRouteWithChildren
+  ApiRouletteRotatingRoomRoute: typeof ApiRouletteRotatingRoomRouteWithChildren
   ApiRouletteSpinsRoute: typeof ApiRouletteSpinsRoute
   ApiRouletteStrategyGlobalRoute: typeof ApiRouletteStrategyGlobalRouteWithChildren
+  ApiRouletteTableMetaRoute: typeof ApiRouletteTableMetaRoute
+  ApiBackOfficeAutomationDailyRoute: typeof ApiBackOfficeAutomationDailyRoute
+  ApiBackOfficeNetworkAffiliatesRoute: typeof ApiBackOfficeNetworkAffiliatesRoute
+  ApiBackOfficeNetworkBinaryRoute: typeof ApiBackOfficeNetworkBinaryRoute
+  ApiBackOfficeNetworkBonusesRoute: typeof ApiBackOfficeNetworkBonusesRoute
+  ApiBackOfficeNetworkQualificationRoute: typeof ApiBackOfficeNetworkQualificationRoute
+  ApiBackOfficeNetworkSubAccountsRoute: typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -520,6 +1041,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RuasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/registar': {
+      id: '/registar'
+      path: '/registar'
+      fullPath: '/registar'
+      preLoaderRoute: typeof RegistarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pragmatic-runner': {
+      id: '/pragmatic-runner'
+      path: '/pragmatic-runner'
+      fullPath: '/pragmatic-runner'
+      preLoaderRoute: typeof PragmaticRunnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/numeros-28pct': {
       id: '/numeros-28pct'
       path: '/numeros-28pct'
@@ -539,6 +1074,13 @@ declare module '@tanstack/react-router' {
       path: '/football-blitz'
       fullPath: '/football-blitz'
       preLoaderRoute: typeof FootballBlitzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entrar': {
+      id: '/entrar'
+      path: '/entrar'
+      fullPath: '/entrar'
+      preLoaderRoute: typeof EntrarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dois-fatores': {
@@ -562,11 +1104,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DamasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cassino': {
+      id: '/cassino'
+      path: '/cassino'
+      fullPath: '/cassino'
+      preLoaderRoute: typeof CassinoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/casino-mesa': {
       id: '/casino-mesa'
       path: '/casino-mesa'
       fullPath: '/casino-mesa'
       preLoaderRoute: typeof CasinoMesaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/back-office': {
+      id: '/back-office'
+      path: '/back-office'
+      fullPath: '/back-office'
+      preLoaderRoute: typeof BackOfficeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -582,6 +1138,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/mobile/'
       preLoaderRoute: typeof MobileIndexRouteImport
       parentRoute: typeof MobileRoute
+    }
+    '/back-office/': {
+      id: '/back-office/'
+      path: '/'
+      fullPath: '/back-office/'
+      preLoaderRoute: typeof BackOfficeIndexRouteImport
+      parentRoute: typeof BackOfficeRoute
     }
     '/mobile/um1fator': {
       id: '/mobile/um1fator'
@@ -604,6 +1167,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileDois2fatoresRouteImport
       parentRoute: typeof MobileRoute
     }
+    '/back-office/suporte': {
+      id: '/back-office/suporte'
+      path: '/suporte'
+      fullPath: '/back-office/suporte'
+      preLoaderRoute: typeof BackOfficeSuporteRouteImport
+      parentRoute: typeof BackOfficeRoute
+    }
+    '/back-office/$groupId': {
+      id: '/back-office/$groupId'
+      path: '/$groupId'
+      fullPath: '/back-office/$groupId'
+      preLoaderRoute: typeof BackOfficeGroupIdRouteImport
+      parentRoute: typeof BackOfficeRoute
+    }
     '/api/raw': {
       id: '/api/raw'
       path: '/api/raw'
@@ -625,6 +1202,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDamasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/back-office/$groupId/': {
+      id: '/back-office/$groupId/'
+      path: '/'
+      fullPath: '/back-office/$groupId/'
+      preLoaderRoute: typeof BackOfficeGroupIdIndexRouteImport
+      parentRoute: typeof BackOfficeGroupIdRoute
+    }
+    '/back-office/$groupId/$moduleId': {
+      id: '/back-office/$groupId/$moduleId'
+      path: '/$moduleId'
+      fullPath: '/back-office/$groupId/$moduleId'
+      preLoaderRoute: typeof BackOfficeGroupIdModuleIdRouteImport
+      parentRoute: typeof BackOfficeGroupIdRoute
+    }
+    '/api/roulette/table-meta': {
+      id: '/api/roulette/table-meta'
+      path: '/api/roulette/table-meta'
+      fullPath: '/api/roulette/table-meta'
+      preLoaderRoute: typeof ApiRouletteTableMetaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/roulette/strategy-global': {
       id: '/api/roulette/strategy-global'
       path: '/api/roulette/strategy-global'
@@ -639,6 +1237,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRouletteSpinsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/roulette/rotating-room': {
+      id: '/api/roulette/rotating-room'
+      path: '/api/roulette/rotating-room'
+      fullPath: '/api/roulette/rotating-room'
+      preLoaderRoute: typeof ApiRouletteRotatingRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/roulette/automation-sim': {
+      id: '/api/roulette/automation-sim'
+      path: '/api/roulette/automation-sim'
+      fullPath: '/api/roulette/automation-sim'
+      preLoaderRoute: typeof ApiRouletteAutomationSimRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pragmatic/football-blitz-spins': {
       id: '/api/pragmatic/football-blitz-spins'
       path: '/api/pragmatic/football-blitz-spins'
@@ -651,6 +1263,97 @@ declare module '@tanstack/react-router' {
       path: '/api/pragmatic/24d-spin-spins'
       fullPath: '/api/pragmatic/24d-spin-spins'
       preLoaderRoute: typeof ApiPragmatic24dSpinSpinsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/daily-automation': {
+      id: '/api/cron/daily-automation'
+      path: '/api/cron/daily-automation'
+      fullPath: '/api/cron/daily-automation'
+      preLoaderRoute: typeof ApiCronDailyAutomationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/withdrawals': {
+      id: '/api/back-office/withdrawals'
+      path: '/api/back-office/withdrawals'
+      fullPath: '/api/back-office/withdrawals'
+      preLoaderRoute: typeof ApiBackOfficeWithdrawalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/wallet': {
+      id: '/api/back-office/wallet'
+      path: '/api/back-office/wallet'
+      fullPath: '/api/back-office/wallet'
+      preLoaderRoute: typeof ApiBackOfficeWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/users': {
+      id: '/api/back-office/users'
+      path: '/api/back-office/users'
+      fullPath: '/api/back-office/users'
+      preLoaderRoute: typeof ApiBackOfficeUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/subscription': {
+      id: '/api/back-office/subscription'
+      path: '/api/back-office/subscription'
+      fullPath: '/api/back-office/subscription'
+      preLoaderRoute: typeof ApiBackOfficeSubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/packages': {
+      id: '/api/back-office/packages'
+      path: '/api/back-office/packages'
+      fullPath: '/api/back-office/packages'
+      preLoaderRoute: typeof ApiBackOfficePackagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/overview': {
+      id: '/api/back-office/overview'
+      path: '/api/back-office/overview'
+      fullPath: '/api/back-office/overview'
+      preLoaderRoute: typeof ApiBackOfficeOverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/ledger': {
+      id: '/api/back-office/ledger'
+      path: '/api/back-office/ledger'
+      fullPath: '/api/back-office/ledger'
+      preLoaderRoute: typeof ApiBackOfficeLedgerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/deposits': {
+      id: '/api/back-office/deposits'
+      path: '/api/back-office/deposits'
+      fullPath: '/api/back-office/deposits'
+      preLoaderRoute: typeof ApiBackOfficeDepositsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/register': {
+      id: '/api/auth/register'
+      path: '/api/auth/register'
+      fullPath: '/api/auth/register'
+      preLoaderRoute: typeof ApiAuthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/me': {
+      id: '/api/auth/me'
+      path: '/api/auth/me'
+      fullPath: '/api/auth/me'
+      preLoaderRoute: typeof ApiAuthMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mobile/roleta/$mesaId/': {
@@ -688,8 +1391,135 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRouletteStrategyGlobalResetRouteImport
       parentRoute: typeof ApiRouletteStrategyGlobalRoute
     }
+    '/api/roulette/rotating-room/stream': {
+      id: '/api/roulette/rotating-room/stream'
+      path: '/stream'
+      fullPath: '/api/roulette/rotating-room/stream'
+      preLoaderRoute: typeof ApiRouletteRotatingRoomStreamRouteImport
+      parentRoute: typeof ApiRouletteRotatingRoomRoute
+    }
+    '/api/roulette/automation-sim/stream': {
+      id: '/api/roulette/automation-sim/stream'
+      path: '/stream'
+      fullPath: '/api/roulette/automation-sim/stream'
+      preLoaderRoute: typeof ApiRouletteAutomationSimStreamRouteImport
+      parentRoute: typeof ApiRouletteAutomationSimRoute
+    }
+    '/api/back-office/withdrawals/$withdrawalId': {
+      id: '/api/back-office/withdrawals/$withdrawalId'
+      path: '/$withdrawalId'
+      fullPath: '/api/back-office/withdrawals/$withdrawalId'
+      preLoaderRoute: typeof ApiBackOfficeWithdrawalsWithdrawalIdRouteImport
+      parentRoute: typeof ApiBackOfficeWithdrawalsRoute
+    }
+    '/api/back-office/subscription/pay': {
+      id: '/api/back-office/subscription/pay'
+      path: '/pay'
+      fullPath: '/api/back-office/subscription/pay'
+      preLoaderRoute: typeof ApiBackOfficeSubscriptionPayRouteImport
+      parentRoute: typeof ApiBackOfficeSubscriptionRoute
+    }
+    '/api/back-office/packages/purchase': {
+      id: '/api/back-office/packages/purchase'
+      path: '/purchase'
+      fullPath: '/api/back-office/packages/purchase'
+      preLoaderRoute: typeof ApiBackOfficePackagesPurchaseRouteImport
+      parentRoute: typeof ApiBackOfficePackagesRoute
+    }
+    '/api/back-office/packages/mine': {
+      id: '/api/back-office/packages/mine'
+      path: '/mine'
+      fullPath: '/api/back-office/packages/mine'
+      preLoaderRoute: typeof ApiBackOfficePackagesMineRouteImport
+      parentRoute: typeof ApiBackOfficePackagesRoute
+    }
+    '/api/back-office/network/sub-accounts': {
+      id: '/api/back-office/network/sub-accounts'
+      path: '/api/back-office/network/sub-accounts'
+      fullPath: '/api/back-office/network/sub-accounts'
+      preLoaderRoute: typeof ApiBackOfficeNetworkSubAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/network/qualification': {
+      id: '/api/back-office/network/qualification'
+      path: '/api/back-office/network/qualification'
+      fullPath: '/api/back-office/network/qualification'
+      preLoaderRoute: typeof ApiBackOfficeNetworkQualificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/network/bonuses': {
+      id: '/api/back-office/network/bonuses'
+      path: '/api/back-office/network/bonuses'
+      fullPath: '/api/back-office/network/bonuses'
+      preLoaderRoute: typeof ApiBackOfficeNetworkBonusesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/network/binary': {
+      id: '/api/back-office/network/binary'
+      path: '/api/back-office/network/binary'
+      fullPath: '/api/back-office/network/binary'
+      preLoaderRoute: typeof ApiBackOfficeNetworkBinaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/network/affiliates': {
+      id: '/api/back-office/network/affiliates'
+      path: '/api/back-office/network/affiliates'
+      fullPath: '/api/back-office/network/affiliates'
+      preLoaderRoute: typeof ApiBackOfficeNetworkAffiliatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/deposits/$depositId': {
+      id: '/api/back-office/deposits/$depositId'
+      path: '/$depositId'
+      fullPath: '/api/back-office/deposits/$depositId'
+      preLoaderRoute: typeof ApiBackOfficeDepositsDepositIdRouteImport
+      parentRoute: typeof ApiBackOfficeDepositsRoute
+    }
+    '/api/back-office/automation/daily': {
+      id: '/api/back-office/automation/daily'
+      path: '/api/back-office/automation/daily'
+      fullPath: '/api/back-office/automation/daily'
+      preLoaderRoute: typeof ApiBackOfficeAutomationDailyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/network/sub-accounts/$subAccountId/start': {
+      id: '/api/back-office/network/sub-accounts/$subAccountId/start'
+      path: '/$subAccountId/start'
+      fullPath: '/api/back-office/network/sub-accounts/$subAccountId/start'
+      preLoaderRoute: typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport
+      parentRoute: typeof ApiBackOfficeNetworkSubAccountsRoute
+    }
   }
 }
+
+interface BackOfficeGroupIdRouteChildren {
+  BackOfficeGroupIdModuleIdRoute: typeof BackOfficeGroupIdModuleIdRoute
+  BackOfficeGroupIdIndexRoute: typeof BackOfficeGroupIdIndexRoute
+}
+
+const BackOfficeGroupIdRouteChildren: BackOfficeGroupIdRouteChildren = {
+  BackOfficeGroupIdModuleIdRoute: BackOfficeGroupIdModuleIdRoute,
+  BackOfficeGroupIdIndexRoute: BackOfficeGroupIdIndexRoute,
+}
+
+const BackOfficeGroupIdRouteWithChildren =
+  BackOfficeGroupIdRoute._addFileChildren(BackOfficeGroupIdRouteChildren)
+
+interface BackOfficeRouteChildren {
+  BackOfficeGroupIdRoute: typeof BackOfficeGroupIdRouteWithChildren
+  BackOfficeSuporteRoute: typeof BackOfficeSuporteRoute
+  BackOfficeIndexRoute: typeof BackOfficeIndexRoute
+}
+
+const BackOfficeRouteChildren: BackOfficeRouteChildren = {
+  BackOfficeGroupIdRoute: BackOfficeGroupIdRouteWithChildren,
+  BackOfficeSuporteRoute: BackOfficeSuporteRoute,
+  BackOfficeIndexRoute: BackOfficeIndexRoute,
+}
+
+const BackOfficeRouteWithChildren = BackOfficeRoute._addFileChildren(
+  BackOfficeRouteChildren,
+)
 
 interface MobileRouteChildren {
   MobileDois2fatoresRoute: typeof MobileDois2fatoresRoute
@@ -714,6 +1544,91 @@ const MobileRouteChildren: MobileRouteChildren = {
 const MobileRouteWithChildren =
   MobileRoute._addFileChildren(MobileRouteChildren)
 
+interface ApiBackOfficeDepositsRouteChildren {
+  ApiBackOfficeDepositsDepositIdRoute: typeof ApiBackOfficeDepositsDepositIdRoute
+}
+
+const ApiBackOfficeDepositsRouteChildren: ApiBackOfficeDepositsRouteChildren = {
+  ApiBackOfficeDepositsDepositIdRoute: ApiBackOfficeDepositsDepositIdRoute,
+}
+
+const ApiBackOfficeDepositsRouteWithChildren =
+  ApiBackOfficeDepositsRoute._addFileChildren(
+    ApiBackOfficeDepositsRouteChildren,
+  )
+
+interface ApiBackOfficePackagesRouteChildren {
+  ApiBackOfficePackagesMineRoute: typeof ApiBackOfficePackagesMineRoute
+  ApiBackOfficePackagesPurchaseRoute: typeof ApiBackOfficePackagesPurchaseRoute
+}
+
+const ApiBackOfficePackagesRouteChildren: ApiBackOfficePackagesRouteChildren = {
+  ApiBackOfficePackagesMineRoute: ApiBackOfficePackagesMineRoute,
+  ApiBackOfficePackagesPurchaseRoute: ApiBackOfficePackagesPurchaseRoute,
+}
+
+const ApiBackOfficePackagesRouteWithChildren =
+  ApiBackOfficePackagesRoute._addFileChildren(
+    ApiBackOfficePackagesRouteChildren,
+  )
+
+interface ApiBackOfficeSubscriptionRouteChildren {
+  ApiBackOfficeSubscriptionPayRoute: typeof ApiBackOfficeSubscriptionPayRoute
+}
+
+const ApiBackOfficeSubscriptionRouteChildren: ApiBackOfficeSubscriptionRouteChildren =
+  {
+    ApiBackOfficeSubscriptionPayRoute: ApiBackOfficeSubscriptionPayRoute,
+  }
+
+const ApiBackOfficeSubscriptionRouteWithChildren =
+  ApiBackOfficeSubscriptionRoute._addFileChildren(
+    ApiBackOfficeSubscriptionRouteChildren,
+  )
+
+interface ApiBackOfficeWithdrawalsRouteChildren {
+  ApiBackOfficeWithdrawalsWithdrawalIdRoute: typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+}
+
+const ApiBackOfficeWithdrawalsRouteChildren: ApiBackOfficeWithdrawalsRouteChildren =
+  {
+    ApiBackOfficeWithdrawalsWithdrawalIdRoute:
+      ApiBackOfficeWithdrawalsWithdrawalIdRoute,
+  }
+
+const ApiBackOfficeWithdrawalsRouteWithChildren =
+  ApiBackOfficeWithdrawalsRoute._addFileChildren(
+    ApiBackOfficeWithdrawalsRouteChildren,
+  )
+
+interface ApiRouletteAutomationSimRouteChildren {
+  ApiRouletteAutomationSimStreamRoute: typeof ApiRouletteAutomationSimStreamRoute
+}
+
+const ApiRouletteAutomationSimRouteChildren: ApiRouletteAutomationSimRouteChildren =
+  {
+    ApiRouletteAutomationSimStreamRoute: ApiRouletteAutomationSimStreamRoute,
+  }
+
+const ApiRouletteAutomationSimRouteWithChildren =
+  ApiRouletteAutomationSimRoute._addFileChildren(
+    ApiRouletteAutomationSimRouteChildren,
+  )
+
+interface ApiRouletteRotatingRoomRouteChildren {
+  ApiRouletteRotatingRoomStreamRoute: typeof ApiRouletteRotatingRoomStreamRoute
+}
+
+const ApiRouletteRotatingRoomRouteChildren: ApiRouletteRotatingRoomRouteChildren =
+  {
+    ApiRouletteRotatingRoomStreamRoute: ApiRouletteRotatingRoomStreamRoute,
+  }
+
+const ApiRouletteRotatingRoomRouteWithChildren =
+  ApiRouletteRotatingRoomRoute._addFileChildren(
+    ApiRouletteRotatingRoomRouteChildren,
+  )
+
 interface ApiRouletteStrategyGlobalRouteChildren {
   ApiRouletteStrategyGlobalResetRoute: typeof ApiRouletteStrategyGlobalResetRoute
   ApiRouletteStrategyGlobalStreamRoute: typeof ApiRouletteStrategyGlobalStreamRoute
@@ -730,15 +1645,35 @@ const ApiRouletteStrategyGlobalRouteWithChildren =
     ApiRouletteStrategyGlobalRouteChildren,
   )
 
+interface ApiBackOfficeNetworkSubAccountsRouteChildren {
+  ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute: typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
+}
+
+const ApiBackOfficeNetworkSubAccountsRouteChildren: ApiBackOfficeNetworkSubAccountsRouteChildren =
+  {
+    ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute:
+      ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute,
+  }
+
+const ApiBackOfficeNetworkSubAccountsRouteWithChildren =
+  ApiBackOfficeNetworkSubAccountsRoute._addFileChildren(
+    ApiBackOfficeNetworkSubAccountsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BackOfficeRoute: BackOfficeRouteWithChildren,
   CasinoMesaRoute: CasinoMesaRoute,
+  CassinoRoute: CassinoRoute,
   DamasRoute: DamasRoute,
   DocCalculadoraRouletteRoute: DocCalculadoraRouletteRoute,
   DoisFatoresRoute: DoisFatoresRoute,
+  EntrarRoute: EntrarRoute,
   FootballBlitzRoute: FootballBlitzRoute,
   MobileRoute: MobileRouteWithChildren,
   Numeros28pctRoute: Numeros28pctRoute,
+  PragmaticRunnerRoute: PragmaticRunnerRoute,
+  RegistarRoute: RegistarRoute,
   RuasRoute: RuasRoute,
   Ruas10pctRoute: Ruas10pctRoute,
   Ruas25pctRoute: Ruas25pctRoute,
@@ -751,10 +1686,34 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDamasRoute: ApiDamasRoute,
   ApiEventsRoute: ApiEventsRoute,
   ApiRawRoute: ApiRawRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthMeRoute: ApiAuthMeRoute,
+  ApiAuthRegisterRoute: ApiAuthRegisterRoute,
+  ApiBackOfficeDepositsRoute: ApiBackOfficeDepositsRouteWithChildren,
+  ApiBackOfficeLedgerRoute: ApiBackOfficeLedgerRoute,
+  ApiBackOfficeOverviewRoute: ApiBackOfficeOverviewRoute,
+  ApiBackOfficePackagesRoute: ApiBackOfficePackagesRouteWithChildren,
+  ApiBackOfficeSubscriptionRoute: ApiBackOfficeSubscriptionRouteWithChildren,
+  ApiBackOfficeUsersRoute: ApiBackOfficeUsersRoute,
+  ApiBackOfficeWalletRoute: ApiBackOfficeWalletRoute,
+  ApiBackOfficeWithdrawalsRoute: ApiBackOfficeWithdrawalsRouteWithChildren,
+  ApiCronDailyAutomationRoute: ApiCronDailyAutomationRoute,
   ApiPragmatic24dSpinSpinsRoute: ApiPragmatic24dSpinSpinsRoute,
   ApiPragmaticFootballBlitzSpinsRoute: ApiPragmaticFootballBlitzSpinsRoute,
+  ApiRouletteAutomationSimRoute: ApiRouletteAutomationSimRouteWithChildren,
+  ApiRouletteRotatingRoomRoute: ApiRouletteRotatingRoomRouteWithChildren,
   ApiRouletteSpinsRoute: ApiRouletteSpinsRoute,
   ApiRouletteStrategyGlobalRoute: ApiRouletteStrategyGlobalRouteWithChildren,
+  ApiRouletteTableMetaRoute: ApiRouletteTableMetaRoute,
+  ApiBackOfficeAutomationDailyRoute: ApiBackOfficeAutomationDailyRoute,
+  ApiBackOfficeNetworkAffiliatesRoute: ApiBackOfficeNetworkAffiliatesRoute,
+  ApiBackOfficeNetworkBinaryRoute: ApiBackOfficeNetworkBinaryRoute,
+  ApiBackOfficeNetworkBonusesRoute: ApiBackOfficeNetworkBonusesRoute,
+  ApiBackOfficeNetworkQualificationRoute:
+    ApiBackOfficeNetworkQualificationRoute,
+  ApiBackOfficeNetworkSubAccountsRoute:
+    ApiBackOfficeNetworkSubAccountsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -98,11 +98,14 @@ function parseMachine(raw: unknown): RotatingRoomCrossingMachineState {
   return { ...defaultRotatingRoomCrossingMachineState(), ...(raw as object) };
 }
 
-function parseUmMachine(raw: unknown): UmFatorMachineState {
-  return normalizeUmFatorMachineOnLoad({
-    ...defaultUmFatorMachineState(),
-    ...(raw as object),
-  });
+function parseUmMachine(raw: unknown, stats: RotatingRoomSessionStats): UmFatorMachineState {
+  return normalizeUmFatorMachineOnLoad(
+    {
+      ...defaultUmFatorMachineState(),
+      ...(raw as object),
+    },
+    stats,
+  );
 }
 
 function parseLifetime(raw: unknown, maxRecovery: number): StrategyGlobalLifetimeAggregate {
@@ -146,10 +149,13 @@ export function parsePersistedState(
       machine: parseMachine(o.dois2fatores?.machine),
       stats: parseRotatingRoomSessionStats(o.dois2fatores?.stats, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
     },
-    um1fator: {
-      machine: parseUmMachine(o.um1fator?.machine),
-      stats: parseRotatingRoomSessionStats(o.um1fator?.stats, UM_FATOR_MAX_RECOVERY),
-    },
+    um1fator: (() => {
+      const umStats = parseRotatingRoomSessionStats(o.um1fator?.stats, UM_FATOR_MAX_RECOVERY);
+      return {
+        stats: umStats,
+        machine: parseUmMachine(o.um1fator?.machine, umStats),
+      };
+    })(),
     lifetime: {
       dois2fatores: parseLifetime(o.lifetime?.dois2fatores, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
       um1fator: parseLifetime(o.lifetime?.um1fator, UM_FATOR_MAX_RECOVERY),
@@ -200,8 +206,13 @@ export function getStrategyGlobalState(): StrategyGlobalPersistedState {
 
 export async function initStrategyGlobalState(fallbackTableIds: readonly number[]): Promise<void> {
   if (globalThis.__strategyGlobalPersisted) return;
-  const fromDisk = await loadFromDisk();
-  globalThis.__strategyGlobalPersisted = parsePersistedState(fromDisk, fallbackTableIds);
+  try {
+    const fromDisk = await loadFromDisk();
+    globalThis.__strategyGlobalPersisted = parsePersistedState(fromDisk, fallbackTableIds);
+  } catch (err) {
+    console.warn("[StrategyGlobal] estado em disco inválido — a reiniciar:", err);
+    globalThis.__strategyGlobalPersisted = emptyStrategyGlobalState(fallbackTableIds);
+  }
   console.info(
     "[StrategyGlobal] estado carregado — revisão",
     globalThis.__strategyGlobalPersisted.revision,

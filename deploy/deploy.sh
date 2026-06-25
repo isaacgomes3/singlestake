@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Deploy no servidor (VPS) — sem Lovable.
-# Uso: ./deploy/deploy.sh
+# Deploy no VPS — Singlestake (Node + PM2).
+# Uso na VPS: ./deploy/deploy.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "→ git pull"
-git pull --ff-only origin main
+BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
+
+echo "→ git pull (${BRANCH})"
+git fetch origin "${BRANCH}"
+git pull --ff-only origin "${BRANCH}"
 
 echo "→ npm ci"
 npm ci
@@ -15,12 +18,25 @@ npm ci
 echo "→ npm run build"
 npm run build
 
-echo "→ pm2 reload"
-if pm2 describe roleta-poupexplay >/dev/null 2>&1; then
+mkdir -p data
+
+if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
+  echo "→ npm run db:push"
+  npm run db:push
+  if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
+    echo "→ npm run db:seed (FIRST_DEPLOY=1)"
+    npm run db:seed
+  fi
+fi
+
+echo "→ pm2"
+if pm2 describe singlestake >/dev/null 2>&1; then
   pm2 reload deploy/ecosystem.config.cjs --update-env
 else
   pm2 start deploy/ecosystem.config.cjs
 fi
 
 pm2 save
-echo "✓ Deploy concluído — verifique https://roleta.poupexplay.com/"
+
+PUBLIC_URL="${PUBLIC_APP_URL:-https://stake37.com.br}"
+echo "✓ Deploy concluído — app em http://127.0.0.1:3000 (público: ${PUBLIC_URL})"

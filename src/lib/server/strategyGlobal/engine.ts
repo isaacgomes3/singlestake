@@ -27,6 +27,7 @@ import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown"
 import { drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
+import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalKind,
@@ -172,6 +173,7 @@ function buildUmFatorClientView(
   const umActive = liveView.globalActive;
   const currentTableId = liveView.globalTableId;
   const showTapeteSignal = umActive != null && currentTableId != null;
+  const activeCrossing = showTapeteSignal && umActive ? umFatorToTapeteActive(umActive) : null;
   return {
     phase: showTapeteSignal ? "active" : "waiting",
     sessionStats: state.um1fator.stats,
@@ -183,7 +185,7 @@ function buildUmFatorClientView(
     alertBucketGap: 0,
     sessionMode: showTapeteSignal ? "active" : "scanning",
     umFatorScan: liveView.tableScan,
-    activeCrossing: null,
+    activeCrossing,
     umActive: showTapeteSignal ? umActive : null,
   };
 }
@@ -244,6 +246,11 @@ function bumpAndBroadcast(
   const snapshot = buildStrategyGlobalSnapshot(state);
   const flashes = toFlashPayload(crossingFlash, umFlash);
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
+  void import("@/lib/server/automationSim/engine").then((m) => {
+    void m.ensureAutomationSimEngine().then(() => {
+      m.syncAutomationSimWithStrategy(snapshot);
+    });
+  });
   return snapshot;
 }
 
@@ -273,13 +280,29 @@ export function ingestStrategyGlobalSpin(
   }
 
   const um = driveUmFator(state, histories);
-  if (um.flash && (um.flash.kind === "win" || um.flash.kind === "loss")) {
-    appendLedger(
-      state,
-      "um1fator",
-      ledgerFromFlash(um.flash, um.recoveryBefore),
-      UM_FATOR_MAX_RECOVERY,
-    );
+  if (um.flash) {
+    if (um.flash.kind === "win" || um.flash.kind === "loss") {
+      const ledgerEntry = ledgerFromFlash(um.flash, um.recoveryBefore);
+      appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
+      const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
+      void import("@/lib/server/automationSim/engine").then((m) => {
+        void m.ensureAutomationSimEngine().then(() => {
+          m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
+        });
+      });
+      return snapshot;
+    }
+    if (um.flash.kind === "recovery") {
+      const ledgerEntry = ledgerFromFlash(um.flash, um.recoveryBefore);
+      appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
+      const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
+      void import("@/lib/server/automationSim/engine").then((m) => {
+        void m.ensureAutomationSimEngine().then(() => {
+          m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
+        });
+      });
+      return snapshot;
+    }
   }
 
   return bumpAndBroadcast(state, crossing.flash, um.flash);

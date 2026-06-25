@@ -1,17 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { RouletteLobbyPage } from "@/components/roulette-lobby-page";
+import { isAuthenticated } from "@/lib/auth/session";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Lobby — Roletas ao vivo" },
-      {
-        name: "description",
-        content:
-          "Lobby com as mesas ao vivo configuradas e a numeração em tempo real (Pragmatic DGA via SSE).",
-      },
-    ],
-  }),
-  component: RouletteLobbyPage,
+  beforeLoad: () => {
+    if (typeof window !== "undefined" && isAuthenticated()) {
+      throw redirect({ to: "/back-office" });
+    }
+    throw redirect({ to: "/entrar" });
+  },
+  component: () => null,
 });

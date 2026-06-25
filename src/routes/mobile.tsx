@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { MobileAppShell } from "@/components/mobile-app/mobile-app-shell";
+import { throwLegacyBackOfficeRedirect } from "@/lib/back-office/legacy-redirects";
 
 export const Route = createFileRoute("/mobile")({
-  component: MobileLayout,
+  beforeLoad: () => {
+    throwLegacyBackOfficeRedirect();
+  },
+  component: () => null,
 });
-
-function MobileLayout() {
-  return <MobileAppShell />;
-}

@@ -1,0 +1,112 @@
+{
+  "source": "playtech",
+  "tables": [
+    {
+      "id": 1,
+      "key": "roleta_brasileira",
+      "label": "Roleta Brasileira"
+    },
+    {
+      "id": 2,
+      "key": "mega_fire_blaze_roulette_live",
+      "label": "Mega Fire Blaze Roulette Live"
+    },
+    {
+      "id": 3,
+      "key": "football_roulette",
+      "label": "Football Roulette"
+    }
+  ],
+  "events": [
+    {
+      "tableId": 1,
+      "number": 8,
+      "at": "2026-06-24T22:05:21.147Z"
+    },
+    {
+      "tableId": 1,
+      "number": 21,
+      "at": "2026-06-24T22:06:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 4,
+      "at": "2026-06-24T22:06:21.148Z"
+    },
+    {
+      "tableId": 1,
+      "number": 0,
+      "at": "2026-06-24T22:07:21.148Z"
+    },
+    {
+      "tableId": 2,
+      "number": 11,
+      "at": "2026-06-24T22:07:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 15,
+      "at": "2026-06-24T22:07:21.148Z"
+    },
+    {
+      "tableId": 1,
+      "number": 14,
+      "at": "2026-06-24T22:08:21.148Z"
+    },
+    {
+      "tableId": 2,
+      "number": 2,
+      "at": "2026-06-24T22:08:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 30,
+      "at": "2026-06-24T22:08:21.148Z"
+    },
+    {
+      "tableId": 1,
+      "number": 5,
+      "at": "2026-06-24T22:09:21.148Z"
+    },
+    {
+      "tableId": 2,
+      "number": 36,
+      "at": "2026-06-24T22:09:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 1,
+      "at": "2026-06-24T22:09:21.148Z"
+    },
+    {
+      "tableId": 1,
+      "number": 32,
+      "at": "2026-06-24T22:10:21.148Z"
+    },
+    {
+      "tableId": 2,
+      "number": 19,
+      "at": "2026-06-24T22:10:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 22,
+      "at": "2026-06-24T22:10:21.148Z"
+    },
+    {
+      "tableId": 1,
+      "number": 17,
+      "at": "2026-06-24T22:11:21.148Z"
+    },
+    {
+      "tableId": 2,
+      "number": 34,
+      "at": "2026-06-24T22:11:21.148Z"
+    },
+    {
+      "tableId": 3,
+      "number": 9,
+      "at": "2026-06-24T22:11:21.148Z"
+    }
+  ]
+}

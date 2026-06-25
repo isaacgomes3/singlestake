@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
-import { isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
+import { isStrategyGlobalConnected, isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
 import {
   ROULETTE_LIVE_TABLE_HISTORY_EVENT,
   liveTableHistoryStorageKey,
@@ -13,7 +13,8 @@ import { ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig
 
 export function useRotatingRoomHistories(tableIds: readonly number[]): Record<number, number[]> {
   const globalSnap = useStrategyGlobalSnapshot();
-  const globalOn = isStrategyGlobalEnabled() && globalSnap != null;
+  const globalOn =
+    isStrategyGlobalEnabled() && isStrategyGlobalConnected() && globalSnap != null;
 
   const [histories, setHistories] = useState<Record<number, number[]>>(() => {
     const out: Record<number, number[]> = {};
@@ -66,6 +67,26 @@ export function useRotatingRoomHistories(tableIds: readonly number[]): Record<nu
     return out;
   }, [globalSnap, tableIds]);
 
-  if (globalOn && globalHistories) return globalHistories;
-  return histories;
+  const mergedHistories = useMemo(() => {
+    if (!globalOn || !globalHistories) return histories;
+    const out: Record<number, number[]> = { ...histories };
+    for (const id of tableIds) {
+      const local = histories[id] ?? [];
+      const remote = globalHistories[id] ?? [];
+      if (remote.length === 0) {
+        out[id] = local;
+      } else if (local.length === 0) {
+        out[id] = remote;
+      } else if (local.length > remote.length) {
+        out[id] = local;
+      } else if (remote.length > local.length) {
+        out[id] = remote;
+      } else {
+        out[id] = local[0] === remote[0] ? local : remote;
+      }
+    }
+    return out;
+  }, [globalOn, globalHistories, histories, tableIds]);
+
+  return mergedHistories;
 }

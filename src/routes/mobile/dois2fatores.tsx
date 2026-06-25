@@ -1,8 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { throwLegacyBackOfficeRedirect } from "@/lib/back-office/legacy-redirects";
 
 export const Route = createFileRoute("/mobile/dois2fatores")({
   beforeLoad: () => {
-    throw redirect({ to: "/mobile" });
+    throwLegacyBackOfficeRedirect();
   },
   component: () => null,
 });

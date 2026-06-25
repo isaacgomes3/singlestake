@@ -21,16 +21,9 @@ export function rotatingRoomLobbyHasSignal(session: RotatingRoomLobbySession): b
 /** Mesa do lobby com sinal activo — só a mesa em foco na sessão global da sala rotativa. */
 export function lobbyTableHasRotatingRoomSignal(
   tableId: number,
-  strategy: "dois2fatores" | "um1fator",
+  _strategy: "um1fator",
   session: RotatingRoomLobbySession,
 ): boolean {
   if (rotatingRoomLobbyFocusTableId(session) !== tableId) return false;
-  if (
-    strategy === "dois2fatores" &&
-    "crossingScan" in session &&
-    session.crossingScan.some((row) => row.tableId === tableId && row.status === "active")
-  ) {
-    return true;
-  }
   return rotatingRoomLobbyHasSignal(session);
 }

@@ -1,24 +1,46 @@
-EXTENSAO CHROME — GAME ODDS GLOW (Sala Rotativa)
+EXTENSÃO CHROME — SINGLESTAKE PLAYTECH v1.0
+==========================================
 
-Esta pasta NAO esta vazia. O Chrome, ao pedir "diretorio da extensao",
-so mostra SUBPASTAS na lista — os ficheiros .js e .json nao aparecem.
+Pasta desta extensão:
+  C:\Users\PC\Documents\GitHub\singlestake\extension
 
-Ficheiros desta pasta:
-  manifest.json
-  background.js
-  content-app.js
-  content-casino.js
-  popup.html
-  popup.js
+INSTALAR (1 minuto)
+-------------------
+1. Chrome → chrome://extensions
+2. Modo de programador → LIGADO
+3. "Carregar sem compactação"
+4. Seleccionar a pasta "extension" acima
+5. Fixar o ícone na barra (opcional)
 
-COMO INSTALAR:
-1. chrome://extensions
-2. Modo de programador ON
-3. Carregar sem compactacao
-4. Selecione ESTA pasta (mesmo que a lista pareca vazia)
-5. Clique "Selecionar pasta"
+MODOS
+-----
+DEMO  (badge azul "D") — só destaca o botão na mesa, NÃO aposta
+REAL  (badge verde "R") — envia clique real na aposta exterior
 
-COPIA NO AMBIENTE DE TRABALHO:
-  C:\Users\PC\Desktop\game-odds-glow-extension
+Troque no popup da extensão (ícone na barra).
 
-Se o Explorador nao mostrar ficheiros, use a pasta do Ambiente de Trabalho acima.
+TESTE RÁPIDO
+------------
+1. Abra uma mesa Playtech no operador (ex. br4.bet.br/play/playtech/...)
+2. Clique no ícone da extensão
+3. Modo DEMO → botão "Par" ou "Ímpar"
+4. Deve aparecer destaque azul no botão da mesa
+5. Só passe a REAL quando o alvo estiver correcto
+
+PAINEL PLAYTECH (teu sistema)
+-----------------------------
+O painel pode enviar sinais via postMessage ou:
+
+  window.__singlestakeExtension.sendSignal({
+    betKey: "even",      // odd | even | red | black | low | high
+    label: "Par",
+    mesaUrl: "https://br4.bet.br/play/playtech/...",
+    signalId: "mesa:19:Par:0",
+    mode: "demo"         // opcional — senão usa o modo do popup
+  });
+
+CÓPIA NO AMBIENTE DE TRABALHO
+-----------------------------
+  npm run extension:copy-desktop
+
+Depois instale a pasta Desktop\singlestake-extension

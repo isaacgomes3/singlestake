@@ -216,14 +216,11 @@ export function rotatingRoomStrategyLabel(tab: RotatingRoomStrategyTab): string 
       return "Números 2,8%";
     case "um1fator":
       return "1 Fator";
-    case "dois2fatores":
-      return "2 Fatores";
   }
 }
 
 export function rotatingRoomStrategyRoute(tab: RotatingRoomStrategyTab): string {
-  if (tab === "um1fator") return "/sala-rotativa-um-fator";
-  return "/sala-rotativa";
+  return "/sala-rotativa-um-fator";
 }
 
 export function readRotatingRoomSessionStats(tab: RotatingRoomStrategyTab): RotatingRoomSessionStats {

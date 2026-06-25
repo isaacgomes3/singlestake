@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ExternalLink, Crop, Layers, Move, Settings2, ClipboardCopy, Coins } from "lucide-react";
+import { ExternalLink, Crop, Move, Settings2, ClipboardCopy, Coins } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
+import { requireAuth } from "@/lib/auth/guards";
 
 import { RouletteBetSimulator } from "@/components/roulette-bet-simulator";
 import { CasinoEmbedViewportControls } from "@/components/casino-embed-viewport-controls";
@@ -46,6 +49,9 @@ import { ruas9PctAutoCriticalBundle } from "@/lib/roulette/ruas9PctAutoCritical"
 import { simulateStreetStrategy } from "@/lib/roulette/streetStrategy";
 
 export const Route = createFileRoute("/casino-mesa")({
+  beforeLoad: () => {
+    requireAuth("/casino-mesa");
+  },
   validateSearch: (search: Record<string, unknown>): { mesa?: number; parentOrigin?: string } => {
     const out: { mesa?: number; parentOrigin?: string } = {};
     const raw = search.mesa;
@@ -317,7 +323,7 @@ function CasinoMesaPage() {
       <header className="pointer-events-auto z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 bg-[#0d1524]/95 px-3 py-2 backdrop-blur-md sm:px-4">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Link
-            to="/"
+            to={BACK_OFFICE_PATHS.casinoAoVivo}
             className="inline-flex shrink-0 items-center rounded-lg border border-slate-700/80 bg-slate-900/60 px-2 py-2 hover:bg-slate-800/80"
           >
             <SinglestakeLogo className="h-14 w-[min(376px,92vw)] sm:h-16" />
@@ -375,14 +381,6 @@ function CasinoMesaPage() {
             <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
             Simulador
           </button>
-          <Link
-            to="/ruas-10pct"
-            search={{ mesa: viewTableId }}
-            className="inline-flex items-center gap-1 rounded-lg border border-cyan-600/40 bg-cyan-500/10 px-2 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20 sm:text-sm"
-          >
-            <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
-            Ruas 9%
-          </Link>
         </div>
       </header>
 

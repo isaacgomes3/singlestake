@@ -1,8 +1,25 @@
 /**
- * URL do cliente Pragmatic / operador para embutir a mesa num iframe (HUD por cima nesta app).
- * Formato JSON no .env: {"225":"https://...","226":"https://..."}
+ * URLs embutidas por defeito (operador). Sobrescritas por `VITE_CASINO_TABLE_EMBED_URLS` ou URL guardada pelo utilizador.
+ * O provedor (Playtech, Pragmatic, etc.) é só o path do operador — a estratégia não depende dele.
+ * Ex. Playtech: https://br4.bet.br/play/playtech/<jogo>
+ * Ex. Pragmatic: https://br4.bet.br/play/pragmatic/<jogo>
  */
-const VITE_TABLE_EMBED = import.meta.env.VITE_CASINO_TABLE_EMBED_URLS as string | undefined;
+const DEFAULT_TABLE_EMBED_URLS: Record<number, string> = {
+  /** Sem URLs Pragmatic por defeito — configure Playtech (ou outro) em casino-mesa ou VITE_CASINO_TABLE_EMBED_URLS. */
+};
+
+const VITE_TABLE_EMBED = (() => {
+  const fromVite =
+    typeof import.meta !== "undefined" &&
+    typeof import.meta.env?.VITE_CASINO_TABLE_EMBED_URLS === "string"
+      ? import.meta.env.VITE_CASINO_TABLE_EMBED_URLS
+      : undefined;
+  if (fromVite) return fromVite;
+  return typeof process !== "undefined" &&
+    typeof process.env?.VITE_CASINO_TABLE_EMBED_URLS === "string"
+    ? process.env.VITE_CASINO_TABLE_EMBED_URLS
+    : undefined;
+})();
 
 const USER_STORAGE_KEY = "roulette.casinoEmbedUrlsByTable";
 
@@ -74,10 +91,24 @@ function isAllowedHttpUrl(s: string): boolean {
   }
 }
 
-/** Ordem: URL definida pelo utilizador no dispositivo; depois variável de ambiente. */
+/** Ordem: URL do utilizador → variável de ambiente → URLs por defeito no código. */
 export function getCasinoEmbedUrlForTable(tableId: number): string | null {
   const user = readUserCasinoEmbedUrl(tableId);
   if (user) return user;
   const fromEnv = parseEnvEmbedMap()[tableId];
-  return fromEnv && isAllowedHttpUrl(fromEnv) ? fromEnv : null;
+  if (fromEnv && isAllowedHttpUrl(fromEnv)) return fromEnv;
+  const builtin = DEFAULT_TABLE_EMBED_URLS[tableId];
+  return builtin && isAllowedHttpUrl(builtin) ? builtin : null;
+}
+
+/** Mapa mesa → URL (utilizador + env + defaults). */
+export function readAllCasinoEmbedUrlMap(): Record<number, string> {
+  const merged: Record<number, string> = { ...DEFAULT_TABLE_EMBED_URLS };
+  for (const [k, v] of Object.entries(parseEnvEmbedMap())) {
+    merged[Number(k)] = v;
+  }
+  for (const [k, v] of Object.entries(readUserEmbedMap())) {
+    merged[Number(k)] = v;
+  }
+  return merged;
 }

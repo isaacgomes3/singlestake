@@ -1,0 +1,277 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  applyCapturedUmFatorFlashes,
+  buildAutomationChartData,
+  freshAutomationSimState,
+  mergeAutomationLedgerSources,
+  openBetWasSettled,
+  pendingSignalAlreadySettled,
+  pendingSignalFromRotatingRoom,
+  pendingSignalFromSnapshot,
+  pendingSignalFromUmFatorSession,
+  pruneLocalAutomationLedger,
+  rebuildAutomationSimFromLedger,
+  settleLedgerEntry,
+  spinHead,
+  syncOpenBetFromPending,
+  trySettleOpenBetFromLedger,
+  trySettleOpenBetFromSpin,
+  type AutomationOpenBet,
+  type AutomationPendingSignal,
+  type RouletteAutomationSimState,
+  type UmFatorPlacarFlashLike,
+} from "@/lib/back-office/rouletteAutomationSim";
+import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTypes";
+import {
+  AUTOMATION_SIM_CHANGED_EVENT,
+  bootstrapAutomationSimSnapshot,
+  getAutomationSimSnapshot,
+  isAutomationSimConnected,
+} from "@/lib/roulette/automationSimClient";
+import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
+import { useRotatingRoomSimulatorIndication } from "@/hooks/useRotatingRoomSimulatorIndication";
+import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
+import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
+import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
+import {
+  consumeStrategyGlobalFlashes,
+  getStrategyGlobalFlashSeq,
+  STRATEGY_GLOBAL_CHANGED_EVENT,
+} from "@/lib/roulette/strategyGlobalClient";
+
+const BOOTSTRAP_INTERVAL_MS = 5_000;
+
+function resolveCycleStartedAt(
+  serverState: RouletteAutomationSimState | undefined,
+  stableRef: { current: number | null },
+): number {
+  if (stableRef.current != null) return stableRef.current;
+  const boot = serverState ?? getAutomationSimSnapshot()?.state;
+  if (boot?.startedAt) {
+    stableRef.current = boot.startedAt;
+    return boot.startedAt;
+  }
+  stableRef.current = Date.now();
+  return stableRef.current;
+}
+
+export function useRouletteAutomationSim() {
+  const clientStrategy = useStrategyGlobalSnapshot();
+  const { indication: rotatingRoomIndication } = useRotatingRoomSimulatorIndication();
+  const { tableIds, histories } = useRotatingRoomSetup();
+  const umFatorSession = useRotatingRoomUmFatorSession(tableIds, histories, {
+    observeOnly: true,
+  });
+  const { liveApiEnabled, setLiveApiEnabled } = useRouletteLiveApi();
+
+  const [apiSnapshot, setApiSnapshot] = useState<AutomationSimApiSnapshot | null>(() =>
+    getAutomationSimSnapshot(),
+  );
+  const [connected, setConnected] = useState(() => isAutomationSimConnected());
+  const [flashTick, setFlashTick] = useState(0);
+
+  const localProcessedRef = useRef<Set<string>>(new Set());
+  const cycleStartedAtRef = useRef<number | null>(null);
+  const stableStartedAtRef = useRef<number | null>(null);
+  const strategyFlashSeqRef = useRef(getStrategyGlobalFlashSeq());
+  const capturedFlashesRef = useRef<UmFatorPlacarFlashLike[]>([]);
+  const lastOpenBetRef = useRef<AutomationOpenBet | null>(null);
+  const localLedgerRef = useRef<StrategyGlobalLedgerEntry[]>([]);
+
+  const recordLocalSettlement = (entry: StrategyGlobalLedgerEntry) => {
+    const resultKey =
+      entry.resultNumber != null
+        ? `${entry.tableId}:${entry.recovery}:${entry.resultNumber}`
+        : null;
+    const exists = localLedgerRef.current.some((local) => {
+      if (resultKey != null && local.resultNumber != null) {
+        return `${local.tableId}:${local.recovery}:${local.resultNumber}` === resultKey;
+      }
+      return false;
+    });
+    if (!exists) localLedgerRef.current.push(entry);
+  };
+
+  useEffect(() => {
+    if (!liveApiEnabled) setLiveApiEnabled(true);
+  }, [liveApiEnabled, setLiveApiEnabled]);
+
+  useEffect(() => {
+    const sync = () => {
+      setApiSnapshot(getAutomationSimSnapshot());
+      setConnected(isAutomationSimConnected());
+    };
+    window.addEventListener(AUTOMATION_SIM_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(AUTOMATION_SIM_CHANGED_EVENT, sync);
+  }, []);
+
+  useEffect(() => {
+    void bootstrapAutomationSimSnapshot();
+    const id = window.setInterval(() => {
+      if (!isAutomationSimConnected()) void bootstrapAutomationSimSnapshot();
+    }, BOOTSTRAP_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const captureFlash = () => {
+      const seq = getStrategyGlobalFlashSeq();
+      if (seq === strategyFlashSeqRef.current) return;
+      strategyFlashSeqRef.current = seq;
+      const flash = consumeStrategyGlobalFlashes()?.um1fator;
+      if (!flash) return;
+      const exists = capturedFlashesRef.current.some(
+        (f) =>
+          f.tableId === flash.tableId &&
+          f.resultNumber === flash.resultNumber &&
+          f.kind === flash.kind &&
+          f.won === flash.won,
+      );
+      if (!exists) {
+        capturedFlashesRef.current.push(flash);
+        setFlashTick((n) => n + 1);
+      }
+    };
+
+    captureFlash();
+    window.addEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, captureFlash);
+    return () => window.removeEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, captureFlash);
+  }, []);
+
+  const historiesFingerprint = useMemo(
+    () =>
+      tableIds
+        .map((id) => {
+          const h = histories[id] ?? [];
+          return `${id}:${h.length}:${h[0] ?? ""}`;
+        })
+        .join("|"),
+    [tableIds, histories],
+  );
+
+  const clientPending = useMemo((): AutomationPendingSignal | null => {
+    if (clientStrategy) {
+      const fromStrategy = pendingSignalFromSnapshot(clientStrategy);
+      if (fromStrategy) return fromStrategy;
+      return null;
+    }
+    const fromSession = pendingSignalFromUmFatorSession(umFatorSession);
+    if (fromSession) return fromSession;
+    if (rotatingRoomIndication) {
+      return pendingSignalFromRotatingRoom(rotatingRoomIndication);
+    }
+    return null;
+  }, [clientStrategy, umFatorSession, rotatingRoomIndication]);
+
+  const effectivePending = clientPending ?? apiSnapshot?.pendingSignal ?? null;
+
+  const state = useMemo((): RouletteAutomationSimState => {
+    const startedAt = resolveCycleStartedAt(apiSnapshot?.state, stableStartedAtRef);
+
+    if (cycleStartedAtRef.current !== startedAt) {
+      const isCycleReset = cycleStartedAtRef.current != null;
+      cycleStartedAtRef.current = startedAt;
+      if (isCycleReset) {
+        localProcessedRef.current = new Set();
+        capturedFlashesRef.current = [];
+        lastOpenBetRef.current = null;
+        localLedgerRef.current = [];
+      }
+    }
+
+    const onSettled = recordLocalSettlement;
+
+    let base: RouletteAutomationSimState;
+    let ledgerForSettle: StrategyGlobalLedgerEntry[] = [];
+
+    if (clientStrategy) {
+      const serverLedger = clientStrategy.ledgerTail.um1fator;
+      localLedgerRef.current = pruneLocalAutomationLedger(serverLedger, localLedgerRef.current);
+      ledgerForSettle = mergeAutomationLedgerSources(serverLedger, localLedgerRef.current);
+      base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle);
+    } else {
+      base = apiSnapshot?.state ?? freshAutomationSimState(startedAt);
+      for (const entry of localLedgerRef.current) {
+        base = settleLedgerEntry(base, entry, lobbyTableDisplayName(entry.tableId));
+      }
+    }
+
+    let working: RouletteAutomationSimState = base;
+
+    if (lastOpenBetRef.current && openBetWasSettled(base, lastOpenBetRef.current)) {
+      lastOpenBetRef.current = null;
+    }
+
+    if (!working.openBet && lastOpenBetRef.current) {
+      working = { ...working, openBet: lastOpenBetRef.current };
+    }
+
+    working = applyCapturedUmFatorFlashes(
+      working,
+      capturedFlashesRef.current,
+      localProcessedRef.current,
+      onSettled,
+    );
+
+    if (working.openBet) {
+      working = trySettleOpenBetFromLedger(working, ledgerForSettle, onSettled);
+    }
+
+    if (working.openBet) {
+      working = trySettleOpenBetFromSpin(
+        working,
+        histories,
+        localProcessedRef.current,
+        onSettled,
+      );
+    }
+
+    if (working.openBet) {
+      lastOpenBetRef.current = working.openBet;
+    } else {
+      lastOpenBetRef.current = null;
+    }
+
+    if (
+      effectivePending &&
+      !pendingSignalAlreadySettled(working, effectivePending) &&
+      (!working.openBet || working.openBet.signalId === effectivePending.signalId)
+    ) {
+      const head = spinHead(histories[effectivePending.tableId] ?? []);
+      working = syncOpenBetFromPending(working, effectivePending, head);
+      if (working.openBet) lastOpenBetRef.current = working.openBet;
+    }
+
+    return {
+      ...working,
+      chart: buildAutomationChartData(working),
+    };
+  }, [
+    apiSnapshot,
+    clientStrategy,
+    clientStrategy?.revision,
+    effectivePending,
+    flashTick,
+    histories,
+    historiesFingerprint,
+  ]);
+
+  const openBet: AutomationOpenBet | null = state.openBet;
+
+  const syncing =
+    !connected &&
+    !clientPending &&
+    !apiSnapshot?.pendingSignal &&
+    openBet == null &&
+    !clientStrategy;
+
+  return {
+    state,
+    pendingSignal: effectivePending,
+    openBet,
+    syncing,
+  };
+}

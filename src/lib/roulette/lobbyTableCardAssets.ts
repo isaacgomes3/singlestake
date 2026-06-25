@@ -2,6 +2,7 @@ import {
   ROULETTE_MACAO_TABLE_ID,
   resolveMacaoTableIdFromLiveTableIds,
 } from "@/lib/roulette/lobbyTables";
+import { getDgaTableImageUrl } from "@/lib/roulette/dgaTableImageStore";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 
 /** Caminhos relativos à pasta `public/lobby/` (copiados para `dist/client/lobby/` no build). */
@@ -13,8 +14,14 @@ const LOBBY_CARD_ASSETS = {
   205: "lobby/speed-roulette-2-card.png",
   201: "lobby/roulette-extra-time-card.png",
   237: "lobby/roulette-brasileira-card.png",
+  28401: "lobby/french-roulette-la-partage-card.png",
   macao: "lobby/roulette-macao-card.png",
 } as const;
+
+/** Posters DGA (`tableImage`) — fallback até `/api/roulette/table-meta` responder. */
+const DGA_TABLE_IMAGE_FALLBACK: Record<number, string> = {
+  213: "https://client.pragmaticplaylive.net/desktop/assets/snaps/381rwkr381korean/poster.jpg",
+};
 
 const ROTATING_ROOM_LOBBY_BG =
   "linear-gradient(135deg, #0a1628 0%, #0d2040 40%, #1a0a28 100%)";
@@ -45,13 +52,19 @@ export function lobbyTableCardObjectPosition(tableId: number, macaoTableId?: num
   const macao = resolveMacaoTableId(macaoTableId);
   if (tableId === macao) return "center 30%";
   if (tableId === 227) return "center 38%";
+  if (tableId === 203) return "center 36%";
   if (tableId === 230) return "center 36%";
   if (tableId === 237) return "center 32%";
+  if (tableId === 213) return "center 34%";
+  if (tableId === 28401) return "center 32%";
   return "center";
 }
 
 /** Imagem do cartão do lobby para uma mesa Pragmatic. */
 export function lobbyTableCardPhotoUrl(tableId: number, macaoTableId?: number): string | null {
+  const dgaUrl = getDgaTableImageUrl(tableId) ?? DGA_TABLE_IMAGE_FALLBACK[tableId];
+  if (dgaUrl) return dgaUrl;
+
   const macao = resolveMacaoTableId(macaoTableId);
   const asset = LOBBY_CARD_ASSETS[tableId as keyof typeof LOBBY_CARD_ASSETS];
   if (asset) return lobbyPublicAssetUrl(asset);

@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { MobileProfilePage } from "@/components/mobile-app/mobile-profile-page";
+import { throwLegacyBackOfficeRedirect } from "@/lib/back-office/legacy-redirects";
 
 export const Route = createFileRoute("/mobile/perfil")({
-  head: () => ({
-    meta: [
-      { title: "Perfil — Modo mobile" },
-      { name: "description", content: "Perfil, saldo e definições da conta." },
-      { name: "theme-color", content: "#000000" },
-    ],
-  }),
-  component: MobileProfilePage,
+  beforeLoad: () => {
+    throwLegacyBackOfficeRedirect();
+  },
+  component: () => null,
 });

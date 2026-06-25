@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { FootballBlitzStrategyPage } from "@/components/football-blitz-strategy-page";
+import { requireAuth } from "@/lib/auth/guards";
 import { FOOTBALL_BLITZ_SUPER_TRUNFO } from "@/lib/pragmatic/dgaFootballBlitzConstants";
 
 export const Route = createFileRoute("/super-trunfo")({
+  beforeLoad: () => {
+    requireAuth("/super-trunfo");
+  },
   head: () => ({
     meta: [
       { title: "Super Trunfo Futebol Latino" },

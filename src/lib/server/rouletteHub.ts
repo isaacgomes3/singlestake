@@ -1,3 +1,4 @@
+import { setDgaTableMeta } from "@/lib/server/dgaTableMetaCache";
 import {
   parseRouletteTableIdsFromEnv,
   startRouletteSocket,
@@ -128,6 +129,9 @@ function ensureUpstream() {
           tableHistorySnapshotById.set(tableId, scoped);
           lastEmittedByTable.set(tableId, scoped[0]!);
           onStrategyGlobalTableSnapshot(tableId, scoped);
+        },
+        onTableMeta: (meta) => {
+          setDgaTableMeta(tableId, meta);
         },
         onDisconnect: (message) => {
           broadcast({ type: "status", state: "reconnecting", message });

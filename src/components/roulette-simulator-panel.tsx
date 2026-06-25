@@ -1,15 +1,18 @@
-import { MapPin, ChevronDown, ChevronUp, ChevronsUp, Repeat2, RotateCcw, Trash2 } from "lucide-react";
+import { MapPin, ChevronDown, ChevronUp, ChevronsUp, Repeat2, RotateCcw, Trash2, Bot, Radio } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 
 import { RouletteSimulatorCountdownStrip } from "@/components/roulette-simulator-countdown-strip";
 import { RouletteSimulatorTapeteOverlay } from "@/components/roulette-simulator-tapete-overlay";
 import { RouletteSpinWheel } from "@/components/roulette-spin-wheel";
 import { SimulatorBoardViewportControls } from "@/components/simulator-board-viewport-controls";
+import { useRotatingRoomSimulatorIndication } from "@/hooks/useRotatingRoomSimulatorIndication";
 import { useSimulatorBoardViewport } from "@/hooks/useSimulatorBoardViewport";
 import { useSimulatorChipDrag } from "@/hooks/useSimulatorChipDrag";
 import { useRouletteSimulatorLiveSpin } from "@/hooks/useRouletteSimulatorLiveSpin";
 import { useRouletteSimulatorSpinClock } from "@/hooks/useRouletteSimulatorSpinClock";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import { exteriorBetKeyToRouletteBetKind } from "@/lib/roulette/rotatingRoomSimulatorIndication";
+import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import {
   betAreaKey,
   betAreaLabel,
@@ -165,6 +168,10 @@ type RoundResult = {
 
 export function RouletteSimulatorPanel({ tableIds, histories, defaultTableId }: Props) {
   const [tableId, setTableId] = useState(defaultTableId);
+  const [followRotatingRoom, setFollowRotatingRoom] = useState(true);
+  const { liveApiEnabled, toggleLiveApi } = useRouletteLiveApi();
+  const { indication, connected: rotatingRoomConnected } = useRotatingRoomSimulatorIndication();
+  const lastAutoSignalRef = useRef<string | null>(null);
   const [historySectionOpen, setHistorySectionOpen] = useState(true);
   const [chipValue, setChipValue] = useState<RouletteSimulatorChipValue>(5);
   const [balance, setBalance] = useState(ROULETTE_SIMULATOR_STARTING_BALANCE);
@@ -228,6 +235,47 @@ export function RouletteSimulatorPanel({ tableIds, histories, defaultTableId }: 
           : "spinning";
 
   const clearRoundResult = useCallback(() => setLastRoundResult(null), []);
+
+  useEffect(() => {
+    if (!followRotatingRoom || indication?.tableId == null) return;
+    if (indication.action !== "bet") return;
+    if (!tableIds.includes(indication.tableId)) return;
+    setTableId(indication.tableId);
+  }, [followRotatingRoom, indication?.tableId, indication?.action, tableIds]);
+
+  useEffect(() => {
+    if (indication?.action === "wait") {
+      lastAutoSignalRef.current = null;
+    }
+  }, [indication?.action, indication?.signalId]);
+
+  useEffect(() => {
+    if (!followRotatingRoom || !indication) return;
+    if (indication.action !== "bet" || !indication.betExteriorKey || !indication.signalId) return;
+    if (indication.tableId !== tableId) return;
+    if (betsLocked || spinClock.tapetePhase !== "countdown") return;
+    if (lastAutoSignalRef.current === indication.signalId) return;
+    if (totalStaked > 0) return;
+
+    const stake = indication.suggestedStake;
+    if (balance < stake) return;
+
+    const area = exteriorBetKeyToRouletteBetKind(indication.betExteriorKey);
+    const key = betAreaKey(area);
+    lastAutoSignalRef.current = indication.signalId;
+    clearRoundResult();
+    setBalance((b) => b - stake);
+    setBetsByKey({ [key]: stake });
+  }, [
+    followRotatingRoom,
+    indication,
+    tableId,
+    betsLocked,
+    spinClock.tapetePhase,
+    totalStaked,
+    balance,
+    clearRoundResult,
+  ]);
 
   const getChipOn = useCallback((area: RouletteBetKind) => betsByKey[betAreaKey(area)] ?? 0, [betsByKey]);
 
@@ -359,6 +407,81 @@ export function RouletteSimulatorPanel({ tableIds, histories, defaultTableId }: 
 
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-cyan-500/25 bg-[#0d1524]/90 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleLiveApi}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition",
+              liveApiEnabled
+                ? "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/40"
+                : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/35",
+            )}
+            aria-pressed={liveApiEnabled}
+            aria-label={liveApiEnabled ? "Desligar API ao vivo" : "Ligar API ao vivo"}
+          >
+            <Radio className="h-3.5 w-3.5" aria-hidden />
+            API ao vivo {liveApiEnabled ? "ON" : "OFF"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFollowRotatingRoom((v) => !v)}
+            disabled={!liveApiEnabled}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition",
+              !liveApiEnabled && "cursor-not-allowed opacity-50",
+              followRotatingRoom && liveApiEnabled
+                ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40"
+                : "bg-slate-800/80 text-slate-400",
+            )}
+          >
+            <Bot className="h-3.5 w-3.5" aria-hidden />
+            Sala rotativa {followRotatingRoom && liveApiEnabled ? "ON" : "OFF"}
+          </button>
+          {!liveApiEnabled ? (
+            <span className="text-xs text-amber-300/90">
+              Ligue a API para receber giros e indicações da sala rotativa.
+            </span>
+          ) : followRotatingRoom ? (
+            <>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs",
+                  rotatingRoomConnected ? "text-emerald-400" : "text-amber-400",
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    rotatingRoomConnected ? "animate-pulse bg-emerald-400" : "bg-amber-400",
+                  )}
+                />
+                {rotatingRoomConnected ? "Sinais em tempo real" : "A ligar sinais…"}
+              </span>
+              {indication ? (
+                <span className="text-xs text-slate-400">
+                  {indication.lobbyMessage}
+                  {indication.action === "bet" && indication.alertLabel ? (
+                    <span className="ml-2 font-semibold text-cyan-200">
+                      → {indication.alertLabel} · {indication.suggestedStake} fichas
+                      {indication.recovery > 0 ? ` (rec. ${indication.recovery})` : ""}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {indication ? (
+                <span className="ml-auto text-[10px] font-semibold tabular-nums text-slate-500">
+                  {indication.aproveitamentoPct.toFixed(0)}% · {indication.wins} · {indication.losses}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-xs text-slate-500">Apostas manuais no tapete</span>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/90 bg-[#0d1524]/90 p-4 sm:flex-row sm:items-center sm:gap-4">
         <p className="shrink-0 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:min-w-[7.5rem]">
           Simulador de roleta

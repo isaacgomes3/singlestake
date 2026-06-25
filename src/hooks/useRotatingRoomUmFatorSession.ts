@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ROTATING_ROOM_UM_FATOR_CHANGED_EVENT,
   ROTATING_ROOM_UM_FATOR_MACHINE_STORAGE_KEY,
-  ROTATING_ROOM_UM_FATOR_MAX_RECOVERY,
   ROTATING_ROOM_UM_FATOR_RESET_EVENT,
   ROTATING_ROOM_UM_FATOR_STATS_CORRECTED_EVENT,
   ROTATING_ROOM_UM_FATOR_STATS_STORAGE_KEY,
@@ -13,6 +12,14 @@ import {
   readRotatingRoomUmFatorSessionStats,
   sanitizeUmFatorMachineForTableIds,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
+import {
+  readEffectiveUmFatorMaxRecovery,
+  writeRotatingRoomExtensionMaxRecovery,
+} from "@/lib/roulette/rotatingRoomExtensionPrefs";
+import {
+  isRotatingRoomExtensionPong,
+  syncRotatingRoomExtensionStats,
+} from "@/lib/roulette/rotatingRoomExtensionBridge";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import type { UmFatorMachineState, UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
 import type { UmFatorActive } from "@/lib/roulette/umFatorStrategy";
@@ -27,6 +34,7 @@ import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
 import {
   consumeStrategyGlobalFlashes,
   getStrategyGlobalFlashSeq,
+  isStrategyGlobalConnected,
   isStrategyGlobalEnabled,
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
@@ -42,6 +50,11 @@ export type RotatingRoomUmFatorRoundFlash = {
 
 type Options = {
   observeOnly?: boolean;
+  /**
+   * Extensão / bridge: usa placar e histórico local (SSE no browser),
+   * sem substituir pelo snapshot strategy-global do servidor.
+   */
+  preferLocalSession?: boolean;
 };
 
 export type RotatingRoomUmFatorSession = {
@@ -68,9 +81,19 @@ export function useRotatingRoomUmFatorSession(
   options: Options = {},
 ): RotatingRoomUmFatorSession {
   const observeOnly = options.observeOnly ?? false;
+  const preferLocalSession = options.preferLocalSession === true;
   const tableIdsKey = tableIds.join(",");
   const globalSnap = useStrategyGlobalSnapshot();
-  const globalActive = isStrategyGlobalEnabled() && globalSnap != null;
+  const globalView = globalSnap?.um1fator;
+  const globalActive =
+    isStrategyGlobalEnabled() &&
+    isStrategyGlobalConnected() &&
+    globalSnap != null &&
+    globalView != null;
+  const useGlobalIndication =
+    !preferLocalSession &&
+    globalActive &&
+    globalView!.showTapeteSignal;
 
   const [sessionStats, setSessionStats] = useState(() => readRotatingRoomUmFatorSessionStats());
   const [roundFlash, setRoundFlash] = useState<RotatingRoomUmFatorRoundFlash>(null);
@@ -116,8 +139,9 @@ export function useRotatingRoomUmFatorSession(
   useEffect(() => {
     const onReset = () => {
       placarResetGenRef.current += 1;
-      statsRef.current = emptyRotatingRoomSessionStats(ROTATING_ROOM_UM_FATOR_MAX_RECOVERY);
+      statsRef.current = emptyRotatingRoomSessionStats(readEffectiveUmFatorMaxRecovery());
       setSessionStats(statsRef.current);
+      syncRotatingRoomExtensionStats(0, 0);
       hydrateFromStorage();
     };
     const onChanged = () => {
@@ -152,6 +176,21 @@ export function useRotatingRoomUmFatorSession(
   }, []);
 
   useEffect(() => {
+    syncRotatingRoomExtensionStats(sessionStats.wins, sessionStats.losses);
+  }, [sessionStats.wins, sessionStats.losses]);
+
+  useEffect(() => {
+    const onPong = (event: MessageEvent) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      if (!isRotatingRoomExtensionPong(event.data)) return;
+      const maxRecovery = event.data.prefs?.maxRecovery;
+      if (maxRecovery != null) writeRotatingRoomExtensionMaxRecovery(maxRecovery);
+    };
+    window.addEventListener("message", onPong);
+    return () => window.removeEventListener("message", onPong);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (flashClearRef.current != null) window.clearTimeout(flashClearRef.current);
     };
@@ -182,7 +221,6 @@ export function useRotatingRoomUmFatorSession(
   const showTapeteSignal = activeCrossing != null && currentTableId != null;
   const phase: RotatingRoomPhase = showTapeteSignal ? "active" : "waiting";
 
-  const globalView = globalSnap?.um1fator;
   const globalUmActive = globalView?.umActive ?? null;
   const globalActiveCrossing = useMemo(
     () => (globalUmActive ? umFatorToTapeteActive(globalUmActive) : null),
@@ -190,7 +228,7 @@ export function useRotatingRoomUmFatorSession(
   );
 
   useStrategyIndicationActivatedSound(
-    globalActive ? (globalView?.showTapeteSignal ? globalUmActive : null) : showTapeteSignal ? umActive : null,
+    useGlobalIndication ? globalUmActive : showTapeteSignal ? umActive : null,
     !observeOnly,
   );
 
@@ -225,7 +263,8 @@ export function useRotatingRoomUmFatorSession(
   }, [globalActive, observeOnly]);
 
   useLayoutEffect(() => {
-    if (globalActive || tableIds.length === 0) return;
+    if (tableIds.length === 0) return;
+    if (useGlobalIndication) return;
 
     const tickGen = placarResetGenRef.current;
     isApplyingRef.current = true;
@@ -255,13 +294,15 @@ export function useRotatingRoomUmFatorSession(
       }, ROUND_FLASH_MS);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalActive, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
+  }, [useGlobalIndication, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
 
-  if (globalActive && globalView) {
+  if (useGlobalIndication && globalView) {
     return {
       ...globalView,
+      prepareTableId: null,
+      prepareCategory: null,
       roundFlash,
-      activeCrossing: globalView.showTapeteSignal ? globalActiveCrossing : null,
+      activeCrossing: globalActiveCrossing,
     };
   }
 

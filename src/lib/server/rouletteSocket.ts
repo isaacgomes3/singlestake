@@ -1,4 +1,4 @@
-import { LOBBY_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
+import { LOBBY_FIXED_TABLE_IDS, ROTATING_ROOM_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
 
 const WS_URL = process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws";
 const CASINO_ID = process.env.ROULETTE_CASINO_ID ?? "ppcdk00000005148";
@@ -17,12 +17,19 @@ export type RouletteSpin = {
   gameId: string;
 };
 
+export type DgaTableMetaPayload = {
+  tableName?: string;
+  tableImage?: string;
+};
+
 export type RouletteSocketOptions = {
   onDisconnect?: (message: string) => void;
   debug?: boolean;
   tableId?: number;
   /** Últimos resultados da mesa (payload `last20Results`) — alimenta replay SSE e localStorage no cliente. */
   onTableHistorySnapshot?: (spins: RouletteSpin[]) => void;
+  /** Metadados da mesa (`tableName`, `tableImage`) vindos da DGA após subscribe. */
+  onTableMeta?: (meta: DgaTableMetaPayload) => void;
 };
 
 type WsResultRow = {
@@ -47,8 +54,29 @@ const isTableLikeObject = (o: Record<string, unknown>): boolean =>
   "last20Results" in o ||
   "resultEvent" in o ||
   "tableName" in o ||
+  "tableImage" in o ||
   "tableOpen" in o ||
   "pragmaticTable" in o;
+
+function parseTableMeta(parsed: Record<string, unknown>): DgaTableMetaPayload | null {
+  const directName = parsed.tableName;
+  const directImage = parsed.tableImage;
+  const tableName = typeof directName === "string" && directName.trim() ? directName.trim() : undefined;
+  const tableImage =
+    typeof directImage === "string" && directImage.trim() ? directImage.trim() : undefined;
+  if (tableName || tableImage) return { tableName, tableImage };
+
+  const nested = parsed.pragmaticTable;
+  if (nested != null && typeof nested === "object") {
+    const n = nested as Record<string, unknown>;
+    const nestedName = n.tableName;
+    const nestedImage = n.tableImage;
+    const nn = typeof nestedName === "string" && nestedName.trim() ? nestedName.trim() : undefined;
+    const ni = typeof nestedImage === "string" && nestedImage.trim() ? nestedImage.trim() : undefined;
+    if (nn || ni) return { tableName: nn, tableImage: ni };
+  }
+  return null;
+}
 
 const parseSpin = (parsed: Record<string, unknown>): RouletteSpin | null => {
   const fromRow = (row: WsResultRow | undefined): RouletteSpin | null => {
@@ -210,6 +238,9 @@ export const startRouletteSocket = (
         }
 
         if (subscribedThisConnection) {
+          const meta = parseTableMeta(parsed);
+          if (meta) options?.onTableMeta?.(meta);
+
           const snapshot = parseLast20SnapshotFromParsed(parsed);
           if (snapshot.length > 0 && options?.onTableHistorySnapshot) {
             options.onTableHistorySnapshot(snapshot);
@@ -292,9 +323,9 @@ export const startRouletteSocket = (
 };
 
 /**
- * Garante que todas as mesas do lobby fixo têm WebSocket — evita cartões no UI sem giros
- * quando `ROULETTE_TABLE_IDS` no servidor fica desactualizado em relação ao lobby fixo.
- * Ordem: primeiro os IDs vindos do env (define mesa principal = 1.º), depois faltam as do lobby.
+ * Garante que todas as mesas do lobby e da sala rotativa têm WebSocket — evita cartões no UI sem giros
+ * quando `ROULETTE_TABLE_IDS` no servidor fica desactualizado.
+ * Ordem: primeiro os IDs vindos do env (define mesa principal = 1.º), depois faltam lobby + sala rotativa.
  */
 function mergeEnvTableIdsWithLobby(envIds: readonly number[]): number[] {
   const seen = new Set<number>();
@@ -306,6 +337,12 @@ function mergeEnvTableIdsWithLobby(envIds: readonly number[]): number[] {
     }
   }
   for (const n of LOBBY_FIXED_TABLE_IDS) {
+    if (!seen.has(n)) {
+      seen.add(n);
+      out.push(n);
+    }
+  }
+  for (const n of ROTATING_ROOM_FIXED_TABLE_IDS) {
     if (!seen.has(n)) {
       seen.add(n);
       out.push(n);

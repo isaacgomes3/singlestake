@@ -12,7 +12,7 @@ type StrategyItem = {
   id: StrategyGlobalKind;
   title: string;
   subtitle: string;
-  to: "/mobile/dois2fatores" | "/mobile/um1fator";
+  to: "/mobile/um1fator";
   sessionPct?: number;
 };
 
@@ -60,12 +60,6 @@ export function MobileStrategyListPage() {
   const globalOn = isStrategyGlobalEnabled() && globalSnap != null;
 
   const items: StrategyItem[] = [
-    {
-      id: "dois2fatores",
-      title: "2 Fatores",
-      subtitle: "Sala rotativa · cruzamento ausente",
-      to: "/mobile/dois2fatores",
-    },
     {
       id: "um1fator",
       title: "1 Fator",

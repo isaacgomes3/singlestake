@@ -13,9 +13,15 @@ Coloca o teu ficheiro em **`public/images/roulette-bg.png`**. Todas as rotas usa
 
 No **Windows**, o Vite está com **polling** de ficheiros para o recarregamento ao editar código funcionar de forma fiável. Se mudares `vite.config.ts`, volta a correr `npm run dev`.
 
-### Deploy em produção (roleta.poupexplay.com)
+### Deploy na VPS — stake37.com.br
 
-O site **não** usa Lovable para publicar. Ver **[docs/deploy-roleta-poupexplay.md](docs/deploy-roleta-poupexplay.md)** — build Node (`npm run build` + `npm start`), PM2 e Apache reverse proxy.
+Ver **[docs/deploy-stake37.md](docs/deploy-stake37.md)** — domínio **https://stake37.com.br**, Node 22, PM2, Nginx, SSL e SQLite.
+
+Resumo na VPS: clonar em `/var/www/stake37`, `cp deploy/env.production.example .env`, depois `FIRST_DEPLOY=1 ./deploy/deploy.sh`.
+
+Guia genérico: **[docs/deploy-vps.md](docs/deploy-vps.md)**.
+
+Deploy legado (roleta.poupexplay.com): **[docs/deploy-roleta-poupexplay.md](docs/deploy-roleta-poupexplay.md)**.
 
 No **PowerShell** antigo, encadeie com ponto e vírgula, não com `&&`:
 

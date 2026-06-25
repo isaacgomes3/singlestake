@@ -1,7 +1,12 @@
 import "./lib/error-capture";
+import { ensureAutomationYieldScheduler } from "./lib/server/finance/automation-scheduler";
+import { ensureRouletteHubDaemon } from "./lib/server/rouletteHubDaemon";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+
+ensureRouletteHubDaemon();
+ensureAutomationYieldScheduler();
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;

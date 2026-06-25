@@ -1,0 +1,16 @@
+{
+  "roletas": [
+    "Ruleta Betano en Español",
+    "Roleta Brasileira",
+    "Mega Fire Blaze Roulette Live",
+    "Who Wants To Be a Millionaire? Roulette",
+    "Quantum Roulette Live",
+    "Football Roulette"
+  ],
+  "historico": {
+    "Roleta Brasileira": [17, 32, 5, 14, 0, 21, 8],
+    "Mega Fire Blaze Roulette Live": [34, 19, 36, 2, 11],
+    "Football Roulette": [9, 22, 1, 30, 15, 4]
+  },
+  "placar": { "wins": 17, "losses": 0 }
+}

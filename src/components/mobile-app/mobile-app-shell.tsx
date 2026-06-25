@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { CircleDot, Home, User } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -39,14 +40,14 @@ function NavItem({
 }
 
 export function MobileAppShell({ hideNav = false }: Props) {
+  useDgaTableImages();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const onPerfil = pathname === "/mobile/perfil" || pathname.startsWith("/mobile/perfil/");
   const onJogos =
     !onPerfil &&
     (pathname === "/mobile" ||
       pathname.startsWith("/mobile/roleta") ||
-      pathname === "/mobile/um1fator" ||
-      pathname === "/mobile/dois2fatores");
+      pathname === "/mobile/um1fator");
   const onLobby = pathname === "/";
 
   return (

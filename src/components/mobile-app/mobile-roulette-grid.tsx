@@ -23,7 +23,7 @@ function MobileRouletteCard({ tableId, macaoTableId }: { tableId: number; macaoT
 
   return (
     <Link
-      to="/mobile/roleta/$mesaId"
+      to="/mobile/roleta/$mesaId/um1fator"
       params={{ mesaId: String(tableId) }}
       className="group flex flex-col overflow-hidden rounded-2xl border border-neutral-800/90 bg-neutral-900/80 transition active:scale-[0.98] hover:border-amber-500/30"
     >
@@ -95,7 +95,7 @@ export function MobileRouletteGridPage() {
       </div>
 
       <p className="mt-6 text-center text-[11px] leading-relaxed text-neutral-600">
-        Cada roleta com sinais 2 Fatores e 1 Fator — independentes da sala rotativa.
+        Cada roleta com sinais 1 Fator — independentes da sala rotativa.
       </p>
     </div>
   );
