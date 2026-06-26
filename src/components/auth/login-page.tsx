@@ -43,6 +43,15 @@ export function LoginPage() {
         toast.error("Não foi possível guardar a sessão neste browser.");
         return;
       }
+
+      const verified = await apiFetchMe();
+      if (!verified) {
+        toast.error(
+          "Login feito mas a sessão não ficou no servidor. Use https://stake37.com.br (sem bloqueadores de cookies).",
+        );
+        return;
+      }
+
       toast.success(`Bem-vindo, ${result.user.name}!`);
       goAfterAuth(loginRedirectPath());
     } finally {

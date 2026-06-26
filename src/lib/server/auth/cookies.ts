@@ -2,6 +2,13 @@ export const SESSION_COOKIE_NAME = "singlestake_session";
 
 const THIRTY_DAYS_SEC = 60 * 60 * 24 * 30;
 
+/** Partilha cookie entre stake37.com.br e www.stake37.com.br (definir na VPS). */
+function sessionCookieDomain(): string {
+  const raw = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  if (!raw) return "";
+  return `; Domain=${raw}`;
+}
+
 export function parseCookieHeader(header: string | null): Record<string, string> {
   if (!header) return {};
   const out: Record<string, string> = {};
@@ -34,7 +41,7 @@ export function isSecureRequest(request: Request): boolean {
 
 function cookieBase(secure: boolean): string {
   const secureFlag = secure ? "; Secure" : "";
-  return `Path=/; HttpOnly; SameSite=Lax${secureFlag}`;
+  return `Path=/; HttpOnly; SameSite=Lax${secureFlag}${sessionCookieDomain()}`;
 }
 
 export function buildSessionCookie(

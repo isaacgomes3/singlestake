@@ -24,13 +24,20 @@ bash deploy/sync-env-keys.sh
 for line in \
   'ROULETTE_HUB_IDLE_SHUTDOWN_MS=-1' \
   'WS_NO_BUFFER_UTIL=1' \
-  'WS_NO_UTF_8_VALIDATE=1'; do
+  'WS_NO_UTF_8_VALIDATE=1' \
+  'SESSION_COOKIE_DOMAIN=.stake37.com.br'; do
   key="${line%%=*}"
   if ! grep -q "^${key}=" .env 2>/dev/null; then
     echo "$line" >> .env
     echo "   + $key"
   fi
 done
+echo ""
+
+echo "→ sessão admin (se login falhar)"
+if grep -q '^SEED_ADMIN_PASSWORD=' .env 2>/dev/null; then
+  npm run db:reset-admin 2>/dev/null || echo "   (db:reset-admin ignorado — confirme SEED_ADMIN_PASSWORD no .env)"
+fi
 echo ""
 
 echo "3/7 — Dependências e build"
