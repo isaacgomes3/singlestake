@@ -227,10 +227,30 @@ export function useRotatingRoomUmFatorSession(
     [globalUmActive],
   );
 
-  useStrategyIndicationActivatedSound(
-    useGlobalIndication ? globalUmActive : showTapeteSignal ? umActive : null,
-    !observeOnly,
-  );
+  const indicationSoundToken = useMemo(() => {
+    if (observeOnly) return null;
+    if (useGlobalIndication) {
+      if (!globalUmActive || globalView?.currentTableId == null) return null;
+      const n = globalUmActive.triggerNumbers;
+      return `${globalView.currentTableId}:${n[0]},${n[1]}`;
+    }
+    if (!showTapeteSignal || currentTableId == null || !umActive) return null;
+    const pending = machine.pendingByTable[String(currentTableId)];
+    if (pending) return `${currentTableId}:${pending.armedHead}`;
+    const n = umActive.triggerNumbers;
+    return `${currentTableId}:${n[0]},${n[1]}`;
+  }, [
+    observeOnly,
+    useGlobalIndication,
+    globalUmActive,
+    globalView?.currentTableId,
+    showTapeteSignal,
+    currentTableId,
+    umActive,
+    machine.pendingByTable,
+  ]);
+
+  useStrategyIndicationActivatedSound(indicationSoundToken, !observeOnly);
 
   useEffect(() => {
     if (!globalActive) return;

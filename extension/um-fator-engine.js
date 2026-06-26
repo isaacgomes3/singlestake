@@ -435,28 +435,21 @@ var SinglestakeUmFator = (() => {
     return !isResultAlreadySettled(machine, tableId, head);
   }
   function anyTablePendingEntryOpen(machine, tableIds, histories) {
-    const lock = machine.focusLockTableId;
-    if (lock == null || !tableIds.includes(lock)) return false;
-    return isPendingEntryOpen(machine, lock, histories[lock] ?? []);
+    return findLockedPendingTable(machine, tableIds, histories) != null;
   }
-  function clearExpiredUmFatorPendingEntries(machine, tableIds, histories, nowMs = Date.now()) {
-    let next = machine;
-    for (const tableId of tableIds) {
-      const pending = pendingForTable(next, tableId);
-      if (!pending) continue;
-      const history = histories[tableId] ?? [];
-      const head = spinHead(history);
-      if (pending.armedHead !== head) continue;
-      if (liveTableBettingRemainingSec(tableId, history, nowMs) > 0) continue;
-      const pendingByTable = { ...next.pendingByTable };
-      delete pendingByTable[String(tableId)];
-      next = {
-        ...next,
-        pendingByTable,
-        focusLockTableId: next.focusLockTableId === tableId ? null : next.focusLockTableId
-      };
+  function findLockedPendingTable(machine, tableIds, histories) {
+    if (machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId)) {
+      const history = histories[machine.focusLockTableId] ?? [];
+      if (isPendingEntryOpen(machine, machine.focusLockTableId, history)) {
+        return machine.focusLockTableId;
+      }
     }
-    return next;
+    for (const tableId of tableIds) {
+      if (isPendingEntryOpen(machine, tableId, histories[tableId] ?? [])) {
+        return tableId;
+      }
+    }
+    return null;
   }
   function pruneOrphanUmFatorPending(machine) {
     const lock = machine.focusLockTableId;
@@ -512,10 +505,11 @@ var SinglestakeUmFator = (() => {
     return pending.active;
   }
   function scanUmFatorTables(tableIds, histories, machine) {
+    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
     return tableIds.map((tableId) => {
       const h = histories[tableId] ?? [];
       const active = activeForDisplay(machine, tableId, h);
-      const formation = h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
+      const formation = lockedTable != null ? null : h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
       return {
         tableId,
         hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) === 3,
@@ -525,6 +519,12 @@ var SinglestakeUmFator = (() => {
     });
   }
   function pickGlobalUmFatorAlert(tableIds, histories, machine) {
+    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
+    if (lockedTable != null) {
+      const active = activeForDisplay(machine, lockedTable, histories[lockedTable] ?? []);
+      if (active) return { tableId: lockedTable, active };
+      return null;
+    }
     const picks = [];
     for (const tableId of tableIds) {
       const history = histories[tableId] ?? [];
@@ -532,21 +532,6 @@ var SinglestakeUmFator = (() => {
       if (active) picks.push({ tableId, active });
     }
     if (picks.length === 0) return null;
-    const pendingOpen = picks.filter(
-      (p) => isPendingEntryOpen(machine, p.tableId, histories[p.tableId] ?? [])
-    );
-    if (pendingOpen.length > 0) {
-      if (machine.focusLockTableId != null) {
-        const locked = pendingOpen.find((p) => p.tableId === machine.focusLockTableId);
-        if (locked) return locked;
-      }
-      if (machine.lastActiveTableId != null) {
-        const sticky = pendingOpen.find((p) => p.tableId === machine.lastActiveTableId);
-        if (sticky) return sticky;
-      }
-      pendingOpen.sort((a, b) => a.tableId - b.tableId);
-      return pendingOpen[0];
-    }
     if (machine.lastActiveTableId != null) {
       const sticky = picks.find((p) => p.tableId === machine.lastActiveTableId);
       if (sticky) return sticky;
@@ -563,11 +548,7 @@ var SinglestakeUmFator = (() => {
     };
   }
   function tickUmFatorPlacar(tableIds, histories, machine, stats, maxRecovery = UM_FATOR_MAX_RECOVERY) {
-    let nextMachine = clearExpiredUmFatorPendingEntries(
-      pruneOrphanUmFatorPending(machine),
-      tableIds,
-      histories
-    );
+    let nextMachine = pruneOrphanUmFatorPending(machine);
     nextMachine = {
       ...nextMachine,
       lastSpinHeadByTable: { ...nextMachine.lastSpinHeadByTable },
