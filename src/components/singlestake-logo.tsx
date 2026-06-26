@@ -11,7 +11,7 @@ type SinglestakeLogoProps = {
   variant?: "horizontal" | "stacked";
 };
 
-/** Logótipo STAKE37 (PNG com fundo escuro — combina com tema grafite). */
+/** Logótipo STAKE37 (PNG transparente). */
 export function SinglestakeLogo({ className, variant = "horizontal" }: SinglestakeLogoProps) {
   return (
     <img

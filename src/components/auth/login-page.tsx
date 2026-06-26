@@ -61,8 +61,7 @@ export function LoginPage() {
 
   return (
     <AuthPageShell
-      title={t("auth.login.title")}
-      subtitle={t("auth.login.subtitle")}
+      showHeroLogo
       footer={
         <>
           {t("auth.login.footerNoAccount")}{" "}
