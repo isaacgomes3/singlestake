@@ -20,13 +20,18 @@ const SESSION_CHECK_TIMEOUT_MS = 8_000;
 export function BackOfficeLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [checking, setChecking] = useState(() => getSession() == null);
-  const [session, setSessionState] = useState<AuthSession | null>(() => getSession());
+  /** Só no cliente — evita SSR com session=null quando o login já guardou no localStorage. */
+  const [session, setSessionState] = useState<AuthSession | null>(null);
+  const [checking, setChecking] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const cached = getSession();
+    if (cached) {
+      setSessionState(cached);
+      setChecking(false);
+    }
 
     void (async () => {
       setSessionError(null);
@@ -41,10 +46,11 @@ export function BackOfficeLayout() {
 
         if (!user) {
           if (cached) {
-            setSessionError(
-              "Não foi possível validar a sessão. Verifique a ligação ou tente entrar novamente.",
-            );
+            setSessionState(cached);
             setChecking(false);
+            setSessionError(
+              "Sessão local activa; não foi possível revalidar no servidor. Algumas acções podem falhar — tente sair e entrar de novo.",
+            );
             return;
           }
           clearSession();
@@ -55,12 +61,14 @@ export function BackOfficeLayout() {
 
         persistSession(user);
         setSessionState({ user, issuedAt: Date.now() });
+        setSessionError(null);
         setChecking(false);
       } catch {
         if (cancelled) return;
         setChecking(false);
         if (cached) {
-          setSessionError("Erro ao verificar sessão. Tente entrar novamente.");
+          setSessionState(cached);
+          setSessionError("Erro ao verificar sessão. Pode continuar ou entrar novamente.");
         } else {
           clearSession();
           goToLogin(pathname);
