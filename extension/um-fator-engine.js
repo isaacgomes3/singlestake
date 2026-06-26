@@ -303,24 +303,25 @@ var SinglestakeUmFator = (() => {
         return heightOf(num) === factor.value;
     }
   }
+  function umFatorSharedFactorsBetween(a, b) {
+    if (a === 0 || b === 0) return [];
+    const triple = umFatorTripleFactorsForNumber(a);
+    if (!triple) return [];
+    return triple.filter((f) => factorWins(b, f));
+  }
   function umFatorMatchCountOnTriple(num, triple) {
     if (num === 0) return 0;
     return triple.filter((f) => factorWins(num, f)).length;
   }
-  function detectUmFatorActiveFromHistory(historyNewestFirst) {
-    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
-    const n0 = historyNewestFirst[0];
-    const n1 = historyNewestFirst[1];
-    const n2 = historyNewestFirst[2];
-    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
-    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
-    const trigger = umFatorTripleFactorsForNumber(n1);
-    if (!trigger) return null;
-    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
-    if (matchOnCurrent !== 2) return null;
-    const alertFactor = trigger.find((f) => !factorWins(n0, f));
-    if (!alertFactor) return null;
-    const triggerLabel = `${doisFatoresFactorLabel(trigger[0])} \xB7 ${doisFatoresFactorLabel(trigger[1])} \xB7 ${doisFatoresFactorLabel(trigger[2])}`;
+  function umFatorMatchCountWithReference(num, ref) {
+    if (num === 0 || ref === 0) return 0;
+    const triple = umFatorTripleFactorsForNumber(ref);
+    if (!triple) return 0;
+    return triple.filter((f) => factorWins(num, f)).length;
+  }
+  function buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, triggerMatchTier) {
+    const sharedLabel = shared.map(doisFatoresFactorLabel).join(" \xB7 ");
+    const tierTag = triggerMatchTier === "three" ? "3g" : "2g";
     return {
       pairKind: "cor-altura",
       pairKindLabel: "Cor \xB7 Altura \xB7 Paridade",
@@ -330,9 +331,40 @@ var SinglestakeUmFator = (() => {
       alertFactor,
       triggerNumbers: [n2, n1],
       resultNumber: n0,
-      triggerMatchTier: "three",
-      armingDescription: `1 Fator: gatilho ${triggerLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
+      triggerMatchTier,
+      armingDescription: `1 Fator (${tierTag}): gatilho ${sharedLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
     };
+  }
+  function detectUmFatorThreeTierActive(n0, n1, n2) {
+    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
+    const trigger = umFatorTripleFactorsForNumber(n1);
+    if (!trigger) return null;
+    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
+    if (matchOnCurrent !== 2) return null;
+    const alertFactor = trigger.find((f) => !factorWins(n0, f));
+    if (!alertFactor) return null;
+    return buildUmFatorActive(n0, n1, n2, trigger, trigger, alertFactor, "three");
+  }
+  function detectUmFatorTwoTierActive(n0, n1, n2) {
+    if (umFatorTriggerMatchCount(n1, n2) !== 2) return null;
+    const trigger = umFatorTripleFactorsForNumber(n1);
+    if (!trigger) return null;
+    const shared = umFatorSharedFactorsBetween(n1, n2);
+    if (shared.length !== 2) return null;
+    const matchOnShared = shared.filter((f) => factorWins(n0, f)).length;
+    if (matchOnShared !== 1) return null;
+    if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
+    const alertFactor = shared.find((f) => !factorWins(n0, f));
+    if (!alertFactor) return null;
+    return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
+  }
+  function detectUmFatorActiveFromHistory(historyNewestFirst) {
+    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
+    const n0 = historyNewestFirst[0];
+    const n1 = historyNewestFirst[1];
+    const n2 = historyNewestFirst[2];
+    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
+    return detectUmFatorThreeTierActive(n0, n1, n2) ?? detectUmFatorTwoTierActive(n0, n1, n2);
   }
   function evaluateUmFatorRound(num, active) {
     if (num === 0) return "L";
@@ -512,7 +544,7 @@ var SinglestakeUmFator = (() => {
       const formation = lockedTable != null ? null : h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
       return {
         tableId,
-        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) === 3,
+        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) >= 2,
         alertLabel: active ? umFatorAlertLabel(active) : formation ? umFatorAlertLabel(formation) : null,
         status: active ? "alert" : formation ? "formation" : "idle"
       };

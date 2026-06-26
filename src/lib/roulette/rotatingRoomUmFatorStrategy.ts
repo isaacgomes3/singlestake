@@ -444,7 +444,7 @@ function scanUmFatorTables(
 
       tableId,
 
-      hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1]!, h[2]!) === 3,
+      hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1]!, h[2]!) >= 2,
 
       alertLabel: active
         ? umFatorAlertLabel(active)

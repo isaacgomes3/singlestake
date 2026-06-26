@@ -1,9 +1,15 @@
 /**
- * Estratégia **1 Fator**:
- * - **Gatilho (t1, t2):** os dois giros anteriores coincidem nos **3** factores (cor, altura, paridade).
- * - **Confirmação (giro actual t0):** bate em **exactamente 2** dos 3 → formação válida; alerta = factor em falta.
- * - Bate nos **3** ou em **nenhum** → descarta.
- * - **Placar:** no giro após a formação, vitória se o factor alertado acerta; derrota se zero ou oposto.
+ * Estratégia **1 Fator** (dois gatilhos em paralelo):
+ *
+ * **Gatilho A (3 factores):** t1 e t2 coincidem nos 3 factores (cor, altura, paridade).
+ * **Confirmação A:** t0 bate em exactamente 2 dos 3 → alerta = factor em falta.
+ *
+ * **Gatilho B (2 factores):** t1 e t2 coincidem em exactamente 2 factores (exclui 3).
+ * **Confirmação B:** t0 bate em exactamente 1 desses 2 partilhados e só coincide
+ * esse factor com t1 → alerta = o outro factor partilhado em falta em t0.
+ *
+ * Zeros descartam. Bate nos 3 ou em nenhum (A) / ambos ou nenhum dos 2 (B) → descarta.
+ * **Placar:** no giro após a formação, vitória se o factor alertado acerta; derrota se zero ou oposto.
  */
 
 import {
@@ -32,8 +38,8 @@ export type UmFatorActive = {
   triggerNumbers: readonly [number, number];
   /** Número do giro em que o alerta foi formado (pos. 0 na detecção). */
   resultNumber: number;
-  /** Gatilho t1/t2: sempre 3 factores iguais quando há formação. */
-  triggerMatchTier: "three";
+  /** Quantos factores coincidem entre t1 e t2 no gatilho. */
+  triggerMatchTier: UmFatorTriggerMatchTier;
   armingDescription: string;
 };
 
@@ -98,23 +104,59 @@ function factorWins(num: number, factor: DoisFatoresFactor): boolean {
   }
 }
 
+/** Factores em que dois números coincidem (cor, altura, paridade). */
+function umFatorSharedFactorsBetween(a: number, b: number): DoisFatoresFactor[] {
+  if (a === 0 || b === 0) return [];
+  const triple = umFatorTripleFactorsForNumber(a);
+  if (!triple) return [];
+  return triple.filter((f) => factorWins(b, f));
+}
+
 /** Quantos dos 3 factores de referência o número actual possui. */
 export function umFatorMatchCountOnTriple(num: number, triple: UmFatorTriggerTriple): number {
   if (num === 0) return 0;
   return triple.filter((f) => factorWins(num, f)).length;
 }
 
-/** Detecta formação de alerta (t1/t2 alinhados + t0 com exactamente 2 factores). */
-export function detectUmFatorActiveFromHistory(
-  historyNewestFirst: readonly number[],
+/** Quantos factores (cor, altura, paridade) coincidem entre num e ref. */
+function umFatorMatchCountWithReference(num: number, ref: number): number {
+  if (num === 0 || ref === 0) return 0;
+  const triple = umFatorTripleFactorsForNumber(ref);
+  if (!triple) return 0;
+  return triple.filter((f) => factorWins(num, f)).length;
+}
+
+function buildUmFatorActive(
+  n0: number,
+  n1: number,
+  n2: number,
+  trigger: UmFatorTriggerTriple,
+  shared: readonly DoisFatoresFactor[],
+  alertFactor: DoisFatoresFactor,
+  triggerMatchTier: UmFatorTriggerMatchTier,
+): UmFatorActive {
+  const sharedLabel = shared.map(doisFatoresFactorLabel).join(" · ");
+  const tierTag = triggerMatchTier === "three" ? "3g" : "2g";
+  return {
+    pairKind: "cor-altura",
+    pairKindLabel: "Cor · Altura · Paridade",
+    triggerFactor1: trigger[0],
+    triggerFactor2: trigger[1],
+    triggerFactor3: trigger[2],
+    alertFactor,
+    triggerNumbers: [n2, n1],
+    resultNumber: n0,
+    triggerMatchTier,
+    armingDescription: `1 Fator (${tierTag}): gatilho ${sharedLabel} (${n2}, ${n1}) → alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda próximo giro)`,
+  };
+}
+
+/** Gatilho 3 factores: t1/t2 alinhados + t0 com exactamente 2 factores. */
+function detectUmFatorThreeTierActive(
+  n0: number,
+  n1: number,
+  n2: number,
 ): UmFatorActive | null {
-  if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
-
-  const n0 = historyNewestFirst[0]!;
-  const n1 = historyNewestFirst[1]!;
-  const n2 = historyNewestFirst[2]!;
-  if (n0 === 0 || n1 === 0 || n2 === 0) return null;
-
   if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
 
   const trigger = umFatorTripleFactorsForNumber(n1);
@@ -126,20 +168,45 @@ export function detectUmFatorActiveFromHistory(
   const alertFactor = trigger.find((f) => !factorWins(n0, f));
   if (!alertFactor) return null;
 
-  const triggerLabel = `${doisFatoresFactorLabel(trigger[0])} · ${doisFatoresFactorLabel(trigger[1])} · ${doisFatoresFactorLabel(trigger[2])}`;
+  return buildUmFatorActive(n0, n1, n2, trigger, trigger, alertFactor, "three");
+}
 
-  return {
-    pairKind: "cor-altura",
-    pairKindLabel: "Cor · Altura · Paridade",
-    triggerFactor1: trigger[0],
-    triggerFactor2: trigger[1],
-    triggerFactor3: trigger[2],
-    alertFactor,
-    triggerNumbers: [n2, n1],
-    resultNumber: n0,
-    triggerMatchTier: "three",
-    armingDescription: `1 Fator: gatilho ${triggerLabel} (${n2}, ${n1}) → alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda próximo giro)`,
-  };
+/**
+ * Gatilho 2 factores: t1/t2 com exactamente 2 em comum; t0 com 1 desses 2 e só
+ * esse factor em comum com t1 → alerta = o outro factor partilhado.
+ */
+function detectUmFatorTwoTierActive(n0: number, n1: number, n2: number): UmFatorActive | null {
+  if (umFatorTriggerMatchCount(n1, n2) !== 2) return null;
+
+  const trigger = umFatorTripleFactorsForNumber(n1);
+  if (!trigger) return null;
+
+  const shared = umFatorSharedFactorsBetween(n1, n2);
+  if (shared.length !== 2) return null;
+
+  const matchOnShared = shared.filter((f) => factorWins(n0, f)).length;
+  if (matchOnShared !== 1) return null;
+
+  if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
+
+  const alertFactor = shared.find((f) => !factorWins(n0, f));
+  if (!alertFactor) return null;
+
+  return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
+}
+
+/** Detecta formação de alerta (gatilho 3f ou 2f + confirmação em t0). */
+export function detectUmFatorActiveFromHistory(
+  historyNewestFirst: readonly number[],
+): UmFatorActive | null {
+  if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
+
+  const n0 = historyNewestFirst[0]!;
+  const n1 = historyNewestFirst[1]!;
+  const n2 = historyNewestFirst[2]!;
+  if (n0 === 0 || n1 === 0 || n2 === 0) return null;
+
+  return detectUmFatorThreeTierActive(n0, n1, n2) ?? detectUmFatorTwoTierActive(n0, n1, n2);
 }
 
 /** Avalia o giro de resultado contra o factor alertado (giro seguinte à formação). */

@@ -111,7 +111,10 @@ export function BackOfficeLayout() {
     <>
       <div className="border-b border-sidebar-border-fixed px-3 py-4">
         <Link to="/back-office" className="block">
-          <SinglestakeLogo variant="stacked" className="mx-auto h-[80px] w-full max-w-[200px]" />
+          <SinglestakeLogo
+            variant="stacked"
+            className="mx-auto h-[160px] max-h-[160px] w-full max-w-[260px]"
+          />
         </Link>
       </div>
       <div className="flex-1 overflow-y-auto">
