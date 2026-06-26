@@ -60,6 +60,8 @@ else
     ok "servidor tem giros da Pragmatic"
   elif echo "$HIST" | grep -q '"upstreamActive":true'; then
     warn "WebSocket activo mas ainda sem giros — aguarde ~30s ou verifique ROULETTE_CASINO_ID"
+  elif pm2 logs singlestake --lines 30 --nostream 2>/dev/null | grep -q "WebSocket is not defined"; then
+    bad "WebSocket não definido no Node — corra git pull && npm run build && pm2 restart"
   else
     bad "hub não ligou à Pragmatic — ver pm2 logs"
   fi

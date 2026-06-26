@@ -1,3 +1,5 @@
+import "@/lib/server/ensureNodeWebSocket";
+
 import { setDgaTableMeta } from "@/lib/server/dgaTableMetaCache";
 import {
   parseRouletteTableIdsFromEnv,
