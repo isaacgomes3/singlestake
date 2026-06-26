@@ -1,14 +1,14 @@
 # Deploy automático na VPS quando há push em main.
 #
-# Secrets (Settings → Secrets and variables → Actions → Repository secrets):
-#   VPS_HOST, VPS_USER, VPS_SSH_KEY — obrigatórios
-#   VPS_APP_DIR — opcional (/var/www/stake37)
+# Secrets obrigatórios: VPS_HOST, VPS_USER
+# Chave SSH — use UM dos dois (recomendado: VPS_SSH_KEY_B64):
+#   VPS_SSH_KEY_B64 — na VPS: base64 -w0 /root/.ssh/github-deploy-stake37
+#   VPS_SSH_KEY     — chave privada multilinha (BEGIN…END); falha se mal colada
 #
 # Na VPS (uma vez):
 #   ssh-keygen -t ed25519 -f /root/.ssh/github-deploy-stake37 -N ""
 #   cat /root/.ssh/github-deploy-stake37.pub >> /root/.ssh/authorized_keys
 #   chmod 600 /root/.ssh/authorized_keys
-#   Colar a chave PRIVADA (github-deploy-stake37, sem .pub) em VPS_SSH_KEY
 
 name: Deploy stake37
 
@@ -22,12 +22,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Validar chave SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          if [ -n "${SSH_KEY_B64:-}" ]; then
+            echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/vps_deploy_key
+          elif [ -n "${SSH_KEY:-}" ]; then
+            printf '%s' "$SSH_KEY" > ~/.ssh/vps_deploy_key
+            printf '\n' >> ~/.ssh/vps_deploy_key
+          else
+            echo "::error::Defina VPS_SSH_KEY_B64 (recomendado) ou VPS_SSH_KEY nos secrets do repositório."
+            exit 1
+          fi
+          chmod 600 ~/.ssh/vps_deploy_key
+          if ! ssh-keygen -y -f ~/.ssh/vps_deploy_key >/dev/null 2>&1; then
+            echo "::error::Chave SSH inválida (ssh: no key found). Na VPS execute:"
+            echo "::error::  base64 -w0 /root/.ssh/github-deploy-stake37"
+            echo "::error::Cole o resultado no secret VPS_SSH_KEY_B64 e apague VPS_SSH_KEY se estiver errado."
+            exit 1
+          fi
+          echo "Chave SSH válida."
+
       - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          key_path: ~/.ssh/vps_deploy_key
           port: 22
           timeout: 120s
           command_timeout: 25m
