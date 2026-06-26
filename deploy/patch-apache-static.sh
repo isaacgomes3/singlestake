@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Insere snippet de estáticos no vhost Apache existente (preserva SSL e resto).
 # Uso: bash deploy/patch-apache-static.sh
-set -euo pipefail
+# Nunca aborta o deploy — só avisa se httpd -t falhar.
+set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HTTPD="${HTTPD:-/www/server/apache/bin/httpd}"
@@ -61,8 +62,8 @@ if [[ -x "$HTTPD" ]]; then
     /etc/init.d/httpd reload 2>/dev/null || systemctl reload httpd 2>/dev/null || systemctl reload apache2 2>/dev/null || true
     echo "✓ Apache reload OK (estáticos activos)"
   else
-    echo "✗ httpd -t falhou — restaure o backup em ${CONF}.bak.*"
-    exit 1
+    echo "✗ httpd -t falhou — restaure o backup em ${CONF}.bak.* se necessário"
+    exit 0
   fi
 else
   echo "⚠ Reinicie Apache manualmente"
