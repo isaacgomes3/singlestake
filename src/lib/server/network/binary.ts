@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import { BINARY_MAX_LEVELS } from "@/lib/back-office/binary-constants";
 import type { BinaryNetworkData, BinaryTreeNodeView } from "@/lib/back-office/network-types";
 import { getDb } from "@/lib/server/db/client";
 import { binaryTreeNodes, userPackages, users } from "@/lib/server/db/schema";
@@ -114,7 +115,7 @@ export async function buildBinaryNetworkData(
   }
 
   return {
-    root: buildTreeNode(userId, names, childIndex, 0, 3),
+    root: buildTreeNode(userId, names, childIndex, 0, Math.min(BINARY_MAX_LEVELS, 5)),
     legs: {
       left: { count: leftIds.length, volume: leftVolume },
       right: { count: rightIds.length, volume: rightVolume },

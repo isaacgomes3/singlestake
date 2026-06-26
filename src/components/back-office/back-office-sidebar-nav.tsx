@@ -11,6 +11,7 @@ import {
   type BackOfficeGroupId,
   type BackOfficeNavItem,
 } from "@/lib/back-office/navigation";
+import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { navGroupLabel, navModuleLabel, navSectionLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -181,7 +182,10 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
     });
   };
 
-  const items = backOfficeSidebarNav();
+  const isAdmin = getSession()?.user.role === "admin";
+  const items = backOfficeSidebarNav().filter(
+    (entry) => entry.kind !== "group" || entry.item.id !== "administracao" || isAdmin,
+  );
 
   return (
     <nav

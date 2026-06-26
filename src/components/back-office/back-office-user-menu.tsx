@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
+  GitBranch,
   LogOut,
   Monitor,
   Moon,
@@ -94,6 +95,12 @@ export function BackOfficeUserMenu({ user, onLogout }: Props) {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link to="/back-office/rede/rede-binaria" className="cursor-pointer">
+            <GitBranch className="mr-2 size-4" aria-hidden />
+            {t("overview.binaryTreeLinkTitle")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link to="/back-office" className="cursor-pointer">
             <Store className="mr-2 size-4" aria-hidden />
             {t("layout.yourStore")}
@@ -123,7 +130,7 @@ export function BackOfficeUserMenu({ user, onLogout }: Props) {
         </DropdownMenuItem>
         <DropdownMenuItem disabled className="text-xs text-muted-foreground">
           <User className="mr-2 size-4" aria-hidden />
-          {user.role}
+          {user.role === "admin" ? t("layout.roleAdmin") : t("layout.roleUser")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

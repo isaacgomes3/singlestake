@@ -50,6 +50,8 @@ export type Messages = PanelMessages & {
     affiliateProgram: string;
     documentation: string;
     settings: string;
+    roleAdmin: string;
+    roleUser: string;
     themeLight: string;
     themeDark: string;
     themeSystem: string;

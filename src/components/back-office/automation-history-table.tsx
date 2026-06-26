@@ -1,3 +1,6 @@
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useId, useState } from "react";
+
 import type { AutomationSimRound } from "@/lib/back-office/rouletteAutomationSim";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -32,13 +35,39 @@ function tipoTone(round: AutomationSimRound): "success" | "danger" | "warning" {
 export function AutomationHistoryTable({ rounds }: { rounds: readonly AutomationSimRound[] }) {
   const { t } = useI18n();
   const { money, date, time } = useFormat();
+  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
 
   return (
     <div className="theme-card overflow-hidden rounded-xl">
-      <div className="border-b border-border-color bg-bg-secondary px-4 py-3">
-        <h2 className="text-sm font-semibold text-text-primary">{t("overview.historyTitle")}</h2>
-      </div>
-      <div className="overflow-x-auto">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        aria-label={expanded ? t("overview.historyHide") : t("overview.historyShow")}
+        className={cn(
+          "flex w-full items-center gap-2 border-border-color bg-bg-secondary px-4 py-3 text-left transition-colors",
+          "hover:bg-bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+          expanded && "border-b",
+        )}
+      >
+        {expanded ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+        )}
+        <h2 className="min-w-0 flex-1 text-sm font-semibold text-text-primary">
+          {t("overview.historyTitle")}
+        </h2>
+        {rounds.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-bg-card px-2 py-0.5 text-[11px] font-semibold tabular-nums text-text-secondary">
+            {rounds.length}
+          </span>
+        ) : null}
+      </button>
+      {expanded ? (
+      <div id={panelId} className="overflow-x-auto">
         <table className="theme-table w-full min-w-[360px] text-left text-sm">
           <thead>
             <tr className="border-b border-border-color text-[11px] uppercase tracking-wide text-text-secondary">
@@ -101,6 +130,7 @@ export function AutomationHistoryTable({ rounds }: { rounds: readonly Automation
           </tbody>
         </table>
       </div>
+      ) : null}
     </div>
   );
 }

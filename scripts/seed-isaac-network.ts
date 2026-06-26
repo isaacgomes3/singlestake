@@ -27,6 +27,7 @@ import {
   users,
   walletAccounts,
 } from "../src/lib/server/db/schema";
+import { setCompanyUserId } from "../src/lib/server/finance/company-pool";
 import { calculatePackageSplit } from "../src/lib/server/finance/package-split";
 import { provisionSubscriptionForNewUser } from "../src/lib/server/finance/subscription-access";
 import { rebuildBinaryPointsFromHistory } from "../src/lib/server/network/binary-engine";
@@ -250,6 +251,7 @@ async function ensureIsaac(now: number): Promise<string> {
   await ensureBinaryRoot(isaac.id, now);
   await activateSubscriptionWithoutPayment(isaac.id, now);
   await activateStartWithoutPayment(isaac.id, now);
+  await setCompanyUserId(isaac.id);
 
   return isaac.id;
 }

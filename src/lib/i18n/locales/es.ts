@@ -34,6 +34,8 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
     affiliateProgram: "Afiliado",
     documentation: "Documentación",
     settings: "Configuración",
+    roleAdmin: "Administrador",
+    roleUser: "Usuario",
     themeLight: "Claro",
     themeDark: "Oscuro",
     themeSystem: "Sistema",

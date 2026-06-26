@@ -47,6 +47,8 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
     echo "→ npm run db:seed (FIRST_DEPLOY=1)"
     npm run db:seed
   fi
+  echo "→ npm run db:seed-isaac (rede qualificadora Isaac — idempotente)"
+  npm run db:seed-isaac
 fi
 
 echo "→ pm2"
