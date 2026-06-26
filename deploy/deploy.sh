@@ -59,11 +59,10 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
     npm run db:seed
   fi
   echo "→ npm run db:seed-isaac (rede qualificadora Isaac — idempotente)"
-  npm run db:seed-isaac
+  npm run db:seed-isaac || echo "⚠ db:seed-isaac ignorado"
 fi
 
-echo "→ pm2 (restart completo)"
-pm2 delete singlestake 2>/dev/null || true
+echo "→ pm2 (restart)"
 pm2 start deploy/ecosystem.config.cjs
 pm2 save
 
