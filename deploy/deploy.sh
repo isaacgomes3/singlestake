@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Deploy no VPS — Singlestake (Node + PM2).
-# Uso na VPS: ./deploy/deploy.sh
+# Uso na VPS:
+#   ./deploy/deploy.sh
+#   bash deploy/deploy.sh   # se Permission denied após git pull no Windows
 # Com push em main + GitHub Actions configurado, corre sozinho após cada merge.
 set -euo pipefail
 
