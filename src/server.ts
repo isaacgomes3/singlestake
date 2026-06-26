@@ -1,4 +1,4 @@
-import "./lib/server/ensureNodeWebSocket";
+import "./lib/server/bootstrap";
 import "./lib/error-capture";
 import { ensureAutomationYieldScheduler } from "./lib/server/finance/automation-scheduler";
 import { ensureRouletteHubDaemon } from "./lib/server/rouletteHubDaemon";

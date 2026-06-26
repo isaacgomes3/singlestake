@@ -1,11 +1,12 @@
 /**
  * Mantém o WebSocket Pragmatic e o motor global activos sem depender de clientes SSE no browser.
  */
+import "@/lib/server/bootstrap";
+
 let bootPromise: Promise<void> | null = null;
 
 function startDaemon(): Promise<void> {
   return (async () => {
-    await import("@/lib/server/ensureNodeWebSocket");
     const { parseRouletteTableIdsFromEnv } = await import("@/lib/server/rouletteSocket");
     const { subscribeRouletteHub, waitForRouletteHubData } = await import(
       "@/lib/server/rouletteHub"
@@ -22,7 +23,7 @@ function startDaemon(): Promise<void> {
     });
 
     console.log("[Roleta] daemon: hub ao vivo sempre activo para", tableIds.length, "mesa(s)");
-    await waitForRouletteHubData(12_000);
+    await waitForRouletteHubData(25_000);
   })();
 }
 
@@ -31,12 +32,18 @@ export function ensureRouletteHubDaemon(): void {
   bootPromise = startDaemon().catch((err) => {
     bootPromise = null;
     console.error("[Roleta] daemon: falha ao iniciar:", err);
+    setTimeout(() => {
+      if (!bootPromise) {
+        console.log("[Roleta] daemon: a tentar novamente…");
+        ensureRouletteHubDaemon();
+      }
+    }, 5_000);
     throw err;
   });
 }
 
 /** Aguarda o hub Pragmatic (útil em APIs que respondem antes do WS ligar). */
-export async function waitForRouletteHubDaemon(timeoutMs = 12_000): Promise<void> {
+export async function waitForRouletteHubDaemon(timeoutMs = 30_000): Promise<void> {
   ensureRouletteHubDaemon();
   if (!bootPromise) return;
   await Promise.race([

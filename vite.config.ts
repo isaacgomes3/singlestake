@@ -44,7 +44,8 @@ export default defineConfig(({ command, mode }) => {
             nitro({
               preset: "node-server",
               output: { dir: ".output" },
-              externals: { traceInclude: ["ws"] },
+              // Não fazer bundle de `ws` — copiar para .output (evita bufferutil quebrado).
+              traceDeps: ["ws*"],
             }),
           ]
         : []),

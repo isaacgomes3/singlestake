@@ -47,6 +47,7 @@ import { Route as ApiRouletteTableMetaRouteImport } from './routes/api/roulette/
 import { Route as ApiRouletteStrategyGlobalRouteImport } from './routes/api/roulette/strategy-global'
 import { Route as ApiRouletteSpinsRouteImport } from './routes/api/roulette/spins'
 import { Route as ApiRouletteRotatingRoomRouteImport } from './routes/api/roulette/rotating-room'
+import { Route as ApiRouletteHistoriesRouteImport } from './routes/api/roulette/histories'
 import { Route as ApiRouletteAutomationSimRouteImport } from './routes/api/roulette/automation-sim'
 import { Route as ApiPragmaticFootballBlitzSpinsRouteImport } from './routes/api/pragmatic/football-blitz-spins'
 import { Route as ApiPragmatic24dSpinSpinsRouteImport } from './routes/api/pragmatic/24d-spin-spins'
@@ -273,6 +274,11 @@ const ApiRouletteSpinsRoute = ApiRouletteSpinsRouteImport.update({
 const ApiRouletteRotatingRoomRoute = ApiRouletteRotatingRoomRouteImport.update({
   id: '/api/roulette/rotating-room',
   path: '/api/roulette/rotating-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouletteHistoriesRoute = ApiRouletteHistoriesRouteImport.update({
+  id: '/api/roulette/histories',
+  path: '/api/roulette/histories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRouletteAutomationSimRoute =
@@ -523,6 +529,7 @@ export interface FileRoutesByFullPath {
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/histories': typeof ApiRouletteHistoriesRoute
   '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
@@ -595,6 +602,7 @@ export interface FileRoutesByTo {
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/histories': typeof ApiRouletteHistoriesRoute
   '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
@@ -671,6 +679,7 @@ export interface FileRoutesById {
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
+  '/api/roulette/histories': typeof ApiRouletteHistoriesRoute
   '/api/roulette/rotating-room': typeof ApiRouletteRotatingRoomRouteWithChildren
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
@@ -748,6 +757,7 @@ export interface FileRouteTypes {
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
+    | '/api/roulette/histories'
     | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
@@ -820,6 +830,7 @@ export interface FileRouteTypes {
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
+    | '/api/roulette/histories'
     | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
@@ -895,6 +906,7 @@ export interface FileRouteTypes {
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
+    | '/api/roulette/histories'
     | '/api/roulette/rotating-room'
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
@@ -964,6 +976,7 @@ export interface RootRouteChildren {
   ApiPragmatic24dSpinSpinsRoute: typeof ApiPragmatic24dSpinSpinsRoute
   ApiPragmaticFootballBlitzSpinsRoute: typeof ApiPragmaticFootballBlitzSpinsRoute
   ApiRouletteAutomationSimRoute: typeof ApiRouletteAutomationSimRouteWithChildren
+  ApiRouletteHistoriesRoute: typeof ApiRouletteHistoriesRoute
   ApiRouletteRotatingRoomRoute: typeof ApiRouletteRotatingRoomRouteWithChildren
   ApiRouletteSpinsRoute: typeof ApiRouletteSpinsRoute
   ApiRouletteStrategyGlobalRoute: typeof ApiRouletteStrategyGlobalRouteWithChildren
@@ -1242,6 +1255,13 @@ declare module '@tanstack/react-router' {
       path: '/api/roulette/rotating-room'
       fullPath: '/api/roulette/rotating-room'
       preLoaderRoute: typeof ApiRouletteRotatingRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/roulette/histories': {
+      id: '/api/roulette/histories'
+      path: '/api/roulette/histories'
+      fullPath: '/api/roulette/histories'
+      preLoaderRoute: typeof ApiRouletteHistoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/roulette/automation-sim': {
@@ -1702,6 +1722,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPragmatic24dSpinSpinsRoute: ApiPragmatic24dSpinSpinsRoute,
   ApiPragmaticFootballBlitzSpinsRoute: ApiPragmaticFootballBlitzSpinsRoute,
   ApiRouletteAutomationSimRoute: ApiRouletteAutomationSimRouteWithChildren,
+  ApiRouletteHistoriesRoute: ApiRouletteHistoriesRoute,
   ApiRouletteRotatingRoomRoute: ApiRouletteRotatingRoomRouteWithChildren,
   ApiRouletteSpinsRoute: ApiRouletteSpinsRoute,
   ApiRouletteStrategyGlobalRoute: ApiRouletteStrategyGlobalRouteWithChildren,

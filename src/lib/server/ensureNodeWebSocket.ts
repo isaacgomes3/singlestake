@@ -58,7 +58,12 @@ class NodeWebSocket extends EventTarget {
   }
 
   close(code?: number, reason?: string): void {
-    this.ws.close(code, reason);
+    try {
+      if (this.ws.readyState === WS.CLOSING || this.ws.readyState === WS.CLOSED) return;
+      this.ws.close(code, reason);
+    } catch (err) {
+      console.warn("[Roleta] ws.close ignorado:", err);
+    }
   }
 }
 

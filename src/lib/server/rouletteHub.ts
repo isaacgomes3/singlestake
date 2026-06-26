@@ -1,4 +1,4 @@
-import "@/lib/server/ensureNodeWebSocket";
+import "@/lib/server/bootstrap";
 
 import { setDgaTableMeta } from "@/lib/server/dgaTableMetaCache";
 import {
@@ -124,6 +124,7 @@ function ensureUpstream() {
         tableId,
         onTableHistorySnapshot: (spins) => {
           if (spins.length === 0) return;
+          console.log("[Roleta] snapshot mesa", tableId, "→", spins.length, "giros");
           const scoped = spins.map((s) => ({
             number: s.number,
             gameId: `${tableId}::${s.gameId}`,
@@ -223,12 +224,12 @@ export function getRouletteHubStatus() {
   };
 }
 
-/** Espera até haver dados Pragmatic ou o upstream estar activo. */
-export async function waitForRouletteHubData(timeoutMs = 10_000): Promise<void> {
+/** Espera até haver dados Pragmatic (não basta upstreamActive — sockets ainda a ligar). */
+export async function waitForRouletteHubData(timeoutMs = 25_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const status = getRouletteHubStatus();
-    if (status.hasData || status.upstreamActive) return;
-    await new Promise((r) => setTimeout(r, 400));
+    if (status.hasData) return;
+    await new Promise((r) => setTimeout(r, 500));
   }
 }
