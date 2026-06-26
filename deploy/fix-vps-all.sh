@@ -34,14 +34,12 @@ for line in \
 done
 echo ""
 
-echo "→ sessão admin (se login falhar)"
-if grep -q '^SEED_ADMIN_PASSWORD=' .env 2>/dev/null; then
-  npm run db:reset-admin 2>/dev/null || echo "   (db:reset-admin ignorado — confirme SEED_ADMIN_PASSWORD no .env)"
-fi
-echo ""
-
 echo "3/7 — Dependências e build"
 if ! npm ci 2>/dev/null; then npm install; fi
+# shellcheck source=deploy-common.sh
+source "$APP_DIR/deploy/deploy-common.sh"
+rebuild_native_modules
+ensure_pm2
 npm run build
 if [[ -f .output/server/_libs/ws.mjs ]]; then
   echo "   AVISO: ws ainda empacotado — rebuild pode precisar de npm install recente"
@@ -53,10 +51,12 @@ mkdir -p data
 if grep -q '^DATABASE_URL=' .env; then
   npm run db:push
 fi
+if grep -q '^SEED_ADMIN_PASSWORD=' .env 2>/dev/null; then
+  npm run db:reset-admin 2>/dev/null || echo "   (db:reset-admin ignorado — confirme SEED_ADMIN_PASSWORD no .env)"
+fi
 echo ""
 
 echo "5/7 — PM2"
-export PATH="$(npm prefix -g 2>/dev/null)/bin:$PATH"
 if pm2 describe singlestake >/dev/null 2>&1; then
   pm2 delete singlestake 2>/dev/null || true
 fi

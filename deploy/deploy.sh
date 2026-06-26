@@ -8,6 +8,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=deploy-common.sh
+source "$ROOT/deploy/deploy-common.sh"
+setup_deploy_path
 
 BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
 
@@ -29,10 +32,8 @@ if ! npm ci 2>/dev/null; then
   npm install
 fi
 
-if ! command -v pm2 >/dev/null 2>&1; then
-  echo "→ instalar PM2"
-  npm install -g pm2
-fi
+rebuild_native_modules
+ensure_pm2
 
 echo "→ npm run build"
 npm run build
