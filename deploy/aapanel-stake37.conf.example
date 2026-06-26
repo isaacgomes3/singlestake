@@ -28,6 +28,25 @@
     ProxyPass /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/ retry=0 timeout=3600
     ProxyPassReverse /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/
 
+    # Estáticos do build — Apache (CSS/JS/logo). Ver deploy/apache-static-snippet.conf
+    ProxyPass /assets !
+    ProxyPass /images !
+    ProxyPass /manifest.webmanifest !
+    ProxyPass /lobby !
+    ProxyPass /profile !
+    ProxyPass /damas !
+    Alias /assets "/var/www/stake37/.output/public/assets"
+    Alias /images "/var/www/stake37/.output/public/images"
+    Alias /manifest.webmanifest "/var/www/stake37/.output/public/manifest.webmanifest"
+    Alias /lobby "/var/www/stake37/.output/public/lobby"
+    Alias /profile "/var/www/stake37/.output/public/profile"
+    Alias /damas "/var/www/stake37/.output/public/damas"
+    <Directory "/var/www/stake37/.output/public">
+        Require all granted
+        Options -Indexes +FollowSymLinks
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </Directory>
+
     ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
     ProxyPassReverse / http://127.0.0.1:3000/
 
@@ -59,6 +78,25 @@
     ProxyPassReverse /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream
     ProxyPass /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/ retry=0 timeout=3600
     ProxyPassReverse /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/
+
+    # Estáticos do build — Apache (CSS/JS/logo). Ver deploy/apache-static-snippet.conf
+    ProxyPass /assets !
+    ProxyPass /images !
+    ProxyPass /manifest.webmanifest !
+    ProxyPass /lobby !
+    ProxyPass /profile !
+    ProxyPass /damas !
+    Alias /assets "/var/www/stake37/.output/public/assets"
+    Alias /images "/var/www/stake37/.output/public/images"
+    Alias /manifest.webmanifest "/var/www/stake37/.output/public/manifest.webmanifest"
+    Alias /lobby "/var/www/stake37/.output/public/lobby"
+    Alias /profile "/var/www/stake37/.output/public/profile"
+    Alias /damas "/var/www/stake37/.output/public/damas"
+    <Directory "/var/www/stake37/.output/public">
+        Require all granted
+        Options -Indexes +FollowSymLinks
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </Directory>
 
     ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
     ProxyPassReverse / http://127.0.0.1:3000/

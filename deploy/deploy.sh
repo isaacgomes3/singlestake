@@ -35,8 +35,14 @@ fi
 rebuild_native_modules
 ensure_pm2
 
-echo "→ npm run build"
+echo "→ build limpo (.output)"
+rm -rf .output
 npm run build
+
+if [[ ! -d .output/public/assets ]]; then
+  echo "✗ Build incompleto — falta .output/public/assets"
+  exit 1
+fi
 
 mkdir -p data
 
@@ -51,14 +57,26 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   npm run db:seed-isaac
 fi
 
-echo "→ pm2"
-if pm2 describe singlestake >/dev/null 2>&1; then
-  pm2 reload deploy/ecosystem.config.cjs --update-env
-else
-  pm2 start deploy/ecosystem.config.cjs
-fi
-
+echo "→ pm2 (restart completo)"
+pm2 delete singlestake 2>/dev/null || true
+pm2 start deploy/ecosystem.config.cjs
 pm2 save
+
+echo "→ verificar assets estáticos"
+sleep 3
+HTML="$(curl -sf --max-time 30 http://127.0.0.1:3000/entrar || true)"
+CSS="$(echo "$HTML" | grep -oE '/assets/styles-[A-Za-z0-9_-]+\.css' | head -1 || true)"
+if [[ -z "$CSS" ]]; then
+  echo "⚠ HTML sem link CSS — ver pm2 logs singlestake"
+else
+  CODE="$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000${CSS}" || echo "000")"
+  if [[ "$CODE" != "200" ]]; then
+    echo "✗ Asset estático falhou: ${CSS} → HTTP ${CODE}"
+    echo "  Corrija Apache: copie deploy/aapanel-stake37.conf.example e reload httpd"
+    exit 1
+  fi
+  echo "✓ Assets estáticos OK (${CSS})"
+fi
 
 REV="$(git rev-parse --short HEAD)"
 if [[ -f .env ]]; then
@@ -90,8 +108,20 @@ if echo "$HIST_CHECK" | grep -q '"webSocketAvailable":false'; then
 fi
 
 AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
-if [[ -f "$AAPANEL_CONF" ]] && ! grep -q "api/roulette/spins" "$AAPANEL_CONF" 2>/dev/null; then
-  echo "⚠ Apache sem proxy SSE — copie deploy/aapanel-stake37.conf.example para $AAPANEL_CONF"
+HTTPD="${HTTPD:-/www/server/apache/bin/httpd}"
+if [[ -f "$AAPANEL_CONF" ]]; then
+  if ! grep -q "api/roulette/spins" "$AAPANEL_CONF" 2>/dev/null; then
+    echo "⚠ Apache sem proxy SSE — copie deploy/aapanel-stake37.conf.example para $AAPANEL_CONF"
+  fi
+  if ! grep -q 'ProxyPass /assets !' "$AAPANEL_CONF" 2>/dev/null; then
+    echo "→ Apache: activar estáticos (.output/public)"
+    cp deploy/aapanel-stake37.conf.example "$AAPANEL_CONF"
+    if [[ -x "$HTTPD" ]]; then
+      "$HTTPD" -t && /etc/init.d/httpd reload
+    else
+      echo "⚠ Reinicie Apache manualmente após actualizar o vhost"
+    fi
+  fi
 fi
 
 PUBLIC_URL="${PUBLIC_APP_URL:-https://stake37.com.br}"

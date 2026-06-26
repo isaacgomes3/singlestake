@@ -64,17 +64,21 @@ pm2 start deploy/ecosystem.config.cjs
 pm2 save
 echo ""
 
-echo "6/7 — Apache SSE (aaPanel)"
-if [[ -f "$AAPANEL_CONF" ]] && ! grep -q 'api/roulette/spins' "$AAPANEL_CONF"; then
-  cp deploy/aapanel-stake37.conf.example "$AAPANEL_CONF"
-  if [[ -x "$HTTPD" ]]; then
-    "$HTTPD" -t && /etc/init.d/httpd reload
-    echo "   Apache actualizado"
+echo "6/7 — Apache SSE + estáticos (aaPanel)"
+if [[ -f "$AAPANEL_CONF" ]]; then
+  if ! grep -q 'api/roulette/spins' "$AAPANEL_CONF" || ! grep -q 'ProxyPass /assets !' "$AAPANEL_CONF"; then
+    cp deploy/aapanel-stake37.conf.example "$AAPANEL_CONF"
+    if [[ -x "$HTTPD" ]]; then
+      "$HTTPD" -t && /etc/init.d/httpd reload
+      echo "   Apache actualizado (SSE + /assets /images)"
+    else
+      echo "   AVISO: copiou vhost — reinicie Apache manualmente"
+    fi
   else
-    echo "   AVISO: copiou vhost — reinicie Apache manualmente"
+    echo "   Apache OK"
   fi
 else
-  echo "   Apache OK ou vhost não encontrado"
+  echo "   vhost não encontrado — $AAPANEL_CONF"
 fi
 echo ""
 
