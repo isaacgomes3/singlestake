@@ -83,10 +83,20 @@ else
   if [[ "$CODE" == "200" ]]; then
     echo "✓ Assets OK via Node (${CSS})"
   elif grep -q 'ProxyPass /assets !' "$AAPANEL_CONF" 2>/dev/null; then
-    echo "✓ Asset no disco (${CSS}); Apache serve /assets (Node devolve ${CODE} — esperado)"
+    echo "✓ Asset no disco (${CSS}); Apache serve /assets (Node devolve ${CODE})"
   else
-    echo "✗ Asset falhou: ${CSS} → HTTP ${CODE} e Apache sem ProxyPass /assets"
+    echo "✗ Asset falhou: ${CSS} → HTTP ${CODE} — ver .output/public e pm2 logs"
     exit 1
+  fi
+fi
+
+PUBLIC_URL="${PUBLIC_APP_URL:-https://stake37.com.br}"
+if [[ -n "$CSS" && -f ".output/public${CSS}" ]]; then
+  PUB_CODE="$(curl -sf -o /dev/null -w '%{http_code}' "${PUBLIC_URL}${CSS}" 2>/dev/null || echo "000")"
+  if [[ "$PUB_CODE" == "200" ]]; then
+    echo "✓ Site público OK (${PUBLIC_URL}${CSS})"
+  else
+    echo "⚠ Site público ainda HTTP ${PUB_CODE} — bash deploy/patch-apache-static.sh ou aguarde DNS/cache"
   fi
 fi
 

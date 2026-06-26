@@ -5,6 +5,7 @@ import { ensureRouletteHubDaemon } from "./lib/server/rouletteHubDaemon";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { tryServePublicStatic } from "./lib/server/serve-public-static";
 
 ensureRouletteHubDaemon();
 ensureAutomationYieldScheduler();
@@ -45,6 +46,9 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const staticResponse = await tryServePublicStatic(request);
+    if (staticResponse) return staticResponse;
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
