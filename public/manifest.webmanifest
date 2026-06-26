@@ -4,14 +4,15 @@
   "description": "Casino ao vivo, back office e estratégias de roleta",
   "start_url": "/back-office",
   "display": "standalone",
-  "background_color": "#18181a",
-  "theme_color": "#18181a",
+  "background_color": "#28282b",
+  "theme_color": "#28282b",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "48x48",
-      "type": "image/x-icon"
+      "src": "/images/stake37-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
