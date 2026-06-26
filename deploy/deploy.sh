@@ -44,6 +44,13 @@ if [[ ! -d .output/public/assets ]]; then
   exit 1
 fi
 
+AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
+if [[ -f "$AAPANEL_CONF" ]]; then
+  bash "$ROOT/deploy/patch-apache-static.sh"
+else
+  echo "⚠ vhost Apache não encontrado ($AAPANEL_CONF) — CSS/JS podem falhar via proxy Node"
+fi
+
 mkdir -p data
 
 if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
@@ -68,14 +75,19 @@ HTML="$(curl -sf --max-time 30 http://127.0.0.1:3000/entrar || true)"
 CSS="$(echo "$HTML" | grep -oE '/assets/styles-[A-Za-z0-9_-]+\.css' | head -1 || true)"
 if [[ -z "$CSS" ]]; then
   echo "⚠ HTML sem link CSS — ver pm2 logs singlestake"
+elif [[ ! -f ".output/public${CSS}" ]]; then
+  echo "✗ Ficheiro CSS em falta no disco: .output/public${CSS}"
+  exit 1
 else
-  CODE="$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000${CSS}" || echo "000")"
-  if [[ "$CODE" != "200" ]]; then
-    echo "✗ Asset estático falhou: ${CSS} → HTTP ${CODE}"
-    echo "  Corrija Apache: copie deploy/aapanel-stake37.conf.example e reload httpd"
+  CODE="$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000${CSS}" 2>/dev/null || echo "000")"
+  if [[ "$CODE" == "200" ]]; then
+    echo "✓ Assets OK via Node (${CSS})"
+  elif grep -q 'ProxyPass /assets !' "$AAPANEL_CONF" 2>/dev/null; then
+    echo "✓ Asset no disco (${CSS}); Apache serve /assets (Node devolve ${CODE} — esperado)"
+  else
+    echo "✗ Asset falhou: ${CSS} → HTTP ${CODE} e Apache sem ProxyPass /assets"
     exit 1
   fi
-  echo "✓ Assets estáticos OK (${CSS})"
 fi
 
 REV="$(git rev-parse --short HEAD)"
@@ -105,23 +117,6 @@ fi
 HIST_CHECK="$(curl -sf --max-time 30 http://127.0.0.1:3000/api/roulette/histories 2>/dev/null || echo '{}')"
 if echo "$HIST_CHECK" | grep -q '"webSocketAvailable":false'; then
   echo "✗ WebSocket polyfill inactivo — confirme node-preload no PM2 (deploy/ecosystem.config.cjs)"
-fi
-
-AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
-HTTPD="${HTTPD:-/www/server/apache/bin/httpd}"
-if [[ -f "$AAPANEL_CONF" ]]; then
-  if ! grep -q "api/roulette/spins" "$AAPANEL_CONF" 2>/dev/null; then
-    echo "⚠ Apache sem proxy SSE — copie deploy/aapanel-stake37.conf.example para $AAPANEL_CONF"
-  fi
-  if ! grep -q 'ProxyPass /assets !' "$AAPANEL_CONF" 2>/dev/null; then
-    echo "→ Apache: activar estáticos (.output/public)"
-    cp deploy/aapanel-stake37.conf.example "$AAPANEL_CONF"
-    if [[ -x "$HTTPD" ]]; then
-      "$HTTPD" -t && /etc/init.d/httpd reload
-    else
-      echo "⚠ Reinicie Apache manualmente após actualizar o vhost"
-    fi
-  fi
 fi
 
 PUBLIC_URL="${PUBLIC_APP_URL:-https://stake37.com.br}"
