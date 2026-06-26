@@ -1,12 +1,14 @@
 # Deploy automático na VPS quando há push em main.
 #
-# Configurar em GitHub → Settings → Secrets and variables → Actions:
-#   VPS_HOST      — ex. 69.62.103.9 ou stake37.com.br
-#   VPS_USER      — ex. root
-#   VPS_SSH_KEY   — chave privada SSH (conteúdo de id_rsa)
-#   VPS_APP_DIR   — opcional, default /var/www/stake37
+# Secrets (Settings → Secrets and variables → Actions → Repository secrets):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY — obrigatórios
+#   VPS_APP_DIR — opcional (/var/www/stake37)
 #
-# Na VPS, uma vez: ssh-keygen e adicionar a chave pública em authorized_keys.
+# Na VPS (uma vez):
+#   ssh-keygen -t ed25519 -f /root/.ssh/github-deploy-stake37 -N ""
+#   cat /root/.ssh/github-deploy-stake37.pub >> /root/.ssh/authorized_keys
+#   chmod 600 /root/.ssh/authorized_keys
+#   Colar a chave PRIVADA (github-deploy-stake37, sem .pub) em VPS_SSH_KEY
 
 name: Deploy stake37
 
@@ -18,6 +20,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.2.0
@@ -25,10 +28,14 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          timeout: 120s
+          command_timeout: 25m
           script_stop: true
           script: |
             set -euo pipefail
-            APP_DIR="${{ secrets.VPS_APP_DIR }}"
-            APP_DIR="${APP_DIR:-/var/www/stake37}"
+            APP_DIR="/var/www/stake37"
+            echo "=== Ligado como $(whoami) em $(hostname) ==="
+            echo "=== Node: $(node -v 2>/dev/null || echo 'node não encontrado') ==="
             cd "$APP_DIR"
             bash deploy/deploy.sh
