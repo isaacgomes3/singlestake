@@ -84,7 +84,7 @@ export function BackOfficeLayout() {
             <SinglestakeLogo variant="stacked" className="mx-auto h-[88px] w-full max-w-[220px]" />
           </Link>
           <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-sidebar-fg-muted">
-            singlestake
+            STAKE37
           </p>
         </div>
         <div className="flex-1 overflow-y-auto">

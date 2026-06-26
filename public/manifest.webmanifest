@@ -1,11 +1,11 @@
 {
-  "name": "Game Odds Glow — Roletas",
-  "short_name": "GOG Roletas",
-  "description": "Sinais de roleta ao vivo — 2 Fatores e 1 Fator",
-  "start_url": "/mobile",
+  "name": "STAKE37",
+  "short_name": "STAKE37",
+  "description": "Casino ao vivo, back office e estratégias de roleta",
+  "start_url": "/back-office",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#18181a",
+  "theme_color": "#18181a",
   "orientation": "portrait-primary",
   "icons": [
     {
