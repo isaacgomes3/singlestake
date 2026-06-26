@@ -15,7 +15,7 @@ import {
   type AuthSession,
 } from "@/lib/auth/session";
 
-const SESSION_CHECK_TIMEOUT_MS = 12_000;
+const SESSION_CHECK_TIMEOUT_MS = 8_000;
 
 export function BackOfficeLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -31,40 +31,63 @@ export function BackOfficeLayout() {
     void (async () => {
       setSessionError(null);
 
-      const timeout = new Promise<null>((resolve) => {
-        window.setTimeout(() => resolve(null), SESSION_CHECK_TIMEOUT_MS);
-      });
+      try {
+        const timeout = new Promise<null>((resolve) => {
+          window.setTimeout(() => resolve(null), SESSION_CHECK_TIMEOUT_MS);
+        });
 
-      const user = await Promise.race([apiFetchMe(), timeout]);
-      if (cancelled) return;
+        const user = await Promise.race([apiFetchMe(), timeout]);
+        if (cancelled) return;
 
-      if (!user) {
-        if (cached) {
-          setSessionError(
-            "Não foi possível validar a sessão. Verifique a ligação ou tente entrar novamente.",
-          );
+        if (!user) {
+          if (cached) {
+            setSessionError(
+              "Não foi possível validar a sessão. Verifique a ligação ou tente entrar novamente.",
+            );
+            setChecking(false);
+            return;
+          }
+          clearSession();
           setChecking(false);
+          goToLogin(pathname);
           return;
         }
-        clearSession();
-        goToLogin(pathname);
-        return;
-      }
 
-      persistSession(user);
-      setSessionState({ user, issuedAt: Date.now() });
-      setChecking(false);
+        persistSession(user);
+        setSessionState({ user, issuedAt: Date.now() });
+        setChecking(false);
+      } catch {
+        if (cancelled) return;
+        setChecking(false);
+        if (cached) {
+          setSessionError("Erro ao verificar sessão. Tente entrar novamente.");
+        } else {
+          clearSession();
+          goToLogin(pathname);
+        }
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pathname]);
 
   if (checking && !session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-primary text-sm text-text-secondary">
-        A verificar sessão…
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg-primary px-4 text-center text-sm text-text-secondary">
+        <p>A verificar sessão…</p>
+        <p className="text-xs text-text-muted">Se demorar, use o botão abaixo.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setChecking(false);
+            goToLogin(pathname);
+          }}
+          className="rounded-lg border border-border-primary px-4 py-2 text-xs font-semibold text-text-primary hover:bg-bg-card-hover"
+        >
+          Ir para o login
+        </button>
       </div>
     );
   }

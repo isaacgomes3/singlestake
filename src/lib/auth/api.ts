@@ -75,11 +75,15 @@ export async function apiLogout(): Promise<void> {
 }
 
 export async function apiFetchMe(): Promise<AuthUser | null> {
-  const res = await fetch("/api/auth/me", { credentials: "include" });
-  if (res.status === 401) return null;
-  const data = await parseJson<{ ok: boolean; user?: AuthUser }>(res);
-  if (!res.ok || !data?.ok || !data.user) return null;
-  return data.user;
+  try {
+    const res = await fetchWithTimeout("/api/auth/me", { credentials: "include" });
+    if (res.status === 401) return null;
+    const data = await parseJson<{ ok: boolean; user?: AuthUser }>(res);
+    if (!res.ok || !data?.ok || !data.user) return null;
+    return data.user;
+  } catch {
+    return null;
+  }
 }
 
 export async function apiFetchOverview(): Promise<BackOfficeOverview | null> {
