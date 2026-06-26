@@ -84,10 +84,12 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
 
   useEffect(() => {
     if (!sessionSlice.showTapeteSignal) {
-      clearExtensionLastEmitKey();
-      lastFingerprintRef.current = null;
-      prevShowTapeteRef.current = false;
-      prevEmitKeyRef.current = null;
+      if (sessionSlice.sessionMode !== "prepare") {
+        clearExtensionLastEmitKey();
+        lastFingerprintRef.current = null;
+        prevShowTapeteRef.current = false;
+        prevEmitKeyRef.current = null;
+      }
       return;
     }
     const rising = !prevShowTapeteRef.current;

@@ -56,26 +56,6 @@ async function isDryRun(context) {
   return (await resolveExecutionMode(context)) === "demo";
 }
 
-/** Fração da banca usada como aposta inicial (0,1%). */
-const AUTOMATION_BANK_SHARE = 0.001;
-
-function baseStakeFromBalance(balance) {
-  if (typeof balance !== "number" || !Number.isFinite(balance) || balance <= 0) return null;
-  return balance * AUTOMATION_BANK_SHARE;
-}
-
-function stakeForAutomationRecovery(recovery, balance, fallbackBase = 0.5) {
-  const base = baseStakeFromBalance(balance) ?? fallbackBase;
-  const level = Math.max(0, Math.floor(recovery));
-  return base * 2 ** level;
-}
-
-function clickStaggerMs(recovery) {
-  if (recovery >= 5) return 80;
-  if (recovery >= 4) return 120;
-  return 450;
-}
-
 /** Gale — lê recovery do contexto ou do sufixo do signalId (`mesa:num:fator:recovery`). */
 function recoveryFromContext(context) {
   const explicit = context?.currentRecovery;
@@ -152,13 +132,9 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      automationBalance:
-        typeof data.automationBalance === "number" && Number.isFinite(data.automationBalance)
-          ? data.automationBalance
-          : null,
-      stakeAmount: null,
+      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
       currentRecovery: recovery,
-      baseStake: null,
+      baseStake: 0.5,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

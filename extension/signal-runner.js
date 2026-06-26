@@ -3,7 +3,6 @@ const STORAGE_AUTOPLAY = "gogAutopilotEnabled";
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_AUTO_STATUS = "gogAutopilotStatus";
 const STORAGE_AUTO_STATS = "gogAutopilotSessionStats";
-const STORAGE_AUTOMATION_BALANCE = "gogAutomationBalance";
 
 const DEFAULT_PRE_BET_WAIT_SEC = 11;
 const DEFAULT_MAX_GALES = 5;
@@ -129,15 +128,6 @@ async function executeBridgePayload(payload, mesaEmbedUrl, view) {
   if (!bridgeHandler || !payload?.context?.signalId) return;
   if (payload.context.signalId === lastEmittedSignalId) return;
 
-  const stored = await chrome.storage.local.get([STORAGE_AUTOMATION_BALANCE]);
-  if (
-    payload.context &&
-    (payload.context.automationBalance == null || !Number.isFinite(payload.context.automationBalance)) &&
-    typeof stored[STORAGE_AUTOMATION_BALANCE] === "number"
-  ) {
-    payload.context.automationBalance = stored[STORAGE_AUTOMATION_BALANCE];
-  }
-
   lastEmittedSignalId = payload.context.signalId;
   await writeAutopilotStatus({
     active: true,
@@ -157,7 +147,7 @@ async function executeBridgePayload(payload, mesaEmbedUrl, view) {
   }
 }
 
-async function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
+function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   if (!engine || !result?.view?.globalActive || result.view.globalTableId == null) {
     clearPendingBetTimers();
     lastEmittedSignalId = null;
@@ -171,10 +161,7 @@ async function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
     return;
   }
 
-  const stored = await chrome.storage.local.get([STORAGE_AUTOMATION_BALANCE]);
-  const automationBalance =
-    typeof stored[STORAGE_AUTOMATION_BALANCE] === "number" ? stored[STORAGE_AUTOMATION_BALANCE] : null;
-  const payload = engine.buildBridgePayload(result, mesaEmbedUrl, automationBalance);
+  const payload = engine.buildBridgePayload(result, mesaEmbedUrl);
   if (!payload?.context?.signalId) {
     const waitSec = cfg.preBetWaitSec ?? preBetWaitSec();
     const tableId = result.view.globalTableId;
@@ -199,7 +186,7 @@ async function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
     const timer = setTimeout(() => {
       pendingBetTimers.delete(signalKey);
       if (!engine) return;
-      void scheduleBetAttempt(engine.runTick(), mesaEmbedUrl, cfg);
+      scheduleBetAttempt(engine.runTick(), mesaEmbedUrl, cfg);
     }, delayMs);
     pendingBetTimers.set(signalKey, timer);
     return;
@@ -216,7 +203,7 @@ async function processEngineResult(result, mesaEmbedUrl, cfg) {
   }
   if (!bridgeHandler || !result.view?.globalActive) return;
 
-  void scheduleBetAttempt(result, mesaEmbedUrl, cfg);
+  scheduleBetAttempt(result, mesaEmbedUrl, cfg);
 }
 
 async function startAutopilot(handleBridgePayload) {

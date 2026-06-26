@@ -12,10 +12,12 @@ import {
 } from "@/lib/roulette/umFatorStrategy";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
-/** Fração da banca usada como aposta inicial (0,1%). */
+/** Aposta inicial fixa na roleta (sem centavos): R$ 50 → 100 → 200 → 400 → 800 → 1600. */
+export const ROULETTE_AUTOMATION_BASE_STAKE = 50;
+/** @deprecated Mantido só por compatibilidade de import — não usar para calcular stake. */
 export const AUTOMATION_BANK_SHARE = 0.001;
-/** @deprecated Use baseStakeFromBalance — mantido só como fallback legado. */
-export const ROULETTE_AUTOMATION_BASE_STAKE = 0.5;
+/** @deprecated Use ROULETTE_AUTOMATION_BASE_STAKE. */
+export const ROULETTE_AUTOMATION_LEGACY_BASE_STAKE = ROULETTE_AUTOMATION_BASE_STAKE;
 /** Máximo de pontos no gráfico (só performance — sem janela temporal). */
 export const ROULETTE_AUTOMATION_MAX_CHART_POINTS = 500;
 
@@ -71,22 +73,23 @@ export type RouletteAutomationSimState = {
 };
 
 export function formatStakeBrl(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
 }
 
-/** Aposta inicial = 0,1% da banca (R$5 quando banca = R$5000). */
-export function baseStakeFromBalance(balance: number): number {
-  if (!Number.isFinite(balance) || balance <= 0) return 0;
-  return balance * AUTOMATION_BANK_SHARE;
+/** Sempre R$ 50 — stake não depende mais da banca. */
+export function baseStakeFromBalance(_balance?: number): number {
+  return ROULETTE_AUTOMATION_BASE_STAKE;
 }
 
-export function stakeForRecovery(recovery: number, balance?: number): number {
-  const level = Math.min(Math.max(0, recovery), UM_FATOR_MAX_RECOVERY);
-  const base =
-    typeof balance === "number" && Number.isFinite(balance) && balance > 0
-      ? baseStakeFromBalance(balance)
-      : baseStakeFromBalance(ROULETTE_AUTOMATION_INITIAL_BANK);
-  return base * 2 ** level;
+/** R$ 50 × 2^recuperação (máx. rec5 = R$ 1600); após isso volta a R$ 50. */
+export function stakeForRecovery(recovery: number, _balance?: number): number {
+  const level = Math.max(0, Math.floor(recovery));
+  if (level > UM_FATOR_MAX_RECOVERY) return ROULETTE_AUTOMATION_BASE_STAKE;
+  return ROULETTE_AUTOMATION_BASE_STAKE * 2 ** level;
 }
 
 export function pendingSignalFromSnapshot(

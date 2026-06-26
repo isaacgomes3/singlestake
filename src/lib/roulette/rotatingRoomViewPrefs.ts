@@ -56,6 +56,14 @@ export function writeRotatingRoomSignalOnlyMode(enabled: boolean | null): void {
   if (typeof localStorage === "undefined") return;
   if (enabled === null) localStorage.removeItem(SIGNAL_ONLY_MODE_KEY);
   else localStorage.setItem(SIGNAL_ONLY_MODE_KEY, enabled ? "1" : "0");
+  dispatchRotatingRoomViewPrefsChange();
+}
+
+export const ROTATING_ROOM_VIEW_PREFS_EVENT = "rotating-room-view-prefs";
+
+function dispatchRotatingRoomViewPrefsChange(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(ROTATING_ROOM_VIEW_PREFS_EVENT));
 }
 
 export function readRotatingRoomIframeMode(): boolean {
@@ -70,11 +78,12 @@ export function readRotatingRoomIframeMode(): boolean {
 export function writeRotatingRoomIframeMode(enabled: boolean): void {
   if (typeof localStorage === "undefined") return;
   localStorage.setItem(IFRAME_MODE_KEY, enabled ? "1" : "0");
+  dispatchRotatingRoomViewPrefsChange();
 }
 
-/** Abre a sala rotativa com iframe activo (ex.: clique no cartão da automação). */
+/** Desactiva iframe embutido — casino abre no navegador normal. */
 export function prepareRotatingRoomIframeSession(): void {
-  writeRotatingRoomIframeMode(true);
+  writeRotatingRoomIframeMode(false);
   writeRotatingRoomSignalOnlyMode(false);
 }
 

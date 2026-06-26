@@ -106,7 +106,7 @@ function FactorAscendButton({
     <span
       translate="no"
       className={cn(
-        "notranslate flex flex-1 flex-col items-center justify-center rounded-2xl border px-3 py-6 text-center text-base font-black uppercase leading-tight tracking-normal",
+        "notranslate flex w-full flex-1 flex-col items-center justify-center rounded-2xl border px-3 py-6 text-center text-base font-black uppercase leading-tight tracking-normal",
         dense
           ? "min-h-[5.25rem] text-sm sm:min-h-[5.75rem] sm:text-base"
           : "min-h-[7.5rem] sm:min-h-[9rem] sm:px-4 sm:text-xl",
@@ -126,7 +126,7 @@ function FactorAscendButton({
         target="_blank"
         rel="noopener noreferrer"
         data-click-bot={botTarget}
-        className="click-bot-target flex flex-1 outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-cyan-400"
+        className="click-bot-target flex w-full flex-1 outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-cyan-400"
       >
         {shell}
       </a>
@@ -134,44 +134,130 @@ function FactorAscendButton({
   }
 
   return (
-    <button type="button" data-click-bot={botTarget} className="click-bot-target flex flex-1">
+    <button type="button" data-click-bot={botTarget} className="click-bot-target flex w-full flex-1">
       {shell}
     </button>
   );
 }
 
+const INDICATION_SHELL_DENSE = "min-h-[5.25rem] sm:min-h-[5.75rem]";
+const INDICATION_SHELL_DEFAULT = "min-h-[7.5rem] sm:min-h-[9rem]";
+
 function RoundFlashOverlay({
   flash,
   recovery,
+  dense = false,
 }: {
   flash: NonNullable<RotatingRoomPanelSession["roundFlash"]>;
   recovery: number;
+  dense?: boolean;
 }) {
   const kind = flash.kind;
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-3",
-        kind === "win" && "bg-emerald-950/92",
-        kind === "loss" && "bg-rose-950/92",
-        kind === "recovery" && "bg-amber-950/90",
+        "pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl border-2",
+        dense ? INDICATION_SHELL_DENSE : INDICATION_SHELL_DEFAULT,
+        kind === "win" && "border-emerald-400/60 bg-emerald-950/92",
+        kind === "loss" && "border-rose-400/60 bg-rose-950/92",
+        kind === "recovery" && "border-amber-400/60 bg-amber-950/90",
       )}
     >
       <p
         className={cn(
-          "text-6xl font-black tabular-nums sm:text-7xl",
+          "font-black tabular-nums leading-none",
+          dense ? "text-4xl sm:text-5xl" : "text-6xl sm:text-7xl",
           kind === "win" && "text-emerald-300 motion-safe:animate-[rotatingRoomFlashWin_0.65s_ease-out]",
           kind === "loss" && "text-rose-300 motion-safe:animate-[rotatingRoomFlashLoss_0.55s_ease-in-out]",
           kind === "recovery" &&
-            "rounded-2xl border-2 border-amber-400/60 px-6 py-3 text-amber-200 motion-safe:animate-[rotatingRoomFlashRecovery_0.9s_ease-in-out_infinite]",
+            "text-amber-200 motion-safe:animate-[rotatingRoomFlashRecovery_0.9s_ease-in-out_infinite]",
         )}
       >
         {flash.resultNumber}
       </p>
       {kind === "recovery" ? (
-        <p className="text-2xl font-black tabular-nums text-amber-300/95 motion-safe:animate-pulse">
+        <p
+          className={cn(
+            "font-black tabular-nums text-amber-300/95 motion-safe:animate-pulse",
+            dense ? "mt-1 text-base" : "mt-2 text-2xl",
+          )}
+        >
           {recovery}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function IndicationFactorRow({
+  singleFactor,
+  factor1,
+  factor2,
+  mesaUrl,
+  dense = false,
+  roundFlash,
+  recovery,
+}: {
+  singleFactor: boolean;
+  factor1?: DoisFatoresFactor;
+  factor2?: DoisFatoresFactor;
+  mesaUrl: string | null;
+  dense?: boolean;
+  roundFlash?: RotatingRoomPanelSession["roundFlash"];
+  recovery: number;
+}) {
+  const slotShell = cn("relative flex w-full flex-1");
+
+  if (singleFactor && factor1) {
+    return (
+      <div className="flex w-full justify-center">
+        <div className={slotShell}>
+          <FactorAscendButton
+            factor={factor1}
+            delayMs={0}
+            mesaUrl={mesaUrl}
+            botTarget="factor-1"
+            dense={dense}
+          />
+          {roundFlash ? (
+            <RoundFlashOverlay flash={roundFlash} recovery={recovery} dense={dense} />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative flex w-full",
+        singleFactor ? "justify-center" : "flex-col gap-2.5 sm:flex-row sm:gap-3",
+      )}
+    >
+      {factor1 ? (
+        <div className={slotShell}>
+          <FactorAscendButton
+            factor={factor1}
+            delayMs={0}
+            mesaUrl={mesaUrl}
+            botTarget="factor-1"
+            dense={dense}
+          />
+        </div>
+      ) : null}
+      {!singleFactor && factor2 ? (
+        <div className={slotShell}>
+          <FactorAscendButton
+            factor={factor2}
+            delayMs={400}
+            mesaUrl={mesaUrl}
+            botTarget="factor-2"
+            dense={dense}
+          />
+        </div>
+      ) : null}
+      {roundFlash ? (
+        <RoundFlashOverlay flash={roundFlash} recovery={recovery} dense={dense} />
       ) : null}
     </div>
   );
@@ -387,29 +473,15 @@ function RotatingRoomStage({
                 : "border-emerald-400/55 street-indication-pulse-cyan",
             )}
           >
-            <div className={cn(singleFactor ? "flex justify-center" : "flex flex-col gap-2.5 sm:flex-row sm:gap-3")}>
-              {factor1 ? (
-                <FactorAscendButton
-                  factor={factor1}
-                  delayMs={0}
-                  mesaUrl={mesaUrl}
-                  botTarget="factor-1"
-                  dense
-                />
-              ) : null}
-              {!singleFactor && factor2 ? (
-                <FactorAscendButton
-                  factor={factor2}
-                  delayMs={400}
-                  mesaUrl={mesaUrl}
-                  botTarget="factor-2"
-                  dense
-                />
-              ) : null}
-            </div>
-            {session.roundFlash ? (
-              <RoundFlashOverlay flash={session.roundFlash} recovery={session.currentRecovery} />
-            ) : null}
+            <IndicationFactorRow
+              singleFactor={singleFactor}
+              factor1={factor1}
+              factor2={factor2}
+              mesaUrl={mesaUrl}
+              dense
+              roundFlash={session.roundFlash}
+              recovery={session.currentRecovery}
+            />
           </div>
         );
       }
@@ -435,29 +507,15 @@ function RotatingRoomStage({
               {focusLabel}
             </button>
           ) : null}
-          <div className={cn(singleFactor ? "flex justify-center" : "flex flex-col gap-2.5 sm:flex-row sm:gap-3")}>
-            {factor1 ? (
-              <FactorAscendButton
-                factor={factor1}
-                delayMs={0}
-                mesaUrl={mesaUrl}
-                botTarget="factor-1"
-                dense
-              />
-            ) : null}
-            {!singleFactor && factor2 ? (
-              <FactorAscendButton
-                factor={factor2}
-                delayMs={400}
-                mesaUrl={mesaUrl}
-                botTarget="factor-2"
-                dense
-              />
-            ) : null}
-          </div>
-          {session.roundFlash ? (
-            <RoundFlashOverlay flash={session.roundFlash} recovery={session.currentRecovery} />
-          ) : null}
+          <IndicationFactorRow
+            singleFactor={singleFactor}
+            factor1={factor1}
+            factor2={factor2}
+            mesaUrl={mesaUrl}
+            dense
+            roundFlash={session.roundFlash}
+            recovery={session.currentRecovery}
+          />
         </div>
       );
     }
@@ -516,18 +574,16 @@ function RotatingRoomStage({
           <RecentFive numbers={recent} />
         </div>
 
-        <div className={cn(singleFactor ? "mt-6 flex justify-center" : "mt-6 flex gap-3 sm:gap-4")}>
-          {factor1 ? (
-            <FactorAscendButton factor={factor1} delayMs={0} mesaUrl={mesaUrl} botTarget="factor-1" />
-          ) : null}
-          {!singleFactor && factor2 ? (
-            <FactorAscendButton factor={factor2} delayMs={400} mesaUrl={mesaUrl} botTarget="factor-2" />
-          ) : null}
+        <div className="mt-6">
+          <IndicationFactorRow
+            singleFactor={singleFactor}
+            factor1={factor1}
+            factor2={factor2}
+            mesaUrl={mesaUrl}
+            roundFlash={session.roundFlash}
+            recovery={session.currentRecovery}
+          />
         </div>
-
-        {session.roundFlash ? (
-          <RoundFlashOverlay flash={session.roundFlash} recovery={session.currentRecovery} />
-        ) : null}
       </div>
     );
   }

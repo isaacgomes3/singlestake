@@ -21,15 +21,12 @@ var SinglestakeUmFator = (() => {
   // extension/strategy-entry.ts
   var strategy_entry_exports = {};
   __export(strategy_entry_exports, {
-    AUTOMATION_BANK_SHARE: () => AUTOMATION_BANK_SHARE,
     EXTENSION_MAX_GALES: () => EXTENSION_MAX_GALES,
     EXTENSION_PRE_BET_WAIT_SEC: () => EXTENSION_PRE_BET_WAIT_SEC,
     ROTATING_ROOM_TABLE_IDS: () => ROTATING_ROOM_TABLE_IDS,
-    baseStakeFromBalance: () => baseStakeFromBalance,
     clampExtensionMaxRecovery: () => clampExtensionMaxRecovery,
     createUmFatorEngine: () => createUmFatorEngine,
-    default: () => strategy_entry_default,
-    stakeForAutomationRecovery: () => stakeForAutomationRecovery
+    default: () => strategy_entry_default
   });
 
   // src/lib/roulette/entryWinBreakdown.ts
@@ -306,25 +303,24 @@ var SinglestakeUmFator = (() => {
         return heightOf(num) === factor.value;
     }
   }
-  function umFatorSharedFactorsBetween(a, b) {
-    if (a === 0 || b === 0) return [];
-    const triple = umFatorTripleFactorsForNumber(a);
-    if (!triple) return [];
-    return triple.filter((f) => factorWins(b, f));
-  }
   function umFatorMatchCountOnTriple(num, triple) {
     if (num === 0) return 0;
     return triple.filter((f) => factorWins(num, f)).length;
   }
-  function umFatorMatchCountWithReference(num, ref) {
-    if (num === 0 || ref === 0) return 0;
-    const triple = umFatorTripleFactorsForNumber(ref);
-    if (!triple) return 0;
-    return triple.filter((f) => factorWins(num, f)).length;
-  }
-  function buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, triggerMatchTier) {
-    const sharedLabel = shared.map(doisFatoresFactorLabel).join(" \xB7 ");
-    const tierTag = triggerMatchTier === "three" ? "3g" : "2g";
+  function detectUmFatorActiveFromHistory(historyNewestFirst) {
+    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
+    const n0 = historyNewestFirst[0];
+    const n1 = historyNewestFirst[1];
+    const n2 = historyNewestFirst[2];
+    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
+    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
+    const trigger = umFatorTripleFactorsForNumber(n1);
+    if (!trigger) return null;
+    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
+    if (matchOnCurrent !== 2) return null;
+    const alertFactor = trigger.find((f) => !factorWins(n0, f));
+    if (!alertFactor) return null;
+    const triggerLabel = `${doisFatoresFactorLabel(trigger[0])} \xB7 ${doisFatoresFactorLabel(trigger[1])} \xB7 ${doisFatoresFactorLabel(trigger[2])}`;
     return {
       pairKind: "cor-altura",
       pairKindLabel: "Cor \xB7 Altura \xB7 Paridade",
@@ -334,40 +330,9 @@ var SinglestakeUmFator = (() => {
       alertFactor,
       triggerNumbers: [n2, n1],
       resultNumber: n0,
-      triggerMatchTier,
-      armingDescription: `1 Fator (${tierTag}): gatilho ${sharedLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
+      triggerMatchTier: "three",
+      armingDescription: `1 Fator: gatilho ${triggerLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
     };
-  }
-  function detectUmFatorThreeTierActive(n0, n1, n2) {
-    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
-    const trigger = umFatorTripleFactorsForNumber(n1);
-    if (!trigger) return null;
-    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
-    if (matchOnCurrent !== 2) return null;
-    const alertFactor = trigger.find((f) => !factorWins(n0, f));
-    if (!alertFactor) return null;
-    return buildUmFatorActive(n0, n1, n2, trigger, trigger, alertFactor, "three");
-  }
-  function detectUmFatorTwoTierActive(n0, n1, n2) {
-    if (umFatorTriggerMatchCount(n1, n2) !== 2) return null;
-    const trigger = umFatorTripleFactorsForNumber(n1);
-    if (!trigger) return null;
-    const shared = umFatorSharedFactorsBetween(n1, n2);
-    if (shared.length !== 2) return null;
-    const matchOnShared = shared.filter((f) => factorWins(n0, f)).length;
-    if (matchOnShared !== 1) return null;
-    if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
-    const alertFactor = shared.find((f) => !factorWins(n0, f));
-    if (!alertFactor) return null;
-    return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
-  }
-  function detectUmFatorActiveFromHistory(historyNewestFirst) {
-    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
-    const n0 = historyNewestFirst[0];
-    const n1 = historyNewestFirst[1];
-    const n2 = historyNewestFirst[2];
-    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
-    return detectUmFatorThreeTierActive(n0, n1, n2) ?? detectUmFatorTwoTierActive(n0, n1, n2);
   }
   function evaluateUmFatorRound(num, active) {
     if (num === 0) return "L";
@@ -443,8 +408,7 @@ var SinglestakeUmFator = (() => {
       lastLostTableId: null,
       lastActive: null,
       lastActiveTableId: null,
-      focusLockTableId: null,
-      staleFormationHeadByTable: {}
+      focusLockTableId: null
     };
   }
   function isResultAlreadySettled(machine, tableId, head) {
@@ -461,17 +425,6 @@ var SinglestakeUmFator = (() => {
     }
     return false;
   }
-  function isStaleQueuedFormation(machine, tableId, head) {
-    const blocked = machine.staleFormationHeadByTable[String(tableId)];
-    return blocked != null && blocked === head;
-  }
-  function snapshotStaleFormationHeads(machine, tableIds, histories) {
-    const stale = { ...machine.staleFormationHeadByTable };
-    for (const tableId of tableIds) {
-      stale[String(tableId)] = spinHead(histories[tableId] ?? []);
-    }
-    return stale;
-  }
   function pendingForTable(machine, tableId) {
     return machine.pendingByTable[String(tableId)] ?? null;
   }
@@ -482,21 +435,28 @@ var SinglestakeUmFator = (() => {
     return !isResultAlreadySettled(machine, tableId, head);
   }
   function anyTablePendingEntryOpen(machine, tableIds, histories) {
-    return findLockedPendingTable(machine, tableIds, histories) != null;
+    const lock = machine.focusLockTableId;
+    if (lock == null || !tableIds.includes(lock)) return false;
+    return isPendingEntryOpen(machine, lock, histories[lock] ?? []);
   }
-  function findLockedPendingTable(machine, tableIds, histories) {
-    if (machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId)) {
-      const history = histories[machine.focusLockTableId] ?? [];
-      if (isPendingEntryOpen(machine, machine.focusLockTableId, history)) {
-        return machine.focusLockTableId;
-      }
-    }
+  function clearExpiredUmFatorPendingEntries(machine, tableIds, histories, nowMs = Date.now()) {
+    let next = machine;
     for (const tableId of tableIds) {
-      if (isPendingEntryOpen(machine, tableId, histories[tableId] ?? [])) {
-        return tableId;
-      }
+      const pending = pendingForTable(next, tableId);
+      if (!pending) continue;
+      const history = histories[tableId] ?? [];
+      const head = spinHead(history);
+      if (pending.armedHead !== head) continue;
+      if (liveTableBettingRemainingSec(tableId, history, nowMs) > 0) continue;
+      const pendingByTable = { ...next.pendingByTable };
+      delete pendingByTable[String(tableId)];
+      next = {
+        ...next,
+        pendingByTable,
+        focusLockTableId: next.focusLockTableId === tableId ? null : next.focusLockTableId
+      };
     }
-    return null;
+    return next;
   }
   function pruneOrphanUmFatorPending(machine) {
     const lock = machine.focusLockTableId;
@@ -530,7 +490,7 @@ var SinglestakeUmFator = (() => {
         needsEval.push(tableId);
       } else if (pendingForTable(machine, tableId) != null) {
         withPending.push(tableId);
-      } else if (!isResultAlreadySettled(machine, tableId, head) && !isStaleQueuedFormation(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
+      } else if (!isResultAlreadySettled(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
         withFormation.push(tableId);
       } else {
         rest.push(tableId);
@@ -552,26 +512,19 @@ var SinglestakeUmFator = (() => {
     return pending.active;
   }
   function scanUmFatorTables(tableIds, histories, machine) {
-    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
     return tableIds.map((tableId) => {
       const h = histories[tableId] ?? [];
       const active = activeForDisplay(machine, tableId, h);
-      const formation = lockedTable != null ? null : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h)) ? detectUmFatorActiveFromHistory(h) : null;
+      const formation = h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
       return {
         tableId,
-        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) >= 2,
+        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) === 3,
         alertLabel: active ? umFatorAlertLabel(active) : formation ? umFatorAlertLabel(formation) : null,
         status: active ? "alert" : formation ? "formation" : "idle"
       };
     });
   }
   function pickGlobalUmFatorAlert(tableIds, histories, machine) {
-    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
-    if (lockedTable != null) {
-      const active = activeForDisplay(machine, lockedTable, histories[lockedTable] ?? []);
-      if (active) return { tableId: lockedTable, active };
-      return null;
-    }
     const picks = [];
     for (const tableId of tableIds) {
       const history = histories[tableId] ?? [];
@@ -579,6 +532,21 @@ var SinglestakeUmFator = (() => {
       if (active) picks.push({ tableId, active });
     }
     if (picks.length === 0) return null;
+    const pendingOpen = picks.filter(
+      (p) => isPendingEntryOpen(machine, p.tableId, histories[p.tableId] ?? [])
+    );
+    if (pendingOpen.length > 0) {
+      if (machine.focusLockTableId != null) {
+        const locked = pendingOpen.find((p) => p.tableId === machine.focusLockTableId);
+        if (locked) return locked;
+      }
+      if (machine.lastActiveTableId != null) {
+        const sticky = pendingOpen.find((p) => p.tableId === machine.lastActiveTableId);
+        if (sticky) return sticky;
+      }
+      pendingOpen.sort((a, b) => a.tableId - b.tableId);
+      return pendingOpen[0];
+    }
     if (machine.lastActiveTableId != null) {
       const sticky = picks.find((p) => p.tableId === machine.lastActiveTableId);
       if (sticky) return sticky;
@@ -595,7 +563,11 @@ var SinglestakeUmFator = (() => {
     };
   }
   function tickUmFatorPlacar(tableIds, histories, machine, stats, maxRecovery = UM_FATOR_MAX_RECOVERY) {
-    let nextMachine = pruneOrphanUmFatorPending(machine);
+    let nextMachine = clearExpiredUmFatorPendingEntries(
+      pruneOrphanUmFatorPending(machine),
+      tableIds,
+      histories
+    );
     nextMachine = {
       ...nextMachine,
       lastSpinHeadByTable: { ...nextMachine.lastSpinHeadByTable },
@@ -612,7 +584,7 @@ var SinglestakeUmFator = (() => {
       if (pendingReadyToEvaluate(nextMachine, tableId, head)) return true;
       if (pendingForTable(nextMachine, tableId) != null) return false;
       if (isResultAlreadySettled(nextMachine, tableId, head)) return false;
-      return !isStaleQueuedFormation(nextMachine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
+      return detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
     });
     if (globalHead === machine.lastEvaluatedHead && !hasWork) {
       return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -643,8 +615,7 @@ var SinglestakeUmFator = (() => {
           settledSpinHeadByTable: {
             ...nextMachine.settledSpinHeadByTable,
             [String(tableId)]: head
-          },
-          staleFormationHeadByTable: snapshotStaleFormationHeads(nextMachine, tableIds, histories)
+          }
         };
         if (outcome === "W") {
           nextStats = recordRotatingRoomSessionWin(nextStats, recoveryBefore, maxRecovery);
@@ -694,7 +665,6 @@ var SinglestakeUmFator = (() => {
       const formation = detectUmFatorActiveFromHistory(history);
       if (!formation) continue;
       if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
-      if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
       if (!tableArmableForUmFatorFormation(tableId, history)) continue;
       nextMachine = {
         ...nextMachine,
@@ -725,10 +695,6 @@ var SinglestakeUmFator = (() => {
     for (const [k, v] of Object.entries(machine.pendingByTable ?? {})) {
       if (allowed.has(k)) pendingByTable[k] = v;
     }
-    const staleFormationHeadByTable = {};
-    for (const [k, v] of Object.entries(machine.staleFormationHeadByTable ?? {})) {
-      if (allowed.has(k)) staleFormationHeadByTable[k] = v;
-    }
     const lastActiveTableId = machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId) ? machine.lastActiveTableId : null;
     const focusLockTableId = machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId) ? machine.focusLockTableId : null;
     return {
@@ -736,7 +702,6 @@ var SinglestakeUmFator = (() => {
       lastSpinHeadByTable,
       pendingByTable,
       settledSpinHeadByTable,
-      staleFormationHeadByTable,
       tablePlacarLosses: {},
       lastLostTableId: null,
       lastActiveTableId,
@@ -745,27 +710,17 @@ var SinglestakeUmFator = (() => {
   }
 
   // extension/strategy-entry.ts
-  var AUTOMATION_BANK_SHARE = 1e-3;
-  function baseStakeFromBalance(balance) {
-    if (!Number.isFinite(balance) || balance <= 0) return 0;
-    return balance * AUTOMATION_BANK_SHARE;
-  }
-  function stakeForAutomationRecovery(recovery, balance, fallbackBase = 0.5) {
-    const level = Math.max(0, Math.floor(recovery));
-    const base = typeof balance === "number" && Number.isFinite(balance) && balance > 0 ? baseStakeFromBalance(balance) : fallbackBase;
-    return base * 2 ** level;
-  }
   var ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
-  var LEGACY_BASE_STAKE = 0.5;
+  var BASE_STAKE = 0.5;
   var EXTENSION_MAX_GALES = 6;
   function clampExtensionMaxRecovery(value, fallback = UM_FATOR_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(n)) return Math.min(EXTENSION_MAX_GALES, Math.max(0, fallback));
     return Math.min(EXTENSION_MAX_GALES, Math.max(0, Math.floor(n)));
   }
-  function stakeForRecovery(recovery, maxRecovery, balance) {
+  function stakeForRecovery(recovery, maxRecovery) {
     const level = Math.min(Math.max(0, recovery), maxRecovery);
-    return stakeForAutomationRecovery(level, balance, LEGACY_BASE_STAKE);
+    return BASE_STAKE * 2 ** level;
   }
   function createUmFatorEngine(tableIdsOrOptions = ROTATING_ROOM_TABLE_IDS) {
     const opts = Array.isArray(tableIdsOrOptions) ? { tableIds: tableIdsOrOptions } : tableIdsOrOptions;
@@ -851,7 +806,7 @@ var SinglestakeUmFator = (() => {
       histories[tableId] = h;
       return runTick();
     }
-    function buildBridgePayload(result, mesaEmbedUrl = null, automationBalance = null) {
+    function buildBridgePayload(result, mesaEmbedUrl = null) {
       const { view, machine: machine2 } = result;
       if (!view.globalActive || view.globalTableId == null) return null;
       if (!canPlaceBet(view.globalTableId)) return null;
@@ -861,7 +816,7 @@ var SinglestakeUmFator = (() => {
       const signalId = `${tableId}:${active.resultNumber}:${active.alertFactor.kind}:${recovery}`;
       const betKey = pragmaticExteriorBetKeyFromFactor(active.alertFactor);
       const label = umFatorAlertLabel(active);
-      const stakeAmount = stakeForRecovery(recovery, maxRecovery, automationBalance);
+      const stakeAmount = stakeForRecovery(recovery, maxRecovery);
       return {
         type: "game-odds-glow/rotating-room-extension",
         version: 1,
@@ -886,10 +841,9 @@ var SinglestakeUmFator = (() => {
           factor2BetKey: null,
           singleFactorMode: true,
           signalId,
-          automationBalance,
           stakeAmount,
           currentRecovery: recovery,
-          baseStake: null,
+          baseStake: BASE_STAKE,
           maxRecovery,
           executionMode: null,
           mesaCatalog: []

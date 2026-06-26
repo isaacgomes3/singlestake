@@ -35,6 +35,9 @@ export type RotatingRoomExtensionPrefs = {
   maxRecovery: number;
   wins: number;
   losses: number;
+  recoveries?: number;
+  executionMode?: "demo" | "real";
+  bridgeEnabled?: boolean;
 };
 
 export type RotatingRoomExtensionContext = {
@@ -50,7 +53,7 @@ export type RotatingRoomExtensionContext = {
   factor2BetKey: PragmaticExteriorBetKey | null;
   singleFactorMode: boolean;
   signalId: string | null;
-  /** Banca do quadro global — a extensão calcula stake localmente (0,1% × 2^gale). */
+  /** Banca do quadro global (informativo). Stake fixa: R$ 50 × 2^gale. */
   automationBalance: number | null;
   /** @deprecated Informativo — não usar para apostar; ver automationBalance. */
   stakeAmount: number | null;
@@ -140,7 +143,7 @@ export function buildRotatingRoomExtensionContext(
     singleFactorMode: session.singleFactorMode === true,
     signalId: session.signalId ?? null,
     automationBalance: balance,
-    stakeAmount: balance != null ? stakeForRecovery(recovery, balance) : null,
+    stakeAmount: stakeForRecovery(recovery),
     currentRecovery: recovery,
     baseStake: null,
     maxRecovery: readEffectiveUmFatorMaxRecovery(),
@@ -189,7 +192,11 @@ export function pingRotatingRoomExtension(): void {
   );
 }
 
-export function syncRotatingRoomExtensionStats(wins: number, losses: number): void {
+export function syncRotatingRoomExtensionStats(
+  wins: number,
+  losses: number,
+  recoveries?: number,
+): void {
   if (typeof window === "undefined") return;
   window.postMessage(
     {
@@ -197,6 +204,7 @@ export function syncRotatingRoomExtensionStats(wins: number, losses: number): vo
       version: ROTATING_ROOM_EXTENSION_VERSION,
       wins: Math.max(0, wins),
       losses: Math.max(0, losses),
+      recoveries: Math.max(0, recoveries ?? 0),
     },
     window.location.origin,
   );

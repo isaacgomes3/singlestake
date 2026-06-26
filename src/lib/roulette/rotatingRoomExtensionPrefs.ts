@@ -82,6 +82,8 @@ export type RotatingRoomExtensionBridgePrefs = {
   maxRecovery?: number;
   wins?: number;
   losses?: number;
+  executionMode?: "demo" | "real";
+  bridgeEnabled?: boolean;
 };
 
 export function applyRotatingRoomExtensionBridgePrefs(prefs: RotatingRoomExtensionBridgePrefs): void {
@@ -91,6 +93,12 @@ export function applyRotatingRoomExtensionBridgePrefs(prefs: RotatingRoomExtensi
   if (prefs.wins != null || prefs.losses != null) {
     const current = readRotatingRoomExtensionStats();
     writeRotatingRoomExtensionStats(prefs.wins ?? current.wins, prefs.losses ?? current.losses);
+  }
+  if (prefs.executionMode === "real" || prefs.executionMode === "demo") {
+    writeRotatingRoomExtensionRealMode(prefs.executionMode === "real");
+  }
+  if (typeof prefs.bridgeEnabled === "boolean") {
+    writeRotatingRoomExtensionEnabled(prefs.bridgeEnabled);
   }
 }
 

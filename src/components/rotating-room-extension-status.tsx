@@ -6,6 +6,7 @@ import {
   readRotatingRoomExtensionEnabled,
   ROTATING_ROOM_EXTENSION_ENABLED_KEY,
   ROTATING_ROOM_EXTENSION_PREFS_EVENT,
+  applyRotatingRoomExtensionBridgePrefs,
   writeRotatingRoomExtensionEnabled,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import { cn } from "@/lib/utils";
@@ -26,8 +27,16 @@ function extensionApi(): ExtensionApi | null {
 }
 
 export function RotatingRoomExtensionStatus({ className, compact }: Props) {
-  const { present: extensionPresent } = useRotatingRoomExtensionPresent();
+  const { present: extensionPresent, prefs: extensionPongPrefs } = useRotatingRoomExtensionPresent();
   const [enabled, setEnabled] = useState(readRotatingRoomExtensionEnabled);
+
+  useEffect(() => {
+    if (!extensionPongPrefs) return;
+    applyRotatingRoomExtensionBridgePrefs(extensionPongPrefs);
+    if (typeof extensionPongPrefs.bridgeEnabled === "boolean") {
+      setEnabled(extensionPongPrefs.bridgeEnabled);
+    }
+  }, [extensionPongPrefs]);
 
   useEffect(() => {
     const sync = () => setEnabled(readRotatingRoomExtensionEnabled());

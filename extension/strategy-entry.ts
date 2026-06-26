@@ -23,30 +23,10 @@ import {
 } from "../src/lib/roulette/liveTableBettingWindow";
 import { umFatorAlertLabel } from "../src/lib/roulette/umFatorStrategy";
 
-export const AUTOMATION_BANK_SHARE = 0.001;
-
-export function baseStakeFromBalance(balance: number): number {
-  if (!Number.isFinite(balance) || balance <= 0) return 0;
-  return balance * AUTOMATION_BANK_SHARE;
-}
-
-export function stakeForAutomationRecovery(
-  recovery: number,
-  balance: number | null | undefined,
-  fallbackBase = 0.5,
-): number {
-  const level = Math.max(0, Math.floor(recovery));
-  const base =
-    typeof balance === "number" && Number.isFinite(balance) && balance > 0
-      ? baseStakeFromBalance(balance)
-      : fallbackBase;
-  return base * 2 ** level;
-}
-
 export const ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
 export { EXTENSION_PRE_BET_WAIT_SEC };
 
-const LEGACY_BASE_STAKE = 0.5;
+const BASE_STAKE = 0.5;
 export const EXTENSION_MAX_GALES = 6;
 
 export type CreateUmFatorEngineOptions = {
@@ -61,9 +41,9 @@ export function clampExtensionMaxRecovery(value: unknown, fallback = UM_FATOR_MA
   return Math.min(EXTENSION_MAX_GALES, Math.max(0, Math.floor(n)));
 }
 
-function stakeForRecovery(recovery: number, maxRecovery: number, balance?: number | null): number {
+function stakeForRecovery(recovery: number, maxRecovery: number): number {
   const level = Math.min(Math.max(0, recovery), maxRecovery);
-  return stakeForAutomationRecovery(level, balance, LEGACY_BASE_STAKE);
+  return BASE_STAKE * 2 ** level;
 }
 
 export type EngineSpinResult = {
@@ -178,11 +158,7 @@ export function createUmFatorEngine(
     return runTick();
   }
 
-  function buildBridgePayload(
-    result: EngineSpinResult,
-    mesaEmbedUrl: string | null = null,
-    automationBalance: number | null = null,
-  ) {
+  function buildBridgePayload(result: EngineSpinResult, mesaEmbedUrl: string | null = null) {
     const { view, machine } = result;
     if (!view.globalActive || view.globalTableId == null) return null;
     if (!canPlaceBet(view.globalTableId)) return null;
@@ -193,7 +169,7 @@ export function createUmFatorEngine(
     const signalId = `${tableId}:${active.resultNumber}:${active.alertFactor.kind}:${recovery}`;
     const betKey = pragmaticExteriorBetKeyFromFactor(active.alertFactor);
     const label = umFatorAlertLabel(active);
-    const stakeAmount = stakeForRecovery(recovery, maxRecovery, automationBalance);
+    const stakeAmount = stakeForRecovery(recovery, maxRecovery);
 
     return {
       type: "game-odds-glow/rotating-room-extension" as const,
@@ -224,10 +200,9 @@ export function createUmFatorEngine(
         factor2BetKey: null,
         singleFactorMode: true,
         signalId,
-        automationBalance,
         stakeAmount,
         currentRecovery: recovery,
-        baseStake: null,
+        baseStake: BASE_STAKE,
         maxRecovery,
         executionMode: null,
         mesaCatalog: [],

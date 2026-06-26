@@ -60,16 +60,23 @@ export function planRotatingRoomClickBotActions(
     const { factor1, factor2 } = session.activeCrossing;
     const mesa =
       session.currentTableId != null ? lobbyTableDisplayName(session.currentTableId) : "mesa";
-    const actions: RotatingRoomClickBotAction[] = [
-      {
+    const actions: RotatingRoomClickBotAction[] = [];
+    if (session.currentTableId != null) {
+      actions.push({
         kind: "click",
-        target: "factor-1",
-        label: doisFatoresFactorLabel(factor1),
-        reason: session.singleFactorMode
-          ? `JOGANDO em ${mesa} — aposta 1 Fator`
-          : `JOGANDO em ${mesa} — factor 1`,
-      },
-    ];
+        target: "prepare-open",
+        label: mesa,
+        reason: `Abrir ${mesa} no operador`,
+      });
+    }
+    actions.push({
+      kind: "click",
+      target: "factor-1",
+      label: doisFatoresFactorLabel(factor1),
+      reason: session.singleFactorMode
+        ? `JOGANDO em ${mesa} — aposta 1 Fator`
+        : `JOGANDO em ${mesa} — factor 1`,
+    });
     if (!session.singleFactorMode && factor2) {
       actions.push({
         kind: "click",

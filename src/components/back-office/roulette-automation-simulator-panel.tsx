@@ -162,7 +162,6 @@ export function RouletteAutomationSimulatorPanel() {
           <RotatingRoomExtensionStatus compact />
           <RotatingRoomLobbyCard
             embedded
-            openInIframe
             session={rotatingRoomSession}
             salaRoute="/sala-rotativa-um-fator"
             salaLabel={t("casino.roomLabel")}

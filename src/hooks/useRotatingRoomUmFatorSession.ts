@@ -141,7 +141,7 @@ export function useRotatingRoomUmFatorSession(
       placarResetGenRef.current += 1;
       statsRef.current = emptyRotatingRoomSessionStats(readEffectiveUmFatorMaxRecovery());
       setSessionStats(statsRef.current);
-      syncRotatingRoomExtensionStats(0, 0);
+      syncRotatingRoomExtensionStats(0, 0, 0);
       hydrateFromStorage();
     };
     const onChanged = () => {
@@ -176,8 +176,12 @@ export function useRotatingRoomUmFatorSession(
   }, []);
 
   useEffect(() => {
-    syncRotatingRoomExtensionStats(sessionStats.wins, sessionStats.losses);
-  }, [sessionStats.wins, sessionStats.losses]);
+    const recoveries = (sessionStats.lossesAtRecovery ?? []).reduce(
+      (sum, n) => sum + (Number(n) || 0),
+      0,
+    );
+    syncRotatingRoomExtensionStats(sessionStats.wins, sessionStats.losses, recoveries);
+  }, [sessionStats.wins, sessionStats.losses, sessionStats.lossesAtRecovery]);
 
   useEffect(() => {
     const onPong = (event: MessageEvent) => {
