@@ -35,7 +35,6 @@ import { useRotatingRoomSimulatorIndication } from "@/hooks/useRotatingRoomSimul
 import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import {
   consumeStrategyGlobalFlashes,
   getStrategyGlobalFlashSeq,
@@ -65,7 +64,6 @@ export function useRouletteAutomationSim() {
   const umFatorSession = useRotatingRoomUmFatorSession(tableIds, histories, {
     observeOnly: true,
   });
-  const { liveApiEnabled, setLiveApiEnabled } = useRouletteLiveApi();
 
   const [apiSnapshot, setApiSnapshot] = useState<AutomationSimApiSnapshot | null>(() =>
     getAutomationSimSnapshot(),
@@ -94,10 +92,6 @@ export function useRouletteAutomationSim() {
     });
     if (!exists) localLedgerRef.current.push(entry);
   };
-
-  useEffect(() => {
-    if (!liveApiEnabled) setLiveApiEnabled(true);
-  }, [liveApiEnabled, setLiveApiEnabled]);
 
   useEffect(() => {
     const sync = () => {

@@ -18,7 +18,6 @@ import {
   ROTATING_ROOM_EXTENSION_PREFS_EVENT,
   writeRotatingRoomExtensionEnabled,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
@@ -31,7 +30,6 @@ function isRotatingRoomBridgePath(pathname: string): boolean {
 
 /** Envia sinais Um Fator à extensão Chrome em todas as páginas da sala rotativa. */
 export function RotatingRoomExtensionBridgeGlobal() {
-  const { liveApiEnabled, setLiveApiEnabled } = useRouletteLiveApi();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [extensionEnabled, setExtensionEnabled] = useState(readRotatingRoomExtensionEnabled);
 
@@ -66,9 +64,8 @@ export function RotatingRoomExtensionBridgeGlobal() {
 
   useEffect(() => {
     if (!autoBridge) return;
-    if (!liveApiEnabled) setLiveApiEnabled(true);
     if (!readRotatingRoomExtensionEnabled()) writeRotatingRoomExtensionEnabled(true);
-  }, [autoBridge, liveApiEnabled, setLiveApiEnabled]);
+  }, [autoBridge]);
 
   useEffect(() => {
     const syncEnabled = () => setExtensionEnabled(readRotatingRoomExtensionEnabled());
@@ -84,7 +81,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
   }, []);
 
   const bridgeActive =
-    autoBridge && liveApiEnabled && (extensionEnabled || readRotatingRoomExtensionEnabled());
+    autoBridge && (extensionEnabled || readRotatingRoomExtensionEnabled());
 
   useRotatingRoomClickBotLearning({
     session,

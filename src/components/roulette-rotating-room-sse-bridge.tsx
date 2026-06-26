@@ -5,17 +5,9 @@ import {
   clearRotatingRoomSimulatorClientState,
 } from "@/lib/roulette/rotatingRoomSimulatorClient";
 import type { RotatingRoomSimulatorStreamMessage } from "@/lib/roulette/rotatingRoomSimulatorTypes";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 export function RouletteRotatingRoomSseBridge() {
-  const { liveApiEnabled } = useRouletteLiveApi();
-
   useEffect(() => {
-    if (!liveApiEnabled) {
-      clearRotatingRoomSimulatorClientState();
-      return;
-    }
-
     let closed = false;
     const url = new URL("/api/roulette/rotating-room/stream", window.location.origin).href;
     const source = new EventSource(url);
@@ -37,7 +29,7 @@ export function RouletteRotatingRoomSseBridge() {
       source.close();
       clearRotatingRoomSimulatorClientState();
     };
-  }, [liveApiEnabled]);
+  }, []);
 
   return null;
 }

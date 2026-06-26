@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 
-import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
 import { cn } from "@/lib/utils";
@@ -44,9 +43,6 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
       </div>
       {rotatingRoom ? (
         <div className="flex flex-col gap-2 border-t border-border-color pt-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <LiveApiToggleButton compact />
-          </div>
           <RotatingRoomExtensionStatus compact />
         </div>
       ) : null}

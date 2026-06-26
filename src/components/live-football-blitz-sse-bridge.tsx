@@ -6,7 +6,6 @@ import {
   replaceFootballBlitzHistoryFromBatch,
 } from "@/lib/pragmatic/dgaFootballBlitzHistory";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 type SsePayload =
   | { type: "ready"; ok?: boolean; tableKeys?: number[] }
@@ -42,13 +41,7 @@ function isKnownTableKey(tableKey: number | undefined): tableKey is number {
 }
 
 export function LiveFootballBlitzSseBridge() {
-  const { liveApiEnabled } = useRouletteLiveApi();
-
   useEffect(() => {
-    if (!liveApiEnabled) {
-      return;
-    }
-
     let closed = false;
     dispatchLiveSseStatus({ status: "connecting", message: null });
 
@@ -116,7 +109,7 @@ export function LiveFootballBlitzSseBridge() {
       closed = true;
       source.close();
     };
-  }, [liveApiEnabled]);
+  }, []);
 
   return null;
 }

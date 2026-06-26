@@ -8,13 +8,10 @@ import {
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
 import type { StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 export function StrategyGlobalSseBridge() {
-  const { liveApiEnabled } = useRouletteLiveApi();
-
   useEffect(() => {
-    if (!liveApiEnabled || !isStrategyGlobalEnabled()) {
+    if (!isStrategyGlobalEnabled()) {
       clearStrategyGlobalClientState();
       return;
     }
@@ -40,7 +37,7 @@ export function StrategyGlobalSseBridge() {
       source.close();
       clearStrategyGlobalClientState();
     };
-  }, [liveApiEnabled]);
+  }, []);
 
   return null;
 }

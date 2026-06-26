@@ -7,13 +7,11 @@ import {
   isRotatingRoomSimulatorConnected,
 } from "@/lib/roulette/rotatingRoomSimulatorClient";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 export function useRotatingRoomSimulatorIndication(): {
   indication: RotatingRoomSimulatorIndication | null;
   connected: boolean;
 } {
-  const { liveApiEnabled } = useRouletteLiveApi();
   const [indication, setIndication] = useState<RotatingRoomSimulatorIndication | null>(() =>
     getRotatingRoomSimulatorIndication(),
   );
@@ -29,12 +27,8 @@ export function useRotatingRoomSimulatorIndication(): {
   }, []);
 
   useEffect(() => {
-    if (!liveApiEnabled) {
-      setConnected(false);
-      return;
-    }
     void bootstrapRotatingRoomSimulatorIndication();
-  }, [liveApiEnabled]);
+  }, []);
 
   return { indication, connected };
 }

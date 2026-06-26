@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { LobbyLiveRouletteColdBlock } from "@/components/lobby-live-table-cold-stats";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
@@ -37,7 +36,6 @@ import {
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import { cn } from "@/lib/utils";
 
 import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
@@ -262,7 +260,6 @@ type CasinoModuleId = Extract<
 >;
 
 function CassinoAoVivoRoletasGrid() {
-  const { liveApiEnabled } = useRouletteLiveApi();
   const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
 
@@ -284,14 +281,6 @@ function CassinoAoVivoRoletasGrid() {
   return (
     <div className="space-y-6">
       <RotatingRoomExtensionStatus />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">
-          {liveApiEnabled
-            ? "Giros e indicações em tempo real activos."
-            : "Ligue a API para ver números e sinais nas mesas."}
-        </p>
-        <LiveApiToggleButton />
-      </div>
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="flex min-h-0 flex-col gap-2">
           <div className="min-h-0 flex-1">

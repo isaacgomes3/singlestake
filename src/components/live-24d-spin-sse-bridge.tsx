@@ -5,7 +5,6 @@ import {
   replaceDga24dSpinHistoryFromBatch,
 } from "@/lib/pragmatic/dga24dSpinHistory";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 type SsePayload =
   | { type: "ready"; ok?: boolean; tableKey?: number }
@@ -23,13 +22,7 @@ type SsePayload =
   | { type: "status"; state?: string; message?: string };
 
 export function Live24dSpinSseBridge() {
-  const { liveApiEnabled } = useRouletteLiveApi();
-
   useEffect(() => {
-    if (!liveApiEnabled) {
-      return;
-    }
-
     let closed = false;
     dispatchLiveSseStatus({ status: "connecting", message: null });
 
@@ -89,7 +82,7 @@ export function Live24dSpinSseBridge() {
       closed = true;
       source.close();
     };
-  }, [liveApiEnabled]);
+  }, []);
 
   return null;
 }

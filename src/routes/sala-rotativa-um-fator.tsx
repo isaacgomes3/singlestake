@@ -18,7 +18,6 @@ import {
   writeLobbyRoletasStrategyTab,
 } from "@/lib/roulette/lobbyTables";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import {
   readRotatingRoomExtensionEnabled,
   writeRotatingRoomExtensionEnabled,
@@ -49,7 +48,6 @@ export const Route = createFileRoute("/sala-rotativa-um-fator")({
 
 function SalaRotativaUmFatorPage() {
   const { iframe: openIframe } = Route.useSearch();
-  const { liveApiEnabled, setLiveApiEnabled } = useRouletteLiveApi();
   const [configTick, setConfigTick] = useState(0);
 
   useEffect(() => {
@@ -57,9 +55,8 @@ function SalaRotativaUmFatorPage() {
   }, []);
 
   useEffect(() => {
-    if (!liveApiEnabled) setLiveApiEnabled(true);
     if (!readRotatingRoomExtensionEnabled()) writeRotatingRoomExtensionEnabled(true);
-  }, [liveApiEnabled, setLiveApiEnabled]);
+  }, []);
 
   useEffect(() => {
     if (openIframe) prepareRotatingRoomIframeSession();

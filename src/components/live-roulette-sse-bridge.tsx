@@ -13,7 +13,6 @@ import {
   setLiveRouletteTableConfigFromServer,
 } from "@/lib/roulette/liveTableConfig";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 
 function parseReadyTableId(x: unknown): number | null {
   if (typeof x === "number" && Number.isFinite(x) && x > 0) return Math.trunc(x);
@@ -25,22 +24,11 @@ function parseReadyTableId(x: unknown): number | null {
 }
 
 export function LiveRouletteSseBridge() {
-  const { liveApiEnabled } = useRouletteLiveApi();
-
   useEffect(() => {
     initLiveSpinDedupeFromStorage();
 
     if (getLiveRouletteTableIds().length === 0) {
       setLiveRouletteTableConfigFromServer([...LOBBY_FIXED_TABLE_IDS]);
-    }
-
-    if (!liveApiEnabled) {
-      setLiveRouletteTableConfigFromServer([]);
-      dispatchLiveSseStatus({
-        status: "idle",
-        message: null,
-      });
-      return;
     }
 
     let closed = false;
@@ -127,7 +115,7 @@ export function LiveRouletteSseBridge() {
       closed = true;
       source.close();
     };
-  }, [liveApiEnabled]);
+  }, []);
 
   return null;
 }

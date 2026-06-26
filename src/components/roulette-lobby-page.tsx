@@ -2,7 +2,6 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DamasLobbyGrid } from "@/components/damas/DamasLobbyGrid";
-import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
@@ -57,7 +56,6 @@ import {
   getLiveRouletteTableIds,
   getPrimaryLiveTableId,
 } from "@/lib/roulette/liveTableConfig";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import {
   clearUserCasinoEmbedUrl,
@@ -855,7 +853,6 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
   const navigate = useNavigate();
   const [, bump] = useState(0);
   useDgaTableImages();
-  const { liveApiEnabled } = useRouletteLiveApi();
   const [mainTab, setMainTab] = useState<LobbyMainTab>(
     homeView === "dashboard" ? "dashboard" : "casinoLive",
   );
@@ -1302,16 +1299,8 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
                     Cassino ao vivo
                   </p>
                 </div>
-                <LiveApiToggleButton />
               </nav>
               <>
-                {!liveApiEnabled ? (
-                  <p className="text-center text-sm text-amber-300/90">
-                    A API ao vivo está desligada. Clique em «Ligar API ao vivo» acima para receber giros
-                    e indicações.
-                  </p>
-                ) : null}
-
                 <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
                     <RotatingRoomLobbyCard
                       session={rotatingRoomSession}

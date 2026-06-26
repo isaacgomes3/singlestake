@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 
-import { LiveApiToggleButton } from "@/components/live-api-toggle-button";
 import { LiveMultiTableNumeracaoStrip } from "@/components/live-multi-table-numeracao-strip";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
@@ -54,9 +53,6 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
         </Link>
         {onSalaRotativa ? (
           <div className="flex flex-col gap-2 border-t border-slate-800/80 pt-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <LiveApiToggleButton compact />
-            </div>
             <RotatingRoomExtensionStatus compact />
           </div>
         ) : null}
@@ -97,7 +93,6 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
         {children ? (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
         ) : null}
-        <LiveApiToggleButton />
       </div>
     </nav>
   );

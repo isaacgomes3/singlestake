@@ -1,4 +1,4 @@
-import { MapPin, ChevronDown, ChevronUp, ChevronsUp, Repeat2, RotateCcw, Trash2, Bot, Radio } from "lucide-react";
+import { MapPin, ChevronDown, ChevronUp, ChevronsUp, Repeat2, RotateCcw, Trash2, Bot } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 
 import { RouletteSimulatorCountdownStrip } from "@/components/roulette-simulator-countdown-strip";
@@ -12,7 +12,6 @@ import { useRouletteSimulatorLiveSpin } from "@/hooks/useRouletteSimulatorLiveSp
 import { useRouletteSimulatorSpinClock } from "@/hooks/useRouletteSimulatorSpinClock";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import { exteriorBetKeyToRouletteBetKind } from "@/lib/roulette/rotatingRoomSimulatorIndication";
-import { useRouletteLiveApi } from "@/lib/roulette/rouletteLiveApiContext";
 import {
   betAreaKey,
   betAreaLabel,
@@ -169,7 +168,6 @@ type RoundResult = {
 export function RouletteSimulatorPanel({ tableIds, histories, defaultTableId }: Props) {
   const [tableId, setTableId] = useState(defaultTableId);
   const [followRotatingRoom, setFollowRotatingRoom] = useState(true);
-  const { liveApiEnabled, toggleLiveApi } = useRouletteLiveApi();
   const { indication, connected: rotatingRoomConnected } = useRotatingRoomSimulatorIndication();
   const lastAutoSignalRef = useRef<string | null>(null);
   const [historySectionOpen, setHistorySectionOpen] = useState(true);
@@ -411,39 +409,18 @@ export function RouletteSimulatorPanel({ tableIds, histories, defaultTableId }: 
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={toggleLiveApi}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition",
-              liveApiEnabled
-                ? "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-400/40"
-                : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/35",
-            )}
-            aria-pressed={liveApiEnabled}
-            aria-label={liveApiEnabled ? "Desligar API ao vivo" : "Ligar API ao vivo"}
-          >
-            <Radio className="h-3.5 w-3.5" aria-hidden />
-            API ao vivo {liveApiEnabled ? "ON" : "OFF"}
-          </button>
-          <button
-            type="button"
             onClick={() => setFollowRotatingRoom((v) => !v)}
-            disabled={!liveApiEnabled}
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition",
-              !liveApiEnabled && "cursor-not-allowed opacity-50",
-              followRotatingRoom && liveApiEnabled
+              followRotatingRoom
                 ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40"
                 : "bg-slate-800/80 text-slate-400",
             )}
           >
             <Bot className="h-3.5 w-3.5" aria-hidden />
-            Sala rotativa {followRotatingRoom && liveApiEnabled ? "ON" : "OFF"}
+            Sala rotativa {followRotatingRoom ? "ON" : "OFF"}
           </button>
-          {!liveApiEnabled ? (
-            <span className="text-xs text-amber-300/90">
-              Ligue a API para receber giros e indicações da sala rotativa.
-            </span>
-          ) : followRotatingRoom ? (
+          {followRotatingRoom ? (
             <>
               <span
                 className={cn(
