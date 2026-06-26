@@ -44,6 +44,7 @@ export default defineConfig(({ command, mode }) => {
             nitro({
               preset: "node-server",
               output: { dir: ".output" },
+              externals: { traceInclude: ["ws"] },
             }),
           ]
         : []),

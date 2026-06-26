@@ -1,3 +1,8 @@
+/**
+ * Usa a WebSocket global (browser) ou polyfill Node (`ensureNodeWebSocket`).
+ */
+import "@/lib/server/ensureNodeWebSocket";
+
 import { LOBBY_FIXED_TABLE_IDS, ROTATING_ROOM_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
 
 const WS_URL = process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws";

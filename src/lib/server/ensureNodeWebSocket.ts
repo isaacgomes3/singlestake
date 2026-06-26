@@ -65,4 +65,5 @@ class NodeWebSocket extends EventTarget {
 if (typeof globalThis.WebSocket === "undefined") {
   (globalThis as typeof globalThis & { WebSocket: typeof WebSocket }).WebSocket =
     NodeWebSocket as unknown as typeof WebSocket;
+  console.log("[Roleta] WebSocket polyfill (ws) activo no Node");
 }

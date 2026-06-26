@@ -216,8 +216,19 @@ export function getRouletteHubStatus() {
     idleShutdownMs: UPSTREAM_IDLE_MS,
     casinoId: process.env.ROULETTE_CASINO_ID ?? "ppcdk00000005148",
     wsUrl: process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws",
+    webSocketAvailable: typeof globalThis.WebSocket !== "undefined",
     tableIds,
     tables,
     hasData: tables.some((t) => t.historyCount > 0 || t.lastNumber != null),
   };
+}
+
+/** Espera até haver dados Pragmatic ou o upstream estar activo. */
+export async function waitForRouletteHubData(timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const status = getRouletteHubStatus();
+    if (status.hasData || status.upstreamActive) return;
+    await new Promise((r) => setTimeout(r, 400));
+  }
 }
