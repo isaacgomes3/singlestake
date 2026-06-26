@@ -21,7 +21,7 @@ function InsetSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="grid grid-cols-[3.5rem_1fr_2.25rem] items-center gap-2 text-[10px] text-slate-400">
+    <label className="grid grid-cols-[3.5rem_1fr_2.25rem] items-center gap-2 text-[10px] text-text-secondary">
       <span className="font-semibold uppercase tracking-wide">{label}</span>
       <input
         type="range"
@@ -30,9 +30,9 @@ function InsetSlider({
         step={0.5}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 w-full cursor-pointer accent-cyan-500"
+        className="h-1.5 w-full cursor-pointer accent-[var(--text-secondary)]"
       />
-      <span className="text-right tabular-nums text-slate-300">{value.toFixed(1)}%</span>
+      <span className="text-right tabular-nums text-text-primary">{value.toFixed(1)}%</span>
     </label>
   );
 }
@@ -47,26 +47,26 @@ export function CasinoEmbedViewportControls({
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-700/80 bg-slate-900/95 shadow-lg backdrop-blur-sm",
+        "rounded-xl border border-border-color bg-bg-card shadow-lg backdrop-blur-sm",
         compact ? "p-2.5" : "p-3",
         className,
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-          <Crop className="h-3.5 w-3.5 text-cyan-500/90" aria-hidden />
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">
+          <Crop className="h-3.5 w-3.5 text-text-secondary" aria-hidden />
           Moldura do vídeo
         </p>
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-400 hover:bg-slate-800"
+          className="inline-flex items-center gap-1 rounded-md border border-border-color px-2 py-0.5 text-[10px] font-semibold text-text-secondary hover:bg-bg-card-hover"
         >
           <RotateCcw className="h-3 w-3" aria-hidden />
           Repor
         </button>
       </div>
-      <p className="mb-2 text-[10px] leading-snug text-slate-500">
+      <p className="mb-2 text-[10px] leading-snug text-text-secondary">
         Ajuste o que fica visível dentro da moldura (corta o site à volta do jogo).
       </p>
       <div className="space-y-2">

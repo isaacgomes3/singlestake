@@ -35,14 +35,14 @@ export function CasinoGameEmbedFrame({
     <div
       className={cn(
         className ?? "absolute inset-0",
-        framed && "rounded-xl border-2 border-slate-600/70 bg-black shadow-[0_0_0_1px_rgba(0,0,0,0.9),inset_0_0_24px_rgba(0,0,0,0.45)] ring-1 ring-cyan-950/40",
+        framed && "rounded-xl border-2 border-border-color bg-bg-primary shadow-theme",
       )}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-[inherit] bg-black">
+      <div className="relative h-full w-full overflow-hidden rounded-[inherit] bg-bg-secondary">
         <iframe
           title={title}
           src={src}
-          className="absolute border-0 bg-black"
+          className="absolute border-0 bg-bg-secondary"
           style={{
             top: `-${insets.topPct}%`,
             left: `-${insets.leftPct}%`,

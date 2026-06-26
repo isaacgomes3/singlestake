@@ -114,14 +114,14 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
   return (
     <div
       className={cn(
-        "relative z-[3] rounded-xl border border-cyan-400/45 bg-slate-900/95 px-2.5 py-2 shadow-md ring-1 ring-cyan-500/20",
-        signalsLinked && "border-emerald-500/40 ring-emerald-500/25",
+        "relative z-[3] rounded-xl border border-border-color bg-bg-card px-2.5 py-2 shadow-md",
+        signalsLinked && "border-success/40",
         className,
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Puzzle className="h-3.5 w-3.5 shrink-0 text-cyan-400" aria-hidden />
-        <span className="text-[10px] font-bold uppercase tracking-wide text-cyan-200/90">
+        <Puzzle className="h-3.5 w-3.5 shrink-0 text-text-secondary" aria-hidden />
+        <span className="text-[10px] font-bold uppercase tracking-wide text-text-primary">
           Extensão · sinais
         </span>
 
@@ -136,7 +136,7 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
         )}
 
         {extensionPresent ? (
-          <span className="rounded-md border border-slate-600/60 bg-slate-900/80 px-1.5 py-0.5 text-[8px] font-semibold text-slate-300">
+          <span className="rounded-md border border-border-color bg-bg-secondary px-1.5 py-0.5 text-[8px] font-semibold text-text-secondary">
             {placarWins}V · {placarLosses}D · {maxRecovery}g
           </span>
         ) : null}
@@ -150,7 +150,7 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
             !enabled && "opacity-40",
             realMode
               ? "border-red-500/50 bg-red-950/50 text-red-300"
-              : "border-slate-600 bg-slate-900/80 text-slate-400",
+              : "border-border-color bg-bg-secondary text-text-secondary",
           )}
         >
           {realMode ? "Real" : "Demo"}
@@ -163,7 +163,7 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
             "ml-auto rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
             enabled
               ? "border-emerald-500/50 bg-emerald-950/50 text-emerald-300"
-              : "border-slate-600 bg-slate-900/80 text-slate-400",
+              : "border-border-color bg-bg-secondary text-text-secondary",
           )}
         >
           {enabled ? "Activo" : "Parado"}

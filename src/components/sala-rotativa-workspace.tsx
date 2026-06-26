@@ -158,7 +158,7 @@ export function SalaRotativaWorkspace({
   const workspaceShell = useMemo(
     () =>
       effectiveIframeMode
-        ? "relative mt-4 min-h-[calc(100vh-11rem)] overflow-hidden rounded-2xl border border-slate-800/80 bg-black"
+        ? "rotating-room-iframe-shell relative mt-4 min-h-[calc(100vh-11rem)] overflow-hidden"
         : signalOnlyMode
           ? "relative mt-2"
           : "relative mt-4",
@@ -189,8 +189,8 @@ export function SalaRotativaWorkspace({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
               signalOnlyMode
-                ? "border-violet-500/60 bg-violet-950/50 text-violet-100"
-                : "border-slate-700 text-slate-300 hover:bg-slate-800",
+                ? "border-warning/50 bg-bg-card text-text-primary"
+                : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
             )}
           >
             <Smartphone className="h-3.5 w-3.5" aria-hidden />
@@ -203,8 +203,8 @@ export function SalaRotativaWorkspace({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
                 iframeMode
-                  ? "border-cyan-500/60 bg-cyan-950/50 text-cyan-100"
-                  : "border-slate-700 text-slate-300 hover:bg-slate-800",
+                  ? "border-border-color bg-bg-card-hover text-text-primary ring-1 ring-border-color"
+                  : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
               )}
             >
               <Layers className="h-3.5 w-3.5" aria-hidden />
@@ -212,8 +212,8 @@ export function SalaRotativaWorkspace({
             </button>
           ) : null}
           {effectiveIframeMode && activeIframeId != null ? (
-            <span className="text-xs text-slate-500">
-              Mesa: <span className="font-semibold text-slate-300">{iframeLabel}</span>
+            <span className="text-xs text-text-secondary">
+              Mesa: <span className="font-semibold text-text-primary">{iframeLabel}</span>
             </span>
           ) : null}
         </div>
@@ -225,8 +225,8 @@ export function SalaRotativaWorkspace({
               className={cn(
                 "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold",
                 viewportControlsOpen
-                  ? "border-cyan-500/50 bg-cyan-950/40 text-cyan-100"
-                  : "border-slate-700 text-slate-400 hover:bg-slate-800",
+                  ? "border-border-color bg-bg-card-hover text-text-primary"
+                  : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
               )}
             >
               <Crop className="h-3.5 w-3.5" aria-hidden />
@@ -236,7 +236,7 @@ export function SalaRotativaWorkspace({
               <Link
                 to="/casino-mesa"
                 search={casinoMesaSearch}
-                className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-border-color px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"
               >
                 Abrir ferramentas da mesa
               </Link>
@@ -244,7 +244,7 @@ export function SalaRotativaWorkspace({
             <button
               type="button"
               onClick={resetPanelPosition}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-800"
+              className="inline-flex items-center gap-1 rounded-lg border border-border-color px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
               Centrar painel
@@ -273,26 +273,26 @@ export function SalaRotativaWorkspace({
                 viewport={viewport}
               />
             ) : activeIframeId != null ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-slate-900 to-black px-6 text-center">
-                <p className="max-w-md text-sm text-slate-400">
-                  Sem URL de casino para <span className="text-white">{iframeLabel}</span>. Configure em
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg-secondary px-6 text-center">
+                <p className="max-w-md text-sm text-text-secondary">
+                  Sem URL de casino para <span className="text-text-primary">{iframeLabel}</span>. Configure em
                   ferramentas da mesa ou abra abaixo.
                 </p>
                 <Link
                   to="/casino-mesa"
                   search={rotatingRoomCasinoMesaSearch(activeIframeId)}
-                  className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500"
+                  className="rounded-lg bg-bg-card-hover px-4 py-2 text-sm font-bold text-text-primary ring-1 ring-border-color hover:bg-bg-card"
                 >
                   Configurar mesa {activeIframeId}
                 </Link>
               </div>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-text-secondary">
                 Aguarde indicação de mesa
               </div>
             )}
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-16 bg-gradient-to-t from-black/50 to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-16 bg-gradient-to-t from-bg-primary/80 to-transparent"
               aria-hidden
             />
           </>
@@ -321,9 +321,9 @@ export function SalaRotativaWorkspace({
             className={cn(
               "overflow-hidden rounded-2xl border shadow-2xl shadow-black/45 backdrop-blur-md",
               effectiveIframeMode
-                ? "border-slate-700/80 bg-[#0a101c]/95"
+                ? "border-border-color bg-bg-card/95"
                 : signalOnlyMode
-                  ? "border-slate-700/70 bg-[#0a101c]/98"
+                  ? "border-border-color/80 bg-bg-card/98"
                   : "border-transparent bg-transparent shadow-none",
             )}
           >
@@ -335,10 +335,10 @@ export function SalaRotativaWorkspace({
                 onPointerMove={onPanelHandlePointerMove}
                 onPointerUp={onPanelHandlePointerUp}
                 onPointerCancel={onPanelHandlePointerUp}
-                className="flex cursor-grab touch-none select-none items-center gap-2 border-b border-slate-800/90 bg-slate-900/95 px-3 py-2 active:cursor-grabbing"
+                className="flex cursor-grab touch-none select-none items-center gap-2 border-b border-border-color bg-bg-secondary px-3 py-2 active:cursor-grabbing"
               >
-                <Move className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                <Move className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-secondary">
                   Indicação · arrastar
                 </p>
               </div>

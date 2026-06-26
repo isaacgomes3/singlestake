@@ -79,7 +79,7 @@ function SalaRotativaUmFatorPage() {
   const session = useRotatingRoomUmFatorSession(tableIds, histories);
 
   return (
-    <div className="min-h-screen bg-[#080d18] text-slate-100">
+    <div className="rotating-room-page min-h-screen text-text-primary">
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <BackOfficeWorkspaceNav rotatingRoom />
         <SalaRotativaWorkspace

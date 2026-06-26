@@ -333,7 +333,7 @@ function RotatingRoomStage({
       );
     }
     return (
-      <div className="overflow-hidden rounded-2xl border border-amber-500/45 bg-slate-900/95 px-4 py-5 text-center">
+      <div className="overflow-hidden rounded-2xl border border-amber-500/45 bg-bg-card px-4 py-5 text-center">
         <ChevronUp className="mx-auto h-5 w-5 text-amber-400/80 motion-safe:animate-bounce" aria-hidden />
         <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-amber-300/90">Posicione-se</p>
         <button
@@ -351,7 +351,7 @@ function RotatingRoomStage({
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border-2 border-amber-400/55 bg-[#0a101c] px-4 py-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.12)] sm:px-5 sm:py-6",
+          "relative overflow-hidden rounded-3xl border-2 border-amber-400/55 bg-bg-card px-4 py-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.12)] sm:px-5 sm:py-6",
           compact ? "rounded-2xl" : "",
         )}
       >
@@ -377,7 +377,7 @@ function RotatingRoomStage({
         return (
           <div
             className={cn(
-              "relative overflow-hidden rounded-2xl border-2 bg-[#060a14] px-3 py-3",
+              "relative overflow-hidden rounded-2xl border-2 bg-bg-secondary px-3 py-3",
               session.roundFlash
                 ? session.roundFlash.kind === "win"
                   ? "border-emerald-400/60"
@@ -416,7 +416,7 @@ function RotatingRoomStage({
       return (
         <div
           className={cn(
-            "relative overflow-hidden rounded-2xl border-2 bg-[#060a14] px-3 py-4",
+            "relative overflow-hidden rounded-2xl border-2 bg-bg-secondary px-3 py-4",
             session.roundFlash
               ? session.roundFlash.kind === "win"
                 ? "border-emerald-400/60"
@@ -430,7 +430,7 @@ function RotatingRoomStage({
             <button
               type="button"
               onClick={() => onOpenTable?.(focusTableId)}
-              className="mb-3 w-full rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-sm font-bold text-slate-200"
+              className="mb-3 w-full rounded-lg border border-border-color bg-bg-card px-3 py-2 text-sm font-bold text-text-primary"
             >
               {focusLabel}
             </button>
@@ -465,7 +465,7 @@ function RotatingRoomStage({
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border-2 bg-[#060a14] px-5 py-8 sm:px-8",
+          "relative overflow-hidden rounded-3xl border-2 bg-bg-secondary px-5 py-8 sm:px-8",
           compact ? "rounded-2xl px-4 py-5 sm:px-5" : "mx-auto max-w-2xl",
           session.roundFlash
             ? session.roundFlash.kind === "win"
@@ -542,12 +542,12 @@ function RotatingRoomStage({
     if (indicationOnly) return null;
 
     return (
-      <div className="flex min-h-[9rem] flex-col items-center justify-center rounded-2xl border border-slate-700/80 bg-slate-900/95 px-5 py-8 text-center">
+      <div className="flex min-h-[9rem] flex-col items-center justify-center rounded-2xl border border-border-color bg-bg-card px-5 py-8 text-center">
         <ChevronUp
-          className="h-5 w-5 text-slate-500 motion-safe:animate-bounce"
+          className="h-5 w-5 text-text-secondary motion-safe:animate-bounce"
           aria-hidden
         />
-        <p className="mt-3 text-base font-semibold tracking-wide text-slate-200">{waitingTitle}</p>
+        <p className="mt-3 text-base font-semibold tracking-wide text-text-primary">{waitingTitle}</p>
         {isAwaitingNextTable ? (
           <p className="mt-1.5 text-sm font-bold tabular-nums text-amber-300/90">
             Recuperação {session.currentRecovery}
@@ -566,7 +566,7 @@ function RotatingRoomStage({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-slate-800/80 bg-[#0a101c]/80 px-6 py-16 text-center",
+        "rounded-3xl border border-border-color bg-bg-card/80 px-6 py-16 text-center",
         compact ? "rounded-2xl py-10" : "mx-auto max-w-lg",
       )}
     >
