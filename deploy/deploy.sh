@@ -51,20 +51,20 @@ fi
 AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
 mkdir -p data
 
+echo "→ pm2 (arranque imediato — antes de migrações DB)"
+pm2 start deploy/ecosystem.config.cjs
+pm2 save
+
 if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   echo "→ npm run db:push"
-  npm run db:push
+  npm run db:push || echo "⚠ db:push ignorado"
   if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
     echo "→ npm run db:seed (FIRST_DEPLOY=1)"
-    npm run db:seed
+    npm run db:seed || echo "⚠ db:seed ignorado"
   fi
   echo "→ npm run db:seed-isaac (rede qualificadora Isaac — idempotente)"
   npm run db:seed-isaac || echo "⚠ db:seed-isaac ignorado"
 fi
-
-echo "→ pm2 (restart)"
-pm2 start deploy/ecosystem.config.cjs
-pm2 save
 
 if [[ -f "$AAPANEL_CONF" ]]; then
   bash "$ROOT/deploy/patch-apache-static.sh" || echo "⚠ patch Apache ignorado — Node serve estáticos"
