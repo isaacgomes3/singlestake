@@ -1,0 +1,113 @@
+import { buildPanelMessages } from "@/lib/i18n/content";
+import { navDescriptionsContent } from "@/lib/i18n/content/nav-descriptions";
+import type { Messages } from "@/lib/i18n/types";
+
+const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav"> & {
+  nav: Omit<Messages["nav"], "descriptions">;
+} = {
+  common: {
+    loading: "Loading…",
+    logout: "Sign out",
+    login: "Sign in",
+    close: "Close",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+    goToLogin: "Go to sign in",
+    sessionExpired:
+      "Session expired on the server. Sign out and sign in again with your email and password.",
+    redirectingLogin: "Redirecting to sign in…",
+    markAllRead: "Mark all as read",
+    viewAll: "View all",
+    affiliateLink: "Affiliate link",
+    backOffice: "Back office",
+  },
+  layout: {
+    search: "Search or type a command…",
+    searchShortcut: "⌘K",
+    notifications: "Notifications",
+    messages: "Messages",
+    support: "Support",
+    affiliate: "Affiliate",
+    selectLanguage: "Select language",
+    welcomeBack: "Welcome back",
+    yourStore: "Your store",
+    affiliateProgram: "Affiliate",
+    documentation: "Documentation",
+    settings: "Settings",
+    themeLight: "Light",
+    themeDark: "Dark",
+    themeSystem: "System",
+    layoutMenu: "Menu layout",
+    boxedMenu: "Boxed menu",
+    edgeMenu: "Edge menu",
+    boxedMenuDesc: "Floating layout with margins and rounded containers.",
+    edgeMenuDesc: "Full-height sidebar flush with the screen edge.",
+  },
+  nav: {
+    overview: "Overview",
+    suporte: "Support",
+    groups: {
+      produtos: "Products",
+      rede: "Network",
+      operacoes: "Operations",
+      financeiro: "Finance",
+      relatorios: "Reports",
+      administracao: "Administration",
+    },
+    modules: {
+      pacotes: "Packages",
+      rendimentos: "Daily yields",
+      mensalidades: "Subscriptions",
+      residual: "Subscription residual",
+      afiliados: "Affiliates",
+      "rede-binaria": "Binary network",
+      qualificacao: "Qualification",
+      "bonus-binario": "Binary bonus",
+      "bonus-equipe": "Team bonus",
+      operacoes: "Operations share",
+      carteira: "Wallet",
+      depositos: "Deposits",
+      saques: "Withdrawals",
+      extrato: "Statement",
+      "relatorios-rede": "Network reports",
+      "central-qualificacao": "Qualification hub",
+      admin: "Admin panel",
+      auditoria: "Audit & logs",
+      "casino-ao-vivo": "Live casino",
+      "casino-outros-jogos": "Other games",
+      "casino-simulador": "Simulator",
+      "casino-estatisticas": "Statistics",
+    },
+    sections: {
+      operacoes: "Operations",
+      liveCasino: "Live casino",
+      gestao: "Management",
+    },
+  },
+  notifications: {
+    title1: "New deposit approved",
+    body1: "Your R$ 500 deposit was credited to your wallet.",
+    title2: "Team bonus released",
+    body2: "Network volume reached the weekly goal.",
+    title3: "System update",
+    body3: "Automatic deploy completed successfully.",
+    ago: "{{minutes}} min ago",
+  },
+  utility: {
+    affiliateTitle: "Affiliate program",
+    affiliateDesc: "Share your link and track referrals.",
+    supportTitle: "Support center",
+    supportDesc: "Tickets, contact and documentation.",
+    messagesTitle: "Messages",
+    messagesEmpty: "No new messages.",
+  },
+};
+
+export const en: Messages = {
+  ...shell,
+  ...buildPanelMessages("en"),
+  nav: {
+    ...shell.nav,
+    descriptions: navDescriptionsContent.en,
+  },
+};

@@ -75,7 +75,7 @@ export const BACK_OFFICE_SUPORTE: BackOfficeSuporteItem = {
 };
 
 export type BackOfficeGroupSection = {
-  label: string;
+  key: string;
   moduleIds: BackOfficeModuleId[];
 };
 
@@ -162,11 +162,11 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
 
 export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [
   {
-    label: "Operações",
+    key: "operacoes",
     moduleIds: ["operacoes"],
   },
   {
-    label: "Casino ao vivo",
+    key: "liveCasino",
     moduleIds: [
       "casino-ao-vivo",
       "casino-outros-jogos",
@@ -178,7 +178,7 @@ export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [
 
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   {
-    label: "Gestão",
+    key: "gestao",
     moduleIds: ["admin", "auditoria"],
   },
 ];

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRegister } from "@/lib/auth/api";
 import { goAfterAuth, setSession } from "@/lib/auth/session";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function RegisterPage({ initialReferralCode }: { initialReferralCode?: string }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +21,7 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
-      toast.error("As senhas não coincidem.");
+      toast.error(t("auth.register.passwordMismatch"));
       return;
     }
     setLoading(true);
@@ -37,23 +39,23 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
     try {
       setSession(result.user);
     } catch {
-      toast.error("Não foi possível guardar a sessão neste browser.");
+      toast.error(t("auth.register.sessionSaveFailed"));
       setLoading(false);
       return;
     }
-    toast.success("Conta criada com sucesso!");
+    toast.success(t("auth.register.success"));
     goAfterAuth("/back-office");
   };
 
   return (
     <AuthPageShell
-      title="Criar conta"
-      subtitle="Cadastre-se para aceder ao back office singlestake."
+      title={t("auth.register.title")}
+      subtitle={t("auth.register.subtitle")}
       footer={
         <>
-          Já tem conta?{" "}
+          {t("auth.register.footerHasAccount")}{" "}
           <Link to="/entrar" className="font-semibold text-info hover:underline">
-            Entrar
+            {t("auth.register.footerLogin")}
           </Link>
         </>
       }
@@ -61,7 +63,7 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="name" className="text-sm font-medium text-text-primary">
-            Nome completo
+            {t("auth.register.name")}
           </label>
           <Input
             id="name"
@@ -69,12 +71,12 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="O seu nome"
+            placeholder={t("auth.register.namePlaceholder")}
           />
         </div>
         <div className="space-y-2">
           <label htmlFor="reg-email" className="text-sm font-medium text-text-primary">
-            E-mail
+            {t("auth.register.email")}
           </label>
           <Input
             id="reg-email"
@@ -83,12 +85,12 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="voce@exemplo.com"
+            placeholder={t("auth.register.emailPlaceholder")}
           />
         </div>
         <div className="space-y-2">
           <label htmlFor="reg-password" className="text-sm font-medium text-text-primary">
-            Senha
+            {t("auth.register.password")}
           </label>
           <Input
             id="reg-password"
@@ -98,12 +100,12 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
+            placeholder={t("auth.register.passwordPlaceholder")}
           />
         </div>
         <div className="space-y-2">
           <label htmlFor="confirm" className="text-sm font-medium text-text-primary">
-            Confirmar senha
+            {t("auth.register.confirm")}
           </label>
           <Input
             id="confirm"
@@ -113,23 +115,23 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
             minLength={6}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Repita a senha"
+            placeholder={t("auth.register.confirmPlaceholder")}
           />
         </div>
         <div className="space-y-2">
           <label htmlFor="referral" className="text-sm font-medium text-text-primary">
-            Código de indicação (opcional)
+            {t("auth.register.referral")}
           </label>
           <Input
             id="referral"
             autoComplete="off"
             value={referralCode}
             onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-            placeholder="ABC123"
+            placeholder={t("auth.register.referralPlaceholder")}
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "A criar conta…" : "Criar conta"}
+          {loading ? t("auth.register.submitting") : t("auth.register.submit")}
         </Button>
       </form>
     </AuthPageShell>

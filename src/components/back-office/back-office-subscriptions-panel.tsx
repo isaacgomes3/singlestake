@@ -5,16 +5,19 @@ import { Button } from "@/components/ui/button";
 import { fetchSubscription, paySubscription } from "@/lib/back-office/product-api";
 import type { SubscriptionDto } from "@/lib/back-office/product-types";
 import { SUBSCRIPTION_GRACE_DAYS } from "@/lib/back-office/product-constants";
-import { formatBrl } from "@/lib/back-office/mock-data";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 
-const STATUS_LABELS: Record<SubscriptionDto["status"], string> = {
-  grace: "Período gratuito",
-  active: "Em dia",
-  pending: "Pendente",
-  expired: "Vencida",
+const STATUS_KEYS: Record<SubscriptionDto["status"], string> = {
+  grace: "products.subscriptions.statusGrace",
+  active: "products.subscriptions.statusActive",
+  pending: "products.subscriptions.statusPending",
+  expired: "products.subscriptions.statusExpired",
 };
 
 export function BackOfficeSubscriptionsPanel() {
+  const { t } = useI18n();
+  const { money, date } = useFormat();
   const [sub, setSub] = useState<SubscriptionDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -37,36 +40,37 @@ export function BackOfficeSubscriptionsPanel() {
       toast.error(result.error);
       return;
     }
-    toast.success("Mensalidade paga. Acesso restaurado.");
+    toast.success(t("products.subscriptions.toastPaid"));
     void reload();
   };
+
+  const status = sub?.status ?? "pending";
 
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Mensalidade</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("products.subscriptions.title")}</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Primeiros {SUBSCRIPTION_GRACE_DAYS} dias gratuitos. Depois, mantenha em dia para aceder a
-          bónus, automação e serviços de afiliado.
+          {t("products.subscriptions.intro", { days: SUBSCRIPTION_GRACE_DAYS })}
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              label: "Status",
-              value: loading ? "…" : STATUS_LABELS[sub?.status ?? "pending"],
+              label: t("products.subscriptions.fieldStatus"),
+              value: loading ? "…" : t(STATUS_KEYS[status]),
             },
             {
-              label: "Valor",
-              value: loading ? "…" : formatBrl(sub?.amount ?? 0),
+              label: t("products.subscriptions.fieldAmount"),
+              value: loading ? "…" : money(sub?.amount ?? 0),
             },
             {
-              label: "Acesso activo",
-              value: loading ? "…" : sub?.active ? "Sim" : "Não",
+              label: t("products.subscriptions.fieldAccess"),
+              value: loading ? "…" : sub?.active ? t("shared.yes") : t("shared.no"),
             },
             {
-              label: "Dias até vencimento",
+              label: t("products.subscriptions.fieldDaysDue"),
               value:
-                loading || sub?.daysUntilDue == null ? "—" : String(sub.daysUntilDue),
+                loading || sub?.daysUntilDue == null ? t("shared.dash") : String(sub.daysUntilDue),
             },
           ].map((item) => (
             <div
@@ -81,60 +85,63 @@ export function BackOfficeSubscriptionsPanel() {
 
         {!loading && sub && !sub.active ? (
           <Button type="button" className="mt-4" disabled={paying} onClick={() => void handlePay()}>
-            {paying ? "A processar…" : `Pagar mensalidade (${formatBrl(sub.amount)})`}
+            {paying
+              ? t("products.subscriptions.processing")
+              : t("products.subscriptions.payWithAmount", { amount: money(sub.amount) })}
           </Button>
         ) : null}
 
-        {!loading && sub?.active && sub.status === "expired" ? null : null}
-
         {!loading && sub?.status === "active" && sub.renewsAt ? (
           <p className="mt-3 text-xs text-text-secondary">
-            Próxima renovação: {new Date(sub.renewsAt).toLocaleDateString("pt-BR")}
+            {t("products.subscriptions.nextRenewal")}: {date(sub.renewsAt)}
           </p>
         ) : null}
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Regra de repasse</h2>
+        <h2 className="text-sm font-bold text-text-primary">
+          {t("products.subscriptions.distributionRuleTitle")}
+        </h2>
         <p className="mt-2 text-sm text-text-secondary">
-          50% distribuído na rede (5 níveis) · 50% carteira empresa.
+          {t("products.subscriptions.distributionRuleText")}
         </p>
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Ganhos perdidos (mensalidade vencida)</h2>
+        <h2 className="text-sm font-bold text-text-primary">
+          {t("products.subscriptions.missedEarningsTitle")}
+        </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Valores não creditados enquanto a mensalidade estiver vencida. Não acumulam após
-          regularização.
+          {t("products.subscriptions.missedEarningsIntro")}
         </p>
         {loading ? (
-          <p className="mt-3 text-sm text-text-secondary">A carregar…</p>
+          <p className="mt-3 text-sm text-text-secondary">{t("shared.loading")}</p>
         ) : (sub?.missedCredits.length ?? 0) === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">Nenhum crédito perdido registado.</p>
+          <p className="mt-3 text-sm text-text-secondary">
+            {t("products.subscriptions.missedEmptyCredits")}
+          </p>
         ) : (
           <>
             <p className="mt-3 text-sm font-semibold text-amber-400">
-              Total perdido: {formatBrl(sub?.missedTotal ?? 0)}
+              {t("products.subscriptions.missedTotalAmount", {
+                amount: money(sub?.missedTotal ?? 0),
+              })}
             </p>
             <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
               <table className="w-full min-w-[480px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
-                    <th className="px-3 py-2.5">Data</th>
-                    <th className="px-3 py-2.5">Motivo</th>
-                    <th className="px-3 py-2.5">Valor</th>
+                    <th className="px-3 py-2.5">{t("shared.columns.date")}</th>
+                    <th className="px-3 py-2.5">{t("products.subscriptions.colReason")}</th>
+                    <th className="px-3 py-2.5">{t("shared.columns.value")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sub!.missedCredits.map((row, i) => (
                     <tr key={i} className="border-b border-border-color/60 last:border-0">
-                      <td className="px-3 py-2.5 text-text-secondary">
-                        {new Date(row.createdAt).toLocaleDateString("pt-BR")}
-                      </td>
+                      <td className="px-3 py-2.5 text-text-secondary">{date(row.createdAt)}</td>
                       <td className="px-3 py-2.5 text-text-primary">{row.reason}</td>
-                      <td className="px-3 py-2.5 tabular-nums text-amber-400">
-                        {formatBrl(row.amount)}
-                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-amber-400">{money(row.amount)}</td>
                     </tr>
                   ))}
                 </tbody>

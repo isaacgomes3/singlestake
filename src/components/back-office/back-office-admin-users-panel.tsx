@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { copyText, fetchUsersWithReferralLinks } from "@/lib/back-office/admin-api";
 import { getSession } from "@/lib/auth/session";
 import type { UserReferralRecord } from "@/lib/back-office/admin-types";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function BackOfficeAdminUsersPanel() {
+  const { t } = useI18n();
   const isAdmin = getSession()?.user.role === "admin";
   const [users, setUsers] = useState<UserReferralRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,25 +27,21 @@ export function BackOfficeAdminUsersPanel() {
   }, [isAdmin]);
 
   if (!isAdmin) {
-    return (
-      <p className="text-sm text-text-secondary">
-        Apenas administradores podem ver os links de todos os utilizadores.
-      </p>
-    );
+    return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
   }
 
   const copyLink = async (link: string) => {
     const ok = await copyText(link);
-    toast[ok ? "success" : "error"](ok ? "Link copiado." : "Não foi possível copiar.");
+    toast[ok ? "success" : "error"](
+      ok ? t("admin.toastCopied") : t("admin.toastCopyFailed"),
+    );
   };
 
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">O seu link de afiliação</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Cada utilizador recebe automaticamente um código único ao criar conta.
-        </p>
+        <h2 className="text-sm font-bold text-text-primary">{t("admin.myLinkTitle")}</h2>
+        <p className="mt-1 text-sm text-text-secondary">{t("admin.myLinkDesc")}</p>
         {getSession()?.user.referralCode ? (
           <div className="mt-4">
             <ReferralLinkField
@@ -55,25 +53,25 @@ export function BackOfficeAdminUsersPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Links por utilizador</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("admin.allLinksTitle")}</h2>
         <p className="mt-1 text-sm text-text-secondary">
           {loading
-            ? "A carregar…"
-            : `${users.length} utilizador(es) com link de indicação gerado.`}
+            ? t("shared.loading")
+            : t("admin.allLinksCount", { count: users.length })}
         </p>
 
         {loading ? null : users.length === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">Nenhum utilizador encontrado.</p>
+          <p className="mt-3 text-sm text-text-secondary">{t("admin.allLinksEmpty")}</p>
         ) : (
           <div className="mt-4 overflow-x-auto rounded-xl border border-border-color">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
-                  <th className="px-3 py-2.5 font-semibold">Nome</th>
-                  <th className="px-3 py-2.5 font-semibold">E-mail</th>
-                  <th className="px-3 py-2.5 font-semibold">Código</th>
-                  <th className="px-3 py-2.5 font-semibold">Entrada</th>
-                  <th className="px-3 py-2.5 font-semibold">Link</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colName")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colEmail")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colCode")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colJoined")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colLink")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,7 +96,7 @@ export function BackOfficeAdminUsersPanel() {
                         onClick={() => void copyLink(row.referralLink)}
                       >
                         <Copy className="size-3.5" />
-                        Copiar
+                        {t("admin.copy")}
                       </Button>
                     </td>
                   </tr>

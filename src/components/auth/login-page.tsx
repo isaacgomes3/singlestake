@@ -12,8 +12,10 @@ import {
   loginRedirectPath,
   setSession,
 } from "@/lib/auth/session";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function LoginPage() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,19 +42,17 @@ export function LoginPage() {
       try {
         setSession(result.user);
       } catch {
-        toast.error("Não foi possível guardar a sessão neste browser.");
+        toast.error(t("auth.login.sessionSaveFailed"));
         return;
       }
 
       const verified = await apiFetchMe();
       if (!verified) {
-        toast.error(
-          "Login feito mas a sessão não ficou no servidor. Use https://stake37.com.br (sem bloqueadores de cookies).",
-        );
+        toast.error(t("auth.login.sessionServerFailed"));
         return;
       }
 
-      toast.success(`Bem-vindo, ${result.user.name}!`);
+      toast.success(t("auth.login.welcome", { name: result.user.name }));
       goAfterAuth(loginRedirectPath());
     } finally {
       setLoading(false);
@@ -61,13 +61,13 @@ export function LoginPage() {
 
   return (
     <AuthPageShell
-      title="Entrar"
-      subtitle="Aceda ao painel singlestake — rede, financeiro e casino ao vivo."
+      title={t("auth.login.title")}
+      subtitle={t("auth.login.subtitle")}
       footer={
         <>
-          Ainda não tem conta?{" "}
+          {t("auth.login.footerNoAccount")}{" "}
           <Link to="/registar" className="font-semibold text-info hover:underline">
-            Criar cadastro
+            {t("auth.login.footerCreate")}
           </Link>
         </>
       }
@@ -75,7 +75,7 @@ export function LoginPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-text-primary">
-            E-mail
+            {t("auth.login.email")}
           </label>
           <Input
             id="email"
@@ -84,12 +84,12 @@ export function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="voce@exemplo.com"
+            placeholder={t("auth.login.emailPlaceholder")}
           />
         </div>
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium text-text-primary">
-            Senha
+            {t("auth.login.password")}
           </label>
           <Input
             id="password"
@@ -103,11 +103,12 @@ export function LoginPage() {
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "A entrar…" : "Entrar no painel"}
+          {loading ? t("auth.login.submitting") : t("auth.login.submit")}
         </Button>
         {devHint ? (
           <p className="text-center text-xs text-text-secondary">
-            Dev: <span className="font-mono text-text-primary">{devHint}</span>
+            {t("auth.login.devHint")}{" "}
+            <span className="font-mono text-text-primary">{devHint}</span>
           </p>
         ) : null}
       </form>

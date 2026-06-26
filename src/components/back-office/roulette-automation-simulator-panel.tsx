@@ -13,10 +13,13 @@ import {
   automationChartYDomain,
   formatAutomationChartYTick,
 } from "@/lib/back-office/rouletteAutomationSim";
-import { formatBrl } from "@/lib/back-office/mock-data";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
 export function RouletteAutomationSimulatorPanel() {
+  const { t } = useI18n();
+  const { money } = useFormat();
   const chart = AUTOMATION_CHART_THEME;
   const { state, openBet } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
@@ -41,47 +44,47 @@ export function RouletteAutomationSimulatorPanel() {
           {openBet ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-primary">
               <span className="h-2 w-2 animate-pulse rounded-full bg-kpi-green" />
-              Em jogo · {openBet.tableLabel}
+              {t("overview.automation.inPlay", { table: openBet.tableLabel })}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-xs text-text-secondary">
               <span className="h-2 w-2 animate-pulse rounded-full bg-kpi-green/80" />
-              A aguardar próximo sinal
+              {t("overview.automation.waiting")}
             </span>
           )}
-          <span className="ml-auto text-[10px] text-text-secondary">Motor global · todos os utilizadores</span>
+          <span className="ml-auto text-[10px] text-text-secondary">
+            {t("overview.automation.globalMotor")}
+          </span>
         </div>
 
         <div className="mt-4">
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-automation-title">
             <Wallet className="h-4 w-4" aria-hidden />
-            Automação global
+            {t("overview.automation.title")}
           </p>
-          <p className="mt-1 text-xs text-text-secondary">
-            Desempenho da estratégia ao vivo partilhada — não é o saldo da sua conta.
-          </p>
+          <p className="mt-1 text-xs text-text-secondary">{t("overview.automation.subtitle")}</p>
           {openBet ? (
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border-color/80 bg-bg-card-hover/40 px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-kpi-teal/85">
-                  Disponível
+                  {t("overview.automation.available")}
                 </p>
                 <p className="mt-0.5 text-xl font-bold tabular-nums text-text-primary sm:text-2xl">
-                  {formatBrl(freeBalance)}
+                  {money(freeBalance)}
                 </p>
               </div>
               <div className="rounded-lg border border-kpi-teal/35 bg-kpi-teal/10 px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-kpi-teal">
-                  Em jogo
+                  {t("overview.automation.inPlayBalance")}
                 </p>
                 <p className="mt-0.5 text-xl font-bold tabular-nums text-text-primary sm:text-2xl">
-                  {formatBrl(openBet.stake)}
+                  {money(openBet.stake)}
                 </p>
               </div>
             </div>
           ) : (
             <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
-              {formatBrl(displayBalance)}
+              {money(displayBalance)}
             </p>
           )}
           <p
@@ -91,9 +94,14 @@ export function RouletteAutomationSimulatorPanel() {
             )}
           >
             {net >= 0 ? "+" : ""}
-            {formatBrl(net)} ({netPct >= 0 ? "+" : ""}
-            {netPct.toFixed(2)}%) · banca global {formatBrl(ROULETTE_AUTOMATION_INITIAL_BANK)}
-            {openBet ? ` · total ${formatBrl(displayBalance)}` : null}
+            {money(net)} ({netPct >= 0 ? "+" : ""}
+            {netPct.toFixed(2)}%) ·{" "}
+            {t("overview.automation.globalBank", {
+              amount: money(ROULETTE_AUTOMATION_INITIAL_BANK),
+            })}
+            {openBet
+              ? ` · ${t("overview.automation.total", { amount: money(displayBalance) })}`
+              : null}
           </p>
         </div>
       </div>
@@ -101,10 +109,10 @@ export function RouletteAutomationSimulatorPanel() {
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="border-b border-border-color p-4 lg:border-b-0 lg:border-r">
           <div className="mb-3">
-            <h2 className="text-sm font-semibold text-text-primary">Evolução diária (global)</h2>
-            <p className="text-xs text-text-secondary">
-              Banca simulada da automação global · sinais ao vivo
-            </p>
+            <h2 className="text-sm font-semibold text-text-primary">
+              {t("overview.automation.chartTitle")}
+            </h2>
+            <p className="text-xs text-text-secondary">{t("overview.automation.chartSubtitle")}</p>
           </div>
           <div className="h-[280px] w-full sm:h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -140,7 +148,7 @@ export function RouletteAutomationSimulatorPanel() {
                     color: chart.tooltipText,
                   }}
                   labelStyle={{ color: chart.textColor }}
-                  formatter={(v: number) => [formatBrl(v), "Banca"]}
+                  formatter={(v: number) => [money(v), t("overview.automation.chartBank")]}
                 />
                 <Area
                   type="monotone"
@@ -157,13 +165,13 @@ export function RouletteAutomationSimulatorPanel() {
 
         <div className="flex min-h-0 flex-col gap-2 p-3 lg:max-h-[520px]">
           <RotatingRoomExtensionStatus compact />
-          <p className="text-sm font-semibold text-text-primary">Sala rotativa · 1 fator</p>
+          <p className="text-sm font-semibold text-text-primary">{t("overview.automation.roomTitle")}</p>
           <RotatingRoomLobbyCard
             embedded
             openInIframe
             session={rotatingRoomSession}
             salaRoute="/sala-rotativa-um-fator"
-            salaLabel="Sala Rotativa · 1 Fator"
+            salaLabel={t("casino.roomLabel")}
           />
         </div>
       </div>

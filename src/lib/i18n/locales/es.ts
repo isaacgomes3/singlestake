@@ -1,0 +1,113 @@
+import { buildPanelMessages } from "@/lib/i18n/content";
+import { navDescriptionsContent } from "@/lib/i18n/content/nav-descriptions";
+import type { Messages } from "@/lib/i18n/types";
+
+const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav"> & {
+  nav: Omit<Messages["nav"], "descriptions">;
+} = {
+  common: {
+    loading: "Cargando…",
+    logout: "Salir",
+    login: "Entrar",
+    close: "Cerrar",
+    openMenu: "Abrir menú",
+    closeMenu: "Cerrar menú",
+    goToLogin: "Ir al inicio de sesión",
+    sessionExpired:
+      "Sesión expirada en el servidor. Cierre sesión e inicie de nuevo con correo y contraseña.",
+    redirectingLogin: "Redirigiendo al inicio de sesión…",
+    markAllRead: "Marcar todas como leídas",
+    viewAll: "Ver todas",
+    affiliateLink: "Enlace de afiliación",
+    backOffice: "Back office",
+  },
+  layout: {
+    search: "Buscar o escribir un comando…",
+    searchShortcut: "⌘K",
+    notifications: "Notificaciones",
+    messages: "Mensajes",
+    support: "Soporte",
+    affiliate: "Afiliación",
+    selectLanguage: "Seleccionar idioma",
+    welcomeBack: "Bienvenido de nuevo",
+    yourStore: "Tu tienda",
+    affiliateProgram: "Afiliado",
+    documentation: "Documentación",
+    settings: "Configuración",
+    themeLight: "Claro",
+    themeDark: "Oscuro",
+    themeSystem: "Sistema",
+    layoutMenu: "Diseño del menú",
+    boxedMenu: "Menú en caja",
+    edgeMenu: "Menú de borde",
+    boxedMenuDesc: "Diseño flotante con márgenes y contenedores redondeados.",
+    edgeMenuDesc: "Barra lateral a altura completa pegada al borde.",
+  },
+  nav: {
+    overview: "Visión general",
+    suporte: "Soporte",
+    groups: {
+      produtos: "Productos",
+      rede: "Red",
+      operacoes: "Operaciones",
+      financeiro: "Finanzas",
+      relatorios: "Informes",
+      administracao: "Administración",
+    },
+    modules: {
+      pacotes: "Paquetes",
+      rendimentos: "Rendimientos diarios",
+      mensalidades: "Mensualidades",
+      residual: "Residual mensualidad",
+      afiliados: "Afiliados",
+      "rede-binaria": "Red binaria",
+      qualificacao: "Calificación",
+      "bonus-binario": "Bono binario",
+      "bonus-equipe": "Bono de equipo",
+      operacoes: "Participación operaciones",
+      carteira: "Cartera",
+      depositos: "Depósitos",
+      saques: "Retiros",
+      extrato: "Extracto",
+      "relatorios-rede": "Informes de red",
+      "central-qualificacao": "Central calificación",
+      admin: "Panel administrativo",
+      auditoria: "Auditoría y logs",
+      "casino-ao-vivo": "Casino en vivo",
+      "casino-outros-jogos": "Otros juegos",
+      "casino-simulador": "Simulador",
+      "casino-estatisticas": "Estadísticas",
+    },
+    sections: {
+      operacoes: "Operaciones",
+      liveCasino: "Casino en vivo",
+      gestao: "Gestión",
+    },
+  },
+  notifications: {
+    title1: "Nuevo depósito aprobado",
+    body1: "Su depósito de R$ 500 fue acreditado en la cartera.",
+    title2: "Bono de equipo liberado",
+    body2: "El volumen de la red alcanzó la meta semanal.",
+    title3: "Actualización del sistema",
+    body3: "Despliegue automático completado con éxito.",
+    ago: "hace {{minutes}} min",
+  },
+  utility: {
+    affiliateTitle: "Programa de afiliación",
+    affiliateDesc: "Comparta su enlace y siga las referencias.",
+    supportTitle: "Centro de soporte",
+    supportDesc: "Tickets, contacto y documentación.",
+    messagesTitle: "Mensajes",
+    messagesEmpty: "No hay mensajes nuevos.",
+  },
+};
+
+export const es: Messages = {
+  ...shell,
+  ...buildPanelMessages("es"),
+  nav: {
+    ...shell.nav,
+    descriptions: navDescriptionsContent.es,
+  },
+};

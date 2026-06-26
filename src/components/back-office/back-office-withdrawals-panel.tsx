@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { FinanceStatusBadge, formatFinanceDate } from "@/components/back-office/finance-status-badge";
+import { FinanceStatusBadge } from "@/components/back-office/finance-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSession } from "@/lib/auth/session";
@@ -12,11 +12,14 @@ import {
   processWithdrawal,
 } from "@/lib/back-office/finance-api";
 import type { WalletRecord, WithdrawalRecord } from "@/lib/back-office/finance-types";
-import { formatBrl } from "@/lib/back-office/mock-data";
-import { WALLET_BUCKET_LABELS, WITHDRAWABLE_BUCKETS } from "@/lib/back-office/finance-constants";
+import { WITHDRAWABLE_BUCKETS } from "@/lib/back-office/finance-constants";
 import type { WalletBucket } from "@/lib/back-office/finance-constants";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 
 export function BackOfficeWithdrawalsPanel() {
+  const { t } = useI18n();
+  const { money, dateTime } = useFormat();
   const isAdmin = getSession()?.user.role === "admin";
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
   const [wallets, setWallets] = useState<WalletRecord[]>([]);
@@ -54,7 +57,7 @@ export function BackOfficeWithdrawalsPanel() {
       toast.error(result.error);
       return;
     }
-    toast.success("Pedido de saque enviado. Aguarde aprovação.");
+    toast.success(t("finance.withdrawals.toastSubmittedWait"));
     setAmount("");
     setPixKey("");
     void reload();
@@ -68,26 +71,24 @@ export function BackOfficeWithdrawalsPanel() {
       toast.error(result.error);
       return;
     }
-    const labels = {
-      approve: "Saque aprovado e debitado da carteira.",
-      reject: "Saque rejeitado.",
-      paid: "Saque marcado como pago (PIX enviado).",
-    };
-    toast.success(labels[action]);
+    const toastKeys = {
+      approve: "finance.withdrawals.toastApprovedDebited",
+      reject: "finance.withdrawals.toastRejected",
+      paid: "finance.withdrawals.toastPaidPix",
+    } as const;
+    toast.success(t(toastKeys[action]));
     void reload();
   };
 
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Solicitar saque</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Valor mínimo R$ 50,00. O saldo é debitado quando o administrador aprovar.
-        </p>
+        <h2 className="text-sm font-bold text-text-primary">{t("finance.withdrawals.formTitle")}</h2>
+        <p className="mt-1 text-sm text-text-secondary">{t("finance.withdrawals.formHintDebit")}</p>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="withdraw-bucket" className="text-xs font-medium text-text-secondary">
-              Carteira de origem
+              {t("finance.withdrawals.bucketLabel")}
             </label>
             <select
               id="withdraw-bucket"
@@ -97,19 +98,21 @@ export function BackOfficeWithdrawalsPanel() {
             >
               {WITHDRAWABLE_BUCKETS.map((b) => (
                 <option key={b} value={b}>
-                  {WALLET_BUCKET_LABELS[b]}
+                  {t(`shared.buckets.${b}`)}
                 </option>
               ))}
             </select>
             {selectedWallet ? (
               <p className="text-xs text-text-secondary">
-                Disponível: {formatBrl(selectedWallet.availableBalance)}
+                {t("finance.withdrawals.available", {
+                  amount: money(selectedWallet.availableBalance),
+                })}
               </p>
             ) : null}
           </div>
           <div className="space-y-1.5">
             <label htmlFor="withdraw-amount" className="text-xs font-medium text-text-secondary">
-              Valor (R$)
+              {t("finance.withdrawals.amountLabel")}
             </label>
             <Input
               id="withdraw-amount"
@@ -124,19 +127,19 @@ export function BackOfficeWithdrawalsPanel() {
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <label htmlFor="withdraw-pix" className="text-xs font-medium text-text-secondary">
-              Chave PIX
+              {t("finance.withdrawals.pixLabel")}
             </label>
             <Input
               id="withdraw-pix"
               required
               value={pixKey}
               onChange={(e) => setPixKey(e.target.value)}
-              placeholder="CPF, e-mail, telefone ou chave aleatória"
+              placeholder={t("finance.withdrawals.pixPlaceholder")}
             />
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={submitting}>
-              {submitting ? "A enviar…" : "Solicitar saque"}
+              {submitting ? t("shared.submitting") : t("finance.withdrawals.submit")}
             </Button>
           </div>
         </form>
@@ -144,30 +147,30 @@ export function BackOfficeWithdrawalsPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">
-          {isAdmin ? "Todos os saques" : "Os meus saques"}
+          {isAdmin ? t("finance.withdrawals.listAllAdmin") : t("finance.withdrawals.listMine")}
         </h2>
         {loading ? (
-          <p className="mt-3 text-sm text-text-secondary">A carregar…</p>
+          <p className="mt-3 text-sm text-text-secondary">{t("shared.loading")}</p>
         ) : withdrawals.length === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">Nenhum saque registado.</p>
+          <p className="mt-3 text-sm text-text-secondary">{t("finance.withdrawals.empty")}</p>
         ) : (
           <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
-                  <th className="px-3 py-2.5">Data</th>
-                  {isAdmin ? <th className="px-3 py-2.5">Utilizador</th> : null}
-                  <th className="px-3 py-2.5">Valor</th>
-                  <th className="px-3 py-2.5">Origem</th>
-                  <th className="px-3 py-2.5">PIX</th>
-                  <th className="px-3 py-2.5">Status</th>
-                  {isAdmin ? <th className="px-3 py-2.5">Acções</th> : null}
+                  <th className="px-3 py-2.5">{t("shared.columns.date")}</th>
+                  {isAdmin ? <th className="px-3 py-2.5">{t("shared.columns.user")}</th> : null}
+                  <th className="px-3 py-2.5">{t("shared.columns.amount")}</th>
+                  <th className="px-3 py-2.5">{t("shared.columns.origin")}</th>
+                  <th className="px-3 py-2.5">{t("shared.columns.pix")}</th>
+                  <th className="px-3 py-2.5">{t("shared.columns.status")}</th>
+                  {isAdmin ? <th className="px-3 py-2.5">{t("shared.columns.actions")}</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {withdrawals.map((row) => (
                   <tr key={row.id} className="border-b border-border-color/60 last:border-0">
-                    <td className="px-3 py-2.5 text-text-secondary">{formatFinanceDate(row.createdAt)}</td>
+                    <td className="px-3 py-2.5 text-text-secondary">{dateTime(row.createdAt)}</td>
                     {isAdmin ? (
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-text-primary">{row.userName}</p>
@@ -175,13 +178,13 @@ export function BackOfficeWithdrawalsPanel() {
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 font-semibold tabular-nums text-text-primary">
-                      {formatBrl(row.amount)}
+                      {money(row.amount)}
                     </td>
                     <td className="px-3 py-2.5 text-text-secondary">
-                      {WALLET_BUCKET_LABELS[row.bucket]}
+                      {t(`shared.buckets.${row.bucket}`)}
                     </td>
                     <td className="max-w-[8rem] truncate px-3 py-2.5 text-text-secondary">
-                      {row.pixKey ?? "—"}
+                      {row.pixKey ?? t("shared.dash")}
                     </td>
                     <td className="px-3 py-2.5">
                       <FinanceStatusBadge status={row.status} />
@@ -197,7 +200,7 @@ export function BackOfficeWithdrawalsPanel() {
                               disabled={processingId === row.id}
                               onClick={() => void handleProcess(row.id, "approve")}
                             >
-                              Aprovar
+                              {t("shared.actions.approve")}
                             </Button>
                             <Button
                               type="button"
@@ -206,7 +209,7 @@ export function BackOfficeWithdrawalsPanel() {
                               disabled={processingId === row.id}
                               onClick={() => void handleProcess(row.id, "reject")}
                             >
-                              Rejeitar
+                              {t("shared.actions.reject")}
                             </Button>
                           </div>
                         ) : row.status === "approved" ? (
@@ -217,10 +220,10 @@ export function BackOfficeWithdrawalsPanel() {
                             disabled={processingId === row.id}
                             onClick={() => void handleProcess(row.id, "paid")}
                           >
-                            Marcar pago
+                            {t("shared.actions.markPaid")}
                           </Button>
                         ) : (
-                          <span className="text-xs text-text-secondary">—</span>
+                          <span className="text-xs text-text-secondary">{t("shared.dash")}</span>
                         )}
                       </td>
                     ) : null}

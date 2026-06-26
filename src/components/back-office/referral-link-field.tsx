@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 import { buildReferralLinkClient } from "@/lib/referral/build-link";
 import { cn } from "@/lib/utils";
 
@@ -24,22 +25,23 @@ export function ReferralLinkField({
   showCode = true,
   compact = false,
 }: ReferralLinkFieldProps) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const code = (referralCode ?? "").trim();
   const link = referralLink?.trim() || (code ? buildReferralLinkClient(code) : "");
 
   const copy = async () => {
     if (!link) {
-      toast.error("Código de indicação indisponível.");
+      toast.error(t("finance.referral.unavailable"));
       return;
     }
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      toast.success("Link copiado!");
+      toast.success(t("finance.referral.copied"));
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Não foi possível copiar o link.");
+      toast.error(t("finance.referral.copyFailed"));
     }
   };
 
@@ -47,7 +49,7 @@ export function ReferralLinkField({
     <div className={cn("space-y-2", className)}>
       {showCode && code ? (
         <p className="text-sm text-text-secondary">
-          Código:{" "}
+          {t("finance.referral.code")}{" "}
           <span className="font-mono font-semibold text-text-primary">{code}</span>
         </p>
       ) : null}
@@ -56,7 +58,7 @@ export function ReferralLinkField({
           <Input
             readOnly
             value={link}
-            aria-label="Link de afiliação"
+            aria-label={t("finance.referral.ariaLink")}
             className={cn("min-w-0 flex-1", inputClassName)}
           />
           <Button
@@ -66,11 +68,11 @@ export function ReferralLinkField({
             className={cn("shrink-0", !compact && "uppercase")}
           >
             <Copy className="h-4 w-4" aria-hidden />
-            {copied ? "Copiado" : "Copiar"}
+            {copied ? t("shared.copied") : t("shared.copy")}
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-text-secondary">A carregar link de indicação…</p>
+        <p className="text-xs text-text-secondary">{t("finance.referral.loading")}</p>
       )}
     </div>
   );

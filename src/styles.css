@@ -769,3 +769,42 @@
 .click-bot-learning-flash {
   animation: click-bot-learning-flash 0.65s ease-out;
 }
+
+/* App shell — sidebar boxed + utility rail */
+.app-shell {
+  --utility-rail-width: 3.5rem;
+}
+
+.app-shell--boxed {
+  background:
+    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(34, 211, 238, 0.06), transparent 50%),
+    var(--bg-primary);
+}
+
+.utility-rail {
+  background: rgba(24, 24, 26, 0.96);
+}
+
+.utility-panel {
+  background: rgba(31, 31, 34, 0.98);
+}
+
+.utility-panel-backdrop {
+  animation: utility-fade-in 0.2s ease-out;
+}
+
+@keyframes utility-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-shell--panel-open main {
+    filter: blur(2px);
+    pointer-events: none;
+  }
+}

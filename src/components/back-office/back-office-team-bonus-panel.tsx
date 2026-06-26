@@ -4,17 +4,12 @@ import { RESIDUAL_LEVELS } from "@/lib/back-office/constants";
 import { DEFAULT_SUBSCRIPTION_AMOUNT, SUBSCRIPTION_NETWORK_SHARE } from "@/lib/back-office/product-constants";
 import { fetchNetworkBonuses } from "@/lib/back-office/network-api";
 import type { NetworkBonusesData } from "@/lib/back-office/network-types";
-import { formatBrl } from "@/lib/back-office/mock-data";
-
-const RANK_LABELS: Record<string, string> = {
-  bronze: "Bronze",
-  prata: "Prata",
-  ouro: "Ouro",
-  diamante: "Diamante",
-  imperial: "Imperial",
-};
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 
 export function BackOfficeTeamBonusPanel() {
+  const { t } = useI18n();
+  const { money } = useFormat();
   const [data, setData] = useState<NetworkBonusesData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,22 +21,23 @@ export function BackOfficeTeamBonusPanel() {
   }, []);
 
   const team = data?.team;
+  const networkPct = Math.round(SUBSCRIPTION_NETWORK_SHARE * 100);
 
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Indicadores da equipe</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.teamBonus.indicatorsTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Activos na rede", value: team?.activeInNetwork ?? 0 },
-            { label: "Directos activos", value: team?.directActive ?? 0 },
+            { label: t("network.teamBonus.activeInNetwork"), value: team?.activeInNetwork ?? 0 },
+            { label: t("network.teamBonus.directActive"), value: team?.directActive ?? 0 },
             {
-              label: "Volume da rede",
-              value: loading ? "…" : formatBrl(team?.networkVolume ?? 0),
+              label: t("network.teamBonus.networkVolume"),
+              value: loading ? "…" : money(team?.networkVolume ?? 0),
             },
             {
-              label: "Sua graduação",
-              value: team ? (RANK_LABELS[team.qualification] ?? team.qualification) : "…",
+              label: t("network.teamBonus.yourRank"),
+              value: team ? t(`network.ranks.${team.qualification}`) : "…",
             },
           ].map((item) => (
             <div
@@ -56,41 +52,39 @@ export function BackOfficeTeamBonusPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Ganhos de afiliação</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.teamBonus.affiliateEarningsTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
-            <p className="text-xs text-text-secondary">Total creditado (extrato)</p>
+            <p className="text-xs text-text-secondary">{t("network.teamBonus.totalCreditedLedger")}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-text-primary">
-              {loading ? "…" : formatBrl(team?.affiliateEarnings ?? 0)}
+              {loading ? "…" : money(team?.affiliateEarnings ?? 0)}
             </p>
           </div>
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
-            <p className="text-xs text-text-secondary">Saldo carteira afiliados</p>
+            <p className="text-xs text-text-secondary">{t("network.teamBonus.walletBalanceAffiliates")}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-text-primary">
-              {loading ? "…" : formatBrl(team?.walletBalance ?? 0)}
+              {loading ? "…" : money(team?.walletBalance ?? 0)}
             </p>
           </div>
         </div>
-        <p className="mt-4 text-sm text-text-secondary">
-          O bónus de equipe considera volume, activos na rede e graduação mínima. Os créditos
-          entram na carteira de afiliados conforme as regras de indicação.
-        </p>
+        <p className="mt-4 text-sm text-text-secondary">{t("network.teamBonus.teamBonusDesc")}</p>
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Residual de mensalidade</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.teamBonus.residualTitle")}</h2>
         <p className="mt-1 text-xs text-text-secondary">
-          Quando um afiliado na sua rede paga a mensalidade ({formatBrl(DEFAULT_SUBSCRIPTION_AMOUNT)}),
-          {` ${Math.round(SUBSCRIPTION_NETWORK_SHARE * 100)}%`} entra na rede e é repartido em até 10
-          níveis conforme a tabela abaixo.
+          {t("network.teamBonus.residualIntroDetail", {
+            amount: money(DEFAULT_SUBSCRIPTION_AMOUNT),
+            pct: networkPct,
+          })}
         </p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
           <table className="w-full min-w-[280px] text-left text-sm">
             <thead>
               <tr className="border-b border-border-color bg-bg-secondary text-xs text-text-secondary">
-                <th className="px-3 py-2 font-semibold">Nível</th>
-                <th className="px-3 py-2 font-semibold">Percentual</th>
-                <th className="px-3 py-2 font-semibold">Sobre parte rede</th>
+                <th className="px-3 py-2 font-semibold">{t("network.teamBonus.colLevel")}</th>
+                <th className="px-3 py-2 font-semibold">{t("network.teamBonus.colPercent")}</th>
+                <th className="px-3 py-2 font-semibold">{t("network.teamBonus.colOnNetworkPart")}</th>
               </tr>
             </thead>
             <tbody>
@@ -101,9 +95,7 @@ export function BackOfficeTeamBonusPanel() {
                   <tr key={row.level} className="border-b border-border-color/60 last:border-0">
                     <td className="px-3 py-2.5 font-semibold text-text-primary">{row.level}</td>
                     <td className="px-3 py-2.5 tabular-nums text-text-primary">{row.percent}%</td>
-                    <td className="px-3 py-2.5 tabular-nums text-text-primary">
-                      {formatBrl(payout)}
-                    </td>
+                    <td className="px-3 py-2.5 tabular-nums text-text-primary">{money(payout)}</td>
                   </tr>
                 );
               })}

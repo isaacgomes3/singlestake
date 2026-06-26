@@ -1,45 +1,58 @@
 import type { AutomationSimRound } from "@/lib/back-office/rouletteAutomationSim";
-import { formatBrl } from "@/lib/back-office/mock-data";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
-function formatRoundDate(ts: number): string {
-  return new Date(ts).toLocaleDateString("pt-BR");
+function roundBadgeLabel(badge: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (badge === "VITÓRIA" || badge === "WIN") return t("shared.rounds.win");
+  if (badge === "DERROTA" || badge === "LOSS") return t("shared.rounds.loss");
+  return badge;
 }
 
-function formatRoundDescription(round: AutomationSimRound): string {
+function formatRoundDescription(
+  round: AutomationSimRound,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   const parts = [round.tableLabel];
-  if (round.resultNumber != null) parts.push(`Giro ${round.resultNumber}`);
-  if (round.recovery > 0) parts.push(`gale ${round.recovery}`);
+  if (round.resultNumber != null) {
+    parts.push(t("shared.rounds.spin", { n: round.resultNumber }));
+  }
+  if (round.recovery > 0) {
+    parts.push(t("shared.rounds.gale", { n: round.recovery }));
+  }
   return parts.join(" · ");
 }
 
 function tipoTone(round: AutomationSimRound): "success" | "danger" | "warning" {
-  if (round.badge === "VITÓRIA" || round.net > 0) return "success";
-  if (round.badge === "DERROTA" || round.net < 0) return "danger";
+  if (round.badge === "VITÓRIA" || round.badge === "WIN" || round.net > 0) return "success";
+  if (round.badge === "DERROTA" || round.badge === "LOSS" || round.net < 0) return "danger";
   return "warning";
 }
 
 export function AutomationHistoryTable({ rounds }: { rounds: readonly AutomationSimRound[] }) {
+  const { t } = useI18n();
+  const { money, date, time } = useFormat();
+
   return (
     <div className="theme-card overflow-hidden rounded-xl">
       <div className="border-b border-border-color bg-bg-secondary px-4 py-3">
-        <h2 className="text-sm font-semibold text-text-primary">Histórico automação</h2>
+        <h2 className="text-sm font-semibold text-text-primary">{t("overview.historyTitle")}</h2>
       </div>
       <div className="overflow-x-auto">
         <table className="theme-table w-full min-w-[360px] text-left text-sm">
           <thead>
             <tr className="border-b border-border-color text-[11px] uppercase tracking-wide text-text-secondary">
-              <th className="px-4 py-2.5 font-semibold">Data</th>
-              <th className="px-4 py-2.5 font-semibold">Descrição</th>
-              <th className="px-4 py-2.5 font-semibold">Tipo</th>
-              <th className="px-4 py-2.5 text-right font-semibold">Valor</th>
+              <th className="px-4 py-2.5 font-semibold">{t("shared.columns.date")}</th>
+              <th className="px-4 py-2.5 font-semibold">{t("shared.columns.description")}</th>
+              <th className="px-4 py-2.5 font-semibold">{t("shared.columns.type")}</th>
+              <th className="px-4 py-2.5 text-right font-semibold">{t("shared.columns.value")}</th>
             </tr>
           </thead>
           <tbody>
             {rounds.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-text-secondary">
-                  Nenhuma rodada liquidada neste ciclo.
+                  {t("overview.historyEmpty")}
                 </td>
               </tr>
             ) : (
@@ -49,16 +62,10 @@ export function AutomationHistoryTable({ rounds }: { rounds: readonly Automation
                 return (
                   <tr key={round.id} className="border-b border-border-color last:border-0">
                     <td className="whitespace-nowrap px-4 py-3 text-text-secondary">
-                      {formatRoundDate(round.ts)}
-                      <span className="mt-0.5 block text-[11px] tabular-nums">
-                        {new Date(round.ts).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </span>
+                      {date(round.ts)}
+                      <span className="mt-0.5 block text-[11px] tabular-nums">{time(round.ts)}</span>
                     </td>
-                    <td className="px-4 py-3 text-text-primary">{formatRoundDescription(round)}</td>
+                    <td className="px-4 py-3 text-text-primary">{formatRoundDescription(round, t)}</td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -70,7 +77,7 @@ export function AutomationHistoryTable({ rounds }: { rounds: readonly Automation
                               : "text-warning",
                         )}
                       >
-                        {round.badge}
+                        {roundBadgeLabel(round.badge, t)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -81,10 +88,10 @@ export function AutomationHistoryTable({ rounds }: { rounds: readonly Automation
                         )}
                       >
                         {isCredit ? "+" : "−"}
-                        {formatBrl(Math.abs(round.net))}
+                        {money(Math.abs(round.net))}
                       </p>
                       <p className="mt-0.5 text-[11px] tabular-nums text-text-secondary">
-                        saldo {formatBrl(round.balanceAfter)}
+                        {t("shared.rounds.balanceAfter", { amount: money(round.balanceAfter) })}
                       </p>
                     </td>
                   </tr>

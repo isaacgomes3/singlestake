@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 
 import { fetchWallets } from "@/lib/back-office/finance-api";
 import type { WalletRecord } from "@/lib/back-office/finance-types";
-import { formatBrl } from "@/lib/back-office/mock-data";
-import { FINANCE_DISPLAY_BUCKETS, WALLET_BUCKET_LABELS } from "@/lib/back-office/finance-constants";
+import { FINANCE_DISPLAY_BUCKETS } from "@/lib/back-office/finance-constants";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 
 export function BackOfficeWalletPanel() {
+  const { t } = useI18n();
+  const { money } = useFormat();
   const [wallets, setWallets] = useState<WalletRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,25 +26,25 @@ export function BackOfficeWalletPanel() {
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Resumo</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("finance.wallet.summaryTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
-            <p className="text-xs text-text-secondary">Total disponível</p>
+            <p className="text-xs text-text-secondary">{t("finance.wallet.totalAvailable")}</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-text-primary">
-              {loading ? "…" : formatBrl(totalAvailable)}
+              {loading ? "…" : money(totalAvailable)}
             </p>
           </div>
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
-            <p className="text-xs text-text-secondary">Total bloqueado</p>
+            <p className="text-xs text-text-secondary">{t("finance.wallet.totalBlocked")}</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-text-primary">
-              {loading ? "…" : formatBrl(totalBlocked)}
+              {loading ? "…" : money(totalBlocked)}
             </p>
           </div>
         </div>
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Saldos por origem</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("finance.wallet.balancesByOrigin")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FINANCE_DISPLAY_BUCKETS.map((bucket) => {
             const row = byBucket.get(bucket);
@@ -50,13 +53,13 @@ export function BackOfficeWalletPanel() {
                 key={bucket}
                 className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3"
               >
-                <p className="text-xs text-text-secondary">{WALLET_BUCKET_LABELS[bucket]}</p>
+                <p className="text-xs text-text-secondary">{t(`shared.buckets.${bucket}`)}</p>
                 <p className="mt-1 text-lg font-bold tabular-nums text-text-primary">
-                  {loading ? "…" : formatBrl(row?.availableBalance ?? 0)}
+                  {loading ? "…" : money(row?.availableBalance ?? 0)}
                 </p>
                 {(row?.blockedBalance ?? 0) > 0 ? (
                   <p className="mt-0.5 text-xs text-text-secondary">
-                    Bloqueado: {formatBrl(row!.blockedBalance)}
+                    {t("finance.wallet.blocked", { amount: money(row!.blockedBalance) })}
                   </p>
                 ) : null}
               </div>

@@ -9,9 +9,11 @@ import { AUTOMATION_DEPOSIT_STEP, START_PACKAGE_AMOUNT } from "@/lib/back-office
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { apiFetchOverview } from "@/lib/auth/api";
 import { getSession } from "@/lib/auth/session";
-import { MOCK_BACK_OFFICE_OVERVIEW, formatBrl } from "@/lib/back-office/mock-data";
+import { MOCK_BACK_OFFICE_OVERVIEW } from "@/lib/back-office/mock-data";
 import type { BackOfficeOverview } from "@/lib/back-office/types";
 import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
 function SummaryCard({
@@ -65,6 +67,8 @@ function SummaryCard({
 }
 
 export function BackOfficeOverviewPage() {
+  const { t } = useI18n();
+  const { money } = useFormat();
   const [overview, setOverview] = useState<BackOfficeOverview | null>(null);
   const { state: globalAutomation } = useRouletteAutomationSim();
 
@@ -84,53 +88,54 @@ export function BackOfficeOverviewPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <section
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-        aria-label="Resumo financeiro"
+        aria-label={t("overview.financialSummary")}
       >
         <SummaryCard
           tone="blue"
           icon={DollarSign}
-          value={formatBrl(o.availableBalance)}
-          label="Saldo disponível para saque"
+          value={money(o.availableBalance)}
+          label={t("overview.kpiAvailable")}
         />
         <SummaryCard
           tone="green"
           icon={DollarSign}
-          value={formatBrl(o.accumulatedEarnings)}
-          label="Ganhos de rede acumulados"
+          value={money(o.accumulatedEarnings)}
+          label={t("overview.kpiNetwork")}
         />
         <SummaryCard
           tone="teal"
           icon={DollarSign}
-          value={formatBrl(auto.displayBalance)}
-          label="Saldo automação (sua base)"
+          value={money(auto.displayBalance)}
+          label={t("overview.kpiAutomation")}
         />
       </section>
       <p className="-mt-4 text-xs text-text-secondary">
         {auto.hasStartPack ? (
           <>
-            Pack Start {formatBrl(START_PACKAGE_AMOUNT)} activo · base de automação{" "}
-            {formatBrl(auto.investedBase)} (múltiplos de {formatBrl(AUTOMATION_DEPOSIT_STEP)}).
-            Rendimento diário só sobre a parte de automação
+            {t("overview.startActive", {
+              start: money(START_PACKAGE_AMOUNT),
+              base: money(auto.investedBase),
+              step: money(AUTOMATION_DEPOSIT_STEP),
+            })}
             {auto.earnedOnBase > 0 ? (
               <>
-                {" "}
-                · ganhos {formatBrl(auto.earnedOnBase)}
+                {t("overview.startEarnings", { earned: money(auto.earnedOnBase) })}
                 {autoNet !== 0 ? ` (${autoPct >= 0 ? "+" : ""}${autoPct.toFixed(2)}%)` : null}
               </>
             ) : null}
             .
           </>
         ) : (
-          <>
-            Requer Pack Start {formatBrl(START_PACKAGE_AMOUNT)}. Depósitos de automação em múltiplos
-            de {formatBrl(AUTOMATION_DEPOSIT_STEP)}; o rendimento incide apenas sobre essa base.
-          </>
+          t("overview.startRequired", {
+            start: money(START_PACKAGE_AMOUNT),
+            step: money(AUTOMATION_DEPOSIT_STEP),
+          })
         )}
       </p>
 
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">
-          Automação global · igual para todos os utilizadores
+          {t("overview.globalAutomation")}
         </p>
         <RouletteAutomationSimulatorPanel />
       </section>
@@ -142,21 +147,21 @@ export function BackOfficeOverviewPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="theme-card flex min-h-[140px] flex-col justify-between bg-accent-education px-6 py-5 text-kpi-foreground">
           <div>
-            <p className="text-lg font-semibold">Casino ao vivo</p>
-            <p className="mt-1 text-sm opacity-85">Roletas, sala rotativa e indicações 1 Fator.</p>
+            <p className="text-lg font-semibold">{t("overview.casinoTitle")}</p>
+            <p className="mt-1 text-sm opacity-85">{t("overview.casinoDesc")}</p>
           </div>
           <Link
             to={BACK_OFFICE_PATHS.casinoAoVivo}
             className="mt-4 inline-flex w-fit items-center gap-2 rounded-md bg-accent-cta px-8 py-2.5 text-sm font-bold uppercase tracking-wide text-kpi-foreground shadow-md transition hover:bg-accent-cta-hover"
           >
             <Gamepad2 className="h-4 w-4" aria-hidden />
-            Ver roletas
+            {t("overview.casinoCta")}
           </Link>
         </div>
 
         <div className="theme-card bg-accent-referral px-6 py-5 text-kpi-foreground">
-          <p className="text-lg font-semibold">Link de Divulgação</p>
-          <p className="mt-1 text-sm opacity-85">Partilhe o seu link de indicação.</p>
+          <p className="text-lg font-semibold">{t("overview.referralTitle")}</p>
+          <p className="mt-1 text-sm opacity-85">{t("overview.referralDesc")}</p>
           <div className="mt-4 [&_input]:border-0 [&_input]:bg-bg-secondary [&_input]:text-text-primary">
             {sessionUser?.referralCode ? (
               <ReferralLinkField

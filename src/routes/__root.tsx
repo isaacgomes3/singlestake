@@ -22,6 +22,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { isBackOfficeAppPath, isLegacyCasinoPath } from "@/lib/auth/guards";
 import { RouletteLiveApiProvider } from "@/lib/roulette/rouletteLiveApiContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme/theme-provider";
+import { I18nProvider } from "@/lib/i18n/i18n-provider";
 
 function NotFoundComponent() {
   return (
@@ -161,30 +162,32 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <Toaster richColors position="top-center" />
-        {liveCasinoShell ? (
-          <div className="app-back-office-bg">
-            <RouletteLiveApiProvider>
-              {needsCasinoStreams ? (
-                <>
-                  <RouteSoundGate />
-                  <LiveRouletteSseBridge />
-                  <StrategyGlobalSseBridge />
-                  <RouletteRotatingRoomSseBridge />
-                  <RouletteAutomationSimSseBridge />
-                  <Live24dSpinSseBridge />
-                  <LiveFootballBlitzSseBridge />
-                  <RotatingRoomExtensionBridgeGlobal />
-                </>
-              ) : null}
-              {outlet}
-            </RouletteLiveApiProvider>
-          </div>
-        ) : (
-          <div className="app-back-office-bg">{outlet}</div>
-        )}
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <Toaster richColors position="top-center" />
+          {liveCasinoShell ? (
+            <div className="app-back-office-bg">
+              <RouletteLiveApiProvider>
+                {needsCasinoStreams ? (
+                  <>
+                    <RouteSoundGate />
+                    <LiveRouletteSseBridge />
+                    <StrategyGlobalSseBridge />
+                    <RouletteRotatingRoomSseBridge />
+                    <RouletteAutomationSimSseBridge />
+                    <Live24dSpinSseBridge />
+                    <LiveFootballBlitzSseBridge />
+                    <RotatingRoomExtensionBridgeGlobal />
+                  </>
+                ) : null}
+                {outlet}
+              </RouletteLiveApiProvider>
+            </div>
+          ) : (
+            <div className="app-back-office-bg">{outlet}</div>
+          )}
+        </ThemeProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }

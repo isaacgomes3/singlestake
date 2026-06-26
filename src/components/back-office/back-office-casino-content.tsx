@@ -38,6 +38,7 @@ import {
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
 import {
@@ -135,6 +136,7 @@ export function LobbyCasinoLiveStatisticsPanel({
   histories,
   rotatingRoomSession,
 }: StatisticsPanelProps) {
+  const { t } = useI18n();
   const [selectedTid, setSelectedTid] = useState<number>(() => tableIds[0] ?? 0);
   const [placarRevision, setPlacarRevision] = useState(0);
 
@@ -184,18 +186,18 @@ export function LobbyCasinoLiveStatisticsPanel({
   return (
     <div className="rounded-2xl border border-slate-800/90 bg-slate-900/35 p-4 shadow-inner sm:p-6">
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-        Resumo ao vivo (1 Fator)
+        {t("casino.statsLiveSummary")}
       </p>
       <div className="mt-5 overflow-x-auto rounded-xl border border-slate-800/80">
         <table className="w-full min-w-[520px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2.5 sm:px-4">Mesa</th>
-              <th className="px-3 py-2.5 sm:px-4">ID</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Giros</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">W / L / D</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Aproveit.</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">Vit. seg.</th>
+              <th className="px-3 py-2.5 sm:px-4">{t("casino.colTable")}</th>
+              <th className="px-3 py-2.5 sm:px-4">{t("casino.colId")}</th>
+              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colSpins")}</th>
+              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colWld")}</th>
+              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colUtilization")}</th>
+              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colWinStreakShort")}</th>
             </tr>
           </thead>
           <tbody>
@@ -218,7 +220,7 @@ export function LobbyCasinoLiveStatisticsPanel({
                   <span className="text-amber-300/85">{r.placarD}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-cyan-200 sm:px-4">
-                  {r.decided > 0 ? `${r.pct.toFixed(1)}%` : "—"}
+                  {r.decided > 0 ? `${r.pct.toFixed(1)}%` : t("shared.dash")}
                 </td>
                 <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-400 sm:px-4">
                   {r.vitSeguidas}
@@ -230,7 +232,7 @@ export function LobbyCasinoLiveStatisticsPanel({
       </div>
       <div className="mt-10">
         <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <p className="text-sm text-slate-400">Estatística detalhada por mesa</p>
+          <p className="text-sm text-slate-400">{t("casino.statsDetailed")}</p>
           <select
             value={selectedTid}
             onChange={(e) => setSelectedTid(Number(e.target.value))}
@@ -261,6 +263,7 @@ type CasinoModuleId = Extract<
 >;
 
 function CassinoAoVivoRoletasGrid() {
+  const { t } = useI18n();
   const sseStatus = useLiveSseStatus();
   const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
@@ -284,12 +287,9 @@ function CassinoAoVivoRoletasGrid() {
     <div className="space-y-6">
       <RotatingRoomExtensionStatus />
       {sseStatus.status === "error" ? (
-        <p className="text-sm text-amber-300">
-          Sem ligação aos giros ao vivo. Confirme o proxy SSE no servidor (aaPanel) e as variáveis
-          ROULETTE_* no .env.
-        </p>
+        <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : sseStatus.status === "connecting" ? (
-        <p className="text-sm text-slate-400">A ligar aos giros ao vivo…</p>
+        <p className="text-sm text-slate-400">{t("casino.connecting")}</p>
       ) : null}
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="flex min-h-0 flex-col gap-2">
@@ -297,7 +297,7 @@ function CassinoAoVivoRoletasGrid() {
             <RotatingRoomLobbyCard
               session={rotatingRoomSession}
               salaRoute="/sala-rotativa-um-fator"
-              salaLabel="Sala Rotativa · 1 Fator"
+              salaLabel={t("casino.roomLabel")}
             />
           </div>
         </div>
@@ -322,10 +322,10 @@ function CassinoAoVivoRoletasGrid() {
               )}
             >
               <p className="text-sm font-bold text-white">{lobbyTableDisplayName(tid, macaoTid)}</p>
-              <p className="mt-0.5 text-xs text-slate-500">Mesa {tid}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{t("casino.tableLabel", { id: tid })}</p>
               {hasSignal ? (
                 <span className="mt-2 inline-flex w-fit rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-300">
-                  Sinal activo
+                  {t("casino.signalActive")}
                 </span>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-1">
@@ -339,7 +339,7 @@ function CassinoAoVivoRoletasGrid() {
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-600">Sem giros</span>
+                  <span className="text-xs text-slate-600">{t("casino.noSpins")}</span>
                 )}
               </div>
             </Link>

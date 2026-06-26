@@ -1,7 +1,9 @@
 import type { BinaryTreeNodeView } from "@/lib/back-office/network-types";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 import { cn } from "@/lib/utils";
 
 function TreeNode({ node, isRoot }: { node: BinaryTreeNodeView; isRoot?: boolean }) {
+  const { t } = useI18n();
   const left = node.children.find((c) => c.side === "left");
   const right = node.children.find((c) => c.side === "right");
 
@@ -30,7 +32,7 @@ function TreeNode({ node, isRoot }: { node: BinaryTreeNodeView; isRoot?: boolean
               <TreeNode node={left} />
             ) : (
               <div className="rounded-md border border-dashed border-border-color px-3 py-1.5 text-xs text-text-secondary">
-                Vazio
+                {t("network.binary.empty")}
               </div>
             )}
           </div>
@@ -39,7 +41,7 @@ function TreeNode({ node, isRoot }: { node: BinaryTreeNodeView; isRoot?: boolean
               <TreeNode node={right} />
             ) : (
               <div className="rounded-md border border-dashed border-border-color px-3 py-1.5 text-xs text-text-secondary">
-                Vazio
+                {t("network.binary.empty")}
               </div>
             )}
           </div>

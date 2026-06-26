@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n/i18n-provider";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -7,14 +8,12 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: "bg-red-500/15 text-red-200 border-red-500/30",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pendente",
-  approved: "Aprovado",
-  paid: "Pago",
-  rejected: "Rejeitado",
-};
+const KNOWN_STATUSES = new Set(["pending", "approved", "paid", "rejected"]);
 
 export function FinanceStatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
+  const label = KNOWN_STATUSES.has(status) ? t(`shared.status.${status}`) : status;
+
   return (
     <span
       className={cn(
@@ -22,17 +21,7 @@ export function FinanceStatusBadge({ status }: { status: string }) {
         STATUS_STYLES[status] ?? "bg-slate-500/15 text-slate-300 border-slate-500/30",
       )}
     >
-      {STATUS_LABELS[status] ?? status}
+      {label}
     </span>
   );
-}
-
-export function formatFinanceDate(iso: string): string {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }

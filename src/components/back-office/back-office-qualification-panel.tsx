@@ -4,10 +4,13 @@ import { Check, Circle } from "lucide-react";
 import { QUALIFICATION_RANKS } from "@/lib/back-office/constants";
 import { fetchQualification } from "@/lib/back-office/network-api";
 import type { QualificationProgress } from "@/lib/back-office/network-types";
-import { formatBrl } from "@/lib/back-office/mock-data";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
 export function BackOfficeQualificationPanel() {
+  const { t } = useI18n();
+  const { money } = useFormat();
   const [data, setData] = useState<QualificationProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,32 +24,37 @@ export function BackOfficeQualificationPanel() {
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Graduação actual</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.qualification.currentTitle")}</h2>
         <p className="mt-2 text-3xl font-bold text-text-primary">
-          {loading ? "…" : (data?.currentLabel ?? "Bronze")}
+          {loading ? "…" : (data?.currentLabel ?? t("network.ranks.bronze"))}
         </p>
         {data?.nextRank ? (
           <p className="mt-2 text-sm text-text-secondary">
-            Próxima meta: <span className="font-semibold text-text-primary">{data.nextLabel}</span>
+            {t("network.qualification.nextGoal", { rank: data.nextLabel })}
           </p>
         ) : (
-          <p className="mt-2 text-sm text-emerald-400">Graduação máxima atingida.</p>
+          <p className="mt-2 text-sm text-emerald-400">{t("network.qualification.maxReached")}</p>
         )}
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">O seu progresso</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.qualification.progressTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Directos", value: data?.progress.directCount ?? 0 },
-            { label: "Directos activos", value: data?.progress.directActive ?? 0 },
+            { label: t("network.qualification.direct"), value: data?.progress.directCount ?? 0 },
             {
-              label: "Volume da rede",
-              value: loading ? "…" : formatBrl(data?.progress.networkVolume ?? 0),
+              label: t("network.qualification.directActive"),
+              value: data?.progress.directActive ?? 0,
             },
             {
-              label: "Mensalidade",
-              value: data?.progress.subscriptionActive ? "Activa" : "Pendente",
+              label: t("network.qualification.networkVolume"),
+              value: loading ? "…" : money(data?.progress.networkVolume ?? 0),
+            },
+            {
+              label: t("network.qualification.subscription"),
+              value: data?.progress.subscriptionActive
+                ? t("network.qualification.subscriptionActive")
+                : t("network.qualification.subscriptionPending"),
             },
           ].map((item) => (
             <div
@@ -64,7 +72,7 @@ export function BackOfficeQualificationPanel() {
             {data.missingForNext.map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <Circle className="size-3.5 shrink-0 text-amber-400" />
-                Falta: {item}
+                {t("network.qualification.missing", { item })}
               </li>
             ))}
           </ul>
@@ -72,7 +80,7 @@ export function BackOfficeQualificationPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">Níveis de graduação</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.qualification.levelsTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(data?.requirements ?? []).map((req) => {
             const rankOrder = QUALIFICATION_RANKS.map((r) => r.id);
@@ -95,10 +103,18 @@ export function BackOfficeQualificationPanel() {
                   {achieved ? <Check className="size-4 text-emerald-400" /> : null}
                 </div>
                 <ul className="mt-2 space-y-0.5 text-xs text-text-secondary">
-                  <li>{req.minDirect} directo(s)</li>
-                  <li>{req.minDirectActive} directo(s) com pacote</li>
-                  <li>Volume {formatBrl(req.minNetworkVolume)}</li>
-                  {req.requiresSubscription ? <li>Mensalidade activa</li> : null}
+                  <li>
+                    {req.minDirect} {t("network.qualification.directs")}
+                  </li>
+                  <li>
+                    {req.minDirectActive} {t("network.qualification.directsWithPackage")}
+                  </li>
+                  <li>
+                    {t("network.qualification.volume")} {money(req.minNetworkVolume)}
+                  </li>
+                  {req.requiresSubscription ? (
+                    <li>{t("network.qualification.subscriptionRequired")}</li>
+                  ) : null}
                 </ul>
               </div>
             );

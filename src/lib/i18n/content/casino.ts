@@ -1,0 +1,215 @@
+export const casinoContent = {
+  pt: {
+    statsDetailed: "Estatística detalhada por mesa",
+    colTable: "Mesa",
+    colId: "ID",
+    colSpins: "Giros",
+    colWld: "V/E/D",
+    colHitRate: "Taxa acerto",
+    colWinStreak: "Seq. vitórias",
+    sseError: "Erro na ligação SSE — a tentar reconectar…",
+    connecting: "A ligar ao stream ao vivo…",
+    tableLabel: "Mesa {{id}}",
+    signalActive: "Sinal activo",
+    noSpins: "Sem giros",
+    roomLabel: "Sala Rotativa · 1 Fator",
+    searchNoResults: "Nenhum resultado.",
+    statsLiveSummary: "Resumo ao vivo (1 Fator)",
+    colUtilization: "Aproveit.",
+    colWinStreakShort: "Vit. seg.",
+    sseProxyError:
+      "Sem ligação aos giros ao vivo. Confirme o proxy SSE no servidor (aaPanel) e as variáveis ROULETTE_* no .env.",
+  },
+  en: {
+    statsDetailed: "Detailed statistics per table",
+    colTable: "Table",
+    colId: "ID",
+    colSpins: "Spins",
+    colWld: "W/L/P",
+    colHitRate: "Hit rate",
+    colWinStreak: "Win streak",
+    sseError: "SSE connection error — retrying…",
+    connecting: "Connecting to live stream…",
+    tableLabel: "Table {{id}}",
+    signalActive: "Active signal",
+    noSpins: "No spins",
+    roomLabel: "Rotating Room · 1 Factor",
+    searchNoResults: "No results.",
+    statsLiveSummary: "Live summary (1 Factor)",
+    colUtilization: "Util.",
+    colWinStreakShort: "Win str.",
+    sseProxyError:
+      "No connection to live spins. Confirm SSE proxy on server (aaPanel) and ROULETTE_* variables in .env.",
+  },
+  es: {
+    statsDetailed: "Estadística detallada por mesa",
+    colTable: "Mesa",
+    colId: "ID",
+    colSpins: "Giros",
+    colWld: "G/E/P",
+    colHitRate: "Tasa acierto",
+    colWinStreak: "Racha victorias",
+    sseError: "Error en conexión SSE — reintentando…",
+    connecting: "Conectando al stream en vivo…",
+    tableLabel: "Mesa {{id}}",
+    signalActive: "Señal activa",
+    noSpins: "Sin giros",
+    roomLabel: "Sala Rotativa · 1 Factor",
+    searchNoResults: "Ningún resultado.",
+    statsLiveSummary: "Resumen en vivo (1 Factor)",
+    colUtilization: "Aprovech.",
+    colWinStreakShort: "Racha vict.",
+    sseProxyError:
+      "Sin conexión a giros en vivo. Confirme el proxy SSE en el servidor (aaPanel) y las variables ROULETTE_* en .env.",
+  },
+} as const;
+
+export const adminContent = {
+  pt: {
+    forbidden: "Apenas administradores podem ver os links de todos os utilizadores.",
+    myLinkTitle: "O seu link de afiliação",
+    myLinkDesc: "Cada utilizador recebe automaticamente um código único ao criar conta.",
+    allLinksTitle: "Links por utilizador",
+    allLinksCount: "{{count}} utilizadores com link de afiliação",
+    allLinksEmpty: "Nenhum utilizador encontrado.",
+    colName: "Nome",
+    colEmail: "E-mail",
+    colCode: "Código",
+    colLink: "Link",
+    copy: "Copiar",
+    toastCopied: "Link copiado.",
+    toastCopyFailed: "Não foi possível copiar.",
+    colJoined: "Entrada",
+  },
+  en: {
+    forbidden: "Only administrators can view all user links.",
+    myLinkTitle: "Your affiliate link",
+    myLinkDesc: "Each user automatically receives a unique code when creating an account.",
+    allLinksTitle: "Links per user",
+    allLinksCount: "{{count}} users with affiliate link",
+    allLinksEmpty: "No users found.",
+    colName: "Name",
+    colEmail: "Email",
+    colCode: "Code",
+    colLink: "Link",
+    copy: "Copy",
+    toastCopied: "Link copied.",
+    toastCopyFailed: "Could not copy.",
+    colJoined: "Joined",
+  },
+  es: {
+    forbidden: "Solo los administradores pueden ver los enlaces de todos los usuarios.",
+    myLinkTitle: "Su enlace de afiliación",
+    myLinkDesc: "Cada usuario recibe automáticamente un código único al crear cuenta.",
+    allLinksTitle: "Enlaces por usuario",
+    allLinksCount: "{{count}} usuarios con enlace de afiliación",
+    allLinksEmpty: "Ningún usuario encontrado.",
+    colName: "Nombre",
+    colEmail: "Correo",
+    colCode: "Código",
+    colLink: "Enlace",
+    copy: "Copiar",
+    toastCopied: "Enlace copiado.",
+    toastCopyFailed: "No se pudo copiar.",
+    colJoined: "Entrada",
+  },
+} as const;
+
+export const demoContent = {
+  pt: {
+    yields: {
+      demoRows: [
+        ["24/06/2026", "Bronze", "R$ 6,00", "OK"],
+        ["24/06/2026", "Prata", "R$ 15,00", "OK"],
+        ["24/06/2026", "Ouro", "R$ 90,00", "OK"],
+      ],
+    },
+    reports: {
+      directRows: [
+        ["Maria Silva", "Prata", "Activo"],
+        ["João Costa", "Bronze", "Activo"],
+        ["Ana Lima", "—", "Pendente"],
+      ],
+    },
+    qualHub: {
+      rows: [
+        ["Qualificadores directos", "3 / 5"],
+        ["Próxima graduação", "Ouro"],
+        ["Volume esquerdo", "R$ 42.000"],
+        ["Volume direito", "R$ 38.200"],
+        ["Equipe activa", "47"],
+      ],
+    },
+    audit: {
+      rows: [
+        ["24/06 09:00", "sistema", "rendimento_diario", "142 créditos"],
+        ["24/06 10:15", "admin", "aprovar_saque", "user #1042"],
+        ["24/06 11:02", "user #88", "login", "IP 189.x.x.x"],
+      ],
+    },
+  },
+  en: {
+    yields: {
+      demoRows: [
+        ["24/06/2026", "Bronze", "R$ 6.00", "OK"],
+        ["24/06/2026", "Silver", "R$ 15.00", "OK"],
+        ["24/06/2026", "Gold", "R$ 90.00", "OK"],
+      ],
+    },
+    reports: {
+      directRows: [
+        ["Maria Silva", "Silver", "Active"],
+        ["João Costa", "Bronze", "Active"],
+        ["Ana Lima", "—", "Pending"],
+      ],
+    },
+    qualHub: {
+      rows: [
+        ["Direct qualifiers", "3 / 5"],
+        ["Next rank", "Gold"],
+        ["Left volume", "R$ 42,000"],
+        ["Right volume", "R$ 38,200"],
+        ["Active team", "47"],
+      ],
+    },
+    audit: {
+      rows: [
+        ["24/06 09:00", "system", "daily_yield", "142 credits"],
+        ["24/06 10:15", "admin", "approve_withdrawal", "user #1042"],
+        ["24/06 11:02", "user #88", "login", "IP 189.x.x.x"],
+      ],
+    },
+  },
+  es: {
+    yields: {
+      demoRows: [
+        ["24/06/2026", "Bronce", "R$ 6,00", "OK"],
+        ["24/06/2026", "Plata", "R$ 15,00", "OK"],
+        ["24/06/2026", "Oro", "R$ 90,00", "OK"],
+      ],
+    },
+    reports: {
+      directRows: [
+        ["Maria Silva", "Plata", "Activo"],
+        ["João Costa", "Bronce", "Activo"],
+        ["Ana Lima", "—", "Pendiente"],
+      ],
+    },
+    qualHub: {
+      rows: [
+        ["Calificadores directos", "3 / 5"],
+        ["Próxima graduación", "Oro"],
+        ["Volumen izquierdo", "R$ 42.000"],
+        ["Volumen derecho", "R$ 38.200"],
+        ["Equipo activo", "47"],
+      ],
+    },
+    audit: {
+      rows: [
+        ["24/06 09:00", "sistema", "rendimiento_diario", "142 créditos"],
+        ["24/06 10:15", "admin", "aprobar_retiro", "user #1042"],
+        ["24/06 11:02", "user #88", "login", "IP 189.x.x.x"],
+      ],
+    },
+  },
+} as const;

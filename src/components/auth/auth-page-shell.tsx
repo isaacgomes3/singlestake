@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { SinglestakeLogo } from "@/components/singlestake-logo";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AuthPageShell({
@@ -20,7 +21,10 @@ export function AuthPageShell({
         <Link to="/entrar" className="inline-flex items-center gap-2">
           <SinglestakeLogo className="h-9 w-auto" />
         </Link>
-        <ThemeToggle compact />
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher compact />
+          <ThemeToggle compact />
+        </div>
       </header>
 
       <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">

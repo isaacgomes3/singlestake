@@ -11,6 +11,8 @@ import {
   type BackOfficeGroupId,
   type BackOfficeNavItem,
 } from "@/lib/back-office/navigation";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+import { navGroupLabel, navModuleLabel, navSectionLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -31,10 +33,12 @@ function activeGroupIdFromPath(pathname: string): BackOfficeGroupId | null {
 function ModuleLink({
   mod,
   active,
+  label,
   onNavigate,
 }: {
   mod: BackOfficeNavItem;
   active: boolean;
+  label: string;
   onNavigate?: () => void;
 }) {
   const Icon = mod.icon;
@@ -49,7 +53,7 @@ function ModuleLink({
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-      <span className="truncate">{mod.label}</span>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -65,12 +69,14 @@ function GroupNav({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
+  const { messages } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const modules = getModulesForGroup(group.id);
   const sections = getGroupSections(group.id);
   const active = isGroupActive(pathname, group);
   const Icon = group.icon;
+  const groupLabel = navGroupLabel(messages, group.id);
 
   const handleGroupClick = () => {
     if (!expanded) {
@@ -95,7 +101,7 @@ function GroupNav({
         )}
       >
         <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-        <span className="min-w-0 flex-1 truncate">{group.label}</span>
+        <span className="min-w-0 flex-1 truncate">{groupLabel}</span>
         {expanded ? (
           <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
         ) : (
@@ -113,16 +119,17 @@ function GroupNav({
                 if (sectionModules.length === 0) return null;
                 const showSectionLabel = sections.length > 1;
                 return (
-                  <div key={section.label} className="flex flex-col gap-0.5">
+                  <div key={section.key} className="flex flex-col gap-0.5">
                     {showSectionLabel ? (
                       <p className="ml-4 mt-1 px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-fg-muted">
-                        {section.label}
+                        {navSectionLabel(messages, section.key)}
                       </p>
                     ) : null}
                     {sectionModules.map((mod) => (
                       <ModuleLink
                         key={mod.id}
                         mod={mod}
+                        label={navModuleLabel(messages, mod.id)}
                         active={pathname === mod.path}
                         onNavigate={onNavigate}
                       />
@@ -134,6 +141,7 @@ function GroupNav({
                 <ModuleLink
                   key={mod.id}
                   mod={mod}
+                  label={navModuleLabel(messages, mod.id)}
                   active={pathname === mod.path}
                   onNavigate={onNavigate}
                 />
@@ -145,6 +153,7 @@ function GroupNav({
 }
 
 export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
+  const { messages, t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [expandedGroups, setExpandedGroups] = useState<Set<BackOfficeGroupId>>(() => {
     const active = activeGroupIdFromPath(pathname);
@@ -195,7 +204,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
               )}
             >
               <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate">{t("nav.overview")}</span>
             </Link>
           );
         }
@@ -227,7 +236,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
             )}
           >
             <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-            <span className="truncate">{item.label}</span>
+            <span className="truncate">{t("nav.suporte")}</span>
           </Link>
         );
       })}
@@ -241,7 +250,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
           className="theme-sidebar-item mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium"
         >
           <LogOut className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-          <span className="truncate">Sair</span>
+          <span className="truncate">{t("common.logout")}</span>
         </button>
       ) : null}
     </nav>
