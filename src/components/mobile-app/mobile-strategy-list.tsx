@@ -34,7 +34,6 @@ function StrategyRow({ item, pct }: { item: StrategyItem; pct: number | null }) 
     >
       <div className="min-w-0 flex-1">
         <p className="text-base font-bold text-amber-400">{item.title}</p>
-        <p className="mt-0.5 text-xs text-neutral-500">{item.subtitle}</p>
         <p className="mt-2 flex items-center gap-1.5 text-sm text-neutral-300">
           <TrendIcon
             className={cn(
@@ -91,9 +90,6 @@ export function MobileStrategyListPage() {
           );
         })}
       </ul>
-      <p className="mt-8 text-center text-[11px] leading-relaxed text-neutral-600">
-        Sinais sincronizados com o servidor — mesmo resultado em todos os dispositivos.
-      </p>
     </div>
   );
 }

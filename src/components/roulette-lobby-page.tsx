@@ -1275,9 +1275,6 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
             <div className="rounded-2xl border border-slate-800 bg-slate-900/30 px-6 py-16 text-center sm:py-20">
               <Headphones className="mx-auto h-12 w-12 text-cyan-500/80" aria-hidden />
               <p className="mt-4 text-lg font-semibold text-white">Suporte</p>
-              <p className="mt-2 max-w-md mx-auto text-sm text-slate-400">
-                Canal de ajuda — em integração. Aqui poderás ligar chat ao vivo, FAQ ou o teu sistema de tickets.
-              </p>
               <p className="mt-8 text-xs text-slate-500">
                 Contacto de exemplo:{" "}
                 <a

@@ -109,7 +109,6 @@ export function BackOfficeBinaryBonusPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.levelsScoreTitle")}</h2>
-        <p className="mt-1 text-xs text-text-secondary">{t("network.binaryBonus.levelsScoreHint")}</p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>

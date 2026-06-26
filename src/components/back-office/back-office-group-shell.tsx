@@ -6,7 +6,7 @@ import {
   type BackOfficeGroupId,
 } from "@/lib/back-office/navigation";
 import { useI18n } from "@/lib/i18n/i18n-provider";
-import { navGroupDescription, navGroupLabel, navModuleDescription, navModuleLabel } from "@/lib/i18n/messages";
+import { navGroupLabel, navModuleLabel } from "@/lib/i18n/messages";
 
 type Props = {
   groupId: BackOfficeGroupId;
@@ -34,11 +34,6 @@ export function BackOfficeGroupShell({ groupId }: Props) {
         <h1 className="mt-1 text-2xl font-bold text-text-primary sm:text-3xl">
           {currentModule ? navModuleLabel(messages, currentModule.id) : navGroupLabel(messages, group.id)}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          {currentModule
-            ? navModuleDescription(messages, currentModule.id)
-            : navGroupDescription(messages, group.id)}
-        </p>
       </div>
 
       <Outlet />

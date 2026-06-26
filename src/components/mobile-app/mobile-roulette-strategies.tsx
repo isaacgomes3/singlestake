@@ -37,7 +37,6 @@ function StrategyRow({
     >
       <div className="min-w-0 flex-1">
         <p className="text-base font-bold text-amber-400">{item.title}</p>
-        <p className="mt-0.5 text-xs text-neutral-500">{item.subtitle}</p>
         {pct != null ? (
           <p className="mt-2 text-sm text-neutral-400">{pct.toFixed(1)}% nesta sessão</p>
         ) : null}

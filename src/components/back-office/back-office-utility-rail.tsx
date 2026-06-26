@@ -112,7 +112,6 @@ export function BackOfficeUtilityRail({
 
             {activePanel === "affiliate" ? (
               <div className="space-y-3">
-                <p className="text-sm text-text-secondary">{t("utility.affiliateDesc")}</p>
                 <ReferralLinkField
                   referralCode={referralCode}
                   referralLink={referralLink}
@@ -123,7 +122,6 @@ export function BackOfficeUtilityRail({
 
             {activePanel === "support" ? (
               <div className="space-y-4">
-                <p className="text-sm text-text-secondary">{t("utility.supportDesc")}</p>
                 <Button asChild className="w-full">
                   <Link to="/back-office/suporte">{t("layout.support")}</Link>
                 </Button>

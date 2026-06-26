@@ -52,9 +52,6 @@ export function RouletteAutomationSimulatorPanel() {
               {t("overview.automation.waiting")}
             </span>
           )}
-          <span className="ml-auto text-[10px] text-text-secondary">
-            {t("overview.automation.globalMotor")}
-          </span>
         </div>
 
         <div className="mt-4">
@@ -62,7 +59,6 @@ export function RouletteAutomationSimulatorPanel() {
             <Wallet className="h-4 w-4" aria-hidden />
             {t("overview.automation.title")}
           </p>
-          <p className="mt-1 text-xs text-text-secondary">{t("overview.automation.subtitle")}</p>
           {openBet ? (
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border-color/80 bg-bg-card-hover/40 px-3 py-2">
@@ -112,7 +108,6 @@ export function RouletteAutomationSimulatorPanel() {
             <h2 className="text-sm font-semibold text-text-primary">
               {t("overview.automation.chartTitle")}
             </h2>
-            <p className="text-xs text-text-secondary">{t("overview.automation.chartSubtitle")}</p>
           </div>
           <div className="h-[280px] w-full sm:h-[320px]">
             <ResponsiveContainer width="100%" height="100%">

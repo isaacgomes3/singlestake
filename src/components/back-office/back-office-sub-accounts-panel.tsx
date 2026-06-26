@@ -84,9 +84,6 @@ export function BackOfficeSubAccountsPanel() {
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.subAccounts.qualificationTitle")}</h2>
-        <p className="mt-1 text-xs text-text-secondary">
-          {t("network.subAccounts.qualificationDesc", { amount: money(START_AMOUNT) })}
-        </p>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
@@ -148,9 +145,6 @@ export function BackOfficeSubAccountsPanel() {
                 <p>
                   {t("network.subAccounts.credentialsPassword")}{" "}
                   <span className="font-mono">{createdCreds.password}</span>
-                </p>
-                <p className="mt-2 text-xs text-text-secondary">
-                  {t("network.subAccounts.credentialsHintActivate")}
                 </p>
               </div>
             ) : null}

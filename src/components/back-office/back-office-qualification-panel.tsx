@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Circle } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { QUALIFICATION_RANKS } from "@/lib/back-office/constants";
 import { fetchQualification } from "@/lib/back-office/network-api";
@@ -28,13 +28,6 @@ export function BackOfficeQualificationPanel() {
         <p className="mt-2 text-3xl font-bold text-text-primary">
           {loading ? "…" : (data?.currentLabel ?? t("network.ranks.bronze"))}
         </p>
-        {data?.nextRank ? (
-          <p className="mt-2 text-sm text-text-secondary">
-            {t("network.qualification.nextGoal", { rank: data.nextLabel })}
-          </p>
-        ) : (
-          <p className="mt-2 text-sm text-emerald-400">{t("network.qualification.maxReached")}</p>
-        )}
       </section>
 
       <section className="theme-card rounded-2xl p-5">
@@ -66,17 +59,6 @@ export function BackOfficeQualificationPanel() {
             </div>
           ))}
         </div>
-
-        {data && data.missingForNext.length > 0 ? (
-          <ul className="mt-4 space-y-1.5 text-sm text-text-secondary">
-            {data.missingForNext.map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <Circle className="size-3.5 shrink-0 text-amber-400" />
-                {t("network.qualification.missing", { item })}
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </section>
 
       <section className="theme-card rounded-2xl p-5">

@@ -21,7 +21,6 @@ export function BackOfficeTeamBonusPanel() {
   }, []);
 
   const team = data?.team;
-  const networkPct = Math.round(SUBSCRIPTION_NETWORK_SHARE * 100);
 
   return (
     <div className="space-y-5">
@@ -67,17 +66,10 @@ export function BackOfficeTeamBonusPanel() {
             </p>
           </div>
         </div>
-        <p className="mt-4 text-sm text-text-secondary">{t("network.teamBonus.teamBonusDesc")}</p>
       </section>
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.teamBonus.residualTitle")}</h2>
-        <p className="mt-1 text-xs text-text-secondary">
-          {t("network.teamBonus.residualIntroDetail", {
-            amount: money(DEFAULT_SUBSCRIPTION_AMOUNT),
-            pct: networkPct,
-          })}
-        </p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
           <table className="w-full min-w-[280px] text-left text-sm">
             <thead>

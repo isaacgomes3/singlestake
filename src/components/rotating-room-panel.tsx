@@ -552,9 +552,7 @@ function RotatingRoomStage({
           <p className="mt-1.5 text-sm font-bold tabular-nums text-amber-300/90">
             Recuperação {session.currentRecovery}
           </p>
-        ) : !hasAnyHistory ? (
-          <p className="mt-2 text-xs text-slate-500">Active a API ao vivo no menu superior.</p>
-        ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
+        ) : !hasAnyHistory ? null : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
           <p className="mt-2 text-xs tabular-nums text-slate-500">
             Ausência máx.: {maxBucketGap} giros
           </p>
@@ -590,12 +588,7 @@ function RotatingRoomStage({
                 : "A analisar cruzamentos…"
               : "Sem giros ao vivo"}
           </p>
-          {!hasAnyHistory ? (
-            <p className="mt-2 text-sm text-slate-500">
-              Active a <strong className="font-semibold text-slate-400">API ao vivo</strong> no menu
-              superior e aguarde giros nas mesas do rodízio.
-            </p>
-          ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
+          {!hasAnyHistory ? null : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
             <p className="mt-2 text-sm tabular-nums text-slate-500">
               Maior ausência: {maxBucketGap} giros · sinal com{" "}
               {ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS}+

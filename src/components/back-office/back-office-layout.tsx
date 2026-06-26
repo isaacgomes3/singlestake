@@ -113,9 +113,6 @@ export function BackOfficeLayout() {
         <Link to="/back-office" className="block">
           <SinglestakeLogo variant="stacked" className="mx-auto h-[80px] w-full max-w-[200px]" />
         </Link>
-        <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-sidebar-fg-muted">
-          STAKE37
-        </p>
       </div>
       <div className="flex-1 overflow-y-auto">
         <BackOfficeSidebarNav onLogout={() => void handleLogout()} />

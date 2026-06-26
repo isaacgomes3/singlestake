@@ -72,7 +72,6 @@ export function BackOfficeDepositsPanel() {
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("finance.deposits.formTitle")}</h2>
-        <p className="mt-1 text-sm text-text-secondary">{t("finance.deposits.formHint")}</p>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="deposit-amount" className="text-xs font-medium text-text-secondary">

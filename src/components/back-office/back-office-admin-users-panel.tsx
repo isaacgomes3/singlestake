@@ -41,7 +41,6 @@ export function BackOfficeAdminUsersPanel() {
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("admin.myLinkTitle")}</h2>
-        <p className="mt-1 text-sm text-text-secondary">{t("admin.myLinkDesc")}</p>
         {getSession()?.user.referralCode ? (
           <div className="mt-4">
             <ReferralLinkField

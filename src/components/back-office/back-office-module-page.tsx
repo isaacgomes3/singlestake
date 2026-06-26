@@ -14,8 +14,7 @@ import { BackOfficeTeamBonusPanel } from "@/components/back-office/back-office-t
 import { BackOfficeWalletPanel } from "@/components/back-office/back-office-wallet-panel";
 import { BackOfficeWithdrawalsPanel } from "@/components/back-office/back-office-withdrawals-panel";
 import { useI18n } from "@/lib/i18n/i18n-provider";
-import { navGroupLabel, navModuleDescription, navModuleLabel } from "@/lib/i18n/messages";
-import { cn } from "@/lib/utils";
+import { navGroupLabel, navModuleLabel } from "@/lib/i18n/messages";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -23,16 +22,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-sm font-bold text-text-primary">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
-  );
-}
-
-function BulletList({ items }: { items: string[] }) {
-  return (
-    <ul className="list-inside list-disc space-y-1 text-sm text-text-secondary">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
   );
 }
 
@@ -80,22 +69,17 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "rendimentos":
       return (
-        <div className="space-y-5">
-          <Section title={t("products.yields.motorTitle")}>
-            <BulletList items={[...messages.products.yields.motorItems]} />
-          </Section>
-          <Section title={t("products.yields.lastRunTitle")}>
-            <DataTable
-              headers={[
-                t("shared.columns.date"),
-                t("shared.columns.package"),
-                t("shared.columns.credits"),
-                t("products.yields.colStatus"),
-              ]}
-              rows={messages.demo.yields.demoRows}
-            />
-          </Section>
-        </div>
+        <Section title={t("products.yields.lastRunTitle")}>
+          <DataTable
+            headers={[
+              t("shared.columns.date"),
+              t("shared.columns.package"),
+              t("shared.columns.credits"),
+              t("products.yields.colStatus"),
+            ]}
+            rows={messages.demo.yields.demoRows}
+          />
+        </Section>
       );
 
     case "afiliados":
@@ -117,11 +101,7 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
       return <BackOfficeSubscriptionsPanel />;
 
     case "operacoes":
-      return (
-        <Section title={t("products.operations.title")}>
-          <BulletList items={[...messages.products.operations.items]} />
-        </Section>
-      );
+      return null;
 
     case "carteira":
       return <BackOfficeWalletPanel />;
@@ -137,21 +117,16 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "relatorios-rede":
       return (
-        <div className="space-y-5">
-          <Section title={t("network.reports.directTitle")}>
-            <DataTable
-              headers={[
-                t("network.reports.colAffiliate"),
-                t("network.reports.colPackage"),
-                t("network.reports.colStatus"),
-              ]}
-              rows={messages.demo.reports.directRows}
-            />
-          </Section>
-          <Section title={t("network.reports.indirectTitle")}>
-            <p className="text-sm text-slate-400">{t("network.reports.indirectDesc")}</p>
-          </Section>
-        </div>
+        <Section title={t("network.reports.directTitle")}>
+          <DataTable
+            headers={[
+              t("network.reports.colAffiliate"),
+              t("network.reports.colPackage"),
+              t("network.reports.colStatus"),
+            ]}
+            rows={messages.demo.reports.directRows}
+          />
+        </Section>
       );
 
     case "central-qualificacao":
@@ -179,7 +154,6 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
             ]}
             rows={messages.demo.audit.rows}
           />
-          <BulletList items={[...messages.network.audit.items]} />
         </Section>
       );
 
@@ -229,16 +203,7 @@ export function BackOfficeModulePage({ moduleId }: Props) {
             </p>
           ) : null}
           <h2 className="mt-1 text-xl font-bold text-white">{navModuleLabel(messages, mod.id)}</h2>
-          <p className="mt-2 text-sm text-slate-400">{navModuleDescription(messages, mod.id)}</p>
         </div>
-      </div>
-
-      <div
-        className={cn(
-          "rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-100/85",
-        )}
-      >
-        {t("nav.descriptions.integrationBanner")}
       </div>
 
       <ModuleBody moduleId={mod.id} />

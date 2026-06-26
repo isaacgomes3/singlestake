@@ -1,11 +1,6 @@
 import { Puzzle } from "lucide-react";
 
 import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
-import { isLikelyExtensionBridgeOrigin } from "@/lib/roulette/rotatingRoomExtensionBridge";
-import {
-  readRotatingRoomExtensionEnabled,
-  readRotatingRoomExtensionRealMode,
-} from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -13,15 +8,8 @@ type Props = {
   compact?: boolean;
 };
 
-/** Estado da extensão Chrome (sem enviar sinais — isso fica no bridge global). */
 export function RotatingRoomExtensionStatus({ className }: Props) {
   const { present: extensionPresent } = useRotatingRoomExtensionPresent();
-  const extensionEnabled = readRotatingRoomExtensionEnabled();
-  const realMode = readRotatingRoomExtensionRealMode();
-  const pageOrigin =
-    typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
-
-  const signalsReady = extensionPresent;
 
   return (
     <div
@@ -41,29 +29,7 @@ export function RotatingRoomExtensionStatus({ className }: Props) {
         >
           {extensionPresent ? "Detectada" : "Não detectada"}
         </span>
-        {extensionPresent ? (
-          <span className="text-[10px] text-text-secondary">
-            {realMode ? "Modo REAL" : "Modo demo"} ·{" "}
-            {extensionEnabled ? "liga manual ON" : "automático no back office"}
-          </span>
-        ) : null}
       </div>
-
-      <p className="mt-1.5 text-[11px] leading-snug text-text-secondary">
-        {!extensionPresent ? (
-          <>
-            Abra <span className="font-mono text-[10px] text-text-primary">{pageOrigin}</span> no{" "}
-            <strong className="text-text-primary">Google Chrome</strong> (extensões não funcionam no
-            browser do Cursor). Recarregue em{" "}
-            <span className="font-mono text-[10px] text-text-primary">chrome://extensions</span>
-            {!isLikelyExtensionBridgeOrigin(pageOrigin) ? " (adicione ao manifest)" : ""} e F5.
-          </>
-        ) : signalsReady ? (
-          "Sinais Um Fator são enviados automaticamente quando há JOGANDO na sala rotativa."
-        ) : (
-          "A aguardar ligação completa…"
-        )}
-      </p>
     </div>
   );
 }

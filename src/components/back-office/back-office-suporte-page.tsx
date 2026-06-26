@@ -12,13 +12,11 @@ export function BackOfficeSuportePage() {
           {t("support.eyebrow")}
         </p>
         <h1 className="mt-1 text-2xl font-bold text-text-primary sm:text-3xl">{t("support.title")}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-text-secondary">{t("support.subtitle")}</p>
       </div>
 
       <div className="theme-card px-6 py-12 text-center sm:py-16">
         <Headphones className="mx-auto h-12 w-12 text-info" aria-hidden />
         <p className="mt-4 text-lg font-semibold text-text-primary">{t("support.cardTitle")}</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-text-secondary">{t("support.cardDesc")}</p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
             href="mailto:suporte@exemplo.com"

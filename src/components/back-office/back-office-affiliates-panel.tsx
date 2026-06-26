@@ -23,7 +23,6 @@ export function BackOfficeAffiliatesPanel() {
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.affiliates.linkTitle")}</h2>
-        <p className="mt-1 text-sm text-text-secondary">{t("network.affiliates.linkDesc")}</p>
         <div className="mt-4">
           {loading ? (
             <p className="text-sm text-text-secondary">{t("shared.loading")}</p>
@@ -99,9 +98,7 @@ export function BackOfficeAffiliatesPanel() {
         <h2 className="text-sm font-bold text-text-primary">{t("network.affiliates.directTitle")}</h2>
         {loading ? (
           <p className="mt-3 text-sm text-text-secondary">{t("shared.loading")}</p>
-        ) : (data?.direct.length ?? 0) === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">{t("network.affiliates.directEmptyInvite")}</p>
-        ) : (
+        ) : (data?.direct.length ?? 0) === 0 ? null : (
           <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead>

@@ -231,8 +231,7 @@ export function LobbyCasinoLiveStatisticsPanel({
         </table>
       </div>
       <div className="mt-10">
-        <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <p className="text-sm text-slate-400">{t("casino.statsDetailed")}</p>
+        <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-end sm:justify-end">
           <select
             value={selectedTid}
             onChange={(e) => setSelectedTid(Number(e.target.value))}
@@ -288,8 +287,6 @@ function CassinoAoVivoRoletasGrid() {
       <RotatingRoomExtensionStatus />
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
-      ) : sseStatus.status === "connecting" ? (
-        <p className="text-sm text-slate-400">{t("casino.connecting")}</p>
       ) : null}
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="flex min-h-0 flex-col gap-2">

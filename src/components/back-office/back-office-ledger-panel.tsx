@@ -81,9 +81,6 @@ export function BackOfficeLedgerPanel() {
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div>
             <h2 className="text-sm font-bold text-text-primary">{t("finance.ledger.movementsTitle")}</h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              {t("finance.ledger.movementsSubtitleFull")}
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <select

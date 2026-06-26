@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { AutomationHistoryTable } from "@/components/back-office/automation-history-table";
 import { ReferralLinkField } from "@/components/back-office/referral-link-field";
 import { RouletteAutomationSimulatorPanel } from "@/components/back-office/roulette-automation-simulator-panel";
-import { AUTOMATION_DEPOSIT_STEP, START_PACKAGE_AMOUNT } from "@/lib/back-office/product-constants";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { apiFetchOverview } from "@/lib/auth/api";
 import { getSession } from "@/lib/auth/session";
@@ -81,8 +80,6 @@ export function BackOfficeOverviewPage() {
   const o = overview ?? MOCK_BACK_OFFICE_OVERVIEW;
   const sessionUser = getSession()?.user;
   const auto = o.automation;
-  const autoNet = auto.displayBalance - auto.investedBase;
-  const autoPct = auto.investedBase > 0 ? (autoNet / auto.investedBase) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -109,34 +106,8 @@ export function BackOfficeOverviewPage() {
           label={t("overview.kpiAutomation")}
         />
       </section>
-      <p className="-mt-4 text-xs text-text-secondary">
-        {auto.hasStartPack ? (
-          <>
-            {t("overview.startActive", {
-              start: money(START_PACKAGE_AMOUNT),
-              base: money(auto.investedBase),
-              step: money(AUTOMATION_DEPOSIT_STEP),
-            })}
-            {auto.earnedOnBase > 0 ? (
-              <>
-                {t("overview.startEarnings", { earned: money(auto.earnedOnBase) })}
-                {autoNet !== 0 ? ` (${autoPct >= 0 ? "+" : ""}${autoPct.toFixed(2)}%)` : null}
-              </>
-            ) : null}
-            .
-          </>
-        ) : (
-          t("overview.startRequired", {
-            start: money(START_PACKAGE_AMOUNT),
-            step: money(AUTOMATION_DEPOSIT_STEP),
-          })
-        )}
-      </p>
 
       <section>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">
-          {t("overview.globalAutomation")}
-        </p>
         <RouletteAutomationSimulatorPanel />
       </section>
 
@@ -148,7 +119,6 @@ export function BackOfficeOverviewPage() {
         <div className="theme-card flex min-h-[140px] flex-col justify-between bg-accent-education px-6 py-5 text-kpi-foreground">
           <div>
             <p className="text-lg font-semibold">{t("overview.casinoTitle")}</p>
-            <p className="mt-1 text-sm opacity-85">{t("overview.casinoDesc")}</p>
           </div>
           <Link
             to={BACK_OFFICE_PATHS.casinoAoVivo}
@@ -161,7 +131,6 @@ export function BackOfficeOverviewPage() {
 
         <div className="theme-card bg-accent-referral px-6 py-5 text-kpi-foreground">
           <p className="text-lg font-semibold">{t("overview.referralTitle")}</p>
-          <p className="mt-1 text-sm opacity-85">{t("overview.referralDesc")}</p>
           <div className="mt-4 [&_input]:border-0 [&_input]:bg-bg-secondary [&_input]:text-text-primary">
             {sessionUser?.referralCode ? (
               <ReferralLinkField

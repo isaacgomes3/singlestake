@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchSubscription, paySubscription } from "@/lib/back-office/product-api";
 import type { SubscriptionDto } from "@/lib/back-office/product-types";
-import { SUBSCRIPTION_GRACE_DAYS } from "@/lib/back-office/product-constants";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 
@@ -50,9 +49,6 @@ export function BackOfficeSubscriptionsPanel() {
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.subscriptions.title")}</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          {t("products.subscriptions.intro", { days: SUBSCRIPTION_GRACE_DAYS })}
-        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
@@ -102,25 +98,15 @@ export function BackOfficeSubscriptionsPanel() {
         <h2 className="text-sm font-bold text-text-primary">
           {t("products.subscriptions.distributionRuleTitle")}
         </h2>
-        <p className="mt-2 text-sm text-text-secondary">
-          {t("products.subscriptions.distributionRuleText")}
-        </p>
       </section>
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">
           {t("products.subscriptions.missedEarningsTitle")}
         </h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          {t("products.subscriptions.missedEarningsIntro")}
-        </p>
         {loading ? (
           <p className="mt-3 text-sm text-text-secondary">{t("shared.loading")}</p>
-        ) : (sub?.missedCredits.length ?? 0) === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">
-            {t("products.subscriptions.missedEmptyCredits")}
-          </p>
-        ) : (
+        ) : (sub?.missedCredits.length ?? 0) === 0 ? null : (
           <>
             <p className="mt-3 text-sm font-semibold text-amber-400">
               {t("products.subscriptions.missedTotalAmount", {
