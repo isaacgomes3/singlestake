@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 5173",
+    "dev:local": "npm run setup:local && npm run dev",
+    "setup:local": "npx --yes tsx scripts/setup-local.ts",
+    "reset:local": "npx --yes tsx scripts/reset-local.ts",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -31,6 +34,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "npx --yes tsx scripts/db-migrate.ts",
     "db:seed": "npx --yes tsx scripts/db-seed.ts",
+    "db:seed-isaac": "npx --yes tsx scripts/seed-isaac-network.ts",
     "db:reset-admin": "npx --yes tsx scripts/db-reset-admin-password.ts",
     "cron:daily-yield": "npx --yes tsx scripts/run-daily-automation-yield.ts",
     "db:backfill-binary": "npx --yes tsx scripts/db-backfill-binary-points.ts",

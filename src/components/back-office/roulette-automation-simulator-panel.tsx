@@ -160,7 +160,6 @@ export function RouletteAutomationSimulatorPanel() {
 
         <div className="flex min-h-0 flex-col gap-2 p-3 lg:max-h-[520px]">
           <RotatingRoomExtensionStatus compact />
-          <p className="text-sm font-semibold text-text-primary">{t("overview.automation.roomTitle")}</p>
           <RotatingRoomLobbyCard
             embedded
             openInIframe

@@ -2,9 +2,50 @@
 
 ## Desenvolvimento local (app React / TanStack Start)
 
+### Arranque rápido
+
+```powershell
+cd caminho\para\singlestake
+npm install
+npm run dev:local
+```
+
+Ou no PowerShell com script dedicado:
+
+```powershell
+.\scripts\dev-local.ps1
+```
+
+Isto cria/atualiza a base SQLite local, aplica migrations, corre o seed (admin demo) e abre **http://localhost:5173/**.
+
+**Credenciais demo** (após `setup:local`):
+
+| Campo | Valor |
+|-------|--------|
+| E-mail | `admin@singlestake.local` |
+| Senha | `123456` |
+| Back-office | http://localhost:5173/back-office |
+
+### Variáveis de ambiente
+
+| Ficheiro | Uso |
+|----------|-----|
+| `.env.development` | Valores locais (commitado) — carregado em `npm run dev` |
+| `.env` | Overrides pessoais (não versionado) — copie de `.env.example` se precisar |
+| `.env.example` | Referência completa (WebSocket roleta, embeds casino, etc.) |
+
+Comandos úteis:
+
+```powershell
+npm run setup:local   # só BD + seed (sem subir servidor)
+npm run dev           # só servidor (BD já preparada)
+npm run db:studio     # explorar SQLite no browser
+npm run build         # build de produção local
+```
+
 1. Instalar dependências: `npm install`
 2. (Opcional) Copiar variáveis de ambiente: copie `.env.example` para `.env` e ajuste se precisar do WebSocket da roleta ao vivo.
-3. Subir o servidor: `npm run dev`
+3. Subir o servidor: `npm run dev` ou `npm run dev:local`
 4. Abrir no navegador a URL que o Vite imprimir no terminal (por padrão **http://localhost:5173/**).
 
 ### Imagem de fundo (roleta)

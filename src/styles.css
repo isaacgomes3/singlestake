@@ -97,16 +97,16 @@
 }
 
 :root[data-theme="dark"] {
-  /* Grafite — neutro, acento ciano da marca STAKE37 */
-  --bg-primary: #18181a;
+  /* Grafite — fundo sólido único (#28282b), sem degradê */
+  --bg-primary: #28282b;
   --bg-secondary: #1f1f22;
-  --bg-card: #28282b;
-  --bg-card-hover: #323235;
+  --bg-card: #323235;
+  --bg-card-hover: #3a3a3e;
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
   --border-color: #3f3f46;
-  --border-subtle: #28282b;
+  --border-subtle: #323235;
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
@@ -226,15 +226,15 @@
 
 /* Fallback antes do script de tema — grafite (modo escuro por defeito) */
 :root:not([data-theme]) {
-  --bg-primary: #18181a;
+  --bg-primary: #28282b;
   --bg-secondary: #1f1f22;
-  --bg-card: #28282b;
-  --bg-card-hover: #323235;
+  --bg-card: #323235;
+  --bg-card-hover: #3a3a3e;
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
   --border-color: #3f3f46;
-  --border-subtle: #28282b;
+  --border-subtle: #323235;
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
@@ -315,7 +315,13 @@
 
   body {
     background-color: var(--bg-primary);
+    background-image: none;
     color: var(--text-primary);
+  }
+
+  html {
+    background-color: var(--bg-primary);
+    background-image: none;
   }
 
   input:not([type="checkbox"]):not([type="radio"]),
@@ -663,54 +669,20 @@
   animation: profile-icon-pulse-ring 1.6s ease-in-out infinite;
 }
 
-/** Plano de fundo — modo back office (sem imagem de roleta) */
+/** Plano de fundo — modo back office (cor sólida, sem imagem nem degradê) */
 .app-back-office-bg {
   min-height: 100dvh;
   background-color: var(--bg-primary);
+  background-image: none;
   color: var(--text-primary);
 }
 
-/** Plano de fundo roleta — modo legado /cassino, mesas, etc. */
+/** Plano de fundo roleta — cor sólida */
 .app-roulette-bg {
   min-height: 100dvh;
   background-color: var(--bg-primary);
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--bg-primary) 82%, transparent),
-      color-mix(in srgb, var(--bg-primary) 92%, transparent)
-    ),
-    url("/images/roulette-bg.png");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
-
-:root[data-theme="dark"] .app-roulette-bg,
-:root:not([data-theme]) .app-roulette-bg {
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--sidebar-bg) 88%, transparent),
-      color-mix(in srgb, var(--bg-primary) 96%, transparent)
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--bg-primary) 78%, transparent),
-      color-mix(in srgb, var(--bg-secondary) 94%, transparent)
-    ),
-    url("/images/roulette-bg.png");
-}
-
-[data-theme="light"] .app-roulette-bg {
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--bg-primary) 88%, transparent),
-      color-mix(in srgb, var(--bg-primary) 95%, transparent)
-    ),
-    url("/images/roulette-bg.png");
+  background-image: none;
+  color: var(--text-primary);
 }
 
 @keyframes tapete-roulette-whirl {
@@ -774,12 +746,14 @@
 /* App shell — sidebar boxed + utility rail */
 .app-shell {
   --utility-rail-width: 3.5rem;
+  background-color: var(--bg-primary);
+  background-image: none;
 }
 
-.app-shell--boxed {
-  background:
-    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(34, 211, 238, 0.06), transparent 50%),
-    var(--bg-primary);
+.app-shell--boxed,
+.app-shell--edge {
+  background-color: var(--bg-primary);
+  background-image: none;
 }
 
 .utility-rail {

@@ -1,16 +1,12 @@
-import { Link } from "@tanstack/react-router";
-import { DollarSign, Gamepad2 } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AutomationHistoryTable } from "@/components/back-office/automation-history-table";
-import { ReferralLinkField } from "@/components/back-office/referral-link-field";
 import { RouletteAutomationSimulatorPanel } from "@/components/back-office/roulette-automation-simulator-panel";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { apiFetchOverview } from "@/lib/auth/api";
-import { getSession } from "@/lib/auth/session";
 import { MOCK_BACK_OFFICE_OVERVIEW } from "@/lib/back-office/mock-data";
 import type { BackOfficeOverview } from "@/lib/back-office/types";
-import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -78,7 +74,6 @@ export function BackOfficeOverviewPage() {
   }, []);
 
   const o = overview ?? MOCK_BACK_OFFICE_OVERVIEW;
-  const sessionUser = getSession()?.user;
   const auto = o.automation;
 
   return (
@@ -113,35 +108,6 @@ export function BackOfficeOverviewPage() {
 
       <section>
         <AutomationHistoryTable rounds={globalAutomation.rounds} />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="theme-card flex min-h-[140px] flex-col justify-between bg-accent-education px-6 py-5 text-kpi-foreground">
-          <div>
-            <p className="text-lg font-semibold">{t("overview.casinoTitle")}</p>
-          </div>
-          <Link
-            to={BACK_OFFICE_PATHS.casinoAoVivo}
-            className="mt-4 inline-flex w-fit items-center gap-2 rounded-md bg-accent-cta px-8 py-2.5 text-sm font-bold uppercase tracking-wide text-kpi-foreground shadow-md transition hover:bg-accent-cta-hover"
-          >
-            <Gamepad2 className="h-4 w-4" aria-hidden />
-            {t("overview.casinoCta")}
-          </Link>
-        </div>
-
-        <div className="theme-card bg-accent-referral px-6 py-5 text-kpi-foreground">
-          <p className="text-lg font-semibold">{t("overview.referralTitle")}</p>
-          <div className="mt-4 [&_input]:border-0 [&_input]:bg-bg-secondary [&_input]:text-text-primary">
-            {sessionUser?.referralCode ? (
-              <ReferralLinkField
-                referralCode={sessionUser.referralCode}
-                referralLink={o.referralLink || sessionUser.referralLink}
-              />
-            ) : (
-              <ReferralLinkField referralCode="…" referralLink={o.referralLink} />
-            )}
-          </div>
-        </div>
       </section>
     </div>
   );
