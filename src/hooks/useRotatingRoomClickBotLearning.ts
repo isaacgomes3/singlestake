@@ -42,6 +42,8 @@ type Options = {
   mode: ClickBotLearningMode;
   /** URL do operador em uso (iframe / guardada) — tem prioridade sobre defaults Pragmatic. */
   mesaEmbedUrl?: string | null;
+  /** Banca do quadro global — extensão calcula stake localmente. */
+  automationBalance?: number | null;
 };
 
 function sessionToSlice(
@@ -70,7 +72,7 @@ function sessionToSlice(
   };
 }
 
-export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEmbedUrl }: Options) {
+export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEmbedUrl, automationBalance }: Options) {
   const [log, setLog] = useState<ClickBotLogEntry[]>([]);
   const lastFingerprintRef = useRef<string | null>(null);
   const logIdRef = useRef(0);
@@ -126,7 +128,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
     const entryId = ++logIdRef.current;
 
     if (mode === "extension") {
-      const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl);
+      const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
       emitRotatingRoomExtensionBridge({ fingerprint: emitKey, actions, context });
       setLog((prev) =>
         [{ id: entryId, at, fingerprint: emitKey, actions, extensionAck: false }, ...prev].slice(0, MAX_LOG),

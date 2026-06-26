@@ -69,10 +69,10 @@ export async function bootstrapStrategyGlobalSnapshot(): Promise<boolean> {
   }
 }
 
-export async function requestStrategyGlobalReset(kind: StrategyGlobalKind | "all"): Promise<void> {
-  await fetch("/api/roulette/strategy-global/reset", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind }),
-  });
+export async function requestStrategyGlobalReset(_kind: StrategyGlobalKind | "all"): Promise<void> {
+  if (import.meta.env.DEV) {
+    console.warn(
+      "[StrategyGlobal] reset bloqueado — o caixa de automação global não pode ser reiniciado.",
+    );
+  }
 }

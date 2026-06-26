@@ -1,5 +1,5 @@
 import {
-  ROULETTE_AUTOMATION_BASE_STAKE,
+  baseStakeFromBalance,
   stakeForRecovery,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { doisFatoresExteriorCellKey } from "@/lib/roulette/doisFatoresStrategy";
@@ -32,6 +32,7 @@ export function exteriorBetKeyToRouletteBetKind(
 
 export function buildRotatingRoomSimulatorIndication(
   snapshot: StrategyGlobalSnapshot,
+  automationBalance?: number,
 ): RotatingRoomSimulatorIndication {
   const um = snapshot.um1fator;
   const tableId = um.showTapeteSignal ? um.currentTableId : null;
@@ -71,7 +72,7 @@ export function buildRotatingRoomSimulatorIndication(
     wins: um.sessionStats.wins,
     losses: um.sessionStats.losses,
     recovery: um.currentRecovery,
-    suggestedStake: stakeForRecovery(um.currentRecovery),
+    suggestedStake: stakeForRecovery(um.currentRecovery, automationBalance),
     alertLabel: umActive ? umFatorAlertLabel(umActive) : null,
     betExteriorKey,
     signalId,
@@ -79,4 +80,4 @@ export function buildRotatingRoomSimulatorIndication(
   };
 }
 
-export const ROTATING_ROOM_SIMULATOR_BASE_STAKE = ROULETTE_AUTOMATION_BASE_STAKE;
+export const ROTATING_ROOM_SIMULATOR_BASE_STAKE = baseStakeFromBalance;

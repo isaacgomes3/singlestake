@@ -12,7 +12,9 @@ import {
   pendingSignalFromUmFatorSession,
   pruneLocalAutomationLedger,
   rebuildAutomationSimFromLedger,
-  settleLedgerEntry,
+  restartAutomationSimCycle,
+  ROULETTE_AUTOMATION_INITIAL_BANK,
+  shouldRestartAutomationCycleAfterSettlement,
   spinHead,
   syncOpenBetFromPending,
   trySettleOpenBetFromLedger,
@@ -46,15 +48,15 @@ const BOOTSTRAP_INTERVAL_MS = 5_000;
 function resolveCycleStartedAt(
   serverState: RouletteAutomationSimState | undefined,
   stableRef: { current: number | null },
+  lastKnown: RouletteAutomationSimState | null,
 ): number {
   if (stableRef.current != null) return stableRef.current;
-  const boot = serverState ?? getAutomationSimSnapshot()?.state;
+  const boot = serverState ?? lastKnown ?? getAutomationSimSnapshot()?.state;
   if (boot?.startedAt) {
     stableRef.current = boot.startedAt;
     return boot.startedAt;
   }
-  stableRef.current = Date.now();
-  return stableRef.current;
+  return stableRef.current ?? 0;
 }
 
 export function useRouletteAutomationSim() {
@@ -78,6 +80,9 @@ export function useRouletteAutomationSim() {
   const capturedFlashesRef = useRef<UmFatorPlacarFlashLike[]>([]);
   const lastOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const localLedgerRef = useRef<StrategyGlobalLedgerEntry[]>([]);
+  const lastServerStateRef = useRef<RouletteAutomationSimState | null>(
+    getAutomationSimSnapshot()?.state ?? null,
+  );
 
   const recordLocalSettlement = (entry: StrategyGlobalLedgerEntry) => {
     const resultKey =
@@ -91,11 +96,22 @@ export function useRouletteAutomationSim() {
       return false;
     });
     if (!exists) localLedgerRef.current.push(entry);
+    if (shouldRestartAutomationCycleAfterSettlement(entry)) {
+      const nextStartedAt = Date.now();
+      stableStartedAtRef.current = nextStartedAt;
+      cycleStartedAtRef.current = nextStartedAt;
+      localProcessedRef.current = new Set();
+      capturedFlashesRef.current = [];
+      lastOpenBetRef.current = null;
+      localLedgerRef.current = [];
+    }
   };
 
   useEffect(() => {
     const sync = () => {
-      setApiSnapshot(getAutomationSimSnapshot());
+      const snap = getAutomationSimSnapshot();
+      if (snap?.state) lastServerStateRef.current = snap.state;
+      setApiSnapshot(snap);
       setConnected(isAutomationSimConnected());
     };
     window.addEventListener(AUTOMATION_SIM_CHANGED_EVENT, sync);
@@ -146,24 +162,30 @@ export function useRouletteAutomationSim() {
     [tableIds, histories],
   );
 
+  const automationBalance =
+    apiSnapshot?.state?.balance ??
+    lastServerStateRef.current?.balance ??
+    ROULETTE_AUTOMATION_INITIAL_BANK;
+
   const clientPending = useMemo((): AutomationPendingSignal | null => {
     if (clientStrategy) {
-      const fromStrategy = pendingSignalFromSnapshot(clientStrategy);
+      const fromStrategy = pendingSignalFromSnapshot(clientStrategy, automationBalance);
       if (fromStrategy) return fromStrategy;
       return null;
     }
-    const fromSession = pendingSignalFromUmFatorSession(umFatorSession);
+    const fromSession = pendingSignalFromUmFatorSession(umFatorSession, automationBalance);
     if (fromSession) return fromSession;
     if (rotatingRoomIndication) {
       return pendingSignalFromRotatingRoom(rotatingRoomIndication);
     }
     return null;
-  }, [clientStrategy, umFatorSession, rotatingRoomIndication]);
+  }, [clientStrategy, umFatorSession, rotatingRoomIndication, automationBalance]);
 
   const effectivePending = clientPending ?? apiSnapshot?.pendingSignal ?? null;
 
   const state = useMemo((): RouletteAutomationSimState => {
-    const startedAt = resolveCycleStartedAt(apiSnapshot?.state, stableStartedAtRef);
+    const persistedServer = apiSnapshot?.state ?? lastServerStateRef.current;
+    const startedAt = resolveCycleStartedAt(persistedServer ?? undefined, stableStartedAtRef, lastServerStateRef.current);
 
     if (cycleStartedAtRef.current !== startedAt) {
       const isCycleReset = cycleStartedAtRef.current != null;
@@ -185,9 +207,15 @@ export function useRouletteAutomationSim() {
       const serverLedger = clientStrategy.ledgerTail.um1fator;
       localLedgerRef.current = pruneLocalAutomationLedger(serverLedger, localLedgerRef.current);
       ledgerForSettle = mergeAutomationLedgerSources(serverLedger, localLedgerRef.current);
-      base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle);
+      const openingBalance =
+        persistedServer?.cycleOpeningBalance ??
+        persistedServer?.balance ??
+        ROULETTE_AUTOMATION_INITIAL_BANK;
+      base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle, openingBalance);
     } else {
-      base = apiSnapshot?.state ?? freshAutomationSimState(startedAt);
+      base =
+        persistedServer ??
+        (startedAt > 0 ? freshAutomationSimState(startedAt) : freshAutomationSimState(Date.now()));
       for (const entry of localLedgerRef.current) {
         base = settleLedgerEntry(base, entry, lobbyTableDisplayName(entry.tableId));
       }

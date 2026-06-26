@@ -24,18 +24,22 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
         const { ensureStrategyGlobalEngine, getStrategyGlobalSnapshotOrThrow } = await import(
           "@/lib/server/strategyGlobal/engine"
         );
+        const { ensureAutomationSimEngine } = await import("@/lib/server/automationSim/engine");
+        const { getAutomationSimState } = await import("@/lib/server/automationSim/persistence");
         const { subscribeStrategyGlobalHub } = await import("@/lib/server/strategyGlobal/broadcast");
         const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
+        await ensureAutomationSimEngine();
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             const snapshot = getStrategyGlobalSnapshotOrThrow();
+            const balance = getAutomationSimState().balance;
             controller.enqueue(
               sseData({
                 type: "sync",
-                indication: buildRotatingRoomSimulatorIndication(snapshot),
+                indication: buildRotatingRoomSimulatorIndication(snapshot, balance),
               }),
             );
 
@@ -49,11 +53,12 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
 
             const unsubscribeGlobal = subscribeStrategyGlobalHub((msg) => {
               if (msg.type === "sync" || msg.type === "update") {
+                const automationBalance = getAutomationSimState().balance;
                 controller.enqueue(
                   sseData({
                     type: "update",
                     revision: msg.snapshot.revision,
-                    indication: buildRotatingRoomSimulatorIndication(msg.snapshot),
+                    indication: buildRotatingRoomSimulatorIndication(msg.snapshot, automationBalance),
                   }),
                 );
               }

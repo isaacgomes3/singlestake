@@ -20,7 +20,6 @@ import {
 } from "@/lib/roulette/entryWinBreakdown";
 import {
   isStrategyGlobalEnabled,
-  requestStrategyGlobalReset,
 } from "@/lib/roulette/strategyGlobalClient";
 
 export {
@@ -111,7 +110,6 @@ export function resetRotatingRoomCrossingSession(
   histories: Record<number, readonly number[]> = {},
 ): void {
   if (typeof window !== "undefined" && isStrategyGlobalEnabled()) {
-    void requestStrategyGlobalReset("dois2fatores");
     return;
   }
   writeRotatingRoomCrossingSessionStats(

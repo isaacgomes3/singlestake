@@ -18,12 +18,14 @@ export const Route = createFileRoute("/api/roulette/strategy-global/stream")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const { ensureRouletteHubDaemon } = await import("@/lib/server/rouletteHubDaemon");
         const { parseRouletteTableIdsFromEnv } = await import("@/lib/server/rouletteSocket");
         const { ensureStrategyGlobalEngine, getStrategyGlobalSnapshotOrThrow } = await import(
           "@/lib/server/strategyGlobal/engine"
         );
         const { subscribeStrategyGlobalHub } = await import("@/lib/server/strategyGlobal/broadcast");
         const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
+        ensureRouletteHubDaemon();
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
 

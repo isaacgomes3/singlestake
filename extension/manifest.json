@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Singlestake — Playtech Um Fator",
-  "version": "1.4.7",
+  "name": "STAKE37 — Um Fator",
+  "version": "1.4.8",
   "description": "Executa entradas Um Fator no operador Playtech/Pragmatic. Modos Demo (simulado) e Real (clique CDP na mesa).",
   "permissions": ["tabs", "storage", "scripting", "debugger", "windows"],
   "host_permissions": ["http://*/*", "https://*/*"],
@@ -37,7 +37,7 @@
     }
   ],
   "action": {
-    "default_title": "Singlestake Playtech",
+    "default_title": "STAKE37",
     "default_popup": "popup.html"
   }
 }

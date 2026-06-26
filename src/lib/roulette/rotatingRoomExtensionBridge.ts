@@ -1,7 +1,6 @@
 import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import {
   formatStakeBrl,
-  ROULETTE_AUTOMATION_BASE_STAKE,
   stakeForRecovery,
 } from "@/lib/back-office/rouletteAutomationSim";
 import {
@@ -51,11 +50,13 @@ export type RotatingRoomExtensionContext = {
   factor2BetKey: PragmaticExteriorBetKey | null;
   singleFactorMode: boolean;
   signalId: string | null;
-  /** Valor sugerido pela sala (R$) — base × 2^recuperação. */
+  /** Banca do quadro global — a extensão calcula stake localmente (0,1% × 2^gale). */
+  automationBalance: number | null;
+  /** @deprecated Informativo — não usar para apostar; ver automationBalance. */
   stakeAmount: number | null;
   currentRecovery: number | null;
-  /** Stake base (R$) — ficha calibrada na extensão. */
-  baseStake: number;
+  /** @deprecated A extensão deriva baseStake de automationBalance. */
+  baseStake: number | null;
   maxRecovery: number;
   /** demo | real — prioridade sobre o modo do popup da extensão. */
   executionMode: "demo" | "real";
@@ -97,6 +98,7 @@ export type RotatingRoomExtensionBridgePayload = {
 export function buildRotatingRoomExtensionContext(
   session: RotatingRoomClickBotSessionSlice,
   mesaEmbedUrlOverride?: string | null,
+  automationBalance?: number | null,
 ): RotatingRoomExtensionContext {
   const focusTableId =
     session.showTapeteSignal && session.currentTableId != null
@@ -117,6 +119,10 @@ export function buildRotatingRoomExtensionContext(
       ? Math.max(0, Math.floor(session.currentRecovery))
       : 0;
   const realMode = readRotatingRoomExtensionRealMode();
+  const balance =
+    typeof automationBalance === "number" && Number.isFinite(automationBalance) && automationBalance > 0
+      ? automationBalance
+      : null;
   return {
     sessionMode: session.sessionMode,
     prepareTableId: session.prepareTableId,
@@ -133,9 +139,10 @@ export function buildRotatingRoomExtensionContext(
         : null,
     singleFactorMode: session.singleFactorMode === true,
     signalId: session.signalId ?? null,
-    stakeAmount: stakeForRecovery(recovery),
+    automationBalance: balance,
+    stakeAmount: balance != null ? stakeForRecovery(recovery, balance) : null,
     currentRecovery: recovery,
-    baseStake: ROULETTE_AUTOMATION_BASE_STAKE,
+    baseStake: null,
     maxRecovery: readEffectiveUmFatorMaxRecovery(),
     executionMode: realMode ? "real" : "demo",
     mesaCatalog,
@@ -208,6 +215,7 @@ export { isLikelyExtensionBridgeOrigin } from "@/lib/app-domains";
 /** Converte indicação da estratégia (sim ou ao vivo) no payload da extensão Chrome. */
 export function buildExtensionBridgeFromUmFatorIndication(
   indication: RotatingUmFatorIndication,
+  automationBalance?: number | null,
 ): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
   if (
     indication.action !== "bet" ||
@@ -240,9 +248,13 @@ export function buildExtensionBridgeFromUmFatorIndication(
       factor2BetKey: null,
       singleFactorMode: true,
       signalId: indication.signalId,
+      automationBalance:
+        typeof automationBalance === "number" && Number.isFinite(automationBalance) && automationBalance > 0
+          ? automationBalance
+          : null,
       stakeAmount: indication.stake,
       currentRecovery: indication.recovery,
-      baseStake: ROULETTE_AUTOMATION_BASE_STAKE,
+      baseStake: null,
       maxRecovery: readEffectiveUmFatorMaxRecovery(),
       executionMode: readRotatingRoomExtensionRealMode() ? "real" : "demo",
       mesaCatalog: buildRotatingRoomMesaCatalog(),

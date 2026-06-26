@@ -10,10 +10,14 @@ export const Route = createFileRoute("/api/roulette/rotating-room")({
         const { ensureStrategyGlobalEngine, getStrategyGlobalSnapshotOrThrow } = await import(
           "@/lib/server/strategyGlobal/engine"
         );
+        const { ensureAutomationSimEngine } = await import("@/lib/server/automationSim/engine");
+        const { getAutomationSimState } = await import("@/lib/server/automationSim/persistence");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
+        await ensureAutomationSimEngine();
         const snapshot = getStrategyGlobalSnapshotOrThrow();
-        return Response.json(buildRotatingRoomSimulatorIndication(snapshot));
+        const balance = getAutomationSimState().balance;
+        return Response.json(buildRotatingRoomSimulatorIndication(snapshot, balance));
       },
     },
   },

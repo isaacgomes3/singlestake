@@ -160,6 +160,8 @@ function RootComponent() {
   const backOfficeApp = isBackOfficeAppPath(pathname);
   const legacyCasino = isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
+  /** Caixa / automação global — activo em todo o back office (sistema, não por utilizador). */
+  const needsGlobalAutomation = backOfficeApp;
   const needsCasinoStreams =
     legacyCasino ||
     (backOfficeApp &&
@@ -177,13 +179,17 @@ function RootComponent() {
           {liveCasinoShell ? (
             <div className="app-back-office-bg">
               <RouletteLiveApiProvider>
+                {needsGlobalAutomation ? (
+                  <>
+                    <StrategyGlobalSseBridge />
+                    <RouletteAutomationSimSseBridge />
+                  </>
+                ) : null}
                 {needsCasinoStreams ? (
                   <>
                     <RouteSoundGate />
                     <LiveRouletteSseBridge />
-                    <StrategyGlobalSseBridge />
                     <RouletteRotatingRoomSseBridge />
-                    <RouletteAutomationSimSseBridge />
                     <Live24dSpinSseBridge />
                     <LiveFootballBlitzSseBridge />
                     <RotatingRoomExtensionBridgeGlobal />

@@ -2,6 +2,7 @@ importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js
 
 const CLICK_STAGGER_MS = 450;
 const DEFAULT_CHIP_VALUE = 0.5;
+const STORAGE_AUTOMATION_BALANCE = "gogAutomationBalance";
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
 
@@ -358,6 +359,15 @@ async function handleBridgePayload(payload, sourceTabId) {
       actions: payload.actions,
     };
     await chrome.storage.local.set({ gogLastBridge: lastBridge, gogLastContext: payload.context });
+    if (
+      typeof payload.context?.automationBalance === "number" &&
+      Number.isFinite(payload.context.automationBalance) &&
+      payload.context.automationBalance > 0
+    ) {
+      await chrome.storage.local.set({
+        [STORAGE_AUTOMATION_BALANCE]: payload.context.automationBalance,
+      });
+    }
 
     const results = await runBridgePlan(payload, sourceTabId);
     const placedBet = results.some(
@@ -382,7 +392,10 @@ async function runBridgePlan(payload, sourceTabId) {
   const results = [];
 
   for (let i = 0; i < filtered.length; i++) {
-    if (i > 0) await sleep(CLICK_STAGGER_MS);
+    if (i > 0) {
+      const recovery = recoveryFromContext(payload.context ?? {});
+      await sleep(clickStaggerMs(recovery));
+    }
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
     results.push(result);
@@ -785,26 +798,30 @@ async function selectChipOnTab(tabId, dryRun, options = {}) {
 }
 
 function stakeUnitsForContext(context, chip) {
+  const recovery = recoveryFromContext(context);
+  const balance =
+    typeof context?.automationBalance === "number" && Number.isFinite(context.automationBalance)
+      ? context.automationBalance
+      : null;
+  const baseStake =
+    balance != null
+      ? baseStakeFromBalance(balance) ?? DEFAULT_CHIP_VALUE
+      : typeof context?.baseStake === "number" && context.baseStake > 0
+        ? context.baseStake
+        : DEFAULT_CHIP_VALUE;
   const rawChip = chip?.value === 50 ? DEFAULT_CHIP_VALUE : chip?.value;
   const chipValue =
     typeof rawChip === "number" && rawChip > 0
       ? rawChip
-      : typeof context?.baseStake === "number" && context.baseStake > 0
-        ? context.baseStake
-        : DEFAULT_CHIP_VALUE;
-  const recovery = recoveryFromContext(context);
-  const baseStake =
-    typeof context?.baseStake === "number" && context.baseStake > 0
-      ? context.baseStake
-      : DEFAULT_CHIP_VALUE;
-  const stakeAmount = baseStake * 2 ** recovery;
+      : baseStake;
+  const stakeAmount = stakeForAutomationRecovery(recovery, balance, baseStake);
   let units;
   if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);
   } else {
     units = chipValue > 0 ? Math.max(1, Math.ceil(stakeAmount / chipValue)) : 1;
   }
-  return { stakeAmount, chipValue, units, recovery };
+  return { stakeAmount, chipValue, units, recovery, baseStake };
 }
 
 async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
@@ -841,10 +858,11 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
 
     const chip = await getSavedChipForTab(tabId);
     const { stakeAmount, chipValue, units, recovery } = stakeUnitsForContext(context ?? {}, chip);
+    const stagger = clickStaggerMs(recovery);
 
     let clickResult = { ok: false, detail: "Aposta não executada" };
     for (let u = 0; u < units; u++) {
-      if (u > 0) await sleep(CLICK_STAGGER_MS);
+      if (u > 0) await sleep(stagger);
       clickResult = await executeExteriorBetOnTab(tabId, betKey, label, dryRun, cdpOpts);
       if (!clickResult.ok) break;
     }

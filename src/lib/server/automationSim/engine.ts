@@ -2,9 +2,11 @@ import {
 
   pendingSignalFromSnapshot,
 
+  restartAutomationSimCycle,
+
   settleOpenBetEntry,
 
-  settleLedgerEntry,
+  shouldRestartAutomationCycleAfterSettlement,
 
   syncOpenBetFromPending,
 
@@ -90,6 +92,18 @@ export async function ensureAutomationSimEngine(): Promise<void> {
 
 
 
+function settleAutomationEntry(
+  state: ReturnType<typeof getAutomationSimState>,
+  entry: StrategyGlobalLedgerEntry,
+  tableLabel: string,
+) {
+  let next = settleOpenBetEntry(state, entry, tableLabel);
+  if (shouldRestartAutomationCycleAfterSettlement(entry)) {
+    next = restartAutomationSimCycle(next);
+  }
+  return next;
+}
+
 function maybeResetCycle(state = getAutomationSimState()) {
 
   return state;
@@ -114,7 +128,7 @@ function buildSnapshotBody(
 
     state,
 
-    pendingSignal: pendingSignalFromSnapshot(strategySnapshot),
+    pendingSignal: pendingSignalFromSnapshot(strategySnapshot, state.balance),
 
   };
 
@@ -198,7 +212,7 @@ export function ingestAutomationSimLedgerEntry(
 
 
 
-  state = settleOpenBetEntry(state, entry, lobbyTableDisplayName(entry.tableId));
+  state = settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
 
   replaceAutomationSimState(state);
 
@@ -232,7 +246,7 @@ export function replayAutomationSimFromLedger(
 
     if (state.processedKeys.includes(key)) continue;
 
-    state = settleLedgerEntry(state, entry, lobbyTableDisplayName(entry.tableId));
+    state = settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
 
     changed = true;
 

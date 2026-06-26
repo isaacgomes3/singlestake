@@ -4,6 +4,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
 import {
@@ -51,6 +52,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
+  const { state: globalAutomation } = useRouletteAutomationSim();
   const session = useRotatingRoomUmFatorSession(tableIds, histories, {
     preferLocalSession: true,
   });
@@ -88,6 +90,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
     enabled: bridgeActive,
     mode: "extension",
     mesaEmbedUrl,
+    automationBalance: globalAutomation.balance,
   });
 
   return null;

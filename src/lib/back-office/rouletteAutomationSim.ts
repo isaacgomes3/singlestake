@@ -12,7 +12,9 @@ import {
 } from "@/lib/roulette/umFatorStrategy";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
-/** Stake inicial (R$) — martingale ×2 por recuperação. */
+/** Fração da banca usada como aposta inicial (0,1%). */
+export const AUTOMATION_BANK_SHARE = 0.001;
+/** @deprecated Use baseStakeFromBalance — mantido só como fallback legado. */
 export const ROULETTE_AUTOMATION_BASE_STAKE = 0.5;
 /** Máximo de pontos no gráfico (só performance — sem janela temporal). */
 export const ROULETTE_AUTOMATION_MAX_CHART_POINTS = 500;
@@ -58,6 +60,8 @@ export type AutomationSimChartPoint = {
 
 export type RouletteAutomationSimState = {
   startedAt: number;
+  /** Banca no início do ciclo visual (gráfico / histórico). */
+  cycleOpeningBalance: number;
   balance: number;
   rounds: AutomationSimRound[];
   chart: AutomationSimChartPoint[];
@@ -70,15 +74,26 @@ export function formatStakeBrl(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function stakeForRecovery(recovery: number): number {
+/** Aposta inicial = 0,1% da banca (R$5 quando banca = R$5000). */
+export function baseStakeFromBalance(balance: number): number {
+  if (!Number.isFinite(balance) || balance <= 0) return 0;
+  return balance * AUTOMATION_BANK_SHARE;
+}
+
+export function stakeForRecovery(recovery: number, balance?: number): number {
   const level = Math.min(Math.max(0, recovery), UM_FATOR_MAX_RECOVERY);
-  return ROULETTE_AUTOMATION_BASE_STAKE * 2 ** level;
+  const base =
+    typeof balance === "number" && Number.isFinite(balance) && balance > 0
+      ? baseStakeFromBalance(balance)
+      : baseStakeFromBalance(ROULETTE_AUTOMATION_INITIAL_BANK);
+  return base * 2 ** level;
 }
 
 export function pendingSignalFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
 ): AutomationPendingSignal | null {
-  return pendingSignalFromUmFatorSession(snapshot.um1fator);
+  return pendingSignalFromUmFatorSession(snapshot.um1fator, balance);
 }
 
 /** Mesma lógica do cartão da sala rotativa (sessão 1 fator ao vivo). */
@@ -87,6 +102,7 @@ export function pendingSignalFromUmFatorSession(
     StrategyGlobalSnapshot["um1fator"],
     "showTapeteSignal" | "currentTableId" | "currentRecovery" | "umActive"
   >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
 ): AutomationPendingSignal | null {
   if (!session.showTapeteSignal || session.currentTableId == null || !session.umActive) {
     return null;
@@ -101,7 +117,7 @@ export function pendingSignalFromUmFatorSession(
     tableLabel: lobbyTableDisplayName(session.currentTableId),
     alertLabel,
     recovery,
-    stake: stakeForRecovery(recovery),
+    stake: stakeForRecovery(recovery, balance),
     umActive: session.umActive,
   };
 }
@@ -262,7 +278,7 @@ export function settleOpenBetEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
-  const stake = stakeForRecovery(entry.recovery);
+  const stake = state.openBet?.stake ?? stakeForRecovery(entry.recovery, state.balance);
   const net = entry.won ? stake : -stake;
   const balance = state.balance + net;
 
@@ -359,8 +375,14 @@ export function settleFromUmFatorFlash(
 export function rebuildAutomationSimFromLedger(
   startedAt: number,
   ledger: readonly StrategyGlobalLedgerEntry[],
+  openingBalance = ROULETTE_AUTOMATION_INITIAL_BANK,
 ): RouletteAutomationSimState {
-  let state = freshAutomationSimState(startedAt);
+  let state: RouletteAutomationSimState = {
+    ...freshAutomationSimState(startedAt),
+    balance: openingBalance,
+    cycleOpeningBalance: openingBalance,
+  };
+  state = { ...state, chart: buildAutomationChartData(state) };
   const sorted = [...ledger]
     .filter((entry) => entry.ts >= startedAt)
     .sort((a, b) => a.ts - b.ts);
@@ -491,13 +513,17 @@ export function formatChartTime(ts: number, withSeconds = false): string {
   });
 }
 
-/** Série do gráfico: banca inicial + um ponto por rodada liquidada (sem «dip» em apostas em jogo). */
+/** Série do gráfico: banca no início do ciclo + um ponto por rodada liquidada. */
 export function buildAutomationChartData(state: RouletteAutomationSimState): AutomationSimChartPoint[] {
+  const opening =
+    typeof state.cycleOpeningBalance === "number" && Number.isFinite(state.cycleOpeningBalance)
+      ? state.cycleOpeningBalance
+      : state.balance;
   const points: AutomationSimChartPoint[] = [
     {
       ts: state.startedAt,
       label: formatChartTime(state.startedAt),
-      balance: ROULETTE_AUTOMATION_INITIAL_BANK,
+      balance: opening,
     },
   ];
 
@@ -545,6 +571,7 @@ function formatBrlCompact(value: number): string {
 export function freshAutomationSimState(now = Date.now()): RouletteAutomationSimState {
   const state: RouletteAutomationSimState = {
     startedAt: now,
+    cycleOpeningBalance: ROULETTE_AUTOMATION_INITIAL_BANK,
     balance: ROULETTE_AUTOMATION_INITIAL_BANK,
     rounds: [],
     chart: [],
@@ -553,6 +580,29 @@ export function freshAutomationSimState(now = Date.now()): RouletteAutomationSim
     openBet: null,
   };
   return { ...state, chart: buildAutomationChartData(state) };
+}
+
+/** Reinicia gráfico e histórico mantendo banca e chaves processadas. */
+export function restartAutomationSimCycle(
+  state: RouletteAutomationSimState,
+  now = Date.now(),
+): RouletteAutomationSimState {
+  const next: RouletteAutomationSimState = {
+    ...state,
+    startedAt: now,
+    cycleOpeningBalance: state.balance,
+    rounds: [],
+    spinCounter: 0,
+    openBet: null,
+    chart: [],
+  };
+  return { ...next, chart: buildAutomationChartData(next) };
+}
+
+export function shouldRestartAutomationCycleAfterSettlement(
+  entry: Pick<StrategyGlobalLedgerEntry, "kind">,
+): boolean {
+  return entry.kind === "win" || entry.kind === "loss";
 }
 
 export function shouldResetAutomationSim(_startedAt: number, _now = Date.now()): boolean {
@@ -565,6 +615,10 @@ export function parseAutomationSimState(raw: unknown): RouletteAutomationSimStat
   if (typeof o.startedAt !== "number" || typeof o.balance !== "number") return null;
   return {
     startedAt: o.startedAt,
+    cycleOpeningBalance:
+      typeof o.cycleOpeningBalance === "number" && Number.isFinite(o.cycleOpeningBalance)
+        ? o.cycleOpeningBalance
+        : o.balance,
     balance: o.balance,
     rounds: Array.isArray(o.rounds) ? o.rounds : [],
     chart: Array.isArray(o.chart) ? o.chart : [],

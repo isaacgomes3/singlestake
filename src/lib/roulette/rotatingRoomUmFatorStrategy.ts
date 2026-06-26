@@ -109,6 +109,12 @@ export type UmFatorMachineState = {
   /** Mesa com entrada pendente — evita trocar indicação antes do resultado. */
   focusLockTableId: number | null;
 
+  /**
+   * Cabeçalho do histórico por mesa após o último resultado liquidado.
+   * Enquanto o head for igual, não arma gatinhos já visíveis na fila — aguarda giro novo.
+   */
+  staleFormationHeadByTable: Record<string, string>;
+
 };
 
 
@@ -181,6 +187,8 @@ export function defaultUmFatorMachineState(): UmFatorMachineState {
 
     focusLockTableId: null,
 
+    staleFormationHeadByTable: {},
+
   };
 
 }
@@ -224,6 +232,28 @@ function shouldSkipTableForFormation(
     return true;
   }
   return false;
+}
+
+/** Gatinho já estava na fila quando o último resultado foi liquidado. */
+function isStaleQueuedFormation(
+  machine: UmFatorMachineState,
+  tableId: number,
+  head: string,
+): boolean {
+  const blocked = machine.staleFormationHeadByTable[String(tableId)];
+  return blocked != null && blocked === head;
+}
+
+function snapshotStaleFormationHeads(
+  machine: UmFatorMachineState,
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+): Record<string, string> {
+  const stale: Record<string, string> = { ...machine.staleFormationHeadByTable };
+  for (const tableId of tableIds) {
+    stale[String(tableId)] = spinHead(histories[tableId] ?? []);
+  }
+  return stale;
 }
 
 
@@ -358,6 +388,8 @@ function orderTableIdsForTick(
 
       !isResultAlreadySettled(machine, tableId, head) &&
 
+      !isStaleQueuedFormation(machine, tableId, head) &&
+
       detectUmFatorActiveFromHistory(history) != null &&
 
       tableArmableForUmFatorFormation(tableId, history)
@@ -436,7 +468,7 @@ function scanUmFatorTables(
     const formation =
       lockedTable != null
         ? null
-        : h.length >= 3 && !active
+        : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h))
           ? detectUmFatorActiveFromHistory(h)
           : null;
 
@@ -602,6 +634,8 @@ export function tickUmFatorPlacar(
 
     return (
 
+      !isStaleQueuedFormation(nextMachine, tableId, head) &&
+
       detectUmFatorActiveFromHistory(history) != null &&
 
       tableArmableForUmFatorFormation(tableId, history)
@@ -681,6 +715,8 @@ export function tickUmFatorPlacar(
           [String(tableId)]: head,
 
         },
+
+        staleFormationHeadByTable: snapshotStaleFormationHeads(nextMachine, tableIds, histories),
 
       };
 
@@ -770,6 +806,8 @@ export function tickUmFatorPlacar(
 
     if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
 
+    if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
+
     if (!tableArmableForUmFatorFormation(tableId, history)) continue;
 
 
@@ -856,6 +894,8 @@ export function seedUmFatorMachineAfterPlacarReset(
 
     focusLockTableId: null,
 
+    staleFormationHeadByTable: {},
+
   };
 
 }
@@ -896,6 +936,14 @@ export function sanitizeUmFatorMachineForTableIds(
 
   }
 
+  const staleFormationHeadByTable: Record<string, string> = {};
+
+  for (const [k, v] of Object.entries(machine.staleFormationHeadByTable ?? {})) {
+
+    if (allowed.has(k)) staleFormationHeadByTable[k] = v;
+
+  }
+
   const lastActiveTableId =
 
     machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId)
@@ -921,6 +969,8 @@ export function sanitizeUmFatorMachineForTableIds(
     pendingByTable,
 
     settledSpinHeadByTable,
+
+    staleFormationHeadByTable,
 
     tablePlacarLosses: {},
 
@@ -1016,6 +1066,8 @@ export function normalizeUmFatorMachineOnLoad(
 
       focusLockTableId: null,
 
+      staleFormationHeadByTable: {},
+
       recovery: partialLosses > 0 ? partialLosses : 0,
 
     };
@@ -1029,6 +1081,8 @@ export function normalizeUmFatorMachineOnLoad(
     ...machine,
 
     pendingByTable: pending,
+
+    staleFormationHeadByTable: machine.staleFormationHeadByTable ?? {},
 
     tablePlacarLosses: {},
 

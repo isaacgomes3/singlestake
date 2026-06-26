@@ -24,7 +24,6 @@ import {
 } from "@/lib/roulette/entryWinBreakdown";
 import {
   isStrategyGlobalEnabled,
-  requestStrategyGlobalReset,
 } from "@/lib/roulette/strategyGlobalClient";
 
 export {
@@ -88,8 +87,8 @@ export function resetRotatingRoomUmFatorSession(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]> = {},
 ): void {
+  /** Com strategy global, o placar é o caixa da empresa — não resetar a partir da sala. */
   if (typeof window !== "undefined" && isStrategyGlobalEnabled()) {
-    void requestStrategyGlobalReset("um1fator");
     return;
   }
   writeRotatingRoomUmFatorSessionStats(emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY));

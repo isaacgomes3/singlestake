@@ -21,12 +21,15 @@ var SinglestakeUmFator = (() => {
   // extension/strategy-entry.ts
   var strategy_entry_exports = {};
   __export(strategy_entry_exports, {
+    AUTOMATION_BANK_SHARE: () => AUTOMATION_BANK_SHARE,
     EXTENSION_MAX_GALES: () => EXTENSION_MAX_GALES,
     EXTENSION_PRE_BET_WAIT_SEC: () => EXTENSION_PRE_BET_WAIT_SEC,
     ROTATING_ROOM_TABLE_IDS: () => ROTATING_ROOM_TABLE_IDS,
+    baseStakeFromBalance: () => baseStakeFromBalance,
     clampExtensionMaxRecovery: () => clampExtensionMaxRecovery,
     createUmFatorEngine: () => createUmFatorEngine,
-    default: () => strategy_entry_default
+    default: () => strategy_entry_default,
+    stakeForAutomationRecovery: () => stakeForAutomationRecovery
   });
 
   // src/lib/roulette/entryWinBreakdown.ts
@@ -440,7 +443,8 @@ var SinglestakeUmFator = (() => {
       lastLostTableId: null,
       lastActive: null,
       lastActiveTableId: null,
-      focusLockTableId: null
+      focusLockTableId: null,
+      staleFormationHeadByTable: {}
     };
   }
   function isResultAlreadySettled(machine, tableId, head) {
@@ -456,6 +460,17 @@ var SinglestakeUmFator = (() => {
       return true;
     }
     return false;
+  }
+  function isStaleQueuedFormation(machine, tableId, head) {
+    const blocked = machine.staleFormationHeadByTable[String(tableId)];
+    return blocked != null && blocked === head;
+  }
+  function snapshotStaleFormationHeads(machine, tableIds, histories) {
+    const stale = { ...machine.staleFormationHeadByTable };
+    for (const tableId of tableIds) {
+      stale[String(tableId)] = spinHead(histories[tableId] ?? []);
+    }
+    return stale;
   }
   function pendingForTable(machine, tableId) {
     return machine.pendingByTable[String(tableId)] ?? null;
@@ -515,7 +530,7 @@ var SinglestakeUmFator = (() => {
         needsEval.push(tableId);
       } else if (pendingForTable(machine, tableId) != null) {
         withPending.push(tableId);
-      } else if (!isResultAlreadySettled(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
+      } else if (!isResultAlreadySettled(machine, tableId, head) && !isStaleQueuedFormation(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
         withFormation.push(tableId);
       } else {
         rest.push(tableId);
@@ -541,7 +556,7 @@ var SinglestakeUmFator = (() => {
     return tableIds.map((tableId) => {
       const h = histories[tableId] ?? [];
       const active = activeForDisplay(machine, tableId, h);
-      const formation = lockedTable != null ? null : h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
+      const formation = lockedTable != null ? null : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h)) ? detectUmFatorActiveFromHistory(h) : null;
       return {
         tableId,
         hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) >= 2,
@@ -597,7 +612,7 @@ var SinglestakeUmFator = (() => {
       if (pendingReadyToEvaluate(nextMachine, tableId, head)) return true;
       if (pendingForTable(nextMachine, tableId) != null) return false;
       if (isResultAlreadySettled(nextMachine, tableId, head)) return false;
-      return detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
+      return !isStaleQueuedFormation(nextMachine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
     });
     if (globalHead === machine.lastEvaluatedHead && !hasWork) {
       return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -628,7 +643,8 @@ var SinglestakeUmFator = (() => {
           settledSpinHeadByTable: {
             ...nextMachine.settledSpinHeadByTable,
             [String(tableId)]: head
-          }
+          },
+          staleFormationHeadByTable: snapshotStaleFormationHeads(nextMachine, tableIds, histories)
         };
         if (outcome === "W") {
           nextStats = recordRotatingRoomSessionWin(nextStats, recoveryBefore, maxRecovery);
@@ -678,6 +694,7 @@ var SinglestakeUmFator = (() => {
       const formation = detectUmFatorActiveFromHistory(history);
       if (!formation) continue;
       if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
+      if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
       if (!tableArmableForUmFatorFormation(tableId, history)) continue;
       nextMachine = {
         ...nextMachine,
@@ -708,6 +725,10 @@ var SinglestakeUmFator = (() => {
     for (const [k, v] of Object.entries(machine.pendingByTable ?? {})) {
       if (allowed.has(k)) pendingByTable[k] = v;
     }
+    const staleFormationHeadByTable = {};
+    for (const [k, v] of Object.entries(machine.staleFormationHeadByTable ?? {})) {
+      if (allowed.has(k)) staleFormationHeadByTable[k] = v;
+    }
     const lastActiveTableId = machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId) ? machine.lastActiveTableId : null;
     const focusLockTableId = machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId) ? machine.focusLockTableId : null;
     return {
@@ -715,6 +736,7 @@ var SinglestakeUmFator = (() => {
       lastSpinHeadByTable,
       pendingByTable,
       settledSpinHeadByTable,
+      staleFormationHeadByTable,
       tablePlacarLosses: {},
       lastLostTableId: null,
       lastActiveTableId,
@@ -723,17 +745,27 @@ var SinglestakeUmFator = (() => {
   }
 
   // extension/strategy-entry.ts
+  var AUTOMATION_BANK_SHARE = 1e-3;
+  function baseStakeFromBalance(balance) {
+    if (!Number.isFinite(balance) || balance <= 0) return 0;
+    return balance * AUTOMATION_BANK_SHARE;
+  }
+  function stakeForAutomationRecovery(recovery, balance, fallbackBase = 0.5) {
+    const level = Math.max(0, Math.floor(recovery));
+    const base = typeof balance === "number" && Number.isFinite(balance) && balance > 0 ? baseStakeFromBalance(balance) : fallbackBase;
+    return base * 2 ** level;
+  }
   var ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
-  var BASE_STAKE = 0.5;
+  var LEGACY_BASE_STAKE = 0.5;
   var EXTENSION_MAX_GALES = 6;
   function clampExtensionMaxRecovery(value, fallback = UM_FATOR_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(n)) return Math.min(EXTENSION_MAX_GALES, Math.max(0, fallback));
     return Math.min(EXTENSION_MAX_GALES, Math.max(0, Math.floor(n)));
   }
-  function stakeForRecovery(recovery, maxRecovery) {
+  function stakeForRecovery(recovery, maxRecovery, balance) {
     const level = Math.min(Math.max(0, recovery), maxRecovery);
-    return BASE_STAKE * 2 ** level;
+    return stakeForAutomationRecovery(level, balance, LEGACY_BASE_STAKE);
   }
   function createUmFatorEngine(tableIdsOrOptions = ROTATING_ROOM_TABLE_IDS) {
     const opts = Array.isArray(tableIdsOrOptions) ? { tableIds: tableIdsOrOptions } : tableIdsOrOptions;
@@ -819,7 +851,7 @@ var SinglestakeUmFator = (() => {
       histories[tableId] = h;
       return runTick();
     }
-    function buildBridgePayload(result, mesaEmbedUrl = null) {
+    function buildBridgePayload(result, mesaEmbedUrl = null, automationBalance = null) {
       const { view, machine: machine2 } = result;
       if (!view.globalActive || view.globalTableId == null) return null;
       if (!canPlaceBet(view.globalTableId)) return null;
@@ -829,7 +861,7 @@ var SinglestakeUmFator = (() => {
       const signalId = `${tableId}:${active.resultNumber}:${active.alertFactor.kind}:${recovery}`;
       const betKey = pragmaticExteriorBetKeyFromFactor(active.alertFactor);
       const label = umFatorAlertLabel(active);
-      const stakeAmount = stakeForRecovery(recovery, maxRecovery);
+      const stakeAmount = stakeForRecovery(recovery, maxRecovery, automationBalance);
       return {
         type: "game-odds-glow/rotating-room-extension",
         version: 1,
@@ -854,9 +886,10 @@ var SinglestakeUmFator = (() => {
           factor2BetKey: null,
           singleFactorMode: true,
           signalId,
+          automationBalance,
           stakeAmount,
           currentRecovery: recovery,
-          baseStake: BASE_STAKE,
+          baseStake: null,
           maxRecovery,
           executionMode: null,
           mesaCatalog: []
