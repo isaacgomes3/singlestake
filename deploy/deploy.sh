@@ -35,6 +35,10 @@ fi
 rebuild_native_modules
 ensure_pm2
 
+echo "→ pm2 stop (libertar .output antes do build)"
+pm2 delete singlestake 2>/dev/null || true
+sleep 2
+
 echo "→ build limpo (.output)"
 rm -rf .output
 npm run build

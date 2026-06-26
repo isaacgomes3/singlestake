@@ -12,6 +12,8 @@ git reset --hard origin/main
 echo "commit: $(git rev-parse --short HEAD)"
 
 npm ci 2>/dev/null || npm install
+pm2 delete singlestake 2>/dev/null || true
+sleep 2
 rm -rf .output
 npm run build
 
