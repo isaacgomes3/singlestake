@@ -118,7 +118,7 @@ export function BackOfficeLayout() {
         <BackOfficeSidebarNav onLogout={() => void handleLogout()} />
       </div>
       <div className="hidden border-t border-sidebar-border-fixed p-3 xl:block">
-        <div className="rounded-lg border border-sidebar-border-fixed bg-sidebar-bg/50 p-3">
+        <div className="rounded-lg border border-sidebar-border-fixed bg-bg-card-hover/60 p-3">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-sidebar-fg-muted">
             <Link2 className="size-3" aria-hidden />
             {t("common.affiliateLink")}
@@ -197,7 +197,7 @@ export function BackOfficeLayout() {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col lg:pr-14">
-        <div className="flex items-center gap-2 border-b border-border-color px-3 py-2 lg:hidden">
+        <div className="app-top-bar flex items-center gap-2 border-b border-border-color px-3 py-2 lg:hidden">
           <button
             type="button"
             className="rounded-lg p-2 text-text-secondary hover:bg-bg-card-hover hover:text-text-primary"

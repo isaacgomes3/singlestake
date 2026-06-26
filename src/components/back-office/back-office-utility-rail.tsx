@@ -66,7 +66,7 @@ export function BackOfficeUtilityRail({
       ) : null}
 
       {activePanel ? (
-        <aside className="utility-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border-color bg-bg-secondary shadow-2xl sm:max-w-[380px] lg:right-14 lg:w-[min(calc(100vw-3.5rem),380px)]">
+        <aside className="utility-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border-color bg-bg-card shadow-2xl sm:max-w-[380px] lg:right-14 lg:w-[min(calc(100vw-3.5rem),380px)]">
           <div className="flex items-center justify-between border-b border-border-color px-4 py-3">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-secondary">
               {activePanel === "notifications"
@@ -132,7 +132,7 @@ export function BackOfficeUtilityRail({
       ) : null}
 
       <nav
-        className="utility-rail fixed inset-y-0 right-0 z-30 hidden w-14 flex-col items-center border-l border-border-color bg-bg-secondary/95 py-3 backdrop-blur-md lg:flex"
+        className="utility-rail fixed inset-y-0 right-0 z-30 hidden w-14 flex-col items-center border-l border-border-color bg-bg-card py-3 lg:flex"
         aria-label="Quick actions"
       >
         <div className="flex flex-1 flex-col items-center gap-2">

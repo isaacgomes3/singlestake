@@ -69,7 +69,7 @@ export function BackOfficeHeader({
   }, [onOpenSearch]);
 
   return (
-    <header className="app-top-bar sticky top-0 z-30 flex flex-wrap items-center gap-2 px-3 py-2.5 backdrop-blur-md sm:px-4 lg:px-5">
+    <header className="app-top-bar sticky top-0 z-30 flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4 lg:px-5">
       <button
         type="button"
         onClick={onOpenSearch}
