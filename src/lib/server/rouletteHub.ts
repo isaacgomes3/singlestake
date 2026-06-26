@@ -96,9 +96,12 @@ function buildReplayBatch(): RouletteSpin[] {
   return spins;
 }
 
+let upstreamStarting = false;
+
 function ensureUpstream() {
   cancelUpstreamShutdownTimer();
-  if (upstreamDisposers.length > 0) return;
+  if (upstreamDisposers.length > 0 || upstreamStarting) return;
+  upstreamStarting = true;
 
   const tableIds = parseRouletteTableIdsFromEnv();
   console.log(
@@ -109,42 +112,52 @@ function ensureUpstream() {
   );
 
   const disposers: Array<() => void> = [];
-  for (const tableId of tableIds) {
-    const dispose = startRouletteSocket(
-      (spin) => {
-        const scoped: RouletteSpin = {
-          number: spin.number,
-          gameId: `${tableId}::${spin.gameId}`,
-        };
-        lastEmittedByTable.set(tableId, scoped);
-        onStrategyGlobalSpin(scoped);
-        broadcast({ type: "spin", spin: scoped });
-      },
-      {
-        tableId,
-        onTableHistorySnapshot: (spins) => {
-          if (spins.length === 0) return;
-          console.log("[Roleta] snapshot mesa", tableId, "→", spins.length, "giros");
-          const scoped = spins.map((s) => ({
-            number: s.number,
-            gameId: `${tableId}::${s.gameId}`,
-          }));
-          tableHistorySnapshotById.set(tableId, scoped);
-          lastEmittedByTable.set(tableId, scoped[0]!);
-          onStrategyGlobalTableSnapshot(tableId, scoped);
+  const STAGGER_MS = 350;
+
+  const startAt = (index: number) => {
+    if (index >= tableIds.length) {
+      upstreamDisposers = disposers;
+      upstreamStarting = false;
+      return;
+    }
+    const tableId = tableIds[index]!;
+    disposers.push(
+      startRouletteSocket(
+        (spin) => {
+          const scoped: RouletteSpin = {
+            number: spin.number,
+            gameId: `${tableId}::${spin.gameId}`,
+          };
+          lastEmittedByTable.set(tableId, scoped);
+          onStrategyGlobalSpin(scoped);
+          broadcast({ type: "spin", spin: scoped });
         },
-        onTableMeta: (meta) => {
-          setDgaTableMeta(tableId, meta);
+        {
+          tableId,
+          onTableHistorySnapshot: (spins) => {
+            if (spins.length === 0) return;
+            console.log("[Roleta] snapshot mesa", tableId, "→", spins.length, "giros");
+            const scoped = spins.map((s) => ({
+              number: s.number,
+              gameId: `${tableId}::${s.gameId}`,
+            }));
+            tableHistorySnapshotById.set(tableId, scoped);
+            lastEmittedByTable.set(tableId, scoped[0]!);
+            onStrategyGlobalTableSnapshot(tableId, scoped);
+          },
+          onTableMeta: (meta) => {
+            setDgaTableMeta(tableId, meta);
+          },
+          onDisconnect: (message) => {
+            broadcast({ type: "status", state: "reconnecting", message });
+          },
+          debug: process.env.DEBUG_ROULETTE_WS === "1",
         },
-        onDisconnect: (message) => {
-          broadcast({ type: "status", state: "reconnecting", message });
-        },
-        debug: process.env.DEBUG_ROULETTE_WS === "1",
-      },
+      ),
     );
-    disposers.push(dispose);
-  }
-  upstreamDisposers = disposers;
+    setTimeout(() => startAt(index + 1), STAGGER_MS);
+  };
+  startAt(0);
 }
 
 function shutdownUpstreamIfIdle() {
@@ -156,6 +169,7 @@ function shutdownUpstreamIfIdle() {
   if (UPSTREAM_IDLE_MS === 0) {
     for (const d of upstreamDisposers) d();
     upstreamDisposers = [];
+    upstreamStarting = false;
     lastEmittedByTable.clear();
     tableHistorySnapshotById.clear();
     return;
@@ -170,6 +184,7 @@ function shutdownUpstreamIfIdle() {
     );
     for (const d of upstreamDisposers) d();
     upstreamDisposers = [];
+    upstreamStarting = false;
     lastEmittedByTable.clear();
     tableHistorySnapshotById.clear();
   }, UPSTREAM_IDLE_MS);
@@ -218,6 +233,7 @@ export function getRouletteHubStatus() {
     casinoId: process.env.ROULETTE_CASINO_ID ?? "ppcdk00000005148",
     wsUrl: process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws",
     webSocketAvailable: typeof globalThis.WebSocket !== "undefined",
+    gitRev: process.env.DEPLOY_GIT_REV ?? null,
     tableIds,
     tables,
     hasData: tables.some((t) => t.historyCount > 0 || t.lastNumber != null),

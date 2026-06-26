@@ -156,6 +156,7 @@ export const startRouletteSocket = (
   let lastGameId: string | null = null;
   let pingInterval: ReturnType<typeof setInterval> | null = null;
   let subscribeFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let subscribeWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
   let disconnectNotified = false;
   let spinBaselined = false;
   let subscribedThisConnection = false;
@@ -176,10 +177,14 @@ export const startRouletteSocket = (
       socket.send(JSON.stringify({ type: "available", casinoId: CASINO_ID }));
     };
 
-    const sendSubscribe = (reason: "root-tableKey" | "nested-tableKey" | "fallback") => {
+    const sendSubscribe = (reason: "root-tableKey" | "nested-tableKey" | "fallback" | "watchdog") => {
       if (subscribeFallbackTimer) {
         clearTimeout(subscribeFallbackTimer);
         subscribeFallbackTimer = null;
+      }
+      if (subscribeWatchdogTimer) {
+        clearTimeout(subscribeWatchdogTimer);
+        subscribeWatchdogTimer = null;
       }
       if (subscribedThisConnection) return;
       if (socket.readyState !== 1 /* OPEN */) return;
@@ -207,6 +212,14 @@ export const startRouletteSocket = (
         subscribeFallbackTimer = null;
         if (!stopped && ws === socket) sendSubscribe("fallback");
       }, SUBSCRIBE_FALLBACK_MS);
+      subscribeWatchdogTimer = setTimeout(() => {
+        subscribeWatchdogTimer = null;
+        if (!stopped && ws === socket && !subscribedThisConnection) {
+          console.warn("[Roleta] sem subscribe na mesa", tableId, "após 8s — a reenviar");
+          subscribedThisConnection = false;
+          sendSubscribe("watchdog");
+        }
+      }, 8_000);
       if (pingInterval) clearInterval(pingInterval);
       pingInterval = setInterval(() => {
         if (ws === socket && socket.readyState === 1) {
@@ -289,6 +302,10 @@ export const startRouletteSocket = (
         clearTimeout(subscribeFallbackTimer);
         subscribeFallbackTimer = null;
       }
+      if (subscribeWatchdogTimer) {
+        clearTimeout(subscribeWatchdogTimer);
+        subscribeWatchdogTimer = null;
+      }
       if (pingInterval) {
         clearInterval(pingInterval);
         pingInterval = null;
@@ -314,6 +331,10 @@ export const startRouletteSocket = (
     if (subscribeFallbackTimer) {
       clearTimeout(subscribeFallbackTimer);
       subscribeFallbackTimer = null;
+    }
+    if (subscribeWatchdogTimer) {
+      clearTimeout(subscribeWatchdogTimer);
+      subscribeWatchdogTimer = null;
     }
     if (pingInterval) clearInterval(pingInterval);
     try {

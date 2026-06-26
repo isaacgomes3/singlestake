@@ -19,6 +19,7 @@ module.exports = {
         // Fallback se .env não tiver estas chaves (evita crash bufferutil no ws)
         WS_NO_BUFFER_UTIL: "1",
         WS_NO_UTF_8_VALIDATE: "1",
+        ROULETTE_HUB_IDLE_SHUTDOWN_MS: "-1",
       },
       max_memory_restart: "768M",
       listen_timeout: 15000,

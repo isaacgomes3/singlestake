@@ -18,6 +18,7 @@ if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "  (alterações locais descartadas — só código do GitHub)"
 fi
 git reset --hard "origin/${BRANCH}"
+echo "→ commit: $(git rev-parse --short HEAD)"
 
 echo "→ sincronizar chaves .env em falta"
 bash deploy/sync-env-keys.sh
@@ -55,6 +56,15 @@ else
 fi
 
 pm2 save
+
+REV="$(git rev-parse --short HEAD)"
+if [[ -f .env ]]; then
+  if grep -q '^DEPLOY_GIT_REV=' .env; then
+    sed -i "s/^DEPLOY_GIT_REV=.*/DEPLOY_GIT_REV=${REV}/" .env
+  else
+    echo "DEPLOY_GIT_REV=${REV}" >> .env
+  fi
+fi
 
 echo "→ verificação pós-deploy (45s — hub Pragmatic)"
 sleep 45
