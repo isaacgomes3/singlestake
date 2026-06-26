@@ -31,6 +31,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "npx --yes tsx scripts/db-migrate.ts",
     "db:seed": "npx --yes tsx scripts/db-seed.ts",
+    "db:reset-admin": "npx --yes tsx scripts/db-reset-admin-password.ts",
     "cron:daily-yield": "npx --yes tsx scripts/run-daily-automation-yield.ts",
     "db:backfill-binary": "npx --yes tsx scripts/db-backfill-binary-points.ts",
     "db:studio": "drizzle-kit studio",

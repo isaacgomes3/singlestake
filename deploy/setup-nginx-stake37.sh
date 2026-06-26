@@ -13,6 +13,8 @@ ln -sf "/etc/nginx/sites-available/stake37" "/etc/nginx/sites-enabled/stake37"
 
 echo "→ Testar Nginx"
 nginx -t
+systemctl enable nginx
+systemctl start nginx
 systemctl reload nginx
 
 echo "→ Certificado SSL (Let's Encrypt)"

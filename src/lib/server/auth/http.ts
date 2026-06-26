@@ -1,4 +1,4 @@
-import { buildClearSessionCookie, getSessionIdFromRequest } from "@/lib/server/auth/cookies";
+import { buildClearSessionCookie, getSessionIdFromRequest, isSecureRequest } from "@/lib/server/auth/cookies";
 import { deleteHttpSession, resolveSessionUser } from "@/lib/server/auth/http-session";
 import type { SessionUser } from "@/lib/server/auth/http-session";
 import { buildReferralLink } from "@/lib/referral/build-link";
@@ -32,7 +32,7 @@ export function closeUserSession(request: Request): Response {
   if (sessionId) {
     void deleteHttpSession(sessionId);
   }
-  return jsonResponse({ ok: true }, { headers: { "Set-Cookie": buildClearSessionCookie() } });
+  return jsonResponse({ ok: true }, { headers: { "Set-Cookie": buildClearSessionCookie(isSecureRequest(request)) } });
 }
 
 export function toAuthUser(user: SessionUser, origin?: string) {

@@ -31,21 +31,23 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const result = await apiLogin(email, password);
-    if (!result.ok) {
-      toast.error(result.error);
-      setLoading(false);
-      return;
-    }
     try {
-      setSession(result.user);
-    } catch {
-      toast.error("Não foi possível guardar a sessão neste browser.");
+      const result = await apiLogin(email, password);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      try {
+        setSession(result.user);
+      } catch {
+        toast.error("Não foi possível guardar a sessão neste browser.");
+        return;
+      }
+      toast.success(`Bem-vindo, ${result.user.name}!`);
+      goAfterAuth(loginRedirectPath());
+    } finally {
       setLoading(false);
-      return;
     }
-    toast.success(`Bem-vindo, ${result.user.name}!`);
-    goAfterAuth(loginRedirectPath());
   };
 
   return (

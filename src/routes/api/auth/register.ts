@@ -5,7 +5,7 @@ export const Route = createFileRoute("/api/auth/register")({
     handlers: {
       POST: async ({ request }) => {
         const { readJsonBody, jsonResponse, toAuthUser } = await import("@/lib/server/auth/http");
-        const { buildSessionCookie } = await import("@/lib/server/auth/cookies");
+        const { buildSessionCookie, isSecureRequest } = await import("@/lib/server/auth/cookies");
         const { createHttpSession } = await import("@/lib/server/auth/http-session");
         const { registerAccount } = await import("@/lib/server/auth/service");
 
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/api/auth/register")({
               origin,
             ),
           },
-          { status: 201, headers: { "Set-Cookie": buildSessionCookie(sessionId) } },
+          { status: 201, headers: { "Set-Cookie": buildSessionCookie(sessionId, undefined, isSecureRequest(request)) } },
         );
       },
     },

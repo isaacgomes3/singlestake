@@ -5,7 +5,7 @@ export const Route = createFileRoute("/api/auth/login")({
     handlers: {
       POST: async ({ request }) => {
         const { readJsonBody, jsonResponse, toAuthUser } = await import("@/lib/server/auth/http");
-        const { buildSessionCookie } = await import("@/lib/server/auth/cookies");
+        const { buildSessionCookie, isSecureRequest } = await import("@/lib/server/auth/cookies");
         const { createHttpSession } = await import("@/lib/server/auth/http-session");
         const { loginWithPassword } = await import("@/lib/server/auth/service");
 
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/auth/login")({
               origin,
             ),
           },
-          { headers: { "Set-Cookie": buildSessionCookie(sessionId) } },
+          { headers: { "Set-Cookie": buildSessionCookie(sessionId, undefined, isSecureRequest(request)) } },
         );
       },
     },

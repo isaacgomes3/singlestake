@@ -51,35 +51,33 @@ export async function creditWallet(input: {
   if (input.amount <= 0) throw new Error("INVALID_AMOUNT");
 
   const db = getDb();
-  await db.transaction(async (tx) => {
-    const account = await tx.query.walletAccounts.findFirst({
-      where: and(
-        eq(walletAccounts.userId, input.userId),
-        eq(walletAccounts.bucket, input.bucket),
-      ),
-    });
-    if (!account) throw new Error("WALLET_NOT_FOUND");
+  const account = await db.query.walletAccounts.findFirst({
+    where: and(
+      eq(walletAccounts.userId, input.userId),
+      eq(walletAccounts.bucket, input.bucket),
+    ),
+  });
+  if (!account) throw new Error("WALLET_NOT_FOUND");
 
-    const now = new Date();
-    await tx
-      .update(walletAccounts)
-      .set({
-        availableBalance: account.availableBalance + input.amount,
-        updatedAt: now,
-      })
-      .where(eq(walletAccounts.id, account.id));
+  const now = new Date();
+  await db
+    .update(walletAccounts)
+    .set({
+      availableBalance: account.availableBalance + input.amount,
+      updatedAt: now,
+    })
+    .where(eq(walletAccounts.id, account.id));
 
-    await tx.insert(ledgerEntries).values({
-      id: randomUUID(),
-      userId: input.userId,
-      bucket: input.bucket,
-      entryType: "credit",
-      amount: input.amount,
-      description: input.description,
-      referenceType: input.referenceType,
-      referenceId: input.referenceId,
-      createdAt: now,
-    });
+  await db.insert(ledgerEntries).values({
+    id: randomUUID(),
+    userId: input.userId,
+    bucket: input.bucket,
+    entryType: "credit",
+    amount: input.amount,
+    description: input.description,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+    createdAt: now,
   });
 }
 
@@ -94,35 +92,33 @@ export async function debitWallet(input: {
   if (input.amount <= 0) throw new Error("INVALID_AMOUNT");
 
   const db = getDb();
-  await db.transaction(async (tx) => {
-    const account = await tx.query.walletAccounts.findFirst({
-      where: and(
-        eq(walletAccounts.userId, input.userId),
-        eq(walletAccounts.bucket, input.bucket),
-      ),
-    });
-    if (!account) throw new Error("WALLET_NOT_FOUND");
-    if (account.availableBalance < input.amount) throw new Error("INSUFFICIENT_BALANCE");
+  const account = await db.query.walletAccounts.findFirst({
+    where: and(
+      eq(walletAccounts.userId, input.userId),
+      eq(walletAccounts.bucket, input.bucket),
+    ),
+  });
+  if (!account) throw new Error("WALLET_NOT_FOUND");
+  if (account.availableBalance < input.amount) throw new Error("INSUFFICIENT_BALANCE");
 
-    const now = new Date();
-    await tx
-      .update(walletAccounts)
-      .set({
-        availableBalance: account.availableBalance - input.amount,
-        updatedAt: now,
-      })
-      .where(eq(walletAccounts.id, account.id));
+  const now = new Date();
+  await db
+    .update(walletAccounts)
+    .set({
+      availableBalance: account.availableBalance - input.amount,
+      updatedAt: now,
+    })
+    .where(eq(walletAccounts.id, account.id));
 
-    await tx.insert(ledgerEntries).values({
-      id: randomUUID(),
-      userId: input.userId,
-      bucket: input.bucket,
-      entryType: "debit",
-      amount: input.amount,
-      description: input.description,
-      referenceType: input.referenceType,
-      referenceId: input.referenceId,
-      createdAt: now,
-    });
+  await db.insert(ledgerEntries).values({
+    id: randomUUID(),
+    userId: input.userId,
+    bucket: input.bucket,
+    entryType: "debit",
+    amount: input.amount,
+    description: input.description,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+    createdAt: now,
   });
 }

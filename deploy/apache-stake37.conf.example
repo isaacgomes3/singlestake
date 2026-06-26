@@ -1,0 +1,63 @@
+# Apache — stake37.com.br → singlestake (PM2 :3000)
+# NÃO desactiva outros sites na VPS. Só adiciona um VirtualHost novo.
+#
+# Ubuntu/Debian (apache2):
+#   sudo cp deploy/apache-stake37.conf.example /etc/apache2/sites-available/stake37.conf
+#   sudo a2enmod proxy proxy_http headers ssl rewrite
+#   sudo a2ensite stake37.conf
+#   sudo apachectl configtest && sudo systemctl reload apache2
+#   sudo certbot --apache -d stake37.com.br -d www.stake37.com.br
+#
+# CentOS/RHEL (httpd) — use o script (recomendado):
+#   sudo bash deploy/setup-apache-stake37.sh
+#
+# Manual CentOS:
+#   sudo cp deploy/apache-stake37.conf.example /etc/httpd/conf.d/stake37.conf
+#   sudo sed -i 's|${APACHE_LOG_DIR}|/var/log/httpd|g' /etc/httpd/conf.d/stake37.conf
+#   sudo httpd -t && sudo systemctl restart httpd
+#   sudo dnf install -y certbot python3-certbot-apache
+#   sudo certbot --apache -d stake37.com.br -d www.stake37.com.br
+#
+# Parar Nginx se estiver activo (Apache já usa 80/443):
+#   sudo systemctl stop nginx
+#   sudo systemctl disable nginx
+
+<VirtualHost *:80>
+    ServerName stake37.com.br
+    ServerAlias www.stake37.com.br
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    RequestHeader set X-Forwarded-Proto "http"
+    RequestHeader set X-Forwarded-Port "80"
+
+    # SSE / streams longos
+    ProxyPass /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins
+    ProxyPass /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream
+    ProxyPass /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream
+    ProxyPass /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream
+
+    ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    ErrorLog ${APACHE_LOG_DIR}/stake37-error.log
+    CustomLog ${APACHE_LOG_DIR}/stake37-access.log combined
+</VirtualHost>
+
+# Após certbot --apache, este bloco :443 é criado/actualizado automaticamente.
+# Se configurar SSL manualmente, descomente e ajuste os caminhos:
+#
+# <VirtualHost *:443>
+#     ServerName stake37.com.br
+#     ServerAlias www.stake37.com.br
+#     SSLEngine on
+#     SSLCertificateFile /etc/letsencrypt/live/stake37.com.br/fullchain.pem
+#     SSLCertificateKeyFile /etc/letsencrypt/live/stake37.com.br/privkey.pem
+#     Include /etc/letsencrypt/options-ssl-apache.conf
+#     (mesmos ProxyPass do bloco :80)
+# </VirtualHost>

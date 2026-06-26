@@ -3,13 +3,13 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 const STORAGE_KEY = "roulette.liveApi.enabled";
 
 function readStored(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    if (v === null) return false;
+    if (v === null) return true;
     return v === "1" || v === "true";
   } catch {
-    return false;
+    return true;
   }
 }
 

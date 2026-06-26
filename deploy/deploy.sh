@@ -13,7 +13,15 @@ git fetch origin "${BRANCH}"
 git pull --ff-only origin "${BRANCH}"
 
 echo "→ npm ci"
-npm ci
+if ! npm ci 2>/dev/null; then
+  echo "→ lock desactualizado — npm install"
+  npm install
+fi
+
+if ! command -v pm2 >/dev/null 2>&1; then
+  echo "→ instalar PM2"
+  npm install -g pm2
+fi
 
 echo "→ npm run build"
 npm run build

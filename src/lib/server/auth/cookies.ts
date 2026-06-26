@@ -21,15 +21,30 @@ export function getSessionIdFromRequest(request: Request): string | null {
   return id || null;
 }
 
-function cookieBase(): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `Path=/; HttpOnly; SameSite=Lax${secure}`;
+/** Deteta HTTPS atrás de Nginx (X-Forwarded-Proto). */
+export function isSecureRequest(request: Request): boolean {
+  const forwarded = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (forwarded) return forwarded === "https";
+  try {
+    return new URL(request.url).protocol === "https:";
+  } catch {
+    return process.env.NODE_ENV === "production";
+  }
 }
 
-export function buildSessionCookie(sessionId: string, maxAgeSec = THIRTY_DAYS_SEC): string {
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; ${cookieBase()}; Max-Age=${maxAgeSec}`;
+function cookieBase(secure: boolean): string {
+  const secureFlag = secure ? "; Secure" : "";
+  return `Path=/; HttpOnly; SameSite=Lax${secureFlag}`;
 }
 
-export function buildClearSessionCookie(): string {
-  return `${SESSION_COOKIE_NAME}=; ${cookieBase()}; Max-Age=0`;
+export function buildSessionCookie(
+  sessionId: string,
+  maxAgeSec = THIRTY_DAYS_SEC,
+  secure = process.env.NODE_ENV === "production",
+): string {
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; ${cookieBase(secure)}; Max-Age=${maxAgeSec}`;
+}
+
+export function buildClearSessionCookie(secure = process.env.NODE_ENV === "production"): string {
+  return `${SESSION_COOKIE_NAME}=; ${cookieBase(secure)}; Max-Age=0`;
 }
