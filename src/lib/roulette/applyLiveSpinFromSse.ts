@@ -276,3 +276,24 @@ export function applyLiveSpinReplayBatch(
 
   return "replay-seeded";
 }
+
+/** Fallback HTTP polling — sincroniza históricos por mesa a partir do hub servidor. */
+export function applyPolledTableHistories(histories: Record<number, number[]>): boolean {
+  let changed = false;
+  for (const [tid, apiNums] of Object.entries(histories)) {
+    const tableId = Number(tid);
+    if (!Number.isFinite(tableId) || tableId <= 0) continue;
+    if (!Array.isArray(apiNums) || apiNums.length === 0) continue;
+    const nums = apiNums.filter((n) => Number.isInteger(n) && n >= 0 && n <= 36);
+    if (nums.length === 0) continue;
+
+    const local = readLiveTableHistory(tableId);
+    const reconciled = reconcileWithApiSnapshot(local, nums);
+    if (!arraysEqual(local, reconciled)) {
+      persistLiveTableHistory(tableId, reconciled, { suppressDispatch: true });
+      notifyLiveTableHistoryChanged(tableId);
+      changed = true;
+    }
+  }
+  return changed;
+}

@@ -188,3 +188,34 @@ export function subscribeRouletteHub(listener: Listener): () => void {
     shutdownUpstreamIfIdle();
   };
 }
+
+/** Diagnóstico / fallback polling — histórico em cache do hub Pragmatic. */
+export function getRouletteHubHistories(): Record<number, number[]> {
+  const out: Record<number, number[]> = {};
+  for (const [tableId, spins] of tableHistorySnapshotById) {
+    out[tableId] = spins.map((s) => s.number);
+  }
+  for (const [tableId, spin] of lastEmittedByTable) {
+    if (!out[tableId]?.length) out[tableId] = [spin.number];
+  }
+  return out;
+}
+
+export function getRouletteHubStatus() {
+  const tableIds = parseRouletteTableIdsFromEnv();
+  const tables = tableIds.map((tableId) => ({
+    tableId,
+    historyCount: tableHistorySnapshotById.get(tableId)?.length ?? 0,
+    lastNumber: lastEmittedByTable.get(tableId)?.number ?? null,
+  }));
+  return {
+    upstreamActive: upstreamDisposers.length > 0,
+    listenerCount: listeners.size,
+    idleShutdownMs: UPSTREAM_IDLE_MS,
+    casinoId: process.env.ROULETTE_CASINO_ID ?? "ppcdk00000005148",
+    wsUrl: process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws",
+    tableIds,
+    tables,
+    hasData: tables.some((t) => t.historyCount > 0 || t.lastNumber != null),
+  };
+}

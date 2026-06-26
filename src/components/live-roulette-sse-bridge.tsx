@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import {
   applyLiveSpinFromSse,
   applyLiveSpinReplayBatch,
+  applyPolledTableHistories,
   initLiveSpinDedupeFromStorage,
   normalizeGameId,
   type LiveSsePayload,
@@ -14,6 +15,8 @@ import {
 } from "@/lib/roulette/liveTableConfig";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
 
+const POLL_MS = 4_000;
+
 function parseReadyTableId(x: unknown): number | null {
   if (typeof x === "number" && Number.isFinite(x) && x > 0) return Math.trunc(x);
   if (typeof x === "string") {
@@ -21,6 +24,20 @@ function parseReadyTableId(x: unknown): number | null {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return null;
+}
+
+async function pollHistories(): Promise<boolean> {
+  const res = await fetch("/api/roulette/histories", { credentials: "include" });
+  if (!res.ok) return false;
+  const data = (await res.json()) as {
+    histories?: Record<number, number[]>;
+    status?: { tableIds?: number[]; hasData?: boolean };
+  };
+  if (Array.isArray(data.status?.tableIds) && data.status.tableIds.length > 0) {
+    setLiveRouletteTableConfigFromServer(data.status.tableIds);
+  }
+  if (!data.histories) return false;
+  return applyPolledTableHistories(data.histories);
 }
 
 export function LiveRouletteSseBridge() {
@@ -33,6 +50,20 @@ export function LiveRouletteSseBridge() {
 
     let closed = false;
     dispatchLiveSseStatus({ status: "connecting", message: null });
+
+    const syncPoll = () => {
+      if (closed) return;
+      void pollHistories()
+        .then((ok) => {
+          if (ok && !closed) dispatchLiveSseStatus({ status: "open", message: null });
+        })
+        .catch(() => {
+          if (!closed) dispatchLiveSseStatus({ status: "error", message: null });
+        });
+    };
+
+    syncPoll();
+    const pollTimer = setInterval(syncPoll, POLL_MS);
 
     const url = new URL("/api/roulette/spins", window.location.origin).href;
     if (import.meta.env.DEV) {
@@ -113,6 +144,7 @@ export function LiveRouletteSseBridge() {
 
     return () => {
       closed = true;
+      clearInterval(pollTimer);
       source.close();
     };
   }, []);
