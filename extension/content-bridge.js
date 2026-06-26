@@ -115,6 +115,34 @@ window.__singlestakeExtension = {
       chrome.storage.local.get(["gogPrimeBackup"], (data) => resolve(data.gogPrimeBackup ?? null));
     });
   },
+  setBridgeEnabled(enabled) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { kind: "set-bridge-enabled", enabled: enabled === true },
+        (out) => resolve(out ?? { ok: true }),
+      );
+    });
+  },
+  getBridgeEnabled() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
+        resolve(status?.bridgeEnabled !== false);
+      });
+    });
+  },
+  setExecutionMode(mode) {
+    const m = mode === "real" ? "real" : "demo";
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "set-mode", mode: m }, (out) => resolve(out ?? { ok: true }));
+    });
+  },
+  getExecutionMode() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
+        resolve(status?.mode === "real" ? "real" : "demo");
+      });
+    });
+  },
 };
 
 /** Anuncia presença assim que o script carrega (antes do primeiro ping da página). */

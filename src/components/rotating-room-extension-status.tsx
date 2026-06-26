@@ -15,6 +15,16 @@ type Props = {
   compact?: boolean;
 };
 
+type ExtensionApi = {
+  setBridgeEnabled?: (enabled: boolean) => Promise<unknown>;
+  getBridgeEnabled?: () => Promise<boolean>;
+};
+
+function extensionApi(): ExtensionApi | null {
+  if (typeof window === "undefined") return null;
+  return (window as Window & { __singlestakeExtension?: ExtensionApi }).__singlestakeExtension ?? null;
+}
+
 export function RotatingRoomExtensionStatus({ className, compact }: Props) {
   const { present: extensionPresent } = useRotatingRoomExtensionPresent();
   const [enabled, setEnabled] = useState(readRotatingRoomExtensionEnabled);
@@ -32,11 +42,22 @@ export function RotatingRoomExtensionStatus({ className, compact }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!extensionPresent) return;
+    const api = extensionApi();
+    if (!api?.getBridgeEnabled) return;
+    void api.getBridgeEnabled().then((bridgeOn) => {
+      writeRotatingRoomExtensionEnabled(bridgeOn);
+      setEnabled(bridgeOn);
+    });
+  }, [extensionPresent]);
+
   const toggle = () => {
     if (!extensionPresent) return;
     const next = !enabled;
     writeRotatingRoomExtensionEnabled(next);
     setEnabled(next);
+    void extensionApi()?.setBridgeEnabled?.(next);
   };
 
   return (
@@ -44,6 +65,8 @@ export function RotatingRoomExtensionStatus({ className, compact }: Props) {
       className={cn(
         "rounded-xl border border-border-color bg-bg-card/60",
         compact ? "px-2.5 py-2" : "px-3 py-2.5",
+        enabled && extensionPresent && "border-emerald-500/35",
+        !enabled && extensionPresent && "border-red-500/35",
         className,
       )}
     >
@@ -60,6 +83,16 @@ export function RotatingRoomExtensionStatus({ className, compact }: Props) {
         >
           Extensão Chrome
         </span>
+        <span
+          className={cn(
+            "text-[9px] font-bold uppercase tracking-wide",
+            !extensionPresent && "text-text-secondary",
+            extensionPresent && enabled && "text-emerald-400",
+            extensionPresent && !enabled && "text-red-400",
+          )}
+        >
+          {!extensionPresent ? "Ausente" : enabled ? "Ligada" : "Desligada"}
+        </span>
         <button
           type="button"
           onClick={toggle}
@@ -68,20 +101,28 @@ export function RotatingRoomExtensionStatus({ className, compact }: Props) {
           aria-label={enabled ? "Desligar extensão" : "Ligar extensão"}
           title={
             !extensionPresent
-              ? "Extensão não detectada"
+              ? "Instale e recarregue a extensão STAKE37"
               : enabled
-                ? "Extensão ligada"
-                : "Extensão desligada"
+                ? "Clique para desligar"
+                : "Clique para ligar"
           }
           className={cn(
-            "ml-auto shrink-0 rounded-full border-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-            compact ? "h-6 w-6" : "h-7 w-7",
+            "relative ml-auto shrink-0 rounded-full border-2 transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            compact ? "h-6 w-11" : "h-7 w-12",
             !extensionPresent && "cursor-not-allowed opacity-40",
-            enabled
-              ? "border-success bg-success shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-              : "border-red-500 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.35)]",
+            extensionPresent && enabled && "border-emerald-400 bg-emerald-500",
+            extensionPresent && !enabled && "border-red-400 bg-red-500",
           )}
-        />
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 block rounded-full bg-white shadow-md transition-[left]",
+              compact ? "h-4 w-4" : "h-5 w-5",
+              enabled ? (compact ? "left-[22px]" : "left-[22px]") : "left-0.5",
+            )}
+          />
+        </button>
       </div>
     </div>
   );

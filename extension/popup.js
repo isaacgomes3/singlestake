@@ -1,7 +1,11 @@
 const powerToggle = document.getElementById("powerToggle");
 const modeDemoBtn = document.getElementById("modeDemo");
 const modeRealBtn = document.getElementById("modeReal");
+const modeBadge = document.getElementById("modeBadge");
 const toast = document.getElementById("toast");
+
+const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
+const STORAGE_MODE = "gogExecutionMode";
 
 function showToast(text, kind = "") {
   if (!toast) return;
@@ -13,6 +17,10 @@ function setModeUi(mode) {
   const isDemo = mode !== "real";
   modeDemoBtn?.classList.toggle("active-demo", isDemo);
   modeRealBtn?.classList.toggle("active-real", !isDemo);
+  if (modeBadge) {
+    modeBadge.textContent = isDemo ? "Demo" : "Real";
+    modeBadge.className = `mode-badge ${isDemo ? "demo" : "real"}`;
+  }
 }
 
 function setPowerUi(enabled) {
@@ -20,34 +28,58 @@ function setPowerUi(enabled) {
   powerToggle?.classList.toggle("on", on);
   powerToggle?.classList.toggle("off", !on);
   powerToggle?.setAttribute("aria-pressed", on ? "true" : "false");
+  powerToggle?.setAttribute("title", on ? "Ligada — clique para desligar" : "Desligada — clique para ligar");
 }
 
-function loadBridgeState() {
-  chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
-    if (chrome.runtime.lastError) {
-      showToast(chrome.runtime.lastError.message, "err");
-      return;
-    }
-    setModeUi(status?.mode ?? "demo");
-    setPowerUi(status?.bridgeEnabled !== false);
+function readBridgeEnabled(cb) {
+  chrome.storage.local.get([STORAGE_BRIDGE_ENABLED], (data) => {
+    cb(data[STORAGE_BRIDGE_ENABLED] !== false);
   });
 }
 
+function readMode(cb) {
+  chrome.storage.local.get([STORAGE_MODE, "gogExteriorDryRun", "gogPragmaticDryRun"], (data) => {
+    if (data[STORAGE_MODE] === "real" || data[STORAGE_MODE] === "demo") {
+      cb(data[STORAGE_MODE]);
+      return;
+    }
+    if (data.gogExteriorDryRun === false || data.gogPragmaticDryRun === false) {
+      cb("real");
+      return;
+    }
+    cb("demo");
+  });
+}
+
+function loadBridgeState() {
+  readBridgeEnabled((bridgeOn) => setPowerUi(bridgeOn));
+  readMode((mode) => setModeUi(mode));
+}
+
 function togglePower() {
-  chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
-    const currentlyOn = status?.bridgeEnabled !== false;
+  readBridgeEnabled((currentlyOn) => {
     const next = !currentlyOn;
-    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: next }, () => {
-      setPowerUi(next);
-      showToast("");
+    setPowerUi(next);
+    chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: next }, () => {
+      if (chrome.runtime.lastError) {
+        showToast(chrome.runtime.lastError.message, "err");
+        setPowerUi(currentlyOn);
+        return;
+      }
+      showToast(next ? "Extensão ligada" : "Extensão desligada", "ok");
     });
   });
 }
 
 function setMode(mode) {
+  setModeUi(mode);
   chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => {
-    setModeUi(mode);
-    showToast("");
+    if (chrome.runtime.lastError) {
+      showToast(chrome.runtime.lastError.message, "err");
+      loadBridgeState();
+      return;
+    }
+    showToast(mode === "real" ? "Modo Real activo" : "Modo Demo activo", "ok");
   });
 }
 
@@ -124,8 +156,11 @@ document.getElementById("primeFile")?.addEventListener("change", (ev) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.gogBridgeEnabled) {
-    setPowerUi(changes.gogBridgeEnabled.newValue !== false);
+  if (changes[STORAGE_BRIDGE_ENABLED]) {
+    setPowerUi(changes[STORAGE_BRIDGE_ENABLED].newValue !== false);
+  }
+  if (changes[STORAGE_MODE] || changes.gogExteriorDryRun || changes.gogPragmaticDryRun) {
+    readMode((mode) => setModeUi(mode));
   }
 });
 

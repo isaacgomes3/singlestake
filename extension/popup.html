@@ -100,8 +100,33 @@
       }
       .btn.active-real {
         border-color: #22c55e;
-        background: rgba(34, 197, 94, 0.12);
+        background: rgba(34, 197, 94, 0.22);
         color: #86efac;
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.35);
+      }
+      .btn.active-demo {
+        box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);
+      }
+      .mode-badge {
+        margin-top: 6px;
+        text-align: center;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+      }
+      .mode-badge.demo {
+        color: #67e8f9;
+        background: rgba(34, 211, 238, 0.12);
+        border-color: rgba(34, 211, 238, 0.45);
+      }
+      .mode-badge.real {
+        color: #86efac;
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.45);
       }
       .bet-grid {
         display: grid;
@@ -186,6 +211,7 @@
         <button type="button" class="btn" id="modeDemo" data-mode="demo">Demo</button>
         <button type="button" class="btn" id="modeReal" data-mode="real">Real</button>
       </div>
+      <div id="modeBadge" class="mode-badge demo">Demo</div>
     </section>
 
     <section class="section">
