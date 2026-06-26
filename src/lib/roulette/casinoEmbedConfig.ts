@@ -1,11 +1,16 @@
 /**
- * URLs embutidas por defeito (operador). Sobrescritas por `VITE_CASINO_TABLE_EMBED_URLS` ou URL guardada pelo utilizador.
- * O provedor (Playtech, Pragmatic, etc.) é só o path do operador — a estratégia não depende dele.
- * Ex. Playtech: https://br4.bet.br/play/playtech/<jogo>
- * Ex. Pragmatic: https://br4.bet.br/play/pragmatic/<jogo>
+ * URLs embutidas por defeito (operador br4.bet / Pragmatic).
+ * Sobrescritas por `VITE_CASINO_TABLE_EMBED_URLS` (build) ou URL guardada no browser (localStorage).
  */
 const DEFAULT_TABLE_EMBED_URLS: Record<number, string> = {
-  /** Sem URLs Pragmatic por defeito — configure Playtech (ou outro) em casino-mesa ou VITE_CASINO_TABLE_EMBED_URLS. */
+  /** Sala rotativa + lobby — mesmos links do `.env.example` */
+  227: "https://br4.bet.br/play/pragmatic/roulette-1",
+  203: "https://br4.bet.br/play/pragmatic/speed-roulette-1",
+  230: "https://br4.bet.br/play/pragmatic/roulette-3",
+  201: "https://br4.bet.br/play/pragmatic/roulette-2-extra-time",
+  206: "https://br4.bet.br/play/pragmatic/roulette-macao",
+  237: "https://br4.bet.br/play/pragmatic/roleta-brasileira",
+  213: "https://br4.bet.br/play/pragmatic/korean-roulette",
 };
 
 const VITE_TABLE_EMBED = (() => {
