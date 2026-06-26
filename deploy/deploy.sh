@@ -11,9 +11,13 @@ cd "$ROOT"
 
 BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
 
-echo "→ git pull (${BRANCH})"
+echo "→ git actualizar (${BRANCH})"
 git fetch origin "${BRANCH}"
-git pull --ff-only origin "${BRANCH}"
+# VPS: npm run build/dev pode alterar routeTree.gen.ts — reset alinha com o remoto (.env fica: está no .gitignore).
+if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+  echo "  (alterações locais descartadas — só código do GitHub)"
+fi
+git reset --hard "origin/${BRANCH}"
 
 echo "→ sincronizar chaves .env em falta"
 bash deploy/sync-env-keys.sh
