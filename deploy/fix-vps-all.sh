@@ -102,6 +102,13 @@ sleep 60
 HIST=$(curl -sf --max-time 90 http://127.0.0.1:3000/api/roulette/histories || echo '{}')
 echo "$HIST" | head -c 400
 echo ""
+if echo "$HIST" | grep -q '"webSocketAvailable":false'; then
+  echo ""
+  echo "========== ✗ WebSocket polyfill INACTIVO =========="
+  echo "   pm2 delete singlestake && pm2 start deploy/ecosystem.config.cjs"
+  pm2 logs singlestake --lines 20 --nostream 2>/dev/null | tail -15
+  exit 1
+fi
 if echo "$HIST" | grep -q '"hasData":true'; then
   echo ""
   echo "========== ✓ SUCESSO — giros activos =========="

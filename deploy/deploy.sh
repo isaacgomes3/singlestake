@@ -81,6 +81,11 @@ if pm2 logs singlestake --lines 20 --nostream 2>/dev/null | grep -q "bufferUtil.
   echo "✗ ERRO bufferutil — confirme WS_NO_BUFFER_UTIL=1 no .env e npm run build recente"
 fi
 
+HIST_CHECK="$(curl -sf --max-time 30 http://127.0.0.1:3000/api/roulette/histories 2>/dev/null || echo '{}')"
+if echo "$HIST_CHECK" | grep -q '"webSocketAvailable":false'; then
+  echo "✗ WebSocket polyfill inactivo — confirme node-preload no PM2 (deploy/ecosystem.config.cjs)"
+fi
+
 AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
 if [[ -f "$AAPANEL_CONF" ]] && ! grep -q "api/roulette/spins" "$AAPANEL_CONF" 2>/dev/null; then
   echo "⚠ Apache sem proxy SSE — copie deploy/aapanel-stake37.conf.example para $AAPANEL_CONF"

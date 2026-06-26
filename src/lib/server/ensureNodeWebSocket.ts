@@ -1,9 +1,23 @@
 /**
  * Node.js não expõe WebSocket global (ao contrário do browser).
- * Os sockets DGA (roleta, 24D, football blitz) usam addEventListener — este adapter
- * implementa a API standard em cima do pacote `ws`.
+ * Em produção o polyfill principal está em deploy/node-preload.mjs (PM2 --import).
+ * Este módulo cobre dev e fallback se o preload não correu.
  */
-import WS from "ws";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+process.env.WS_NO_BUFFER_UTIL ??= "1";
+process.env.WS_NO_UTF_8_VALIDATE ??= "1";
+
+let WS: typeof import("ws");
+try {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  WS = createRequire(join(root, "package.json"))("ws") as typeof import("ws");
+} catch (err) {
+  console.error("[Roleta] FALHA ao carregar ws:", err);
+  throw err;
+}
 
 class NodeWebSocket extends EventTarget {
   private readonly ws: WS;

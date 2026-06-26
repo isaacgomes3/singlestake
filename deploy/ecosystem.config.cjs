@@ -9,7 +9,7 @@ module.exports = {
       name: "singlestake",
       script: ".output/server/index.mjs",
       cwd: root,
-      node_args: "--import dotenv/config",
+      node_args: "--import ./deploy/node-preload.mjs --import dotenv/config",
       instances: 1,
       exec_mode: "fork",
       env: {
