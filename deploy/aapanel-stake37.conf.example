@@ -1,0 +1,70 @@
+# aaPanel — stake37.com.br → Node (PM2 :3000)
+# NÃO desactiva outros sites. Cole em:
+#   Website → stake37.com.br → Config → Apache config (ou ficheiro em
+#   /www/server/panel/vhost/apache/stake37.com.br.conf)
+#
+# IMPORTANTE: as linhas /api/roulette/* DEVEM vir ANTES do ProxyPass / geral.
+# Sem isto, os giros (SSE) não chegam ao browser e os cartões ficam "Sem giros".
+
+<VirtualHost *:80>
+    ServerName stake37.com.br
+    ServerAlias www.stake37.com.br
+    DocumentRoot "/www/wwwroot/stake37.com.br"
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+    RequestHeader set X-Forwarded-Proto "http"
+    RequestHeader set X-Forwarded-Port "80"
+
+    # SSE — streams longos (roleta, sala rotativa, simulador)
+    ProxyPass /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins
+    ProxyPass /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream
+    ProxyPass /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream
+    ProxyPass /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream
+    ProxyPass /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/ retry=0 timeout=3600
+    ProxyPassReverse /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/
+
+    ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    ErrorLog "/www/wwwlogs/stake37.com.br-error_log"
+    CustomLog "/www/wwwlogs/stake37.com.br-access_log" combined
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName stake37.com.br
+    ServerAlias www.stake37.com.br
+    DocumentRoot "/www/wwwroot/stake37.com.br"
+
+    SSLEngine On
+    SSLCertificateFile /etc/letsencrypt/live/www.stake37.com.br/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/www.stake37.com.br/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+
+    ProxyPass /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/spins http://127.0.0.1:3000/api/roulette/spins
+    ProxyPass /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/strategy-global/stream http://127.0.0.1:3000/api/roulette/strategy-global/stream
+    ProxyPass /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/automation-sim/stream http://127.0.0.1:3000/api/roulette/automation-sim/stream
+    ProxyPass /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/rotating-room/stream http://127.0.0.1:3000/api/roulette/rotating-room/stream
+    ProxyPass /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/ retry=0 timeout=3600
+    ProxyPassReverse /api/pragmatic/ http://127.0.0.1:3000/api/pragmatic/
+
+    ProxyPass / http://127.0.0.1:3000/ retry=0 timeout=300
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    ErrorLog "/www/wwwlogs/stake37.com.br-error_log"
+    CustomLog "/www/wwwlogs/stake37.com.br-access_log" combined
+</VirtualHost>
+
+# Depois: /www/server/apache/bin/httpd -t && /etc/init.d/httpd reload

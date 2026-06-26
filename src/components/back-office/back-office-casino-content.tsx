@@ -8,6 +8,7 @@ import { lobbyTableHasRotatingRoomSignal } from "@/lib/roulette/rotatingRoomLobb
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
+import { useLiveSseStatus } from "@/hooks/useLiveSseStatus";
 import {
   getLiveRouletteTableIds,
   getPrimaryLiveTableId,
@@ -260,6 +261,7 @@ type CasinoModuleId = Extract<
 >;
 
 function CassinoAoVivoRoletasGrid() {
+  const sseStatus = useLiveSseStatus();
   const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
 
@@ -281,6 +283,14 @@ function CassinoAoVivoRoletasGrid() {
   return (
     <div className="space-y-6">
       <RotatingRoomExtensionStatus />
+      {sseStatus.status === "error" ? (
+        <p className="text-sm text-amber-300">
+          Sem ligação aos giros ao vivo. Confirme o proxy SSE no servidor (aaPanel) e as variáveis
+          ROULETTE_* no .env.
+        </p>
+      ) : sseStatus.status === "connecting" ? (
+        <p className="text-sm text-slate-400">A ligar aos giros ao vivo…</p>
+      ) : null}
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <div className="flex min-h-0 flex-col gap-2">
           <div className="min-h-0 flex-1">

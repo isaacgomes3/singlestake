@@ -20,6 +20,9 @@ export const Route = createFileRoute("/api/roulette/spins")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const { ensureRouletteHubDaemon } = await import("@/lib/server/rouletteHubDaemon");
+        ensureRouletteHubDaemon();
+
         console.log("[Roleta] GET /api/roulette/spins — cliente SSE");
         const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
         const { parseRouletteTableIdsFromEnv } = await import("@/lib/server/rouletteSocket");

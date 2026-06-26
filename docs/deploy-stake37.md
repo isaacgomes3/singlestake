@@ -112,6 +112,35 @@ pm2 save
 curl -s -H "Host: stake37.com.br" http://127.0.0.1/entrar | grep -i singlestake | head -1
 ```
 
+## 5c. aaPanel — giros "Sem giros" (proxy SSE)
+
+Se os cartões mostram **Sem giros**, o Apache do aaPanel provavelmente não encaminha o stream SSE.
+
+1. Copie `deploy/aapanel-stake37.conf.example` para o vhost do site no aaPanel
+2. **As linhas `/api/roulette/*` devem vir ANTES do `ProxyPass /`**
+3. Reload: `/www/server/apache/bin/httpd -t && /etc/init.d/httpd reload`
+
+No `.env` da VPS, confirme:
+
+```env
+ROULETTE_WS_URL=wss://dga.pragmaticplaylive.net/ws
+ROULETTE_CASINO_ID=ppcdk00000005148
+ROULETTE_TABLE_IDS=234,227,203,230,201,206,237,213
+ROULETTE_HUB_IDLE_SHUTDOWN_MS=-1
+```
+
+Diagnóstico:
+
+```bash
+# Stream SSE (deve ficar aberto e mostrar data: {"type":"ready"...})
+curl -N -H "Accept: text/event-stream" http://127.0.0.1:3000/api/roulette/spins | head -3
+
+# Via Apache (substitua Host se necessário)
+curl -N -H "Accept: text/event-stream" -H "Host: stake37.com.br" https://127.0.0.1/api/roulette/spins -k | head -3
+
+pm2 logs singlestake --lines 30 | grep -i roleta
+```
+
 ## 6. Verificar
 
 ```bash
@@ -151,5 +180,6 @@ A extensão em `extension/` já aceita **stake37.com.br**. Reinstale ou recarreg
 | `deploy/vps-setup.sh` | Node, PM2, Nginx, Certbot |
 | `deploy/deploy.sh` | Pull + build + DB + PM2 |
 | `deploy/nginx-stake37.conf` | Reverse proxy stake37.com.br |
+| `deploy/aapanel-stake37.conf.example` | Reverse proxy aaPanel (SSE giros) |
 | `deploy/apache-stake37.conf.example` | VirtualHost Apache (VPS partilhada) |
 | `deploy/env.production.example` | `.env` de produção |
