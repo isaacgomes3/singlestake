@@ -12,7 +12,11 @@ import {
   resolveRotatingRoomTableIds,
 } from "@/lib/roulette/lobbyTables";
 import { buildRotatingRoomMesaCatalog } from "@/lib/roulette/rotatingRoomExtensionBridge";
-import { rotatingRoomLobbyFocusTableId } from "@/lib/roulette/rotatingRoomLobbySignal";
+import {
+  isRotatingRoomLobbyWait,
+  rotatingRoomLobbyFocusTableId,
+  ROTATING_ROOM_LOBBY_WAIT_EMBED_URL,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   readRotatingRoomExtensionEnabled,
   ROTATING_ROOM_EXTENSION_ENABLED_KEY,
@@ -58,6 +62,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
   });
 
   const mesaEmbedUrl = useMemo(() => {
+    if (isRotatingRoomLobbyWait(session)) return ROTATING_ROOM_LOBBY_WAIT_EMBED_URL;
     const focusId = rotatingRoomLobbyFocusTableId(session) ?? session.currentTableId;
     if (focusId == null) return null;
     const catalog = buildRotatingRoomMesaCatalog();

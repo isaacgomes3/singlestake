@@ -20,6 +20,10 @@ import {
   readExtensionLastEmitKey,
   writeExtensionLastEmitKey,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
+import {
+  isRotatingRoomLobbyWait,
+  type RotatingRoomLobbySession,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 
 export type ClickBotLearningMode = "dry" | "click" | "extension";
 
@@ -69,6 +73,7 @@ function sessionToSlice(
     singleFactorMode,
     signalId,
     currentRecovery: session.currentRecovery,
+    lobbyWait: isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
   };
 }
 
@@ -83,6 +88,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
   const prevEmitKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (sessionSlice.lobbyWait) return;
     if (!sessionSlice.showTapeteSignal) {
       if (sessionSlice.sessionMode !== "prepare") {
         clearExtensionLastEmitKey();
@@ -114,7 +120,9 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       return;
     }
 
-    const emitKey = `${sessionSlice.signalId ?? fingerprint}|r${sessionSlice.currentRecovery ?? 0}`;
+    const emitKey = sessionSlice.lobbyWait
+      ? "lobby-wait-poker"
+      : `${sessionSlice.signalId ?? fingerprint}|r${sessionSlice.currentRecovery ?? 0}`;
     if (mode === "extension" && clicks.length > 0) {
       if (readExtensionLastEmitKey() === emitKey) return;
       writeExtensionLastEmitKey(emitKey);

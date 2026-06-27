@@ -34,6 +34,8 @@ export type RotatingRoomClickBotSessionSlice = {
   signalId?: string | null;
   /** Nível de recuperação (gale) — define valor da ficha na extensão. */
   currentRecovery?: number;
+  /** Sem mesa em foco — extensão mantém poker aberto (como o iframe do lobby). */
+  lobbyWait?: boolean;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -92,6 +94,17 @@ export function planRotatingRoomClickBotActions(
     return [{ kind: "wait", reason: "Aguardar próxima mesa (recuperação)" }];
   }
 
+  if (session.lobbyWait) {
+    return [
+      {
+        kind: "click",
+        target: "prepare-open",
+        label: "Lobby — Poker",
+        reason: "Aguarde no Lobby — abrir poker no operador",
+      },
+    ];
+  }
+
   return [{ kind: "wait", reason: "Sem sinal — aguardar indicação na sala rotativa" }];
 }
 
@@ -107,6 +120,7 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.signalId ?? "",
     session.currentRecovery ?? 0,
     session.singleFactorMode ? 1 : 0,
+    session.lobbyWait ? 1 : 0,
     f ? `${f.factor1.kind}:${f.factor1.value}|${f.factor2.kind}:${f.factor2.value}` : "",
   ].join("|");
 }

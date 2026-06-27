@@ -948,6 +948,9 @@ async function resolveMesaTabId(context, preferredTabId) {
 }
 
 function mesaUrlFromContext(context) {
+  if (context?.lobbyWait === true && typeof context?.mesaEmbedUrl === "string") {
+    return context.mesaEmbedUrl.trim();
+  }
   const tableId = context?.currentTableId;
   if (tableId != null && Array.isArray(context?.mesaCatalog)) {
     const entry = context.mesaCatalog.find((e) => e && e.tableId === tableId && e.url);

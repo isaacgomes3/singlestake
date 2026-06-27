@@ -17,6 +17,7 @@ import {
   type CasinoEmbedProvider,
 } from "@/lib/roulette/casinoEmbedProviderHint";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
+import { ROTATING_ROOM_LOBBY_WAIT_EMBED_URL } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { RotatingRoomClickBotAction } from "@/lib/roulette/rotatingRoomClickBotLearning";
 import type { RotatingRoomClickBotSessionSlice } from "@/lib/roulette/rotatingRoomClickBotLearning";
 import { readRotatingRoomExtensionRealMode, readEffectiveUmFatorMaxRecovery } from "@/lib/roulette/rotatingRoomExtensionPrefs";
@@ -63,6 +64,8 @@ export type RotatingRoomExtensionContext = {
   maxRecovery: number;
   /** demo | real — prioridade sobre o modo do popup da extensão. */
   executionMode: "demo" | "real";
+  /** Aguarde no Lobby — navegar para poker em vez de mesa de roleta. */
+  lobbyWait?: boolean;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -103,8 +106,10 @@ export function buildRotatingRoomExtensionContext(
   mesaEmbedUrlOverride?: string | null,
   automationBalance?: number | null,
 ): RotatingRoomExtensionContext {
-  const focusTableId =
-    session.showTapeteSignal && session.currentTableId != null
+  const lobbyWait = session.lobbyWait === true;
+  const focusTableId = lobbyWait
+    ? null
+    : session.showTapeteSignal && session.currentTableId != null
       ? session.currentTableId
       : session.prepareTableId;
   const crossing = session.activeCrossing;
@@ -113,10 +118,11 @@ export function buildRotatingRoomExtensionContext(
     focusTableId != null
       ? mesaCatalog.find((e) => e.tableId === focusTableId)?.url ?? null
       : null;
-  const mesaEmbedUrl =
-    (mesaEmbedUrlOverride && mesaEmbedUrlOverride.trim()) ||
-    mesaFromCatalog ||
-    (focusTableId != null ? getCasinoEmbedUrlForTable(focusTableId) : null);
+  const mesaEmbedUrl = lobbyWait
+    ? ROTATING_ROOM_LOBBY_WAIT_EMBED_URL
+    : (mesaEmbedUrlOverride && mesaEmbedUrlOverride.trim()) ||
+      mesaFromCatalog ||
+      (focusTableId != null ? getCasinoEmbedUrlForTable(focusTableId) : null);
   const recovery =
     typeof session.currentRecovery === "number" && Number.isFinite(session.currentRecovery)
       ? Math.max(0, Math.floor(session.currentRecovery))
@@ -128,8 +134,8 @@ export function buildRotatingRoomExtensionContext(
       : null;
   return {
     sessionMode: session.sessionMode,
-    prepareTableId: session.prepareTableId,
-    currentTableId: session.currentTableId,
+    prepareTableId: lobbyWait ? null : session.prepareTableId,
+    currentTableId: lobbyWait ? null : session.currentTableId,
     mesaEmbedUrl,
     mesaProvider: casinoEmbedProviderFromUrl(mesaEmbedUrl),
     factor1Label: crossing ? doisFatoresFactorLabel(crossing.factor1) : null,
@@ -148,6 +154,7 @@ export function buildRotatingRoomExtensionContext(
     baseStake: null,
     maxRecovery: readEffectiveUmFatorMaxRecovery(),
     executionMode: realMode ? "real" : "demo",
+    lobbyWait,
     mesaCatalog,
   };
 }
