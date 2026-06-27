@@ -22,6 +22,10 @@ if [[ ! -d .output/public/assets ]]; then
   exit 1
 fi
 
+if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
+  npm run db:push || echo "⚠ db:push ignorado"
+fi
+
 pm2 delete singlestake 2>/dev/null || true
 pm2 start deploy/ecosystem.config.cjs
 pm2 save

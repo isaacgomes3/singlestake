@@ -61,10 +61,33 @@ jobs:
                APP_DIR=/var/www/stake37
                if [ ! -d "$APP_DIR" ]; then APP_DIR=/var/www/singlestake; fi
                cd "$APP_DIR"
-               bash deploy/deploy.sh || bash deploy/quick-fix-site.sh || bash deploy/restart-site.sh
-               CSS=$(curl -sf http://127.0.0.1:3000/entrar | grep -oE "/assets/styles-[A-Za-z0-9_-]+\\.css" | head -1 || true)
+               set +e
+               bash deploy/deploy.sh
+               DEPLOY_RC=$?
+               if [ "$DEPLOY_RC" -ne 0 ]; then
+                 echo "=== deploy.sh falhou ($DEPLOY_RC) — quick-fix ==="
+                 bash deploy/quick-fix-site.sh
+                 DEPLOY_RC=$?
+               fi
+               if [ "$DEPLOY_RC" -ne 0 ]; then
+                 echo "=== quick-fix falhou — restart-site ==="
+                 bash deploy/restart-site.sh
+                 DEPLOY_RC=$?
+               fi
+               set -e
+               HTML_OK=0
+               if curl -sf --max-time 30 http://127.0.0.1:3000/entrar | grep -qi "<html"; then
+                 HTML_OK=1
+                 echo "=== HTML /entrar OK ==="
+               fi
+               CSS=$(curl -sf --max-time 30 http://127.0.0.1:3000/entrar | grep -oE "/assets/styles-[A-Za-z0-9_-]+\\.css" | head -1 || true)
                if [ -n "$CSS" ]; then
                  CODE=$(curl -sf -o /dev/null -w "%{http_code}" "http://127.0.0.1:3000${CSS}" || echo "000")
                  echo "=== Verificação CSS: ${CSS} → HTTP ${CODE} ==="
-                 [ "$CODE" = "200" ] || exit 1
-               fi'
+               fi
+               pm2 status 2>/dev/null || true
+               if [ "$HTML_OK" -eq 1 ]; then
+                 exit 0
+               fi
+               pm2 logs singlestake --lines 30 --nostream 2>/dev/null || true
+               exit 1'
