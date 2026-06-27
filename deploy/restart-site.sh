@@ -11,8 +11,8 @@ setup_deploy_path
 ensure_pm2
 
 if [[ ! -f .output/server/index.mjs ]]; then
-  echo "✗ Build em falta (.output/server/index.mjs) — execute: bash deploy/quick-fix-site.sh"
-  exit 1
+  echo "⚠ Build em falta — a correr quick-fix (npm run build + pm2)…"
+  bash "$APP_DIR/deploy/quick-fix-site.sh"
 fi
 
 echo "=== stake37 — restart site ==="

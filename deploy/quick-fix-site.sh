@@ -11,11 +11,20 @@ setup_deploy_path
 ensure_pm2
 
 echo "=== stake37 — quick fix site ==="
+echo "→ pasta: $(pwd) | commit: $(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+
 git fetch origin main
 git reset --hard origin/main
-echo "commit: $(git rev-parse --short HEAD)"
 
+if [[ ! -f package.json ]]; then
+  echo "✗ package.json não encontrado — confirme a pasta: cd /var/www/stake37"
+  exit 1
+fi
+
+echo "→ npm ci / build (pode demorar 2–5 min)"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 npm ci 2>/dev/null || npm install
+rebuild_native_modules
 pm2 delete singlestake 2>/dev/null || true
 sleep 2
 rm -rf .output
