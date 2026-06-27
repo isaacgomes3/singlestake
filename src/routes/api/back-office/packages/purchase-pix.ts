@@ -23,11 +23,14 @@ export const Route = createFileRoute("/api/back-office/packages/purchase-pix")({
           );
         }
 
-        const body = await readJsonBody<{ packageId?: string; amount?: number }>(request);
+        const body = await readJsonBody<{ packageId?: string; amount?: number; cpfDocument?: string }>(
+          request,
+        );
         const result = await createPackagePixOrder({
           userId: user.id,
           packageId: body?.packageId ?? "",
           amount: body?.amount,
+          cpfDocument: body?.cpfDocument,
         });
 
         if (!result.ok) {

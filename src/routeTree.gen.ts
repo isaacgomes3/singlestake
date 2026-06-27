@@ -44,6 +44,7 @@ import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiDamasRouteImport } from './routes/api/damas'
 import { Route as BackOfficeGroupIdIndexRouteImport } from './routes/back-office/$groupId/index'
 import { Route as BackOfficeGroupIdModuleIdRouteImport } from './routes/back-office/$groupId/$moduleId'
+import { Route as ApiWebhooksLucPagueiRouteImport } from './routes/api/webhooks/luc-paguei'
 import { Route as ApiWebhooksEfiPixRouteImport } from './routes/api/webhooks/efi-pix'
 import { Route as ApiRouletteTableMetaRouteImport } from './routes/api/roulette/table-meta'
 import { Route as ApiRouletteStrategyGlobalRouteImport } from './routes/api/roulette/strategy-global'
@@ -87,6 +88,7 @@ import { Route as ApiBackOfficeNetworkAffiliatesRouteImport } from './routes/api
 import { Route as ApiBackOfficeDepositsDepositIdRouteImport } from './routes/api/back-office/deposits.$depositId'
 import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/back-office/automation/daily'
 import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
+import { Route as ApiBackOfficeAdminPaymentGatewayRouteImport } from './routes/api/back-office/admin/payment-gateway'
 import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
 import { Route as ApiBackOfficeAdminUsersUserIdActivateStartRouteImport } from './routes/api/back-office/admin/users.$userId.activate-start'
@@ -268,6 +270,11 @@ const BackOfficeGroupIdModuleIdRoute =
     path: '/$moduleId',
     getParentRoute: () => BackOfficeGroupIdRoute,
   } as any)
+const ApiWebhooksLucPagueiRoute = ApiWebhooksLucPagueiRouteImport.update({
+  id: '/api/webhooks/luc-paguei',
+  path: '/api/webhooks/luc-paguei',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksEfiPixRoute = ApiWebhooksEfiPixRouteImport.update({
   id: '/api/webhooks/efi-pix',
   path: '/api/webhooks/efi-pix',
@@ -508,6 +515,12 @@ const ApiBackOfficeAdminPendingActivationsRoute =
     path: '/api/back-office/admin/pending-activations',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminPaymentGatewayRoute =
+  ApiBackOfficeAdminPaymentGatewayRouteImport.update({
+    id: '/api/back-office/admin/payment-gateway',
+    path: '/api/back-office/admin/payment-gateway',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficePackagesPixOrderOrderIdRoute =
   ApiBackOfficePackagesPixOrderOrderIdRouteImport.update({
     id: '/pix-order/$orderId',
@@ -590,8 +603,10 @@ export interface FileRoutesByFullPath {
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
+  '/api/webhooks/luc-paguei': typeof ApiWebhooksLucPagueiRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
@@ -671,8 +686,10 @@ export interface FileRoutesByTo {
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
+  '/api/webhooks/luc-paguei': typeof ApiWebhooksLucPagueiRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
@@ -756,8 +773,10 @@ export interface FileRoutesById {
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
+  '/api/webhooks/luc-paguei': typeof ApiWebhooksLucPagueiRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
@@ -842,8 +861,10 @@ export interface FileRouteTypes {
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
     | '/api/webhooks/efi-pix'
+    | '/api/webhooks/luc-paguei'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
+    | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
@@ -923,8 +944,10 @@ export interface FileRouteTypes {
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
     | '/api/webhooks/efi-pix'
+    | '/api/webhooks/luc-paguei'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId'
+    | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
@@ -1007,8 +1030,10 @@ export interface FileRouteTypes {
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
     | '/api/webhooks/efi-pix'
+    | '/api/webhooks/luc-paguei'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
+    | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
@@ -1085,6 +1110,8 @@ export interface RootRouteChildren {
   ApiRouletteStrategyGlobalRoute: typeof ApiRouletteStrategyGlobalRouteWithChildren
   ApiRouletteTableMetaRoute: typeof ApiRouletteTableMetaRoute
   ApiWebhooksEfiPixRoute: typeof ApiWebhooksEfiPixRoute
+  ApiWebhooksLucPagueiRoute: typeof ApiWebhooksLucPagueiRoute
+  ApiBackOfficeAdminPaymentGatewayRoute: typeof ApiBackOfficeAdminPaymentGatewayRoute
   ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   ApiBackOfficeAutomationDailyRoute: typeof ApiBackOfficeAutomationDailyRoute
   ApiBackOfficeNetworkAffiliatesRoute: typeof ApiBackOfficeNetworkAffiliatesRoute
@@ -1341,6 +1368,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/back-office/$groupId/$moduleId'
       preLoaderRoute: typeof BackOfficeGroupIdModuleIdRouteImport
       parentRoute: typeof BackOfficeGroupIdRoute
+    }
+    '/api/webhooks/luc-paguei': {
+      id: '/api/webhooks/luc-paguei'
+      path: '/api/webhooks/luc-paguei'
+      fullPath: '/api/webhooks/luc-paguei'
+      preLoaderRoute: typeof ApiWebhooksLucPagueiRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/efi-pix': {
       id: '/api/webhooks/efi-pix'
@@ -1643,6 +1677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminPendingActivationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/payment-gateway': {
+      id: '/api/back-office/admin/payment-gateway'
+      path: '/api/back-office/admin/payment-gateway'
+      fullPath: '/api/back-office/admin/payment-gateway'
+      preLoaderRoute: typeof ApiBackOfficeAdminPaymentGatewayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/packages/pix-order/$orderId': {
       id: '/api/back-office/packages/pix-order/$orderId'
       path: '/pix-order/$orderId'
@@ -1912,6 +1953,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouletteStrategyGlobalRoute: ApiRouletteStrategyGlobalRouteWithChildren,
   ApiRouletteTableMetaRoute: ApiRouletteTableMetaRoute,
   ApiWebhooksEfiPixRoute: ApiWebhooksEfiPixRoute,
+  ApiWebhooksLucPagueiRoute: ApiWebhooksLucPagueiRoute,
+  ApiBackOfficeAdminPaymentGatewayRoute: ApiBackOfficeAdminPaymentGatewayRoute,
   ApiBackOfficeAdminPendingActivationsRoute:
     ApiBackOfficeAdminPendingActivationsRouteWithChildren,
   ApiBackOfficeAutomationDailyRoute: ApiBackOfficeAutomationDailyRoute,

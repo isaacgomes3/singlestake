@@ -11,8 +11,8 @@ export const Route = createFileRoute("/api/back-office/packages")({
         if (!user) return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
 
         const packages = await listAvailablePackages();
-        const { isPixCheckoutEnabled } = await import("@/lib/server/finance/package-pix");
-        return jsonResponse({ ok: true, packages, pixEnabled: isPixCheckoutEnabled() });
+        const { isPixCheckoutEnabledAsync } = await import("@/lib/server/finance/package-pix");
+        return jsonResponse({ ok: true, packages, pixEnabled: await isPixCheckoutEnabledAsync() });
       },
     },
   },

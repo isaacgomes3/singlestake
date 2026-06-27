@@ -8,6 +8,16 @@ import {
   MIN_DEPOSIT_AMOUNT,
   type DepositMethod,
 } from "@/lib/server/finance/constants";
+import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
+import {
+  buildPaymentExternalId,
+  lucPagueiCreatePixDeposit,
+} from "@/lib/server/finance/luc-paguei-client";
+import { generatePixQrBase64 } from "@/lib/server/finance/pix-qr";
+import {
+  getPaymentGatewaySettings,
+  isLucPagueiGatewayReady,
+} from "@/lib/server/finance/payment-gateway-settings";
 import { creditWallet } from "@/lib/server/finance/wallet";
 import { getDb } from "@/lib/server/db/client";
 import { auditLogs, deposits, users } from "@/lib/server/db/schema";
@@ -24,6 +34,22 @@ export type DepositDto = {
   createdAt: string;
   processedAt: string | null;
 };
+
+export type DepositPixDto = DepositDto & {
+  pixCopyPaste: string | null;
+  qrCodeBase64: string | null;
+};
+
+function toPixDto(
+  row: typeof deposits.$inferSelect,
+  user: { name: string; email: string },
+): DepositPixDto {
+  return {
+    ...toDto(row, user),
+    pixCopyPaste: row.pixCopyPaste,
+    qrCodeBase64: row.qrCodeBase64,
+  };
+}
 
 function toDto(
   row: typeof deposits.$inferSelect,
@@ -186,4 +212,142 @@ export async function processDeposit(input: {
     ok: true,
     deposit: toDto(updated, { name: updated.user.name, email: updated.user.email }),
   };
+}
+
+/** Crédito automático via webhook Luc Paguei. */
+export async function confirmDepositFromGateway(
+  depositId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const db = getDb();
+  const row = await db.query.deposits.findFirst({
+    where: eq(deposits.id, depositId),
+    with: { user: true },
+  });
+  if (!row) return { ok: false, error: "Depósito não encontrado." };
+  if (row.status !== "pending") return { ok: false, error: "Depósito já processado." };
+
+  const now = new Date();
+  await creditWallet({
+    userId: row.userId,
+    bucket: DEPOSIT_CREDIT_BUCKET,
+    amount: row.amount,
+    description: `Depósito PIX confirmado (gateway)`,
+    referenceType: "deposit",
+    referenceId: row.id,
+  });
+
+  await db
+    .update(deposits)
+    .set({ status: "approved", processedAt: now })
+    .where(eq(deposits.id, row.id));
+
+  await db.insert(auditLogs).values({
+    id: randomUUID(),
+    actorUserId: null,
+    actorLabel: "Luc Paguei",
+    action: "deposit.approve.gateway",
+    target: row.user.email,
+    detail: `Depósito ${row.id} · R$ ${row.amount.toFixed(2)}`,
+    createdAt: now,
+  });
+
+  return { ok: true };
+}
+
+/** Depósito PIX dinâmico via Luc Paguei — cria pendente antes da API. */
+export async function createDepositPix(input: {
+  userId: string;
+  amount: number;
+  cpfDocument?: string;
+}): Promise<{ ok: true; deposit: DepositPixDto } | { ok: false; error: string }> {
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount < MIN_DEPOSIT_AMOUNT) {
+    return { ok: false, error: `Valor mínimo de depósito: R$ ${MIN_DEPOSIT_AMOUNT.toFixed(2)}.` };
+  }
+
+  if (!(await isLucPagueiGatewayReady())) {
+    return { ok: false, error: "Gateway PIX não configurado ou desactivado." };
+  }
+
+  const db = getDb();
+  const user = await db.query.users.findFirst({ where: eq(users.id, input.userId) });
+  if (!user) return { ok: false, error: "Utilizador não encontrado." };
+
+  const cpfRaw = input.cpfDocument?.trim() ? normalizeCpf(input.cpfDocument) : user.cpf ?? "";
+  if (!cpfRaw) return { ok: false, error: "Informe um CPF válido para gerar o PIX." };
+  if (!isValidCpf(cpfRaw)) return { ok: false, error: "CPF inválido." };
+
+  if (input.cpfDocument?.trim() && cpfRaw !== user.cpf) {
+    await db.update(users).set({ cpf: cpfRaw, updatedAt: new Date() }).where(eq(users.id, user.id));
+  }
+
+  const id = randomUUID();
+  const externalId = buildPaymentExternalId("DEP", input.userId);
+  const now = new Date();
+
+  await db.insert(deposits).values({
+    id,
+    userId: input.userId,
+    amount,
+    method: "pix",
+    status: "pending",
+    externalRef: externalId,
+    createdAt: now,
+  });
+
+  const gateway = await getPaymentGatewaySettings();
+  const charge = await lucPagueiCreatePixDeposit({
+    settings: gateway,
+    amount,
+    externalId,
+    payer: { name: user.name, email: user.email, document: cpfRaw },
+  });
+
+  if (!charge.ok) {
+    await db.delete(deposits).where(eq(deposits.id, id));
+    return charge;
+  }
+
+  let qrCodeBase64 = charge.charge.qrCodeBase64;
+  if (!qrCodeBase64) {
+    try {
+      qrCodeBase64 = await generatePixQrBase64(charge.charge.pixCode);
+    } catch {
+      qrCodeBase64 = null;
+    }
+  }
+
+  await db
+    .update(deposits)
+    .set({
+      pixCopyPaste: charge.charge.pixCode,
+      qrCodeBase64,
+      gatewayTransactionId: charge.charge.transactionId,
+    })
+    .where(eq(deposits.id, id));
+
+  const row = await db.query.deposits.findFirst({
+    where: eq(deposits.id, id),
+    with: { user: true },
+  });
+  if (!row) return { ok: false, error: "Erro ao registar depósito." };
+
+  return { ok: true, deposit: toPixDto(row, { name: row.user.name, email: row.user.email }) };
+}
+
+export async function getDepositById(input: {
+  depositId: string;
+  userId: string;
+  isAdmin: boolean;
+}): Promise<{ ok: true; deposit: DepositPixDto } | { ok: false; error: string }> {
+  const db = getDb();
+  const row = await db.query.deposits.findFirst({
+    where: eq(deposits.id, input.depositId),
+    with: { user: true },
+  });
+  if (!row) return { ok: false, error: "Depósito não encontrado." };
+  if (!input.isAdmin && row.userId !== input.userId) {
+    return { ok: false, error: "Acesso negado." };
+  }
+  return { ok: true, deposit: toPixDto(row, { name: row.user.name, email: row.user.email }) };
 }

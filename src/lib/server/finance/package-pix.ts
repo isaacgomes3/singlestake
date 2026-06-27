@@ -12,6 +12,15 @@ import { getDb } from "@/lib/server/db/client";
 import { packagePixOrders, userPackages, users } from "@/lib/server/db/schema";
 import { readEfiPixConfig } from "@/lib/server/finance/efi-config";
 import { createImmediatePixCharge, getPixChargeStatus } from "@/lib/server/finance/efi-pay-client";
+import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
+import {
+  buildPaymentExternalId,
+  lucPagueiCreatePixDeposit,
+} from "@/lib/server/finance/luc-paguei-client";
+import {
+  getPaymentGatewaySettings,
+  isLucPagueiGatewayReady,
+} from "@/lib/server/finance/payment-gateway-settings";
 import { generatePixQrBase64, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
 import {
   isStaticPixConfigured,
@@ -45,13 +54,14 @@ export type PackagePixOrderDto = {
   qrCodeBase64: string | null;
   expiresAt: string | null;
   userPackageId: string | null;
-  /** efi = cobrança automática; static = copia e cola fixo no .env */
-  mode: "efi" | "static";
+  /** efi | static | lucpaguei */
+  mode: "efi" | "static" | "lucpaguei";
   pixFixedAmount: number | null;
 };
 
 function toDto(row: typeof packagePixOrders.$inferSelect): PackagePixOrderDto {
   const staticMode = row.txid.startsWith("static-");
+  const lucMode = row.txid.startsWith("PKG-");
   const payload = row.pixCopyPaste ?? "";
   return {
     id: row.id,
@@ -63,9 +73,32 @@ function toDto(row: typeof packagePixOrders.$inferSelect): PackagePixOrderDto {
     qrCodeBase64: row.qrCodeBase64,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     userPackageId: row.userPackageId,
-    mode: staticMode ? "static" : "efi",
+    mode: staticMode ? "static" : lucMode ? "lucpaguei" : "efi",
     pixFixedAmount: staticMode ? parsePixPayloadAmount(payload) : null,
   };
+}
+
+async function resolvePayerCpf(
+  userId: string,
+  cpfOverride?: string,
+): Promise<{ ok: true; cpf: string } | { ok: false; error: string }> {
+  const db = getDb();
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) return { ok: false, error: "Utilizador não encontrado." };
+
+  const candidate = cpfOverride?.trim() ? normalizeCpf(cpfOverride) : user.cpf ?? "";
+  if (!candidate) {
+    return { ok: false, error: "Informe um CPF válido para gerar o PIX." };
+  }
+  if (!isValidCpf(candidate)) {
+    return { ok: false, error: "CPF inválido. O gateway rejeita documentos incorrectos." };
+  }
+
+  if (cpfOverride?.trim() && candidate !== user.cpf) {
+    await db.update(users).set({ cpf: candidate, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  return { ok: true, cpf: candidate };
 }
 
 export async function createPackagePixOrder(input: {
@@ -74,6 +107,8 @@ export async function createPackagePixOrder(input: {
   amount?: number;
   /** Fluxo de activação de conta (Start R$ 50 no cadastro). */
   forAccountActivation?: boolean;
+  /** CPF do pagador (11 dígitos) — obrigatório com Luc Paguei. */
+  cpfDocument?: string;
 }): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
   if (!input.forAccountActivation) {
     if (input.packageId === START_PACKAGE_ID) {
@@ -93,10 +128,11 @@ export async function createPackagePixOrder(input: {
   const validated = await validatePackagePurchase(input);
   if (!validated.ok) return validated;
 
+  const lucReady = await isLucPagueiGatewayReady();
   const efiConfig = readEfiPixConfig();
   const staticPayload = readStaticPixCopiaColaForAmount(validated.amount);
 
-  if (!staticPayload && !efiConfig) {
+  if (!lucReady && !staticPayload && !efiConfig) {
     if (isStaticPixConfigured()) {
       const available = listConfiguredStaticPixAmounts();
       const hint =
@@ -110,7 +146,8 @@ export async function createPackagePixOrder(input: {
     }
     return {
       ok: false,
-      error: "PIX não configurado. Defina PIX_COPIA_COLA_50 / PIX_COPIA_COLA_250 ou credenciais Efi Pay.",
+      error:
+        "PIX não configurado. Active o gateway Luc Paguei no admin ou defina PIX_COPIA_COLA / Efi Pay.",
     };
   }
 
@@ -118,6 +155,66 @@ export async function createPackagePixOrder(input: {
   const expirationSeconds = 3600;
   const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
   const db = getDb();
+
+  if (lucReady) {
+    const payerCpf = await resolvePayerCpf(input.userId, input.cpfDocument);
+    if (!payerCpf.ok) return payerCpf;
+
+    const user = await db.query.users.findFirst({ where: eq(users.id, input.userId) });
+    if (!user) return { ok: false, error: "Utilizador não encontrado." };
+
+    const externalId = buildPaymentExternalId("PKG", input.userId);
+
+    await db.insert(packagePixOrders).values({
+      id: orderId,
+      userId: input.userId,
+      packageId: input.packageId,
+      amount: validated.amount,
+      status: "pending",
+      txid: externalId,
+      expiresAt,
+      createdAt: new Date(),
+    });
+
+    const gateway = await getPaymentGatewaySettings();
+    const chargeResult = await lucPagueiCreatePixDeposit({
+      settings: gateway,
+      amount: validated.amount,
+      externalId,
+      payer: {
+        name: user.name,
+        email: user.email,
+        document: payerCpf.cpf,
+      },
+    });
+
+    if (!chargeResult.ok) {
+      await db.delete(packagePixOrders).where(eq(packagePixOrders.id, orderId));
+      return chargeResult;
+    }
+
+    let qrCodeBase64 = chargeResult.charge.qrCodeBase64;
+    if (!qrCodeBase64) {
+      try {
+        qrCodeBase64 = await generatePixQrBase64(chargeResult.charge.pixCode);
+      } catch {
+        qrCodeBase64 = null;
+      }
+    }
+
+    await db
+      .update(packagePixOrders)
+      .set({
+        pixCopyPaste: chargeResult.charge.pixCode,
+        qrCodeBase64,
+        gatewayTransactionId: chargeResult.charge.transactionId,
+      })
+      .where(eq(packagePixOrders.id, orderId));
+
+    const row = await db.query.packagePixOrders.findFirst({ where: eq(packagePixOrders.id, orderId) });
+    if (!row) return { ok: false, error: "Erro ao registar pedido PIX." };
+    return { ok: true, order: toDto(row) };
+  }
 
   if (staticPayload) {
     const pixFixedAmount = parsePixPayloadAmount(staticPayload);
@@ -222,6 +319,12 @@ async function fulfillPaidOrder(orderId: string): Promise<UserPackageDto | null>
   return result.userPackage;
 }
 
+/** Usado pelo webhook Luc Paguei. */
+export async function fulfillPackagePixOrderById(orderId: string): Promise<boolean> {
+  const pkg = await fulfillPaidOrder(orderId);
+  return pkg != null;
+}
+
 export async function approvePackagePixOrder(input: {
   orderId: string;
   actorUserId: string;
@@ -277,6 +380,10 @@ export async function syncPackagePixOrder(input: {
     return { ok: true, order: toDto(row) };
   }
 
+  if (row.txid.startsWith("PKG-")) {
+    return { ok: true, order: toDto(row) };
+  }
+
   const config = readEfiPixConfig();
   if (config && row.status === "pending") {
     try {
@@ -316,14 +423,25 @@ export async function handleEfiPixWebhook(body: unknown): Promise<void> {
 }
 
 export function isPixCheckoutEnabled(): boolean {
-  return readEfiPixConfig() != null || isStaticPixConfigured();
+  return isStaticPixConfigured() || readEfiPixConfig() != null;
+}
+
+export async function isPixCheckoutEnabledAsync(): Promise<boolean> {
+  if (await isLucPagueiGatewayReady()) return true;
+  return isPixCheckoutEnabled();
 }
 
 /** PIX no catálogo — apenas Automação R$ 250. */
 export function isCatalogPackagePixAvailable(packageId: string): boolean {
   if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
-  if (!isPixCheckoutEnabled()) return false;
-  return readStaticPixCopiaColaForAmount(250) != null || readEfiPixConfig() != null;
+  if (readStaticPixCopiaColaForAmount(250) != null || readEfiPixConfig() != null) return true;
+  return false;
+}
+
+export async function isCatalogPackagePixAvailableAsync(packageId: string): Promise<boolean> {
+  if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
+  if (await isLucPagueiGatewayReady()) return true;
+  return isCatalogPackagePixAvailable(packageId);
 }
 
 /** @deprecated use isPixCheckoutEnabled */
@@ -344,6 +462,7 @@ export type PendingActivationRow = {
 
 export async function getOrCreateStartPackPixOrder(input: {
   userId: string;
+  cpfDocument?: string;
 }): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
   const { userHasActiveStartPack } = await import("@/lib/server/finance/account-access");
   if (await userHasActiveStartPack(input.userId)) {
@@ -368,6 +487,7 @@ export async function getOrCreateStartPackPixOrder(input: {
     userId: input.userId,
     packageId: START_PACKAGE_ID,
     forAccountActivation: true,
+    cpfDocument: input.cpfDocument,
   });
 }
 

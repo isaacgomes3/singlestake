@@ -45,12 +45,13 @@ export async function purchaseProductPackage(
 export async function purchaseProductPackagePix(
   packageId: string,
   amount?: number,
+  cpfDocument?: string,
 ): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/packages/purchase-pix", {
     method: "POST",
     headers: JSON_HEADERS,
     credentials: "include",
-    body: JSON.stringify({ packageId, amount }),
+    body: JSON.stringify({ packageId, amount, cpfDocument }),
   });
   const data = await parseJson<{ ok: boolean; order?: PackagePixOrderDto; error?: string }>(res);
   if (!res.ok || !data?.ok || !data.order) {

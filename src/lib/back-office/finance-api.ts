@@ -25,18 +25,30 @@ export async function createDeposit(input: {
   amount: number;
   method: string;
   externalRef?: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  cpfDocument?: string;
+}): Promise<
+  | { ok: true; deposit?: DepositRecord; pix?: boolean }
+  | { ok: false; error: string }
+> {
   const res = await fetch("/api/back-office/deposits", {
     method: "POST",
     headers: JSON_HEADERS,
     credentials: "include",
     body: JSON.stringify(input),
   });
-  const data = await parseJson<{ ok: boolean; error?: string }>(res);
+  const data = await parseJson<{ ok: boolean; error?: string; deposit?: DepositRecord; pix?: boolean }>(
+    res,
+  );
   if (!res.ok || !data?.ok) {
     return { ok: false, error: data?.error ?? "Não foi possível solicitar o depósito." };
   }
-  return { ok: true };
+  return { ok: true, deposit: data.deposit, pix: data.pix };
+}
+
+export async function fetchDeposit(depositId: string): Promise<DepositRecord | null> {
+  const res = await fetch(`/api/back-office/deposits/${depositId}`, { credentials: "include" });
+  const data = await parseJson<{ ok: boolean; deposit?: DepositRecord }>(res);
+  return data?.deposit ?? null;
 }
 
 export async function processDeposit(

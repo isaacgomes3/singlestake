@@ -1,6 +1,7 @@
 import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navigation";
 import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
+import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-office-payment-gateway-panel";
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
 import { BackOfficeSubscriptionsPanel } from "@/components/back-office/back-office-subscriptions-panel";
 import { BackOfficeAffiliatesPanel } from "@/components/back-office/back-office-affiliates-panel";
@@ -140,7 +141,12 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
       );
 
     case "admin":
-      return <BackOfficeAdminUsersPanel />;
+      return (
+        <div className="space-y-6">
+          <BackOfficePaymentGatewayPanel />
+          <BackOfficeAdminUsersPanel />
+        </div>
+      );
 
     case "auditoria":
       return (

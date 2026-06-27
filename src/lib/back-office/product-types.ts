@@ -38,7 +38,7 @@ export type PackagePixOrderDto = {
   qrCodeBase64: string | null;
   expiresAt: string | null;
   userPackageId: string | null;
-  mode?: "efi" | "static";
+  mode?: "efi" | "static" | "lucpaguei";
   pixFixedAmount?: number | null;
 };
 

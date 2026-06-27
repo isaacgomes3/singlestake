@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DepositPixCheckoutDialog } from "@/components/back-office/deposit-pix-checkout-dialog";
 import { FinanceStatusBadge } from "@/components/back-office/finance-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,10 @@ export function BackOfficeDepositsPanel() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"pix" | "crypto">("pix");
   const [externalRef, setExternalRef] = useState("");
+  const [payerCpf, setPayerCpf] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [pixDeposit, setPixDeposit] = useState<DepositRecord | null>(null);
 
   const reload = async () => {
     setLoading(true);
@@ -40,13 +43,19 @@ export function BackOfficeDepositsPanel() {
       amount: Number(amount.replace(",", ".")),
       method,
       externalRef: externalRef.trim() || undefined,
+      cpfDocument: method === "pix" ? payerCpf.trim() || undefined : undefined,
     });
     setSubmitting(false);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    toast.success(t("finance.deposits.toastSubmitted"));
+    if (result.pix && result.deposit?.pixCopyPaste) {
+      setPixDeposit(result.deposit);
+      toast.success(t("finance.deposits.pixTitle"));
+    } else {
+      toast.success(t("finance.deposits.toastSubmitted"));
+    }
     setAmount("");
     setExternalRef("");
     void reload();
@@ -70,6 +79,16 @@ export function BackOfficeDepositsPanel() {
 
   return (
     <div className="space-y-5">
+      {pixDeposit ? (
+        <DepositPixCheckoutDialog
+          deposit={pixDeposit}
+          onClose={() => setPixDeposit(null)}
+          onPaid={() => {
+            setPixDeposit(null);
+            void reload();
+          }}
+        />
+      ) : null}
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("finance.deposits.formTitle")}</h2>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -102,17 +121,35 @@ export function BackOfficeDepositsPanel() {
               <option value="crypto">{t("shared.methods.crypto")}</option>
             </select>
           </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <label htmlFor="deposit-ref" className="text-xs font-medium text-text-secondary">
-              {t("finance.deposits.refLabel")}
-            </label>
-            <Input
-              id="deposit-ref"
-              value={externalRef}
-              onChange={(e) => setExternalRef(e.target.value)}
-              placeholder={t("finance.deposits.refPlaceholder")}
-            />
-          </div>
+          {method === "pix" ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <label htmlFor="deposit-cpf" className="text-xs font-medium text-text-secondary">
+                {t("finance.deposits.cpfLabel")}
+              </label>
+              <Input
+                id="deposit-cpf"
+                inputMode="numeric"
+                autoComplete="off"
+                value={payerCpf}
+                onChange={(e) => setPayerCpf(e.target.value)}
+                placeholder={t("finance.deposits.cpfPlaceholder")}
+              />
+              <p className="text-[11px] text-text-secondary">{t("finance.deposits.cpfHint")}</p>
+            </div>
+          ) : null}
+          {method === "crypto" ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <label htmlFor="deposit-ref" className="text-xs font-medium text-text-secondary">
+                {t("finance.deposits.refLabel")}
+              </label>
+              <Input
+                id="deposit-ref"
+                value={externalRef}
+                onChange={(e) => setExternalRef(e.target.value)}
+                placeholder={t("finance.deposits.refPlaceholder")}
+              />
+            </div>
+          ) : null}
           <div className="sm:col-span-2">
             <Button type="submit" disabled={submitting}>
               {submitting ? t("shared.submitting") : t("finance.deposits.submit")}

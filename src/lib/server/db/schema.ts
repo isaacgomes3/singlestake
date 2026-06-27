@@ -21,6 +21,8 @@ export const users = sqliteTable(
     })
       .notNull()
       .default("bronze"),
+    /** CPF do titular (11 dígitos) — obrigatório para PIX via Luc Paguei. */
+    cpf: text("cpf"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -258,6 +260,9 @@ export const deposits = sqliteTable(
       .notNull()
       .default("pending"),
     externalRef: text("external_ref"),
+    pixCopyPaste: text("pix_copy_paste"),
+    qrCodeBase64: text("qr_code_base64"),
+    gatewayTransactionId: text("gateway_transaction_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -280,6 +285,7 @@ export const packagePixOrders = sqliteTable(
       .notNull()
       .default("pending"),
     txid: text("txid").notNull().unique(),
+    gatewayTransactionId: text("gateway_transaction_id"),
     pixCopyPaste: text("pix_copy_paste"),
     qrCodeBase64: text("qr_code_base64"),
     userPackageId: text("user_package_id"),
@@ -292,6 +298,7 @@ export const packagePixOrders = sqliteTable(
   (t) => [
     index("package_pix_orders_user_id_idx").on(t.userId),
     index("package_pix_orders_txid_idx").on(t.txid),
+    index("package_pix_orders_gateway_tx_idx").on(t.gatewayTransactionId),
   ],
 );
 
@@ -319,6 +326,8 @@ export const withdrawals = sqliteTable(
       .notNull()
       .default("pending"),
     pixKey: text("pix_key"),
+    externalRef: text("external_ref"),
+    gatewayTransactionId: text("gateway_transaction_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

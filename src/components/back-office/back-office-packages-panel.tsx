@@ -30,6 +30,8 @@ export function BackOfficePackagesPanel() {
   const [customAmount, setCustomAmount] = useState("500");
   const [pixOrder, setPixOrder] = useState<PackagePixOrderDto | null>(null);
   const [pixPackageName, setPixPackageName] = useState("");
+  const [payerCpf, setPayerCpf] = useState("");
+  const [pixEnabled, setPixEnabled] = useState(false);
 
   const sessionUser = getSession()?.user;
   const hasStart =
@@ -38,9 +40,10 @@ export function BackOfficePackagesPanel() {
 
   const reload = async () => {
     setLoading(true);
-    const { packages } = await fetchProductPackages();
+    const { packages, pixEnabled: pixOn } = await fetchProductPackages();
     const owned = await fetchUserPackages();
     setCatalog(packages);
+    setPixEnabled(pixOn);
     setMine(owned);
     setLoading(false);
   };
@@ -63,7 +66,11 @@ export function BackOfficePackagesPanel() {
 
   const handleBuyPix = async (pkg: PackageDto, amount?: number) => {
     setBuyingId(pkg.id);
-    const result = await purchaseProductPackagePix(pkg.id, amount);
+    const result = await purchaseProductPackagePix(
+      pkg.id,
+      amount,
+      payerCpf.trim() || undefined,
+    );
     setBuyingId(null);
     if (!result.ok) {
       toast.error(result.error);
@@ -124,6 +131,23 @@ export function BackOfficePackagesPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.packages.catalog")}</h2>
+        {pixEnabled && catalog.some((p) => p.pixAvailable) ? (
+          <div className="mt-3 rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
+            <label htmlFor="package-payer-cpf" className="text-xs font-medium text-text-secondary">
+              {t("products.packages.cpfLabel")}
+            </label>
+            <input
+              id="package-payer-cpf"
+              inputMode="numeric"
+              autoComplete="off"
+              value={payerCpf}
+              onChange={(e) => setPayerCpf(e.target.value)}
+              placeholder={t("products.packages.cpfPlaceholder")}
+              className="mt-1 w-full rounded-lg border border-border-color bg-bg-primary px-3 py-2 text-sm text-text-primary"
+            />
+            <p className="mt-1.5 text-[11px] text-text-secondary">{t("products.packages.cpfHint")}</p>
+          </div>
+        ) : null}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {loading
             ? t("shared.loading")

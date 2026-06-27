@@ -3,6 +3,23 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/back-office/deposits/$depositId")({
   server: {
     handlers: {
+      GET: async ({ request, params }) => {
+        const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
+        const { getDepositById } = await import("@/lib/server/finance/deposits");
+
+        const user = await requireSessionUser(request);
+        if (!user) return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
+
+        const result = await getDepositById({
+          depositId: params.depositId,
+          userId: user.id,
+          isAdmin: user.role === "admin",
+        });
+        if (!result.ok) {
+          return jsonResponse({ ok: false, error: result.error }, { status: 404 });
+        }
+        return jsonResponse({ ok: true, deposit: result.deposit });
+      },
       PATCH: async ({ request, params }) => {
         const { jsonResponse, readJsonBody, requireSessionUser } = await import(
           "@/lib/server/auth/http"

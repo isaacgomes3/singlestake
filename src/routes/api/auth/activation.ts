@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/auth/activation")({
         const { buildAuthUserPayload } = await import("@/lib/server/finance/account-access");
         const {
           getOrCreateStartPackPixOrder,
-          isPixCheckoutEnabled,
+          isPixCheckoutEnabledAsync,
         } = await import("@/lib/server/finance/package-pix");
         const { START_PACKAGE_AMOUNT } = await import("@/lib/back-office/product-constants");
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/auth/activation")({
           return jsonResponse({
             ok: true,
             accountActive: true,
-            pixEnabled: isPixCheckoutEnabled(),
+            pixEnabled: await isPixCheckoutEnabledAsync(),
             packageAmount: START_PACKAGE_AMOUNT,
           });
         }
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/auth/activation")({
           return jsonResponse({
             ok: true,
             accountActive: false,
-            pixEnabled: isPixCheckoutEnabled(),
+            pixEnabled: await isPixCheckoutEnabledAsync(),
             packageAmount: START_PACKAGE_AMOUNT,
             pixError: pixResult.error,
           });
@@ -43,13 +43,15 @@ export const Route = createFileRoute("/api/auth/activation")({
         return jsonResponse({
           ok: true,
           accountActive: false,
-          pixEnabled: isPixCheckoutEnabled(),
+          pixEnabled: await isPixCheckoutEnabledAsync(),
           packageAmount: START_PACKAGE_AMOUNT,
           order: pixResult.order,
         });
       },
       POST: async ({ request }) => {
-        const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
+        const { jsonResponse, requireSessionUser, readJsonBody } = await import(
+          "@/lib/server/auth/http"
+        );
         const { getOrCreateStartPackPixOrder } = await import("@/lib/server/finance/package-pix");
 
         const user = await requireSessionUser(request);
@@ -57,7 +59,11 @@ export const Route = createFileRoute("/api/auth/activation")({
           return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
-        const result = await getOrCreateStartPackPixOrder({ userId: user.id });
+        const body = await readJsonBody<{ cpfDocument?: string }>(request);
+        const result = await getOrCreateStartPackPixOrder({
+          userId: user.id,
+          cpfDocument: body?.cpfDocument,
+        });
         if (!result.ok) {
           return jsonResponse({ ok: false, error: result.error }, { status: 400 });
         }

@@ -11,6 +11,8 @@ export type DepositRecord = {
   externalRef: string | null;
   createdAt: string;
   processedAt: string | null;
+  pixCopyPaste?: string | null;
+  qrCodeBase64?: string | null;
 };
 
 export type WithdrawalRecord = {

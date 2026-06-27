@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { StartPackPaymentBanner } from "@/components/auth/start-pack-payment-banner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { apiFetchActivation, apiFetchMe, apiLogout } from "@/lib/auth/api";
 import {
   clearSession,
@@ -17,6 +18,7 @@ export function AccountActivationPage() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [pixError, setPixError] = useState<string | null>(null);
+  const [payerCpf, setPayerCpf] = useState("");
   const [order, setOrder] = useState<Awaited<ReturnType<typeof apiFetchActivation>>["order"]>(null);
 
   const load = useCallback(async () => {
@@ -79,10 +81,13 @@ export function AccountActivationPage() {
     const res = await fetch("/api/auth/activation", {
       method: "POST",
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cpfDocument: payerCpf.trim() || undefined }),
     });
     const data = (await res.json()) as { ok: boolean; order?: typeof order; error?: string };
     if (!data.ok || !data.order) {
       toast.error(data.error ?? t("auth.activation.pixGenerateError"));
+      setPixError(data.error ?? t("auth.activation.pixGenerateError"));
       setLoading(false);
       return;
     }
@@ -90,6 +95,8 @@ export function AccountActivationPage() {
     setPixError(null);
     setLoading(false);
   };
+
+  const needsCpf = pixError && !order;
 
   return (
     <AuthPageShell
@@ -104,11 +111,25 @@ export function AccountActivationPage() {
     >
       {loading ? (
         <p className="py-12 text-center text-sm text-text-secondary">{t("shared.loading")}</p>
-      ) : pixError && !order ? (
-        <div className="space-y-4 rounded-2xl border border-danger/40 bg-danger/10 p-5 text-center">
-          <p className="text-sm text-danger">{pixError}</p>
-          <Button type="button" onClick={() => void refreshPix()}>
-            {t("auth.activation.retryPix")}
+      ) : needsCpf ? (
+        <div className="space-y-4 rounded-2xl border border-border-color bg-bg-secondary p-5">
+          {pixError ? <p className="text-sm text-danger">{pixError}</p> : null}
+          <div className="space-y-1.5">
+            <label htmlFor="activation-cpf" className="text-xs font-medium text-text-secondary">
+              {t("auth.activation.cpfLabel")}
+            </label>
+            <Input
+              id="activation-cpf"
+              inputMode="numeric"
+              autoComplete="off"
+              value={payerCpf}
+              onChange={(e) => setPayerCpf(e.target.value)}
+              placeholder={t("auth.activation.cpfPlaceholder")}
+            />
+            <p className="text-[11px] text-text-secondary">{t("auth.activation.cpfHint")}</p>
+          </div>
+          <Button type="button" className="w-full" onClick={() => void refreshPix()}>
+            {t("auth.activation.generatePix")}
           </Button>
         </div>
       ) : order ? (

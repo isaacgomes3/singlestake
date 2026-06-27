@@ -32,6 +32,9 @@ export const productsContent = {
         "Pague o valor exacto do QR. A confirmação é feita manualmente pelo administrador.",
       pixStaticAmountWarning:
         "Este QR é de {{pixAmount}} — o pacote seleccionado é {{packageAmount}}. Confirme o valor antes de pagar.",
+      cpfLabel: "CPF do pagador",
+      cpfPlaceholder: "000.000.000-00",
+      cpfHint: "Obrigatório para PIX dinâmico. Use o CPF real do titular da conta bancária.",
       owned: "Os seus pacotes",
       ownedEmpty: "Nenhum pacote activo.",
       colPackage: "Pacote",
@@ -130,6 +133,9 @@ export const productsContent = {
       pixStaticHint: "Pay the exact QR amount. Confirmation is done manually by an administrator.",
       pixStaticAmountWarning:
         "This QR is for {{pixAmount}} — selected package is {{packageAmount}}. Confirm before paying.",
+      cpfLabel: "Payer CPF",
+      cpfPlaceholder: "000.000.000-00",
+      cpfHint: "Required for dynamic PIX. Use the real bank account holder CPF.",
       owned: "Your packages",
       ownedEmpty: "No active packages.",
       colPackage: "Package",
@@ -228,6 +234,9 @@ export const productsContent = {
         "Pague el valor exacto del QR. La confirmación la hace el administrador manualmente.",
       pixStaticAmountWarning:
         "Este QR es de {{pixAmount}} — el paquete seleccionado es {{packageAmount}}. Confirme antes de pagar.",
+      cpfLabel: "CPF del pagador",
+      cpfPlaceholder: "000.000.000-00",
+      cpfHint: "Obligatorio para PIX dinámico. Use el CPF real del titular.",
       owned: "Sus paquetes",
       ownedEmpty: "Ningún paquete activo.",
       colPackage: "Paquete",
