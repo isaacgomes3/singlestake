@@ -51,15 +51,8 @@ fi
 AAPANEL_CONF="${AAPANEL_CONF:-/www/server/panel/vhost/apache/stake37.com.br.conf}"
 mkdir -p data
 
-echo "→ pm2 (arranque imediato — antes de migrações DB)"
-pm2 start deploy/ecosystem.config.cjs
-pm2 save
-
 if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
-  echo "→ pm2 stop (migrações DB — evita crash SQLite)"
-  pm2 stop singlestake 2>/dev/null || true
-  sleep 1
-  echo "→ npm run db:push"
+  echo "→ npm run db:push (app parado — evita conflito SQLite)"
   npm run db:push || echo "⚠ db:push ignorado"
   if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
     echo "→ npm run db:seed (FIRST_DEPLOY=1)"
@@ -67,10 +60,11 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   fi
   echo "→ npm run db:seed-isaac (rede qualificadora Isaac — idempotente)"
   npm run db:seed-isaac || echo "⚠ db:seed-isaac ignorado"
-  echo "→ pm2 start (após migrações DB)"
-  pm2 start deploy/ecosystem.config.cjs 2>/dev/null || pm2 restart singlestake
-  pm2 save
 fi
+
+echo "→ pm2 start"
+pm2 start deploy/ecosystem.config.cjs
+pm2 save
 
 if [[ -f "$AAPANEL_CONF" ]]; then
   bash "$ROOT/deploy/patch-apache-static.sh" || echo "⚠ patch Apache ignorado — Node serve estáticos"
@@ -120,20 +114,34 @@ if [[ -f .env ]]; then
 fi
 
 echo "→ verificar PM2 online"
-for i in 1 2 3 4 5 6; do
-  if curl -sf --max-time 10 http://127.0.0.1:3000/entrar >/dev/null 2>&1; then
-    echo "✓ Node responde em :3000"
-    break
-  fi
-  if [[ "$i" -eq 6 ]]; then
-    echo "✗ Node não responde — pm2 logs singlestake --lines 40"
-    pm2 logs singlestake --lines 40 --nostream 2>/dev/null || true
-    pm2 status 2>/dev/null || true
-    exit 1
-  fi
-  echo "  aguardar arranque (${i}/6)…"
-  sleep 5
-done
+ensure_pm2_responds() {
+  curl -sf --max-time 10 http://127.0.0.1:3000/entrar >/dev/null 2>&1
+}
+if ! ensure_pm2_responds; then
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    if ensure_pm2_responds; then
+      echo "✓ Node responde em :3000"
+      break
+    fi
+    if [[ "$i" -eq 12 ]]; then
+      echo "⚠ Node lento — tentativa restart-site…"
+      bash "$ROOT/deploy/restart-site.sh" || true
+      sleep 8
+      if ! ensure_pm2_responds; then
+        echo "✗ Node não responde — pm2 logs singlestake --lines 40"
+        pm2 logs singlestake --lines 40 --nostream 2>/dev/null || true
+        pm2 status 2>/dev/null || true
+        exit 1
+      fi
+      echo "✓ Node recuperado após restart-site"
+      break
+    fi
+    echo "  aguardar arranque (${i}/12)…"
+    sleep 5
+  done
+else
+  echo "✓ Node responde em :3000"
+fi
 
 echo "→ verificação pós-deploy (45s — hub Pragmatic)"
 sleep 45
