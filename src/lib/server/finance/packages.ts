@@ -4,6 +4,8 @@ import { and, desc, eq } from "drizzle-orm";
 
 import {
   ADHESION_DAYS,
+  AUTOMATION_PIX_PACKAGE_ID,
+  CATALOG_EXCLUDED_PACKAGE_IDS,
   MAX_PROFIT_MULTIPLIER,
   START_PACKAGE_ID,
   validateAutomationDepositAmount,
@@ -16,24 +18,34 @@ import {
   calculatePackageSplit,
 } from "@/lib/server/finance/package-split";
 import { debitWallet, getWalletBalance } from "@/lib/server/finance/wallet";
+import { readEfiPixConfig } from "@/lib/server/finance/efi-config";
+import { readStaticPixCopiaColaForAmount } from "@/lib/server/finance/pix-static";
 
 import type { PackageDto, UserPackageDto } from "@/lib/back-office/product-types";
+
+function catalogPackagePixAvailable(packageId: string): boolean {
+  if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
+  return readEfiPixConfig() != null || readStaticPixCopiaColaForAmount(250) != null;
+}
 
 export async function listAvailablePackages(): Promise<PackageDto[]> {
   const db = getDb();
   const rows = await db.query.investmentPackages.findMany({
     where: eq(investmentPackages.active, true),
   });
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    amount: row.minAmount,
-    minAmount: row.minAmount,
-    maxAmount: row.maxAmount,
-    allowsCustomAmount: row.minAmount !== row.maxAmount,
-    packageKind: row.packageKind as PackageKind,
-    active: row.active,
-  }));
+  return rows
+    .filter((row) => !CATALOG_EXCLUDED_PACKAGE_IDS.has(row.id))
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      amount: row.minAmount,
+      minAmount: row.minAmount,
+      maxAmount: row.maxAmount,
+      allowsCustomAmount: row.minAmount !== row.maxAmount,
+      packageKind: row.packageKind as PackageKind,
+      active: row.active,
+      pixAvailable: catalogPackagePixAvailable(row.id),
+    }));
 }
 
 async function userHasActiveStart(userId: string): Promise<boolean> {
@@ -259,6 +271,13 @@ export async function purchasePackage(input: {
   /** Obrigatório para pacotes de automação com valor livre (`automacao`). */
   amount?: number;
 }): Promise<{ ok: true; userPackage: UserPackageDto } | { ok: false; error: string }> {
+  if (input.packageId === START_PACKAGE_ID) {
+    return {
+      ok: false,
+      error: "O Pacote Start R$ 50 é activado no cadastro da conta.",
+    };
+  }
+
   const validated = await validatePackagePurchase(input);
   if (!validated.ok) return validated;
 

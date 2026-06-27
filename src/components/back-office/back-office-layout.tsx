@@ -62,6 +62,10 @@ export function BackOfficeLayout() {
         persistSession(user);
         setSessionState({ user, issuedAt: Date.now() });
         setSessionError(null);
+        if (user.role !== "admin" && !user.accountActive) {
+          window.location.replace("/activar-conta");
+          return;
+        }
         return;
       }
       setSessionError(t("common.sessionExpired"));

@@ -4,6 +4,8 @@ export const productsContent = {
       splitTitle: "Divisão dos pacotes",
       withAutomation: "Com automação",
       startPack: "Start (R$ 50)",
+      startAtRegistration:
+        "O Pacote Start (R$ 50) é pago no cadastro. Depósitos de automação disponíveis abaixo — Automação R$ 250 também aceita PIX.",
       rulesLong:
         "Pack Start {{start}} obrigatório antes de qualquer depósito de automação. Valores de automação em múltiplos de {{step}}. Lucro máximo 200% do valor aportado · adesão 1 ano · rendimento diário até 1% sobre a base de automação (automação global). Processamento automático às 00:05 (horário de Brasília) enquanto o servidor estiver activo.",
       runYield: "Processar rendimento diário (admin)",
@@ -101,6 +103,8 @@ export const productsContent = {
       splitTitle: "Package split",
       withAutomation: "With automation",
       startPack: "Start (R$ 50)",
+      startAtRegistration:
+        "The Start Pack (R$ 50) is paid at registration. Automation deposits below — R$ 250 automation also accepts PIX.",
       rulesLong:
         "Start Pack {{start}} required before any automation deposit. Automation amounts in multiples of {{step}}. Max profit 200% of invested amount · 1-year term · daily yield up to 1% on automation base (global automation). Automatic processing at 00:05 (Brasília time) while server is active.",
       runYield: "Process daily yield (admin)",
@@ -196,6 +200,8 @@ export const productsContent = {
       splitTitle: "División de paquetes",
       withAutomation: "Con automatización",
       startPack: "Start (R$ 50)",
+      startAtRegistration:
+        "El Pack Start (R$ 50) se paga en el registro. Depósitos de automatización abajo — Automatización R$ 250 también acepta PIX.",
       rulesLong:
         "Pack Start {{start}} obligatorio antes de cualquier depósito de automatización. Valores en múltiplos de {{step}}. Lucro máximo 200% del aporte · adhesión 1 año · rendimiento diario hasta 1% sobre la base (automatización global). Procesamiento automático a las 00:05 (hora de Brasilia) mientras el servidor esté activo.",
       runYield: "Procesar rendimiento diario (admin)",

@@ -74,6 +74,44 @@ export async function apiLogout(): Promise<void> {
   await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
 }
 
+export async function apiFetchActivation(): Promise<
+  | {
+      ok: true;
+      accountActive: boolean;
+      pixEnabled: boolean;
+      packageAmount: number;
+      order?: import("@/lib/back-office/product-types").PackagePixOrderDto;
+      pixError?: string;
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    const res = await fetchWithTimeout("/api/auth/activation", { credentials: "include" });
+    const data = await parseJson<{
+      ok: boolean;
+      accountActive?: boolean;
+      pixEnabled?: boolean;
+      packageAmount?: number;
+      order?: import("@/lib/back-office/product-types").PackagePixOrderDto;
+      pixError?: string;
+      error?: string;
+    }>(res);
+    if (!res.ok || !data?.ok) {
+      return { ok: false, error: data?.error ?? "Não foi possível carregar activação." };
+    }
+    return {
+      ok: true,
+      accountActive: data.accountActive ?? false,
+      pixEnabled: data.pixEnabled ?? false,
+      packageAmount: data.packageAmount ?? 50,
+      order: data.order,
+      pixError: data.pixError,
+    };
+  } catch {
+    return { ok: false, error: "Falha de ligação ao servidor." };
+  }
+}
+
 export async function apiFetchMe(): Promise<AuthUser | null> {
   try {
     const res = await fetchWithTimeout("/api/auth/me", { credentials: "include" });

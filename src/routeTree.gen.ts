@@ -30,6 +30,7 @@ import { Route as DamasRouteImport } from './routes/damas'
 import { Route as CassinoRouteImport } from './routes/cassino'
 import { Route as CasinoMesaRouteImport } from './routes/casino-mesa'
 import { Route as BackOfficeRouteImport } from './routes/back-office'
+import { Route as ActivarContaRouteImport } from './routes/activar-conta'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MobileIndexRouteImport } from './routes/mobile/index'
 import { Route as BackOfficeIndexRouteImport } from './routes/back-office/index'
@@ -65,6 +66,7 @@ import { Route as ApiAuthRegisterRouteImport } from './routes/api/auth/register'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAuthActivationRouteImport } from './routes/api/auth/activation'
 import { Route as MobileRoletaMesaIdIndexRouteImport } from './routes/mobile/roleta/$mesaId/index'
 import { Route as MobileRoletaMesaIdUm1fatorRouteImport } from './routes/mobile/roleta/$mesaId/um1fator'
 import { Route as MobileRoletaMesaIdDois2fatoresRouteImport } from './routes/mobile/roleta/$mesaId/dois2fatores'
@@ -84,8 +86,11 @@ import { Route as ApiBackOfficeNetworkBinaryRouteImport } from './routes/api/bac
 import { Route as ApiBackOfficeNetworkAffiliatesRouteImport } from './routes/api/back-office/network/affiliates'
 import { Route as ApiBackOfficeDepositsDepositIdRouteImport } from './routes/api/back-office/deposits.$depositId'
 import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/back-office/automation/daily'
+import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
 import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
+import { Route as ApiBackOfficeAdminUsersUserIdActivateStartRouteImport } from './routes/api/back-office/admin/users.$userId.activate-start'
+import { Route as ApiBackOfficeAdminPendingActivationsOrderIdApproveRouteImport } from './routes/api/back-office/admin/pending-activations.$orderId.approve'
 
 const UmFatorRoute = UmFatorRouteImport.update({
   id: '/um-fator',
@@ -190,6 +195,11 @@ const CasinoMesaRoute = CasinoMesaRouteImport.update({
 const BackOfficeRoute = BackOfficeRouteImport.update({
   id: '/back-office',
   path: '/back-office',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivarContaRoute = ActivarContaRouteImport.update({
+  id: '/activar-conta',
+  path: '/activar-conta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -374,6 +384,11 @@ const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   path: '/api/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthActivationRoute = ApiAuthActivationRouteImport.update({
+  id: '/api/auth/activation',
+  path: '/api/auth/activation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MobileRoletaMesaIdIndexRoute = MobileRoletaMesaIdIndexRouteImport.update({
   id: '/roleta/$mesaId/',
   path: '/roleta/$mesaId/',
@@ -487,6 +502,12 @@ const ApiBackOfficeAutomationDailyRoute =
     path: '/api/back-office/automation/daily',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminPendingActivationsRoute =
+  ApiBackOfficeAdminPendingActivationsRouteImport.update({
+    id: '/api/back-office/admin/pending-activations',
+    path: '/api/back-office/admin/pending-activations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficePackagesPixOrderOrderIdRoute =
   ApiBackOfficePackagesPixOrderOrderIdRouteImport.update({
     id: '/pix-order/$orderId',
@@ -499,9 +520,22 @@ const ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute =
     path: '/$subAccountId/start',
     getParentRoute: () => ApiBackOfficeNetworkSubAccountsRoute,
   } as any)
+const ApiBackOfficeAdminUsersUserIdActivateStartRoute =
+  ApiBackOfficeAdminUsersUserIdActivateStartRouteImport.update({
+    id: '/api/back-office/admin/users/$userId/activate-start',
+    path: '/api/back-office/admin/users/$userId/activate-start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute =
+  ApiBackOfficeAdminPendingActivationsOrderIdApproveRouteImport.update({
+    id: '/$orderId/approve',
+    path: '/$orderId/approve',
+    getParentRoute: () => ApiBackOfficeAdminPendingActivationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activar-conta': typeof ActivarContaRoute
   '/back-office': typeof BackOfficeRouteWithChildren
   '/casino-mesa': typeof CasinoMesaRoute
   '/cassino': typeof CassinoRoute
@@ -533,6 +567,7 @@ export interface FileRoutesByFullPath {
   '/mobile/um1fator': typeof MobileUm1fatorRoute
   '/back-office/': typeof BackOfficeIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/api/auth/activation': typeof ApiAuthActivationRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -557,6 +592,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
@@ -577,10 +613,13 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
+  '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
+  '/api/back-office/admin/users/$userId/activate-start': typeof ApiBackOfficeAdminUsersUserIdActivateStartRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activar-conta': typeof ActivarContaRoute
   '/casino-mesa': typeof CasinoMesaRoute
   '/cassino': typeof CassinoRoute
   '/damas': typeof DamasRoute
@@ -609,6 +648,7 @@ export interface FileRoutesByTo {
   '/mobile/um1fator': typeof MobileUm1fatorRoute
   '/back-office': typeof BackOfficeIndexRoute
   '/mobile': typeof MobileIndexRoute
+  '/api/auth/activation': typeof ApiAuthActivationRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -633,6 +673,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
@@ -653,11 +694,14 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
+  '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
+  '/api/back-office/admin/users/$userId/activate-start': typeof ApiBackOfficeAdminUsersUserIdActivateStartRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activar-conta': typeof ActivarContaRoute
   '/back-office': typeof BackOfficeRouteWithChildren
   '/casino-mesa': typeof CasinoMesaRoute
   '/cassino': typeof CassinoRoute
@@ -689,6 +733,7 @@ export interface FileRoutesById {
   '/mobile/um1fator': typeof MobileUm1fatorRoute
   '/back-office/': typeof BackOfficeIndexRoute
   '/mobile/': typeof MobileIndexRoute
+  '/api/auth/activation': typeof ApiAuthActivationRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -713,6 +758,7 @@ export interface FileRoutesById {
   '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
+  '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
@@ -733,12 +779,15 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
+  '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
+  '/api/back-office/admin/users/$userId/activate-start': typeof ApiBackOfficeAdminUsersUserIdActivateStartRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/activar-conta'
     | '/back-office'
     | '/casino-mesa'
     | '/cassino'
@@ -770,6 +819,7 @@ export interface FileRouteTypes {
     | '/mobile/um1fator'
     | '/back-office/'
     | '/mobile/'
+    | '/api/auth/activation'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/me'
@@ -794,6 +844,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
+    | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
     | '/api/back-office/network/affiliates'
@@ -814,10 +865,13 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
     | '/api/back-office/packages/pix-order/$orderId'
+    | '/api/back-office/admin/pending-activations/$orderId/approve'
+    | '/api/back-office/admin/users/$userId/activate-start'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/activar-conta'
     | '/casino-mesa'
     | '/cassino'
     | '/damas'
@@ -846,6 +900,7 @@ export interface FileRouteTypes {
     | '/mobile/um1fator'
     | '/back-office'
     | '/mobile'
+    | '/api/auth/activation'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/me'
@@ -870,6 +925,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId'
+    | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
     | '/api/back-office/network/affiliates'
@@ -890,10 +946,13 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId'
     | '/api/back-office/packages/pix-order/$orderId'
+    | '/api/back-office/admin/pending-activations/$orderId/approve'
+    | '/api/back-office/admin/users/$userId/activate-start'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   id:
     | '__root__'
     | '/'
+    | '/activar-conta'
     | '/back-office'
     | '/casino-mesa'
     | '/cassino'
@@ -925,6 +984,7 @@ export interface FileRouteTypes {
     | '/mobile/um1fator'
     | '/back-office/'
     | '/mobile/'
+    | '/api/auth/activation'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/me'
@@ -949,6 +1009,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
+    | '/api/back-office/admin/pending-activations'
     | '/api/back-office/automation/daily'
     | '/api/back-office/deposits/$depositId'
     | '/api/back-office/network/affiliates'
@@ -969,11 +1030,14 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
     | '/api/back-office/packages/pix-order/$orderId'
+    | '/api/back-office/admin/pending-activations/$orderId/approve'
+    | '/api/back-office/admin/users/$userId/activate-start'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivarContaRoute: typeof ActivarContaRoute
   BackOfficeRoute: typeof BackOfficeRouteWithChildren
   CasinoMesaRoute: typeof CasinoMesaRoute
   CassinoRoute: typeof CassinoRoute
@@ -998,6 +1062,7 @@ export interface RootRouteChildren {
   ApiDamasRoute: typeof ApiDamasRoute
   ApiEventsRoute: typeof ApiEventsRoute
   ApiRawRoute: typeof ApiRawRoute
+  ApiAuthActivationRoute: typeof ApiAuthActivationRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthMeRoute: typeof ApiAuthMeRoute
@@ -1020,12 +1085,14 @@ export interface RootRouteChildren {
   ApiRouletteStrategyGlobalRoute: typeof ApiRouletteStrategyGlobalRouteWithChildren
   ApiRouletteTableMetaRoute: typeof ApiRouletteTableMetaRoute
   ApiWebhooksEfiPixRoute: typeof ApiWebhooksEfiPixRoute
+  ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   ApiBackOfficeAutomationDailyRoute: typeof ApiBackOfficeAutomationDailyRoute
   ApiBackOfficeNetworkAffiliatesRoute: typeof ApiBackOfficeNetworkAffiliatesRoute
   ApiBackOfficeNetworkBinaryRoute: typeof ApiBackOfficeNetworkBinaryRoute
   ApiBackOfficeNetworkBonusesRoute: typeof ApiBackOfficeNetworkBonusesRoute
   ApiBackOfficeNetworkQualificationRoute: typeof ApiBackOfficeNetworkQualificationRoute
   ApiBackOfficeNetworkSubAccountsRoute: typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
+  ApiBackOfficeAdminUsersUserIdActivateStartRoute: typeof ApiBackOfficeAdminUsersUserIdActivateStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1175,6 +1242,13 @@ declare module '@tanstack/react-router' {
       path: '/back-office'
       fullPath: '/back-office'
       preLoaderRoute: typeof BackOfficeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activar-conta': {
+      id: '/activar-conta'
+      path: '/activar-conta'
+      fullPath: '/activar-conta'
+      preLoaderRoute: typeof ActivarContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -1422,6 +1496,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/activation': {
+      id: '/api/auth/activation'
+      path: '/api/auth/activation'
+      fullPath: '/api/auth/activation'
+      preLoaderRoute: typeof ApiAuthActivationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mobile/roleta/$mesaId/': {
       id: '/mobile/roleta/$mesaId/'
       path: '/roleta/$mesaId'
@@ -1555,6 +1636,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAutomationDailyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/pending-activations': {
+      id: '/api/back-office/admin/pending-activations'
+      path: '/api/back-office/admin/pending-activations'
+      fullPath: '/api/back-office/admin/pending-activations'
+      preLoaderRoute: typeof ApiBackOfficeAdminPendingActivationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/packages/pix-order/$orderId': {
       id: '/api/back-office/packages/pix-order/$orderId'
       path: '/pix-order/$orderId'
@@ -1568,6 +1656,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/back-office/network/sub-accounts/$subAccountId/start'
       preLoaderRoute: typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport
       parentRoute: typeof ApiBackOfficeNetworkSubAccountsRoute
+    }
+    '/api/back-office/admin/users/$userId/activate-start': {
+      id: '/api/back-office/admin/users/$userId/activate-start'
+      path: '/api/back-office/admin/users/$userId/activate-start'
+      fullPath: '/api/back-office/admin/users/$userId/activate-start'
+      preLoaderRoute: typeof ApiBackOfficeAdminUsersUserIdActivateStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/admin/pending-activations/$orderId/approve': {
+      id: '/api/back-office/admin/pending-activations/$orderId/approve'
+      path: '/$orderId/approve'
+      fullPath: '/api/back-office/admin/pending-activations/$orderId/approve'
+      preLoaderRoute: typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRouteImport
+      parentRoute: typeof ApiBackOfficeAdminPendingActivationsRoute
     }
   }
 }
@@ -1730,6 +1832,21 @@ const ApiRouletteStrategyGlobalRouteWithChildren =
     ApiRouletteStrategyGlobalRouteChildren,
   )
 
+interface ApiBackOfficeAdminPendingActivationsRouteChildren {
+  ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute: typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
+}
+
+const ApiBackOfficeAdminPendingActivationsRouteChildren: ApiBackOfficeAdminPendingActivationsRouteChildren =
+  {
+    ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute:
+      ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute,
+  }
+
+const ApiBackOfficeAdminPendingActivationsRouteWithChildren =
+  ApiBackOfficeAdminPendingActivationsRoute._addFileChildren(
+    ApiBackOfficeAdminPendingActivationsRouteChildren,
+  )
+
 interface ApiBackOfficeNetworkSubAccountsRouteChildren {
   ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute: typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
@@ -1747,6 +1864,7 @@ const ApiBackOfficeNetworkSubAccountsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivarContaRoute: ActivarContaRoute,
   BackOfficeRoute: BackOfficeRouteWithChildren,
   CasinoMesaRoute: CasinoMesaRoute,
   CassinoRoute: CassinoRoute,
@@ -1771,6 +1889,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDamasRoute: ApiDamasRoute,
   ApiEventsRoute: ApiEventsRoute,
   ApiRawRoute: ApiRawRoute,
+  ApiAuthActivationRoute: ApiAuthActivationRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthMeRoute: ApiAuthMeRoute,
@@ -1793,6 +1912,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouletteStrategyGlobalRoute: ApiRouletteStrategyGlobalRouteWithChildren,
   ApiRouletteTableMetaRoute: ApiRouletteTableMetaRoute,
   ApiWebhooksEfiPixRoute: ApiWebhooksEfiPixRoute,
+  ApiBackOfficeAdminPendingActivationsRoute:
+    ApiBackOfficeAdminPendingActivationsRouteWithChildren,
   ApiBackOfficeAutomationDailyRoute: ApiBackOfficeAutomationDailyRoute,
   ApiBackOfficeNetworkAffiliatesRoute: ApiBackOfficeNetworkAffiliatesRoute,
   ApiBackOfficeNetworkBinaryRoute: ApiBackOfficeNetworkBinaryRoute,
@@ -1801,6 +1922,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeNetworkQualificationRoute,
   ApiBackOfficeNetworkSubAccountsRoute:
     ApiBackOfficeNetworkSubAccountsRouteWithChildren,
+  ApiBackOfficeAdminUsersUserIdActivateStartRoute:
+    ApiBackOfficeAdminUsersUserIdActivateStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

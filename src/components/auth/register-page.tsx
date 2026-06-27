@@ -6,7 +6,7 @@ import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRegister } from "@/lib/auth/api";
-import { goAfterAuth, setSession } from "@/lib/auth/session";
+import { goAfterAuth, postAuthRedirectPath, setSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function RegisterPage({ initialReferralCode }: { initialReferralCode?: string }) {
@@ -43,8 +43,8 @@ export function RegisterPage({ initialReferralCode }: { initialReferralCode?: st
       setLoading(false);
       return;
     }
-    toast.success(t("auth.register.success"));
-    goAfterAuth("/back-office");
+    toast.success(t("auth.register.successPending"));
+    goAfterAuth(postAuthRedirectPath(result.user));
   };
 
   return (

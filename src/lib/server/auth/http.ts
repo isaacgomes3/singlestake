@@ -1,7 +1,6 @@
 import { buildClearSessionCookie, getSessionIdFromRequest, isSecureRequest } from "@/lib/server/auth/cookies";
 import { deleteHttpSession, resolveSessionUser } from "@/lib/server/auth/http-session";
 import type { SessionUser } from "@/lib/server/auth/http-session";
-import { buildReferralLink } from "@/lib/referral/build-link";
 
 export const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" } as const;
 
@@ -35,14 +34,7 @@ export function closeUserSession(request: Request): Response {
   return jsonResponse({ ok: true }, { headers: { "Set-Cookie": buildClearSessionCookie(isSecureRequest(request)) } });
 }
 
-export function toAuthUser(user: SessionUser, origin?: string) {
-  const referralCode = user.referralCode ?? "";
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    referralCode,
-    referralLink: origin && referralCode ? buildReferralLink(referralCode, origin) : undefined,
-  };
+export async function toAuthUser(user: SessionUser, origin?: string) {
+  const { buildAuthUserPayload } = await import("@/lib/server/finance/account-access");
+  return buildAuthUserPayload(user, origin);
 }

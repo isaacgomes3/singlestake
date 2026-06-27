@@ -29,6 +29,12 @@ export const AUTOMATION_DEPOSIT_MAX = 50_000;
 export const START_PACKAGE_AMOUNT = 50;
 export const START_PACKAGE_ID = "start";
 
+/** Automação fixa R$ 250 — única com checkout PIX no catálogo. */
+export const AUTOMATION_PIX_PACKAGE_ID = "auto-250";
+
+/** Pacotes ocultos do catálogo (Start é pago no cadastro). */
+export const CATALOG_EXCLUDED_PACKAGE_IDS = new Set<string>([START_PACKAGE_ID]);
+
 /** Valida valor de depósito em automação. Devolve mensagem de erro ou null se válido. */
 export function validateAutomationDepositAmount(amount: number): string | null {
   if (!Number.isFinite(amount) || amount <= 0) {

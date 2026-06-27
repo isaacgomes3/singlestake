@@ -1,9 +1,15 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+
+import {
+  AUTOMATION_PIX_PACKAGE_ID,
+  START_PACKAGE_AMOUNT,
+  START_PACKAGE_ID,
+} from "@/lib/back-office/product-constants";
 
 import { getDb } from "@/lib/server/db/client";
-import { packagePixOrders } from "@/lib/server/db/schema";
+import { packagePixOrders, userPackages, users } from "@/lib/server/db/schema";
 import { readEfiPixConfig } from "@/lib/server/finance/efi-config";
 import { createImmediatePixCharge, getPixChargeStatus } from "@/lib/server/finance/efi-pay-client";
 import { generatePixQrBase64, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
@@ -66,7 +72,24 @@ export async function createPackagePixOrder(input: {
   userId: string;
   packageId: string;
   amount?: number;
+  /** Fluxo de activação de conta (Start R$ 50 no cadastro). */
+  forAccountActivation?: boolean;
 }): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
+  if (!input.forAccountActivation) {
+    if (input.packageId === START_PACKAGE_ID) {
+      return {
+        ok: false,
+        error: "O Pacote Start R$ 50 é activado no cadastro da conta.",
+      };
+    }
+    if (input.packageId !== AUTOMATION_PIX_PACKAGE_ID) {
+      return {
+        ok: false,
+        error: "PIX disponível apenas para Automação R$ 250.",
+      };
+    }
+  }
+
   const validated = await validatePackagePurchase(input);
   if (!validated.ok) return validated;
 
@@ -296,7 +319,113 @@ export function isPixCheckoutEnabled(): boolean {
   return readEfiPixConfig() != null || isStaticPixConfigured();
 }
 
+/** PIX no catálogo — apenas Automação R$ 250. */
+export function isCatalogPackagePixAvailable(packageId: string): boolean {
+  if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
+  if (!isPixCheckoutEnabled()) return false;
+  return readStaticPixCopiaColaForAmount(250) != null || readEfiPixConfig() != null;
+}
+
 /** @deprecated use isPixCheckoutEnabled */
 export function isEfiPixConfigured(): boolean {
   return isPixCheckoutEnabled();
+}
+
+export type PendingActivationRow = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userCreatedAt: string;
+  orderId: string | null;
+  orderAmount: number | null;
+  orderStatus: PackagePixOrderDto["status"] | null;
+  orderCreatedAt: string | null;
+};
+
+export async function getOrCreateStartPackPixOrder(input: {
+  userId: string;
+}): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
+  const { userHasActiveStartPack } = await import("@/lib/server/finance/account-access");
+  if (await userHasActiveStartPack(input.userId)) {
+    return { ok: false, error: "Conta já activada com Pacote Start." };
+  }
+
+  const db = getDb();
+  const pending = await db.query.packagePixOrders.findFirst({
+    where: and(
+      eq(packagePixOrders.userId, input.userId),
+      eq(packagePixOrders.packageId, START_PACKAGE_ID),
+      eq(packagePixOrders.status, "pending"),
+    ),
+    orderBy: [desc(packagePixOrders.createdAt)],
+  });
+
+  if (pending && (!pending.expiresAt || pending.expiresAt.getTime() > Date.now())) {
+    return { ok: true, order: toDto(pending) };
+  }
+
+  return createPackagePixOrder({
+    userId: input.userId,
+    packageId: START_PACKAGE_ID,
+    forAccountActivation: true,
+  });
+}
+
+export async function listPendingAccountActivations(): Promise<PendingActivationRow[]> {
+  const db = getDb();
+  const allUsers = await db.query.users.findMany({
+    where: eq(users.role, "user"),
+    orderBy: [desc(users.createdAt)],
+  });
+
+  const rows: PendingActivationRow[] = [];
+  const { userHasActiveStartPack } = await import("@/lib/server/finance/account-access");
+
+  for (const user of allUsers) {
+    if (await userHasActiveStartPack(user.id)) continue;
+
+    const order = await db.query.packagePixOrders.findFirst({
+      where: and(
+        eq(packagePixOrders.userId, user.id),
+        eq(packagePixOrders.packageId, START_PACKAGE_ID),
+        eq(packagePixOrders.status, "pending"),
+      ),
+      orderBy: [desc(packagePixOrders.createdAt)],
+    });
+
+    rows.push({
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userCreatedAt: user.createdAt.toISOString(),
+      orderId: order?.id ?? null,
+      orderAmount: order?.amount ?? null,
+      orderStatus: order ? (order.status as PackagePixOrderDto["status"]) : null,
+      orderCreatedAt: order?.createdAt.toISOString() ?? null,
+    });
+  }
+
+  return rows;
+}
+
+export async function adminActivateStartPackManual(input: {
+  userId: string;
+  actorUserId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { userHasActiveStartPack } = await import("@/lib/server/finance/account-access");
+  if (await userHasActiveStartPack(input.userId)) {
+    return { ok: false, error: "Utilizador já possui Pacote Start activo." };
+  }
+
+  const result = await activatePackageAfterPayment({
+    userId: input.userId,
+    packageId: START_PACKAGE_ID,
+    amount: START_PACKAGE_AMOUNT,
+    skipWalletDebit: true,
+  });
+
+  if (!result.ok) return { ok: false, error: result.error };
+
+  console.info("[account-access] start activado manualmente por", input.actorUserId, input.userId);
+  return { ok: true };
 }

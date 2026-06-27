@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/auth/register")({
         return jsonResponse(
           {
             ok: true,
-            user: toAuthUser(
+            user: await toAuthUser(
               {
                 id: result.user.id,
                 name: result.user.name,

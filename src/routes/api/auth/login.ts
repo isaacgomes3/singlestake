@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/auth/login")({
         return jsonResponse(
           {
             ok: true,
-            user: toAuthUser(
+            user: await toAuthUser(
               {
                 id: result.user.id,
                 name: result.user.name,

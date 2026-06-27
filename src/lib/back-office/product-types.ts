@@ -9,6 +9,8 @@ export type PackageDto = {
   allowsCustomAmount: boolean;
   packageKind: PackageKind;
   active: boolean;
+  /** Checkout PIX disponível para este item no catálogo. */
+  pixAvailable?: boolean;
 };
 
 export type UserPackageDto = {

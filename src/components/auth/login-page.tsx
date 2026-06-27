@@ -6,12 +6,7 @@ import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetchMe, apiLogin } from "@/lib/auth/api";
-import {
-  getDevLoginHint,
-  goAfterAuth,
-  loginRedirectPath,
-  setSession,
-} from "@/lib/auth/session";
+import { goAfterAuth, getDevLoginHint, postAuthRedirectPath, setSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function LoginPage() {
@@ -25,7 +20,7 @@ export function LoginPage() {
     void apiFetchMe().then((user) => {
       if (user) {
         setSession(user);
-        goAfterAuth(loginRedirectPath());
+        goAfterAuth(postAuthRedirectPath(user));
       }
     });
   }, []);
@@ -53,7 +48,7 @@ export function LoginPage() {
       }
 
       toast.success(t("auth.login.welcome", { name: result.user.name }));
-      goAfterAuth(loginRedirectPath());
+      goAfterAuth(postAuthRedirectPath(verified));
     } finally {
       setLoading(false);
     }

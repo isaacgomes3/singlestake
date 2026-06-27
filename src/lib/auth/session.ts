@@ -5,6 +5,8 @@ export type AuthUser = {
   role: "user" | "admin";
   referralCode: string;
   referralLink?: string;
+  /** Pacote Start R$ 50 pago — acesso ao back office. */
+  accountActive: boolean;
 };
 
 export type AuthSession = {
@@ -22,7 +24,12 @@ export function getSession(): AuthSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as AuthSession;
+    const parsed = JSON.parse(raw) as AuthSession;
+    const user = parsed.user;
+    if (user && user.accountActive === undefined) {
+      parsed.user = { ...user, accountActive: user.role === "admin" };
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -61,6 +68,13 @@ export function goToLogin(redirectTo?: string): void {
 export function getDevLoginHint(): string | null {
   if (!import.meta.env.DEV) return null;
   return `${DEV_SEED_EMAIL} / ${DEV_SEED_PASSWORD}`;
+}
+
+export function postAuthRedirectPath(user: AuthUser): string {
+  if (user.role === "admin" || user.accountActive) {
+    return loginRedirectPath();
+  }
+  return "/activar-conta";
 }
 
 export function goAfterAuth(target = "/back-office"): void {

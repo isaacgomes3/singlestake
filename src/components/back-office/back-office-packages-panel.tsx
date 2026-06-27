@@ -28,18 +28,19 @@ export function BackOfficePackagesPanel() {
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [runningYield, setRunningYield] = useState(false);
   const [customAmount, setCustomAmount] = useState("500");
-  const [pixEnabled, setPixEnabled] = useState(false);
   const [pixOrder, setPixOrder] = useState<PackagePixOrderDto | null>(null);
   const [pixPackageName, setPixPackageName] = useState("");
 
-  const hasStart = mine.some((p) => p.packageId === "start" && p.status === "active");
+  const sessionUser = getSession()?.user;
+  const hasStart =
+    mine.some((p) => p.packageId === "start" && p.status === "active") ||
+    sessionUser?.accountActive === true;
 
   const reload = async () => {
     setLoading(true);
-    const { packages, pixEnabled: pix } = await fetchProductPackages();
+    const { packages } = await fetchProductPackages();
     const owned = await fetchUserPackages();
     setCatalog(packages);
-    setPixEnabled(pix);
     setMine(owned);
     setLoading(false);
   };
@@ -104,13 +105,9 @@ export function BackOfficePackagesPanel() {
       ) : null}
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.packages.splitTitle")}</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 text-sm">
-            <p className="font-semibold text-text-primary">{t("products.packages.withAutomation")}</p>
-          </div>
-          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3 text-sm">
-            <p className="font-semibold text-text-primary">{t("products.packages.startPack")}</p>
-          </div>
+        <p className="mt-2 text-sm text-text-secondary">{t("products.packages.startAtRegistration")}</p>
+        <div className="mt-3 rounded-xl border border-border-color bg-bg-secondary px-4 py-3 text-sm">
+          <p className="font-semibold text-text-primary">{t("products.packages.withAutomation")}</p>
         </div>
         {isAdmin ? (
           <Button
@@ -175,7 +172,7 @@ export function BackOfficePackagesPanel() {
                           ? t("products.packages.buying")
                           : t("products.packages.buy")}
                       </Button>
-                      {pixEnabled ? (
+                      {pkg.pixAvailable ? (
                         <Button
                           type="button"
                           size="sm"

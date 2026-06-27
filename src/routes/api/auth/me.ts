@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/auth/me")({
           return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
-        return jsonResponse({ ok: true, user: toAuthUser(user, new URL(request.url).origin) });
+        return jsonResponse({ ok: true, user: await toAuthUser(user, new URL(request.url).origin) });
       },
     },
   },
