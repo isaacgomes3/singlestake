@@ -3,6 +3,14 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 
 export type RotatingRoomLobbySession = RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
 
+/** Iframe enquanto não há mesa em foco («Aguarde no Lobby»). */
+export const ROTATING_ROOM_LOBBY_WAIT_EMBED_URL = "https://br4.bet.br/play/pragmatic/poker";
+
+/** Sem indicação, flash ou preparação — estado «Aguarde no Lobby». */
+export function isRotatingRoomLobbyWait(session: RotatingRoomLobbySession): boolean {
+  return rotatingRoomLobbyFocusTableId(session) == null;
+}
+
 /** Mesa em foco na sala rotativa (iframe, cartão lobby, badge de sinal). */
 export function rotatingRoomLobbyFocusTableId(session: RotatingRoomLobbySession): number | null {
   if (session.roundFlash?.tableId != null) return session.roundFlash.tableId;

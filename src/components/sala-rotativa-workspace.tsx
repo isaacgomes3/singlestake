@@ -14,7 +14,7 @@ import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 
 const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
-import { rotatingRoomLobbyFocusTableId } from "@/lib/roulette/rotatingRoomLobbySignal";
+import { rotatingRoomLobbyFocusTableId, isRotatingRoomLobbyWait, ROTATING_ROOM_LOBBY_WAIT_EMBED_URL } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   rotatingRoomCasinoMesaSearch,
   rotatingRoomTableOpenTarget,
@@ -64,6 +64,7 @@ export function SalaRotativaWorkspace({
   const { viewport, patchViewport, resetViewport } = useCasinoEmbedViewport();
   const [viewportControlsOpen, setViewportControlsOpen] = useState(false);
   const focusTableId = rotatingRoomLobbyFocusTableId(session);
+  const lobbyWait = isRotatingRoomLobbyWait(session);
   const [iframeTableId, setIframeTableId] = useState<number | null>(focusTableId);
 
   const panelOffsetRef = useRef(readRotatingRoomPanelOffset());
@@ -156,9 +157,17 @@ export function SalaRotativaWorkspace({
     }
   }, []);
 
-  const activeIframeId = iframeTableId ?? focusTableId ?? tableIds[0] ?? null;
-  const iframeEmbedUrl = activeIframeId != null ? getCasinoEmbedUrlForTable(activeIframeId) : null;
-  const iframeLabel = activeIframeId != null ? lobbyTableDisplayName(activeIframeId) : null;
+  const activeIframeId = lobbyWait ? null : iframeTableId ?? focusTableId ?? null;
+  const iframeEmbedUrl = lobbyWait
+    ? ROTATING_ROOM_LOBBY_WAIT_EMBED_URL
+    : activeIframeId != null
+      ? getCasinoEmbedUrlForTable(activeIframeId)
+      : null;
+  const iframeLabel = lobbyWait
+    ? "Aguarde no Lobby"
+    : activeIframeId != null
+      ? lobbyTableDisplayName(activeIframeId)
+      : null;
   const casinoMesaSearch =
     activeIframeId != null ? rotatingRoomCasinoMesaSearch(activeIframeId) : undefined;
 
@@ -220,9 +229,17 @@ export function SalaRotativaWorkspace({
               {iframeMode ? "Iframe activo" : "Modo iframe"}
             </button>
           ) : null}
-          {effectiveIframeMode && activeIframeId != null ? (
+          {effectiveIframeMode ? (
             <span className="text-xs text-text-secondary">
-              Mesa: <span className="font-semibold text-text-primary">{iframeLabel}</span>
+              {lobbyWait ? (
+                <>
+                  Modo: <span className="font-semibold text-text-primary">Lobby · Poker</span>
+                </>
+              ) : activeIframeId != null ? (
+                <>
+                  Mesa: <span className="font-semibold text-text-primary">{iframeLabel}</span>
+                </>
+              ) : null}
             </span>
           ) : null}
         </div>
@@ -276,9 +293,9 @@ export function SalaRotativaWorkspace({
           <>
             {iframeEmbedUrl ? (
               <CasinoGameEmbedFrame
-                key={activeIframeId ?? iframeEmbedUrl}
+                key={lobbyWait ? "lobby-poker" : `${activeIframeId ?? iframeEmbedUrl}`}
                 src={iframeEmbedUrl}
-                title={iframeLabel ? `Casino ÔÇö ${iframeLabel}` : "Casino"}
+                title={lobbyWait ? "Lobby — Poker" : iframeLabel ? `Casino — ${iframeLabel}` : "Casino"}
                 viewport={viewport}
               />
             ) : activeIframeId != null ? (
