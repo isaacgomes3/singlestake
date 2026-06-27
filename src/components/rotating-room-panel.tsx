@@ -383,16 +383,25 @@ function RotatingRoomStage({
     (session.sessionMode === "prepare" ||
       (session.prepareTableId != null && !session.showTapeteSignal));
   const hasRoundFlash = session.roundFlash != null;
+  const postResultHoldActive =
+    "postResultHoldActive" in session &&
+    session.postResultHoldActive === true;
   const isActive =
-    (session.showTapeteSignal && session.activeCrossing != null) || hasRoundFlash;
+    (session.showTapeteSignal && session.activeCrossing != null) ||
+    hasRoundFlash ||
+    postResultHoldActive;
   const isAwaitingNextTable =
     isSingleFactorSession(session) &&
     session.currentRecovery > 0 &&
     !session.showTapeteSignal &&
-    !hasRoundFlash;
+    !hasRoundFlash &&
+    !postResultHoldActive;
 
   const focusTableId = isActive
-    ? session.currentTableId ?? session.roundFlash?.tableId ?? null
+    ? session.currentTableId ??
+      session.roundFlash?.tableId ??
+      ("postResultHoldTableId" in session ? session.postResultHoldTableId : null) ??
+      null
     : isPrepare
       ? session.prepareTableId
       : null;

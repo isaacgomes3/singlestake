@@ -39,6 +39,9 @@ export type RotatingRoomClickBotSessionSlice = {
   /** Pós-ciclo — bloqueia nova indicação até lobby carregar + cooldown. */
   lobbyCooldownActive?: boolean;
   lobbyCooldownUntilMs?: number | null;
+  postResultHoldActive?: boolean;
+  postResultHoldUntilMs?: number | null;
+  postResultHoldTableId?: number | null;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -59,6 +62,10 @@ export function planRotatingRoomClickBotActions(
         reason: "Fase POSICIONAR — abrir a mesa indicada",
       },
     ];
+  }
+
+  if (session.postResultHoldActive) {
+    return [{ kind: "wait", reason: "Resultado — aguardar antes de voltar ao lobby" }];
   }
 
   if (session.lobbyCooldownActive && !session.showTapeteSignal) {
@@ -139,6 +146,8 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.singleFactorMode ? 1 : 0,
     session.lobbyWait ? 1 : 0,
     session.lobbyCooldownActive ? 1 : 0,
+    session.postResultHoldActive ? 1 : 0,
+    session.postResultHoldUntilMs ?? "",
     f ? `${f.factor1.kind}:${f.factor1.value}|${f.factor2.kind}:${f.factor2.value}` : "",
   ].join("|");
 }

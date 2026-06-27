@@ -41,8 +41,10 @@ import {
 
 import {
   isRotatingRoomLobbyCooldownActive,
+  isRotatingRoomPostResultHoldActive,
   ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
+import type { UmFatorPlacarFlash } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
 
 export type RotatingRoomUmFatorRoundFlash = {
   resultNumber: number;
@@ -79,6 +81,9 @@ export type RotatingRoomUmFatorSession = {
   /** Bloqueio pós-ciclo (vitória/derrota final) — extensão e UI respeitam antes de nova entrada. */
   lobbyCooldownUntilMs: number | null;
   lobbyCooldownActive: boolean;
+  postResultHoldUntilMs: number | null;
+  postResultHoldTableId: number | null;
+  postResultHoldActive: boolean;
 };
 
 export function useRotatingRoomUmFatorSession(
@@ -106,6 +111,7 @@ export function useRotatingRoomUmFatorSession(
   const [machine, setMachine] = useState<UmFatorMachineState>(() =>
     sanitizeUmFatorMachineForTableIds(readRotatingRoomUmFatorMachineState(), tableIds),
   );
+  const [holdEpoch, setHoldEpoch] = useState(0);
   const flashClearRef = useRef<number | null>(null);
   const machineRef = useRef(machine);
   const statsRef = useRef(sessionStats);
@@ -129,6 +135,32 @@ export function useRotatingRoomUmFatorSession(
     machineRef.current = next;
     setMachine(next);
   };
+
+  const applyPlacarFlash = (flash: NonNullable<UmFatorPlacarFlash>) => {
+    setRoundFlash({
+      resultNumber: flash.resultNumber,
+      won: flash.won,
+      tableId: flash.tableId,
+      kind: flash.kind,
+    });
+    if (shouldPresentStrategyPlacarFeedback()) {
+      if (flash.kind === "win") void playPlacarWinCoins();
+      else if (flash.kind === "loss") void playPlacarDefeat();
+    }
+    if (flashClearRef.current != null) window.clearTimeout(flashClearRef.current);
+    flashClearRef.current = window.setTimeout(() => {
+      setRoundFlash(null);
+      flashClearRef.current = null;
+    }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
+  };
+
+  useEffect(() => {
+    const until = machine.postResultHoldUntilMs;
+    if (until == null || !isRotatingRoomPostResultHoldActive(until)) return;
+    const delayMs = until - Date.now() + 40;
+    const timer = window.setTimeout(() => setHoldEpoch((n) => n + 1), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [machine.postResultHoldUntilMs, holdEpoch]);
 
   useEffect(() => {
     statsRef.current = readRotatingRoomUmFatorSessionStats();
@@ -231,7 +263,10 @@ export function useRotatingRoomUmFatorSession(
   const showTapeteSignalRaw = activeCrossing != null && currentTableId != null;
   const lobbyCooldownUntilMs = machine.lobbyCooldownUntilMs;
   const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs);
-  const showTapeteSignal = showTapeteSignalRaw && !lobbyCooldownActive;
+  const postResultHoldUntilMs = machine.postResultHoldUntilMs;
+  const postResultHoldTableId = machine.postResultHoldTableId;
+  const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
+  const showTapeteSignal = showTapeteSignalRaw && !lobbyCooldownActive && !postResultHoldActive;
   const phase: RotatingRoomPhase = showTapeteSignal ? "active" : "waiting";
 
   const globalUmActive = globalView?.umActive ?? null;
@@ -274,20 +309,8 @@ export function useRotatingRoomUmFatorSession(
       globalFlashSeqRef.current = seq;
       const flashes = consumeStrategyGlobalFlashes();
       const flash = flashes?.um1fator;
-      if (!flash || observeOnly || !shouldPresentStrategyPlacarFeedback()) return;
-      setRoundFlash({
-        resultNumber: flash.resultNumber,
-        won: flash.won,
-        tableId: flash.tableId,
-        kind: flash.kind,
-      });
-      if (flash.kind === "win") void playPlacarWinCoins();
-      else if (flash.kind === "loss") void playPlacarDefeat();
-      if (flashClearRef.current != null) window.clearTimeout(flashClearRef.current);
-      flashClearRef.current = window.setTimeout(() => {
-        setRoundFlash(null);
-        flashClearRef.current = null;
-      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
+      if (!flash || observeOnly) return;
+      applyPlacarFlash(flash);
     };
 
     applyGlobalFlash();
@@ -311,20 +334,8 @@ export function useRotatingRoomUmFatorSession(
     statsRef.current = placar.stats;
     setSessionStats(placar.stats);
 
-    if (placar.flash && !observeOnly && shouldPresentStrategyPlacarFeedback()) {
-      setRoundFlash({
-        resultNumber: placar.flash.resultNumber,
-        won: placar.flash.won,
-        tableId: placar.flash.tableId,
-        kind: placar.flash.kind,
-      });
-      if (placar.flash.kind === "win") void playPlacarWinCoins();
-      else if (placar.flash.kind === "loss") void playPlacarDefeat();
-      if (flashClearRef.current != null) window.clearTimeout(flashClearRef.current);
-      flashClearRef.current = window.setTimeout(() => {
-        setRoundFlash(null);
-        flashClearRef.current = null;
-      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
+    if (placar.flash && !observeOnly) {
+      applyPlacarFlash(placar.flash);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useGlobalIndication, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
@@ -338,7 +349,10 @@ export function useRotatingRoomUmFatorSession(
       activeCrossing: globalActiveCrossing,
       lobbyCooldownUntilMs,
       lobbyCooldownActive,
-      showTapeteSignal: globalView.showTapeteSignal && !lobbyCooldownActive,
+      showTapeteSignal: globalView.showTapeteSignal && !lobbyCooldownActive && !postResultHoldActive,
+      postResultHoldUntilMs,
+      postResultHoldTableId,
+      postResultHoldActive,
     };
   }
 
@@ -360,5 +374,8 @@ export function useRotatingRoomUmFatorSession(
     umActive: showTapeteSignal ? umActive : null,
     lobbyCooldownUntilMs,
     lobbyCooldownActive,
+    postResultHoldUntilMs,
+    postResultHoldTableId,
+    postResultHoldActive,
   };
 }

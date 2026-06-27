@@ -68,6 +68,9 @@ export type RotatingRoomExtensionContext = {
   lobbyWait?: boolean;
   /** Timestamp até ao qual novas apostas ficam bloqueadas (pós-ciclo). */
   lobbyCooldownUntilMs?: number | null;
+  /** Mantém mesa em foco após resultado antes do lobby (sincronia extensão). */
+  postResultHoldUntilMs?: number | null;
+  postResultHoldTableId?: number | null;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -109,11 +112,14 @@ export function buildRotatingRoomExtensionContext(
   automationBalance?: number | null,
 ): RotatingRoomExtensionContext {
   const lobbyWait = session.lobbyWait === true;
+  const postResultHoldActive = session.postResultHoldActive === true;
   const focusTableId = lobbyWait
     ? null
-    : session.showTapeteSignal && session.currentTableId != null
-      ? session.currentTableId
-      : session.prepareTableId;
+    : postResultHoldActive && session.postResultHoldTableId != null
+      ? session.postResultHoldTableId
+      : session.showTapeteSignal && session.currentTableId != null
+        ? session.currentTableId
+        : session.prepareTableId;
   const crossing = session.activeCrossing;
   const mesaCatalog = buildRotatingRoomMesaCatalog();
   const mesaFromCatalog =
@@ -159,10 +165,18 @@ export function buildRotatingRoomExtensionContext(
     lobbyWait,
     mesaCatalog,
     lobbyCooldownUntilMs:
-      "lobbyCooldownUntilMs" in session &&
-      typeof session.lobbyCooldownUntilMs === "number" &&
-      Number.isFinite(session.lobbyCooldownUntilMs)
+      typeof session.lobbyCooldownUntilMs === "number" && Number.isFinite(session.lobbyCooldownUntilMs)
         ? session.lobbyCooldownUntilMs
+        : null,
+    postResultHoldUntilMs:
+      typeof session.postResultHoldUntilMs === "number" &&
+      Number.isFinite(session.postResultHoldUntilMs)
+        ? session.postResultHoldUntilMs
+        : null,
+    postResultHoldTableId:
+      typeof session.postResultHoldTableId === "number" &&
+      Number.isFinite(session.postResultHoldTableId)
+        ? session.postResultHoldTableId
         : null,
   };
 }

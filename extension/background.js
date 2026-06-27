@@ -359,9 +359,31 @@ async function handleBridgePayloadInner(payload, sourceTabId) {
     typeof ctx.lobbyCooldownUntilMs === "number" && Number.isFinite(ctx.lobbyCooldownUntilMs)
       ? ctx.lobbyCooldownUntilMs
       : 0;
+  const postResultHoldUntil =
+    typeof ctx.postResultHoldUntilMs === "number" && Number.isFinite(ctx.postResultHoldUntilMs)
+      ? ctx.postResultHoldUntilMs
+      : 0;
+  const isLobbyPayload = ctx.lobbyWait === true;
 
-  if (isBetPayload && cooldownUntil > Date.now()) {
-    const waitSec = Math.ceil((cooldownUntil - Date.now()) / 1000);
+  if (isLobbyPayload && postResultHoldUntil > Date.now()) {
+    const waitSec = Math.ceil((postResultHoldUntil - Date.now()) / 1000);
+    return {
+      ok: true,
+      results: [
+        {
+          target: "bridge",
+          ok: true,
+          skipped: true,
+          detail: `Resultado — aguardar ${waitSec}s antes do lobby`,
+        },
+      ],
+      mode: await resolveExecutionMode(payload.context),
+    };
+  }
+
+  if (isBetPayload && (cooldownUntil > Date.now() || postResultHoldUntil > Date.now())) {
+    const until = Math.max(cooldownUntil, postResultHoldUntil);
+    const waitSec = Math.ceil((until - Date.now()) / 1000);
     return {
       ok: true,
       results: [

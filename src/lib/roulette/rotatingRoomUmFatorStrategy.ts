@@ -38,6 +38,8 @@ import {
 } from "@/lib/roulette/liveTableBettingWindow";
 import {
   isRotatingRoomLobbyCooldownActive,
+  isRotatingRoomPostResultHoldActive,
+  ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
   rotatingRoomLobbyCooldownUntilMs,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 
@@ -129,6 +131,11 @@ export type UmFatorMachineState = {
    */
   lobbyArmingGateByTable: Record<string, string>;
 
+  /** Mantém mesa em foco após vitória/derrota final — UI/extensão síncronos com o motor. */
+  postResultHoldUntilMs: number | null;
+
+  postResultHoldTableId: number | null;
+
 };
 
 
@@ -207,6 +214,10 @@ export function defaultUmFatorMachineState(): UmFatorMachineState {
 
     lobbyArmingGateByTable: {},
 
+    postResultHoldUntilMs: null,
+
+    postResultHoldTableId: null,
+
   };
 
 }
@@ -245,6 +256,32 @@ function refreshLobbyArmingGateIfReady(
     ...machine,
     lobbyCooldownUntilMs: null,
     lobbyArmingGateByTable: snapshotSpinHeadsByTable(tableIds, histories),
+  };
+}
+
+function clearExpiredPostResultHold(machine: UmFatorMachineState): UmFatorMachineState {
+  if (!isRotatingRoomPostResultHoldActive(machine.postResultHoldUntilMs)) {
+    if (machine.postResultHoldUntilMs == null && machine.postResultHoldTableId == null) {
+      return machine;
+    }
+    return {
+      ...machine,
+      postResultHoldUntilMs: null,
+      postResultHoldTableId: null,
+    };
+  }
+  return machine;
+}
+
+function beginPostResultLobbyHold(
+  machine: UmFatorMachineState,
+  tableId: number,
+  fromMs: number = Date.now(),
+): UmFatorMachineState {
+  return {
+    ...machine,
+    postResultHoldUntilMs: fromMs + ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
+    postResultHoldTableId: tableId,
   };
 }
 
@@ -648,6 +685,7 @@ export function tickUmFatorPlacar(
 } {
 
   let nextMachine: UmFatorMachineState = pruneOrphanUmFatorPending(machine);
+  nextMachine = clearExpiredPostResultHold(nextMachine);
   nextMachine = refreshLobbyArmingGateIfReady(nextMachine, tableIds, histories);
   nextMachine = {
 
@@ -801,6 +839,7 @@ export function tickUmFatorPlacar(
 
         nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
         nextMachine.lobbyArmingGateByTable = {};
+        nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
 
         flash = {
           resultNumber,
@@ -831,6 +870,7 @@ export function tickUmFatorPlacar(
 
           nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
           nextMachine.lobbyArmingGateByTable = {};
+          nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
 
           flash = {
             resultNumber,
@@ -979,6 +1019,10 @@ export function seedUmFatorMachineAfterPlacarReset(
 
     lobbyArmingGateByTable: {},
 
+    postResultHoldUntilMs: null,
+
+    postResultHoldTableId: null,
+
   };
 
 }
@@ -1051,6 +1095,22 @@ export function sanitizeUmFatorMachineForTableIds(
 
       : null;
 
+  const postResultHoldTableId =
+
+    machine.postResultHoldTableId != null && tableIds.includes(machine.postResultHoldTableId)
+
+      ? machine.postResultHoldTableId
+
+      : null;
+
+  const postResultHoldUntilMs =
+
+    typeof machine.postResultHoldUntilMs === "number" && Number.isFinite(machine.postResultHoldUntilMs)
+
+      ? machine.postResultHoldUntilMs
+
+      : null;
+
   return {
 
     ...machine,
@@ -1064,6 +1124,10 @@ export function sanitizeUmFatorMachineForTableIds(
     staleFormationHeadByTable,
 
     lobbyArmingGateByTable,
+
+    postResultHoldUntilMs,
+
+    postResultHoldTableId,
 
     tablePlacarLosses: {},
 
@@ -1165,6 +1229,10 @@ export function normalizeUmFatorMachineOnLoad(
 
       lobbyArmingGateByTable: {},
 
+      postResultHoldUntilMs: null,
+
+      postResultHoldTableId: null,
+
       recovery: partialLosses > 0 ? partialLosses : 0,
 
     };
@@ -1187,6 +1255,22 @@ export function normalizeUmFatorMachineOnLoad(
     staleFormationHeadByTable: machine.staleFormationHeadByTable ?? {},
 
     lobbyArmingGateByTable: machine.lobbyArmingGateByTable ?? {},
+
+    postResultHoldUntilMs:
+
+      typeof machine.postResultHoldUntilMs === "number" && Number.isFinite(machine.postResultHoldUntilMs)
+
+        ? machine.postResultHoldUntilMs
+
+        : null,
+
+    postResultHoldTableId:
+
+      typeof machine.postResultHoldTableId === "number" && Number.isFinite(machine.postResultHoldTableId)
+
+        ? machine.postResultHoldTableId
+
+        : null,
 
     lobbyCooldownUntilMs,
 

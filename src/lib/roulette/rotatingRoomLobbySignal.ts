@@ -1,7 +1,10 @@
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 
-export type RotatingRoomLobbySession = RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
+export type RotatingRoomLobbySession = (RotatingRoomCrossingSession | RotatingRoomUmFatorSession) & {
+  postResultHoldUntilMs?: number | null;
+  postResultHoldTableId?: number | null;
+};
 
 /** Iframe enquanto não há mesa em foco («Aguarde no Lobby»). */
 export const ROTATING_ROOM_LOBBY_WAIT_EMBED_URL = "https://br4.bet.br/play/pragmatic/poker";
@@ -43,6 +46,18 @@ export function isRotatingRoomLobbyCooldownActive(
   );
 }
 
+/** Vitória/derrota final — ainda na mesa antes de «Aguarde no Lobby» (motor, síncrono). */
+export function isRotatingRoomPostResultHoldActive(
+  postResultHoldUntilMs: number | null | undefined,
+  nowMs: number = Date.now(),
+): boolean {
+  return (
+    typeof postResultHoldUntilMs === "number" &&
+    Number.isFinite(postResultHoldUntilMs) &&
+    nowMs < postResultHoldUntilMs
+  );
+}
+
 /** Sem indicação, flash ou preparação — estado «Aguarde no Lobby». */
 export function isRotatingRoomLobbyWait(session: RotatingRoomLobbySession): boolean {
   return rotatingRoomLobbyFocusTableId(session) == null;
@@ -50,6 +65,12 @@ export function isRotatingRoomLobbyWait(session: RotatingRoomLobbySession): bool
 
 /** Mesa em foco na sala rotativa (iframe, cartão lobby, badge de sinal). */
 export function rotatingRoomLobbyFocusTableId(session: RotatingRoomLobbySession): number | null {
+  if (
+    isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs) &&
+    session.postResultHoldTableId != null
+  ) {
+    return session.postResultHoldTableId;
+  }
   if (session.roundFlash?.tableId != null) return session.roundFlash.tableId;
   if (session.showTapeteSignal && session.currentTableId != null) return session.currentTableId;
   if (session.prepareTableId != null) return session.prepareTableId;

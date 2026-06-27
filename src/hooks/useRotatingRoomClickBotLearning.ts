@@ -22,6 +22,7 @@ import {
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import {
   isRotatingRoomLobbyWait,
+  isRotatingRoomPostResultHoldActive,
   type RotatingRoomLobbySession,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 
@@ -73,9 +74,26 @@ function sessionToSlice(
     singleFactorMode,
     signalId,
     currentRecovery: session.currentRecovery,
-    lobbyWait: isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
+    lobbyWait:
+      !isRotatingRoomPostResultHoldActive(
+        "postResultHoldUntilMs" in session ? session.postResultHoldUntilMs : null,
+      ) && isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
     lobbyCooldownActive:
       "lobbyCooldownActive" in session && session.lobbyCooldownActive === true,
+    postResultHoldActive:
+      "postResultHoldActive" in session && session.postResultHoldActive === true,
+    postResultHoldUntilMs:
+      "postResultHoldUntilMs" in session &&
+      typeof session.postResultHoldUntilMs === "number" &&
+      Number.isFinite(session.postResultHoldUntilMs)
+        ? session.postResultHoldUntilMs
+        : null,
+    postResultHoldTableId:
+      "postResultHoldTableId" in session &&
+      typeof session.postResultHoldTableId === "number" &&
+      Number.isFinite(session.postResultHoldTableId)
+        ? session.postResultHoldTableId
+        : null,
     lobbyCooldownUntilMs:
       "lobbyCooldownUntilMs" in session &&
       typeof session.lobbyCooldownUntilMs === "number" &&
@@ -119,6 +137,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
 
   useEffect(() => {
     if (!enabled) return;
+    if (sessionSlice.postResultHoldActive) return;
     if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;
     if (fingerprint === lastFingerprintRef.current) return;
 

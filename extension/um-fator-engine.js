@@ -439,6 +439,9 @@ var SinglestakeUmFator = (() => {
   function isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs, nowMs = Date.now()) {
     return typeof lobbyCooldownUntilMs === "number" && Number.isFinite(lobbyCooldownUntilMs) && nowMs < lobbyCooldownUntilMs;
   }
+  function isRotatingRoomPostResultHoldActive(postResultHoldUntilMs, nowMs = Date.now()) {
+    return typeof postResultHoldUntilMs === "number" && Number.isFinite(postResultHoldUntilMs) && nowMs < postResultHoldUntilMs;
+  }
 
   // src/lib/roulette/rotatingRoomUmFatorStrategy.ts
   function spinHead(history) {
@@ -459,7 +462,9 @@ var SinglestakeUmFator = (() => {
       focusLockTableId: null,
       staleFormationHeadByTable: {},
       lobbyCooldownUntilMs: null,
-      lobbyArmingGateByTable: {}
+      lobbyArmingGateByTable: {},
+      postResultHoldUntilMs: null,
+      postResultHoldTableId: null
     };
   }
   function snapshotSpinHeadsByTable(tableIds, histories) {
@@ -480,6 +485,26 @@ var SinglestakeUmFator = (() => {
       ...machine,
       lobbyCooldownUntilMs: null,
       lobbyArmingGateByTable: snapshotSpinHeadsByTable(tableIds, histories)
+    };
+  }
+  function clearExpiredPostResultHold(machine) {
+    if (!isRotatingRoomPostResultHoldActive(machine.postResultHoldUntilMs)) {
+      if (machine.postResultHoldUntilMs == null && machine.postResultHoldTableId == null) {
+        return machine;
+      }
+      return {
+        ...machine,
+        postResultHoldUntilMs: null,
+        postResultHoldTableId: null
+      };
+    }
+    return machine;
+  }
+  function beginPostResultLobbyHold(machine, tableId, fromMs = Date.now()) {
+    return {
+      ...machine,
+      postResultHoldUntilMs: fromMs + ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
+      postResultHoldTableId: tableId
     };
   }
   function isResultAlreadySettled(machine, tableId, head) {
@@ -631,6 +656,7 @@ var SinglestakeUmFator = (() => {
   }
   function tickUmFatorPlacar(tableIds, histories, machine, stats, maxRecovery = UM_FATOR_MAX_RECOVERY) {
     let nextMachine = pruneOrphanUmFatorPending(machine);
+    nextMachine = clearExpiredPostResultHold(nextMachine);
     nextMachine = refreshLobbyArmingGateIfReady(nextMachine, tableIds, histories);
     nextMachine = {
       ...nextMachine,
@@ -694,6 +720,7 @@ var SinglestakeUmFator = (() => {
           nextMachine.lastLostTableId = null;
           nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
           nextMachine.lobbyArmingGateByTable = {};
+          nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
           flash = {
             resultNumber,
             won: true,
@@ -713,6 +740,7 @@ var SinglestakeUmFator = (() => {
             nextMachine.lastLostTableId = tableId;
             nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
             nextMachine.lobbyArmingGateByTable = {};
+            nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
             flash = {
               resultNumber,
               won: false,
@@ -783,6 +811,8 @@ var SinglestakeUmFator = (() => {
     }
     const lastActiveTableId = machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId) ? machine.lastActiveTableId : null;
     const focusLockTableId = machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId) ? machine.focusLockTableId : null;
+    const postResultHoldTableId = machine.postResultHoldTableId != null && tableIds.includes(machine.postResultHoldTableId) ? machine.postResultHoldTableId : null;
+    const postResultHoldUntilMs = typeof machine.postResultHoldUntilMs === "number" && Number.isFinite(machine.postResultHoldUntilMs) ? machine.postResultHoldUntilMs : null;
     return {
       ...machine,
       lastSpinHeadByTable,
@@ -790,6 +820,8 @@ var SinglestakeUmFator = (() => {
       settledSpinHeadByTable,
       staleFormationHeadByTable,
       lobbyArmingGateByTable,
+      postResultHoldUntilMs,
+      postResultHoldTableId,
       tablePlacarLosses: {},
       lastLostTableId: null,
       lastActiveTableId,
