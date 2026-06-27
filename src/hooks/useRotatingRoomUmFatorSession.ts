@@ -101,10 +101,7 @@ export function useRotatingRoomUmFatorSession(
     isStrategyGlobalConnected() &&
     globalSnap != null &&
     globalView != null;
-  const useGlobalIndication =
-    !preferLocalSession &&
-    globalActive &&
-    globalView!.showTapeteSignal;
+  const useGlobalSession = !preferLocalSession && globalActive;
 
   const [sessionStats, setSessionStats] = useState(() => readRotatingRoomUmFatorSessionStats());
   const [roundFlash, setRoundFlash] = useState<RotatingRoomUmFatorRoundFlash>(null);
@@ -261,10 +258,13 @@ export function useRotatingRoomUmFatorSession(
     [umActive],
   );
   const showTapeteSignalRaw = activeCrossing != null && currentTableId != null;
-  const lobbyCooldownUntilMs = machine.lobbyCooldownUntilMs;
+  const lobbyCooldownUntilMs =
+    globalView?.lobbyCooldownUntilMs ?? machine.lobbyCooldownUntilMs;
+  const postResultHoldUntilMs =
+    globalView?.postResultHoldUntilMs ?? machine.postResultHoldUntilMs;
+  const postResultHoldTableId =
+    globalView?.postResultHoldTableId ?? machine.postResultHoldTableId;
   const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs);
-  const postResultHoldUntilMs = machine.postResultHoldUntilMs;
-  const postResultHoldTableId = machine.postResultHoldTableId;
   const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
   const showTapeteSignal = showTapeteSignalRaw && !lobbyCooldownActive && !postResultHoldActive;
   const phase: RotatingRoomPhase = showTapeteSignal ? "active" : "waiting";
@@ -277,8 +277,10 @@ export function useRotatingRoomUmFatorSession(
 
   const indicationSoundToken = useMemo(() => {
     if (observeOnly) return null;
-    if (useGlobalIndication) {
-      if (!globalUmActive || globalView?.currentTableId == null) return null;
+    if (useGlobalSession && globalView) {
+      if (!globalView.showTapeteSignal || globalView.currentTableId == null || !globalUmActive) {
+        return null;
+      }
       const n = globalUmActive.triggerNumbers;
       return `${globalView.currentTableId}:${n[0]},${n[1]}`;
     }
@@ -289,9 +291,10 @@ export function useRotatingRoomUmFatorSession(
     return `${currentTableId}:${n[0]},${n[1]}`;
   }, [
     observeOnly,
-    useGlobalIndication,
+    useGlobalSession,
     globalUmActive,
     globalView?.currentTableId,
+    globalView?.showTapeteSignal,
     showTapeteSignal,
     currentTableId,
     umActive,
@@ -320,7 +323,7 @@ export function useRotatingRoomUmFatorSession(
 
   useLayoutEffect(() => {
     if (tableIds.length === 0) return;
-    if (useGlobalIndication) return;
+    if (useGlobalSession) return;
 
     const tickGen = placarResetGenRef.current;
     isApplyingRef.current = true;
@@ -338,18 +341,27 @@ export function useRotatingRoomUmFatorSession(
       applyPlacarFlash(placar.flash);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useGlobalIndication, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
+  }, [useGlobalSession, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
 
-  if (useGlobalIndication && globalView) {
+  if (useGlobalSession && globalView) {
+    const effectiveShowSignal =
+      globalView.showTapeteSignal && !lobbyCooldownActive && !postResultHoldActive;
     return {
       ...globalView,
       prepareTableId: null,
       prepareCategory: null,
       roundFlash,
-      activeCrossing: globalActiveCrossing,
+      sessionStats: globalView.sessionStats,
+      activeCrossing: effectiveShowSignal ? globalActiveCrossing : null,
+      umActive: effectiveShowSignal ? globalUmActive : null,
+      currentTableId: effectiveShowSignal
+        ? globalView.currentTableId
+        : postResultHoldActive
+          ? postResultHoldTableId
+          : roundFlash?.tableId ?? null,
+      showTapeteSignal: effectiveShowSignal,
       lobbyCooldownUntilMs,
       lobbyCooldownActive,
-      showTapeteSignal: globalView.showTapeteSignal && !lobbyCooldownActive && !postResultHoldActive,
       postResultHoldUntilMs,
       postResultHoldTableId,
       postResultHoldActive,
@@ -364,7 +376,11 @@ export function useRotatingRoomUmFatorSession(
     roundFlash,
     activeCrossing: showTapeteSignal ? activeCrossing : null,
     currentRecovery: machine.recovery,
-    currentTableId: showTapeteSignal ? currentTableId : null,
+    currentTableId: showTapeteSignal
+      ? currentTableId
+      : postResultHoldActive
+        ? postResultHoldTableId
+        : roundFlash?.tableId ?? null,
     prepareTableId: null,
     alertCategory: umActive?.armingDescription ?? null,
     alertBucketGap: 0,

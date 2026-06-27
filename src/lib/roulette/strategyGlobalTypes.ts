@@ -58,6 +58,9 @@ export type StrategyGlobalUmFatorClientView = {
   umFatorScan: UmFatorTableScan[];
   activeCrossing: DoisFatoresActive | null;
   umActive: UmFatorActive | null;
+  lobbyCooldownUntilMs: number | null;
+  postResultHoldUntilMs: number | null;
+  postResultHoldTableId: number | null;
 };
 
 /** Snapshot servido a todos os clientes (fonte única de verdade). */

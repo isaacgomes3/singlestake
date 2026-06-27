@@ -28,6 +28,10 @@ import { drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
+import {
+  isRotatingRoomLobbyCooldownActive,
+  isRotatingRoomPostResultHoldActive,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalKind,
@@ -172,8 +176,16 @@ function buildUmFatorClientView(
   const liveView = buildRotatingRoomUmFatorSessionLiveView(tableIds, histories, machine);
   const umActive = liveView.globalActive;
   const currentTableId = liveView.globalTableId;
-  const showTapeteSignal = umActive != null && currentTableId != null;
-  const activeCrossing = showTapeteSignal && umActive ? umFatorToTapeteActive(umActive) : null;
+  const lobbyCooldownUntilMs = machine.lobbyCooldownUntilMs;
+  const postResultHoldUntilMs = machine.postResultHoldUntilMs;
+  const postResultHoldTableId = machine.postResultHoldTableId;
+  const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs);
+  const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
+  const showTapeteSignalRaw = umActive != null && currentTableId != null;
+  const showTapeteSignal =
+    showTapeteSignalRaw && !lobbyCooldownActive && !postResultHoldActive;
+  const activeCrossing =
+    showTapeteSignal && umActive ? umFatorToTapeteActive(umActive) : null;
   return {
     phase: showTapeteSignal ? "active" : "waiting",
     sessionStats: state.um1fator.stats,
@@ -187,6 +199,9 @@ function buildUmFatorClientView(
     umFatorScan: liveView.tableScan,
     activeCrossing,
     umActive: showTapeteSignal ? umActive : null,
+    lobbyCooldownUntilMs,
+    postResultHoldUntilMs,
+    postResultHoldTableId,
   };
 }
 

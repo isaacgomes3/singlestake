@@ -209,6 +209,16 @@ function IndicationFactorRow({
 }) {
   const slotShell = cn("relative flex w-full flex-1");
 
+  if (roundFlash) {
+    return (
+      <div className="flex w-full justify-center">
+        <div className={slotShell}>
+          <RoundFlashOverlay flash={roundFlash} recovery={recovery} dense={dense} />
+        </div>
+      </div>
+    );
+  }
+
   if (singleFactor && factor1) {
     return (
       <div className="flex w-full justify-center">
@@ -386,10 +396,12 @@ function RotatingRoomStage({
   const postResultHoldActive =
     "postResultHoldActive" in session &&
     session.postResultHoldActive === true;
+  const hasLiveIndication =
+    session.showTapeteSignal && session.activeCrossing != null;
   const isActive =
-    (session.showTapeteSignal && session.activeCrossing != null) ||
+    hasLiveIndication ||
     hasRoundFlash ||
-    postResultHoldActive;
+    (!indicationOnly && postResultHoldActive);
   const isAwaitingNextTable =
     isSingleFactorSession(session) &&
     session.currentRecovery > 0 &&
@@ -463,13 +475,14 @@ function RotatingRoomStage({
     );
   }
 
-  if (isActive && focusLabel) {
+  if (isActive && (focusLabel || hasRoundFlash)) {
     const crossing = session.activeCrossing;
-    const factor1 = crossing?.factor1;
-    const factor2 = crossing?.factor2;
+    const factor1 = hasRoundFlash ? undefined : crossing?.factor1;
+    const factor2 = hasRoundFlash ? undefined : crossing?.factor2;
 
     if (signalOnly) {
       if (indicationOnly) {
+        if (!hasRoundFlash && !hasLiveIndication) return null;
         return (
           <div
             className={cn(
