@@ -21,7 +21,8 @@ pm2 save
 
 for i in 1 2 3 4 5 6; do
   if curl -sf --max-time 8 http://127.0.0.1:3000/entrar >/dev/null 2>&1; then
-    echo "✓ Node OK — teste https://stake37.com.br/entrar"
+    echo "✓ Node OK — http://127.0.0.1:3000/entrar"
+    bash "$APP_DIR/deploy/verify-site.sh" || true
     exit 0
   fi
   sleep 4

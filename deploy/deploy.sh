@@ -35,13 +35,29 @@ fi
 rebuild_native_modules
 ensure_pm2
 
-echo "→ pm2 stop (libertar .output antes do build)"
-pm2 delete singlestake 2>/dev/null || true
-sleep 2
+echo "→ pm2 stop (build — mantém processo registado)"
+pm2 stop singlestake 2>/dev/null || true
+sleep 1
+
+OUTPUT_BACKUP=""
+if [[ -d .output ]]; then
+  OUTPUT_BACKUP=".output.bak.$$"
+  echo "→ backup build anterior ($OUTPUT_BACKUP)"
+  mv .output "$OUTPUT_BACKUP"
+fi
 
 echo "→ build limpo (.output)"
-rm -rf .output
-npm run build
+if ! npm run build; then
+  echo "✗ Build falhou — restaurar versão anterior"
+  rm -rf .output 2>/dev/null || true
+  if [[ -n "$OUTPUT_BACKUP" && -d "$OUTPUT_BACKUP" ]]; then
+    mv "$OUTPUT_BACKUP" .output
+    pm2 restart singlestake 2>/dev/null || pm2 start deploy/ecosystem.config.cjs
+    pm2 save
+  fi
+  exit 1
+fi
+rm -rf "$OUTPUT_BACKUP" 2>/dev/null || true
 
 if [[ ! -d .output/public/assets ]]; then
   echo "✗ Build incompleto — falta .output/public/assets"
@@ -63,6 +79,7 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
 fi
 
 echo "→ pm2 start"
+pm2 delete singlestake 2>/dev/null || true
 pm2 start deploy/ecosystem.config.cjs
 pm2 save
 

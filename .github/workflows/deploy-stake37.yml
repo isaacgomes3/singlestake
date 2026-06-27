@@ -57,10 +57,13 @@ jobs:
               "${VPS_USER}@${VPS_HOST}" \
               'set -euo pipefail
                echo "=== Ligado como $(whoami) em $(hostname) ==="
-               echo "=== Node: $(node -v 2>/dev/null || echo "node não encontrado") ==="
                APP_DIR=/var/www/stake37
                if [ ! -d "$APP_DIR" ]; then APP_DIR=/var/www/singlestake; fi
                cd "$APP_DIR"
+               # shellcheck source=deploy-common.sh
+               source deploy/deploy-common.sh
+               ensure_pm2
+               echo "=== Node: $(node -v) | PM2: $(pm2 -v) ==="
                set +e
                bash deploy/deploy.sh
                DEPLOY_RC=$?
@@ -75,18 +78,14 @@ jobs:
                  DEPLOY_RC=$?
                fi
                set -e
-               HTML_OK=0
-               if curl -sf --max-time 30 http://127.0.0.1:3000/entrar | grep -qi "<html"; then
-                 HTML_OK=1
-                 echo "=== HTML /entrar OK ==="
+               bash deploy/verify-site.sh
+               VERIFY_RC=$?
+               if [ "$VERIFY_RC" -eq 0 ]; then
+                 exit 0
                fi
-               CSS=$(curl -sf --max-time 30 http://127.0.0.1:3000/entrar | grep -oE "/assets/styles-[A-Za-z0-9_-]+\\.css" | head -1 || true)
-               if [ -n "$CSS" ]; then
-                 CODE=$(curl -sf -o /dev/null -w "%{http_code}" "http://127.0.0.1:3000${CSS}" || echo "000")
-                 echo "=== Verificação CSS: ${CSS} → HTTP ${CODE} ==="
-               fi
-               pm2 status 2>/dev/null || true
-               if [ "$HTML_OK" -eq 1 ]; then
+               if curl -sf --max-time 20 http://127.0.0.1:3000/entrar | grep -qi "<html"; then
+                 echo "=== Node OK (Apache pode precisar reload) ==="
+                 bash deploy/patch-apache-static.sh || true
                  exit 0
                fi
                pm2 logs singlestake --lines 30 --nostream 2>/dev/null || true
