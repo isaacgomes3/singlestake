@@ -165,15 +165,22 @@ function RootComponent() {
   const backOfficeApp = isBackOfficeAppPath(pathname);
   const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
-  /** Simulador + strategy global — só no host de automação. */
-  const needsGlobalAutomation = isAutomation;
+  const backOfficeAutomationView =
+    !isAutomation &&
+    backOfficeApp &&
+    (pathname === "/back-office" ||
+      pathname === "/back-office/" ||
+      pathname.startsWith("/back-office/operacoes"));
+  /** Simulador + strategy global — back office (visualização) e subdomínio de automação. */
+  const needsGlobalAutomation = isAutomation || backOfficeAutomationView;
   const needsCasinoStreams = isAutomation
     ? workspacePath || pathname === "/casino-mesa"
     : backOfficeApp &&
       (pathname === "/back-office" ||
         pathname === "/back-office/" ||
         pathname.startsWith("/back-office/operacoes"));
-  const needsExtensionBridge = isAutomation && workspacePath;
+  const needsExtensionBridge =
+    (isAutomation && workspacePath) || backOfficeAutomationView;
 
   const outlet = <Outlet />;
 

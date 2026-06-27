@@ -37,7 +37,7 @@ import {
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
-import { automationWorkspaceHref, isBackofficeProfile, isExternalHref } from "@/lib/app-profile";
+import { automationWorkspaceHref, isExternalHref } from "@/lib/app-profile";
 
 import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
 import {
@@ -287,7 +287,7 @@ function CassinoAoVivoRoletasGrid() {
 
   return (
     <div className="space-y-6">
-      {isBackofficeProfile() ? null : <RotatingRoomExtensionStatus />}
+      <RotatingRoomExtensionStatus />
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : null}

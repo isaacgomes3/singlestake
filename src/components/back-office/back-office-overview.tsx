@@ -2,10 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { AutomationEnvironmentCard } from "@/components/back-office/automation-environment-card";
 import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
 import { apiFetchOverview } from "@/lib/auth/api";
-import { isAutomationProfile } from "@/lib/app-profile";
 import { MOCK_BACK_OFFICE_OVERVIEW } from "@/lib/back-office/mock-data";
 import type { BackOfficeOverview } from "@/lib/back-office/types";
 import { useI18n } from "@/lib/i18n/i18n-provider";
@@ -66,7 +64,6 @@ export function BackOfficeOverviewPage() {
   const { t } = useI18n();
   const { money } = useFormat();
   const [overview, setOverview] = useState<BackOfficeOverview | null>(null);
-  const automationHost = isAutomationProfile();
 
   useEffect(() => {
     void apiFetchOverview().then((data) => {
@@ -103,7 +100,7 @@ export function BackOfficeOverviewPage() {
         />
       </section>
 
-      {automationHost ? <AutomationOverviewSections /> : <AutomationEnvironmentCard />}
+      <AutomationOverviewSections />
 
       <section>
         <Link

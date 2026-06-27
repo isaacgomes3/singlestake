@@ -3,14 +3,12 @@ import { isAutomationProfile } from "@/lib/app-profile";
 const AUTOMATION_BLOCKED_PREFIXES = ["/api/back-office"];
 
 const BACKOFFICE_BLOCKED_PREFIXES = [
-  "/api/roulette/strategy-global",
-  "/api/roulette/automation-sim",
-  "/api/roulette/rotating-room",
+  /** Cron de rendimento — só no processo principal. */
   "/api/cron/daily-automation",
 ];
 
 /** Bloqueia APIs cruzadas entre perfis — isolamento back office ↔ automação. */
-export function apiProfileGateMessage(pathname: string): string | null {
+export function apiProfileGateMessage(pathname: string, _method?: string): string | null {
   const automation = isAutomationProfile();
 
   if (automation) {

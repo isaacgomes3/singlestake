@@ -20,7 +20,7 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 
 const profileApiMiddleware = createMiddleware().server(async ({ request, next }) => {
   const pathname = new URL(request.url).pathname;
-  const blocked = apiProfileGateMessage(pathname);
+  const blocked = apiProfileGateMessage(pathname, request.method);
   if (blocked) {
     return Response.json({ ok: false, error: blocked }, { status: 404 });
   }
