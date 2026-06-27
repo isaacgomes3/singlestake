@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronUp, ExternalLink, RotateCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { RouletteStatCard, type RouletteStatCardSize } from "@/components/roulette-stat-card";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
@@ -17,6 +17,7 @@ import {
   lobbyTableCardPhotoUrl,
 } from "@/lib/roulette/lobbyTableCardAssets";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import { isExternalHref } from "@/lib/app-profile";
 import {
   rotatingRoomLobbyFocusTableId,
   rotatingRoomLobbyHasSignal,
@@ -819,6 +820,48 @@ type LobbyCardProps = {
   className?: string;
 };
 
+function SalaRouteLink({
+  salaRoute,
+  iframeSearch,
+  className,
+  ariaLabel,
+  children,
+  onNavigate,
+}: {
+  salaRoute: string;
+  iframeSearch?: { iframe?: string };
+  className?: string;
+  ariaLabel?: string;
+  children?: ReactNode;
+  onNavigate?: () => void;
+}) {
+  if (isExternalHref(salaRoute)) {
+    return (
+      <a
+        href={salaRoute}
+        className={className}
+        aria-label={ariaLabel}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onNavigate}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link
+      to={salaRoute}
+      search={iframeSearch}
+      className={className}
+      aria-label={ariaLabel}
+      onClick={onNavigate}
+    >
+      {children}
+    </Link>
+  );
+}
+
 /** Cartão compacto no lobby — sala rotativa. */
 export function RotatingRoomLobbyCard({
   session,
@@ -864,12 +907,12 @@ export function RotatingRoomLobbyCard({
       )}
     >
       {cardClickable ? (
-        <Link
-          to={salaRoute}
-          search={iframeSearch}
+        <SalaRouteLink
+          salaRoute={salaRoute}
+          iframeSearch={iframeSearch}
           className="absolute inset-0 z-[1] rounded-2xl"
-          aria-label={openInIframe ? `${salaLabel} — abrir roleta no iframe` : salaLabel}
-          onClick={() => {
+          ariaLabel={openInIframe ? `${salaLabel} — abrir roleta no iframe` : salaLabel}
+          onNavigate={() => {
             if (openInIframe) prepareRotatingRoomIframeSession();
           }}
         />
@@ -980,21 +1023,21 @@ export function RotatingRoomLobbyCard({
             {session.sessionStats.wins} · {session.sessionStats.losses}
           </p>
           {embedded && openInIframe ? (
-            <Link
-              to={salaRoute}
-              search={iframeSearch}
+            <SalaRouteLink
+              salaRoute={salaRoute}
+              iframeSearch={iframeSearch}
               className="relative z-[3] pointer-events-auto text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
-              onClick={() => prepareRotatingRoomIframeSession()}
+              onNavigate={() => prepareRotatingRoomIframeSession()}
             >
               Abrir iframe
-            </Link>
+            </SalaRouteLink>
           ) : embedded ? (
-            <Link
-              to={salaRoute}
+            <SalaRouteLink
+              salaRoute={salaRoute}
               className="relative z-[3] pointer-events-auto text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
             >
               Abrir sala
-            </Link>
+            </SalaRouteLink>
           ) : null}
         </div>
       </article>

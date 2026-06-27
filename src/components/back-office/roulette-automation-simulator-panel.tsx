@@ -8,6 +8,7 @@ import { AUTOMATION_CHART_THEME } from "@/hooks/useChartTheme";
 import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
+import { automationWorkspaceHref } from "@/lib/app-profile";
 import {
   ROULETTE_AUTOMATION_INITIAL_BANK,
   automationChartYDomain,
@@ -35,7 +36,7 @@ export function RouletteAutomationSimulatorPanel() {
     ROULETTE_AUTOMATION_INITIAL_BANK > 0
       ? (net / ROULETTE_AUTOMATION_INITIAL_BANK) * 100
       : 0;
-  const freeBalance = openBet ? displayBalance - openBet.stake : displayBalance;
+  const freeBalance = displayBalance;
 
   return (
     <div className="automation-panel overflow-hidden rounded-2xl">
@@ -164,7 +165,7 @@ export function RouletteAutomationSimulatorPanel() {
             embedded
             openInIframe
             session={rotatingRoomSession}
-            salaRoute="/sala-rotativa-um-fator"
+            salaRoute={automationWorkspaceHref("/sala-rotativa-um-fator")}
             salaLabel={t("casino.roomLabel")}
           />
         </div>

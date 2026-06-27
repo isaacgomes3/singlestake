@@ -3,7 +3,7 @@ import { ExternalLink, Crop, Move, Settings2, ClipboardCopy, Coins } from "lucid
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BACK_OFFICE_PATHS } from "@/lib/back-office/routes";
-import { requireAuth } from "@/lib/auth/guards";
+import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
 
 import { RouletteBetSimulator } from "@/components/roulette-bet-simulator";
 import { CasinoEmbedViewportControls } from "@/components/casino-embed-viewport-controls";
@@ -50,6 +50,7 @@ import { simulateStreetStrategy } from "@/lib/roulette/streetStrategy";
 
 export const Route = createFileRoute("/casino-mesa")({
   beforeLoad: () => {
+    guardAutomationWorkspaceRoute("/casino-mesa");
     requireAuth("/casino-mesa");
   },
   validateSearch: (search: Record<string, unknown>): { mesa?: number; parentOrigin?: string } => {

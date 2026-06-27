@@ -37,8 +37,7 @@ import {
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
-import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/i18n/i18n-provider";
+import { automationWorkspaceHref, isBackofficeProfile, isExternalHref } from "@/lib/app-profile";
 
 import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
 import {
@@ -47,6 +46,10 @@ import {
 } from "@/components/football-blitz-lobby-card";
 import { RouletteSimulatorPanel } from "@/components/roulette-simulator-panel";
 import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
+import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/i18n-provider";
+
+const AUTOMATION_SALA_ROUTE = automationWorkspaceHref("/sala-rotativa-um-fator");
 
 function readHistoriesForTables(tableIds: readonly number[]): Record<number, number[]> {
   const out: Record<number, number[]> = {};
@@ -284,7 +287,7 @@ function CassinoAoVivoRoletasGrid() {
 
   return (
     <div className="space-y-6">
-      <RotatingRoomExtensionStatus />
+      {isBackofficeProfile() ? null : <RotatingRoomExtensionStatus />}
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : null}
@@ -293,7 +296,7 @@ function CassinoAoVivoRoletasGrid() {
           <div className="min-h-0 flex-1">
             <RotatingRoomLobbyCard
               session={rotatingRoomSession}
-              salaRoute="/sala-rotativa-um-fator"
+              salaRoute={AUTOMATION_SALA_ROUTE}
               salaLabel={t("casino.roomLabel")}
             />
           </div>
@@ -304,20 +307,17 @@ function CassinoAoVivoRoletasGrid() {
             lobbyTableHasRotatingRoomSignal(tid, "um1fator", rotatingRoomSession);
           const hist = histories[tid] ?? [];
           const recent = hist.slice(0, 6);
-          return (
-            <Link
-              key={tid}
-              to="/casino-mesa"
-              search={{ mesa: tid }}
-              className={cn(
-                "theme-card flex flex-col rounded-2xl p-4 transition hover:border-border-color",
-                hasSignal
-                  ? "border-warning/55 ring-2 ring-warning/30"
-                  : tid === primaryId
-                    ? "border-info/40"
-                    : "border-border-color",
-              )}
-            >
+          const mesaHref = automationWorkspaceHref(`/casino-mesa?mesa=${tid}`);
+          const cardClass = cn(
+            "theme-card flex flex-col rounded-2xl p-4 transition hover:border-border-color",
+            hasSignal
+              ? "border-warning/55 ring-2 ring-warning/30"
+              : tid === primaryId
+                ? "border-info/40"
+                : "border-border-color",
+          );
+          const cardBody = (
+            <>
               <p className="text-sm font-bold text-white">{lobbyTableDisplayName(tid, macaoTid)}</p>
               <p className="mt-0.5 text-xs text-slate-500">{t("casino.tableLabel", { id: tid })}</p>
               {hasSignal ? (
@@ -339,6 +339,18 @@ function CassinoAoVivoRoletasGrid() {
                   <span className="text-xs text-slate-600">{t("casino.noSpins")}</span>
                 )}
               </div>
+            </>
+          );
+          if (isExternalHref(mesaHref)) {
+            return (
+              <a key={tid} href={mesaHref} className={cardClass} target="_blank" rel="noopener noreferrer">
+                {cardBody}
+              </a>
+            );
+          }
+          return (
+            <Link key={tid} to="/casino-mesa" search={{ mesa: tid }} className={cardClass}>
+              {cardBody}
             </Link>
           );
         })}

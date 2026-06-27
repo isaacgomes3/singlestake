@@ -33,6 +33,7 @@ import {
 } from "@/lib/roulette/entryWinBreakdown";
 import {
   liveTableBettingRemainingSec,
+  tableAcceptableForRotatingRoomEntry,
   tableArmableForUmFatorFormation,
 } from "@/lib/roulette/liveTableBettingWindow";
 
@@ -807,6 +808,10 @@ export function tickUmFatorPlacar(
     if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
 
     if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
+
+    if (!headChanged) continue;
+
+    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
 
     if (!tableArmableForUmFatorFormation(tableId, history)) continue;
 

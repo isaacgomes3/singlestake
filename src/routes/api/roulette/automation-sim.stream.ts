@@ -34,18 +34,23 @@ export const Route = createFileRoute("/api/roulette/automation-sim/stream")({
         await ensureStrategyGlobalEngine(tableIds);
         await ensureAutomationSimEngine();
 
+        const initialStrategy = getStrategyGlobalSnapshotOrThrow();
+        const initialSnapshot = await getAutomationSimSnapshotOrThrow(initialStrategy);
+
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             const push = () => {
-              const strategySnapshot = getStrategyGlobalSnapshotOrThrow();
-              const snapshot = getAutomationSimSnapshotOrThrow(strategySnapshot);
-              controller.enqueue(sseData({ type: "update", snapshot }));
+              void (async () => {
+                const strategySnapshot = getStrategyGlobalSnapshotOrThrow();
+                const snapshot = await getAutomationSimSnapshotOrThrow(strategySnapshot);
+                controller.enqueue(sseData({ type: "update", snapshot }));
+              })();
             };
 
             controller.enqueue(
               sseData({
                 type: "sync",
-                snapshot: getAutomationSimSnapshotOrThrow(getStrategyGlobalSnapshotOrThrow()),
+                snapshot: initialSnapshot,
               }),
             );
 

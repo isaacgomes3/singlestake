@@ -1,6 +1,13 @@
 import { redirect } from "@tanstack/react-router";
 
 import { isBackOfficeWorkspacePath } from "@/lib/back-office/routes";
+import {
+  automationWorkspaceHref,
+  AUTOMATION_DEFAULT_ENTRY,
+  getAutomationPublicOrigin,
+  isAutomationProfile,
+  isBackofficeProfile,
+} from "@/lib/app-profile";
 
 import { isAuthenticated } from "./session";
 
@@ -36,12 +43,39 @@ export function redirectIfAuthenticated(fallback = "/back-office") {
 }
 
 export function isBackOfficeAppPath(pathname: string): boolean {
+  if (isAutomationProfile()) {
+    return (
+      pathname === "/entrar" ||
+      pathname === "/registar" ||
+      isBackOfficeWorkspacePath(pathname)
+    );
+  }
   return (
     pathname === "/entrar" ||
     pathname === "/registar" ||
     pathname.startsWith("/back-office") ||
     isBackOfficeWorkspacePath(pathname)
   );
+}
+
+/** No back office, workspace de automação vive no subdomínio dedicado. */
+export function guardAutomationWorkspaceRoute(pathname: string): void {
+  if (!isBackofficeProfile()) return;
+  if (!isBackOfficeWorkspacePath(pathname)) return;
+  const origin = getAutomationPublicOrigin();
+  if (!origin) return;
+  const target = automationWorkspaceHref(pathname);
+  throw redirect({ href: target, replace: true });
+}
+
+/** No host de automação, back office não está disponível. */
+export function guardBackOfficeRoute(): void {
+  if (!isAutomationProfile()) return;
+  const origin = getAutomationPublicOrigin();
+  throw redirect({
+    href: origin ? `${origin}${AUTOMATION_DEFAULT_ENTRY}` : AUTOMATION_DEFAULT_ENTRY,
+    replace: true,
+  });
 }
 
 export function isLegacyCasinoPath(pathname: string): boolean {

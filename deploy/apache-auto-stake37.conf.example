@@ -1,0 +1,35 @@
+# Apache — auto.stake37.com.br → Node automação (PM2 porta 3001)
+# Copiar para o servidor e activar com a2ensite.
+
+<VirtualHost *:443>
+    ServerName auto.stake37.com.br
+
+    # SSLEngine on
+    # SSLCertificateFile /etc/letsencrypt/live/auto.stake37.com.br/fullchain.pem
+    # SSLCertificateKeyFile /etc/letsencrypt/live/auto.stake37.com.br/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+
+    # SSE — roleta / strategy global / automação
+    ProxyPass /api/roulette/spins http://127.0.0.1:3001/api/roulette/spins retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/spins http://127.0.0.1:3001/api/roulette/spins
+
+    ProxyPass /api/roulette/strategy-global/stream http://127.0.0.1:3001/api/roulette/strategy-global/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/strategy-global/stream http://127.0.0.1:3001/api/roulette/strategy-global/stream
+
+    ProxyPass /api/roulette/automation-sim/stream http://127.0.0.1:3001/api/roulette/automation-sim/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/automation-sim/stream http://127.0.0.1:3001/api/roulette/automation-sim/stream
+
+    ProxyPass /api/roulette/rotating-room/stream http://127.0.0.1:3001/api/roulette/rotating-room/stream retry=0 timeout=3600
+    ProxyPassReverse /api/roulette/rotating-room/stream http://127.0.0.1:3001/api/roulette/rotating-room/stream
+
+    ProxyPass / http://127.0.0.1:3001/ retry=0 timeout=300
+    ProxyPassReverse / http://127.0.0.1:3001/
+
+    ErrorLog ${APACHE_LOG_DIR}/auto-stake37-error.log
+    CustomLog ${APACHE_LOG_DIR}/auto-stake37-access.log combined
+</VirtualHost>

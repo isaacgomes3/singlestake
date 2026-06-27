@@ -48,14 +48,11 @@ export function tableAcceptableForRotatingRoomEntry(
   );
 }
 
-/** Janela ainda aberta o suficiente para armar alerta Um Fator nesta mesa. */
+/** Janela ainda aberta o suficiente para armar alerta Um Fator nesta mesa (≥11s). */
 export function tableArmableForUmFatorFormation(
   tableId: number,
   historyNewestFirst: readonly number[],
   nowMs?: number,
 ): boolean {
-  return (
-    liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs) >=
-    UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC
-  );
+  return tableAcceptableForRotatingRoomEntry(tableId, historyNewestFirst, nowMs);
 }

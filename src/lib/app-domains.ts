@@ -4,6 +4,7 @@ export const APP_PRODUCTION_HOSTNAMES = [
   "www.stake37.com.br",
   "singlestake.bet.br",
   "www.singlestake.bet.br",
+  "auto.stake37.com.br",
 ] as const;
 
 export function isAppProductionHostname(hostname: string): boolean {

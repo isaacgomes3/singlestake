@@ -248,7 +248,7 @@ function bumpAndBroadcast(
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
   void import("@/lib/server/automationSim/engine").then((m) => {
     void m.ensureAutomationSimEngine().then(() => {
-      m.syncAutomationSimWithStrategy(snapshot);
+      void m.syncAutomationSimWithStrategy(snapshot);
     });
   });
   return snapshot;
@@ -287,7 +287,7 @@ export function ingestStrategyGlobalSpin(
       const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
       void import("@/lib/server/automationSim/engine").then((m) => {
         void m.ensureAutomationSimEngine().then(() => {
-          m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
+          void m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
         });
       });
       return snapshot;
@@ -298,7 +298,7 @@ export function ingestStrategyGlobalSpin(
       const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
       void import("@/lib/server/automationSim/engine").then((m) => {
         void m.ensureAutomationSimEngine().then(() => {
-          m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
+          void m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
         });
       });
       return snapshot;

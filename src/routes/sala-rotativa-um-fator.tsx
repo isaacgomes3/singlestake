@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
-import { requireAuth } from "@/lib/auth/guards";
+import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import {
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
   beforeLoad: () => {
+    guardAutomationWorkspaceRoute("/sala-rotativa-um-fator");
     requireAuth("/sala-rotativa-um-fator");
   },
   validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {

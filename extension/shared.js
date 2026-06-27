@@ -18,6 +18,7 @@ const APP_PRODUCTION_HOSTS = [
   "www.stake37.com.br",
   "singlestake.bet.br",
   "www.singlestake.bet.br",
+  "auto.stake37.com.br",
 ];
 
 function isAppProductionHostname(hostname) {

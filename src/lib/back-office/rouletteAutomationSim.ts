@@ -3,6 +3,9 @@ import type {
   StrategyGlobalSnapshot,
 } from "@/lib/roulette/strategyGlobalTypes";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import {
+  tableAcceptableForRotatingRoomEntry,
+} from "@/lib/roulette/liveTableBettingWindow";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
 import {
   evaluateUmFatorRound,
@@ -65,6 +68,8 @@ export type RouletteAutomationSimState = {
   /** Banca no início do ciclo visual (gráfico / histórico). */
   cycleOpeningBalance: number;
   balance: number;
+  /** Capital registado no extrato — proíbe reinício de saldo. */
+  capitalRegisteredAt?: number | null;
   rounds: AutomationSimRound[];
   chart: AutomationSimChartPoint[];
   processedKeys: string[];
@@ -95,29 +100,38 @@ export function stakeForRecovery(recovery: number, _balance?: number): number {
 export function pendingSignalFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
 ): AutomationPendingSignal | null {
-  return pendingSignalFromUmFatorSession(snapshot.um1fator, balance);
+  return pendingSignalFromUmFatorSession(snapshot.um1fator, balance, histories);
 }
 
-/** Mesma lógica do cartão da sala rotativa (sessão 1 fator ao vivo). */
+/** Mesma lógica do cartão da sala rotativa — só com janela de apostas aberta (início do gatilho). */
 export function pendingSignalFromUmFatorSession(
   session: Pick<
     StrategyGlobalSnapshot["um1fator"],
     "showTapeteSignal" | "currentTableId" | "currentRecovery" | "umActive"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
 ): AutomationPendingSignal | null {
   if (!session.showTapeteSignal || session.currentTableId == null || !session.umActive) {
     return null;
+  }
+
+  const tableId = session.currentTableId;
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0) {
+    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) return null;
+    if (history[0] !== session.umActive.resultNumber) return null;
   }
 
   const alertLabel = umFatorAlertLabel(session.umActive);
   const recovery = session.currentRecovery;
 
   return {
-    signalId: `${session.currentTableId}:${session.umActive.resultNumber}:${alertLabel}:${recovery}`,
-    tableId: session.currentTableId,
-    tableLabel: lobbyTableDisplayName(session.currentTableId),
+    signalId: `${tableId}:${session.umActive.resultNumber}:${alertLabel}:${recovery}`,
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
     recovery,
     stake: stakeForRecovery(recovery, balance),
@@ -286,11 +300,12 @@ export function openBetSpinArrived(
   return { resultNumber, head };
 }
 
-/** Liquida aposta — o saldo só muda no resultado (vitória = lucro; derrota = perda do stake). */
+/** Liquida aposta — saldo vem do extrato (passar balanceAfter) ou calcula localmente em dev. */
 export function settleOpenBetEntry(
   state: RouletteAutomationSimState,
   entry: StrategyGlobalLedgerEntry,
   tableLabel: string,
+  balanceAfter?: number,
 ): RouletteAutomationSimState {
   if (
     entry.resultNumber != null &&
@@ -304,7 +319,10 @@ export function settleOpenBetEntry(
 
   const stake = stakeForRecovery(entry.recovery, state.balance);
   const net = entry.won ? stake : -stake;
-  const balance = state.balance + net;
+  const balance =
+    typeof balanceAfter === "number" && Number.isFinite(balanceAfter)
+      ? balanceAfter
+      : state.balance + net;
 
   const spinIndex = state.spinCounter;
   const round: AutomationSimRound = {
@@ -349,8 +367,9 @@ export function settleLedgerEntry(
   state: RouletteAutomationSimState,
   entry: StrategyGlobalLedgerEntry,
   tableLabel: string,
+  balanceAfter?: number,
 ): RouletteAutomationSimState {
-  return settleOpenBetEntry(state, entry, tableLabel);
+  return settleOpenBetEntry(state, entry, tableLabel, balanceAfter);
 }
 
 export type UmFatorPlacarFlashLike = {
@@ -600,6 +619,7 @@ export function freshAutomationSimState(now = Date.now()): RouletteAutomationSim
     startedAt: now,
     cycleOpeningBalance: ROULETTE_AUTOMATION_INITIAL_BANK,
     balance: ROULETTE_AUTOMATION_INITIAL_BANK,
+    capitalRegisteredAt: null,
     rounds: [],
     chart: [],
     processedKeys: [],
@@ -609,11 +629,18 @@ export function freshAutomationSimState(now = Date.now()): RouletteAutomationSim
   return { ...state, chart: buildAutomationChartData(state) };
 }
 
-/** Reinicia gráfico e histórico mantendo banca e chaves processadas. */
+/** @deprecated Ciclo visual — não reinicia saldo após capital registado no extrato. */
 export function restartAutomationSimCycle(
   state: RouletteAutomationSimState,
   now = Date.now(),
 ): RouletteAutomationSimState {
+  if (state.capitalRegisteredAt != null) {
+    return {
+      ...state,
+      openBet: null,
+      chart: buildAutomationChartData(state),
+    };
+  }
   const next: RouletteAutomationSimState = {
     ...state,
     startedAt: now,
@@ -627,9 +654,9 @@ export function restartAutomationSimCycle(
 }
 
 export function shouldRestartAutomationCycleAfterSettlement(
-  entry: Pick<StrategyGlobalLedgerEntry, "kind">,
+  _entry: Pick<StrategyGlobalLedgerEntry, "kind">,
 ): boolean {
-  return entry.kind === "win" || entry.kind === "loss";
+  return false;
 }
 
 export function shouldResetAutomationSim(_startedAt: number, _now = Date.now()): boolean {
@@ -647,6 +674,10 @@ export function parseAutomationSimState(raw: unknown): RouletteAutomationSimStat
         ? o.cycleOpeningBalance
         : o.balance,
     balance: o.balance,
+    capitalRegisteredAt:
+      typeof o.capitalRegisteredAt === "number" && Number.isFinite(o.capitalRegisteredAt)
+        ? o.capitalRegisteredAt
+        : null,
     rounds: Array.isArray(o.rounds) ? o.rounds : [],
     chart: Array.isArray(o.chart) ? o.chart : [],
     processedKeys: Array.isArray(o.processedKeys) ? o.processedKeys : [],

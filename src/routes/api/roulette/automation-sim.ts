@@ -19,7 +19,8 @@ export const Route = createFileRoute("/api/roulette/automation-sim")({
         await ensureAutomationSimEngine();
 
         const strategySnapshot = getStrategyGlobalSnapshotOrThrow();
-        return Response.json(getAutomationSimSnapshotOrThrow(strategySnapshot));
+        const snapshot = await getAutomationSimSnapshotOrThrow(strategySnapshot);
+        return Response.json(snapshot);
       },
     },
   },

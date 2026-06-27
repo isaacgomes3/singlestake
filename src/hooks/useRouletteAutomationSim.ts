@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  applyCapturedUmFatorFlashes,
   buildAutomationChartData,
+  applyCapturedUmFatorFlashes,
   freshAutomationSimState,
   mergeAutomationLedgerSources,
   openBetWasSettled,
@@ -12,10 +12,8 @@ import {
   pendingSignalFromUmFatorSession,
   pruneLocalAutomationLedger,
   rebuildAutomationSimFromLedger,
-  restartAutomationSimCycle,
   ROULETTE_AUTOMATION_INITIAL_BANK,
   settleLedgerEntry,
-  shouldRestartAutomationCycleAfterSettlement,
   spinHead,
   syncOpenBetFromPending,
   trySettleOpenBetFromLedger,
@@ -97,15 +95,6 @@ export function useRouletteAutomationSim() {
       return false;
     });
     if (!exists) localLedgerRef.current.push(entry);
-    if (shouldRestartAutomationCycleAfterSettlement(entry)) {
-      const nextStartedAt = Date.now();
-      stableStartedAtRef.current = nextStartedAt;
-      cycleStartedAtRef.current = nextStartedAt;
-      localProcessedRef.current = new Set();
-      capturedFlashesRef.current = [];
-      lastOpenBetRef.current = null;
-      localLedgerRef.current = [];
-    }
   };
 
   useEffect(() => {
@@ -174,13 +163,13 @@ export function useRouletteAutomationSim() {
       if (fromStrategy) return fromStrategy;
       return null;
     }
-    const fromSession = pendingSignalFromUmFatorSession(umFatorSession, automationBalance);
+    const fromSession = pendingSignalFromUmFatorSession(umFatorSession, automationBalance, histories);
     if (fromSession) return fromSession;
     if (rotatingRoomIndication) {
       return pendingSignalFromRotatingRoom(rotatingRoomIndication);
     }
     return null;
-  }, [clientStrategy, umFatorSession, rotatingRoomIndication, automationBalance]);
+  }, [clientStrategy, umFatorSession, rotatingRoomIndication, automationBalance, histories]);
 
   const effectivePending = clientPending ?? apiSnapshot?.pendingSignal ?? null;
 
@@ -208,11 +197,23 @@ export function useRouletteAutomationSim() {
       const serverLedger = clientStrategy.ledgerTail.um1fator;
       localLedgerRef.current = pruneLocalAutomationLedger(serverLedger, localLedgerRef.current);
       ledgerForSettle = mergeAutomationLedgerSources(serverLedger, localLedgerRef.current);
-      const openingBalance =
-        persistedServer?.cycleOpeningBalance ??
-        persistedServer?.balance ??
-        ROULETTE_AUTOMATION_INITIAL_BANK;
-      base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle, openingBalance);
+
+      if (persistedServer?.capitalRegisteredAt != null || persistedServer?.balance != null) {
+        base = {
+          ...(persistedServer ?? freshAutomationSimState(startedAt > 0 ? startedAt : Date.now())),
+          balance: persistedServer?.balance ?? ROULETTE_AUTOMATION_INITIAL_BANK,
+          cycleOpeningBalance:
+            persistedServer?.cycleOpeningBalance ??
+            persistedServer?.balance ??
+            ROULETTE_AUTOMATION_INITIAL_BANK,
+        };
+      } else {
+        const openingBalance =
+          persistedServer?.cycleOpeningBalance ??
+          persistedServer?.balance ??
+          ROULETTE_AUTOMATION_INITIAL_BANK;
+        base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle, openingBalance);
+      }
     } else {
       base =
         persistedServer ??

@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { FootballBlitzStrategyPage } from "@/components/football-blitz-strategy-page";
-import { requireAuth } from "@/lib/auth/guards";
+import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
 import { FOOTBALL_BLITZ_SUPER_TRUNFO } from "@/lib/pragmatic/dgaFootballBlitzConstants";
 
 export const Route = createFileRoute("/super-trunfo")({
   beforeLoad: () => {
+    guardAutomationWorkspaceRoute("/super-trunfo");
     requireAuth("/super-trunfo");
   },
   head: () => ({

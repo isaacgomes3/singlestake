@@ -19,6 +19,8 @@ import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
 import { RotatingRoomExtensionBridgeGlobal } from "@/components/rotating-room-extension-bridge-global";
 import { RouteSoundGate } from "@/components/route-sound-gate";
 import { Toaster } from "@/components/ui/sonner";
+import { useAppProfile } from "@/hooks/useAppProfile";
+import { isBackOfficeWorkspacePath } from "@/lib/back-office/routes";
 import { isBackOfficeAppPath, isLegacyCasinoPath } from "@/lib/auth/guards";
 import { RouletteLiveApiProvider } from "@/lib/roulette/rouletteLiveApiContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme/theme-provider";
@@ -157,17 +159,21 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const profile = useAppProfile();
+  const isAutomation = profile === "automation";
+  const workspacePath = isBackOfficeWorkspacePath(pathname);
   const backOfficeApp = isBackOfficeAppPath(pathname);
-  const legacyCasino = isLegacyCasinoPath(pathname);
+  const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
-  /** Caixa / automação global — activo em todo o back office (sistema, não por utilizador). */
-  const needsGlobalAutomation = backOfficeApp;
-  const needsCasinoStreams =
-    legacyCasino ||
-    (backOfficeApp &&
+  /** Simulador + strategy global — só no host de automação. */
+  const needsGlobalAutomation = isAutomation;
+  const needsCasinoStreams = isAutomation
+    ? workspacePath || pathname === "/casino-mesa"
+    : backOfficeApp &&
       (pathname === "/back-office" ||
         pathname === "/back-office/" ||
-        pathname.startsWith("/back-office/operacoes")));
+        pathname.startsWith("/back-office/operacoes"));
+  const needsExtensionBridge = isAutomation && workspacePath;
 
   const outlet = <Outlet />;
 
@@ -192,7 +198,7 @@ function RootComponent() {
                     <RouletteRotatingRoomSseBridge />
                     <Live24dSpinSseBridge />
                     <LiveFootballBlitzSseBridge />
-                    <RotatingRoomExtensionBridgeGlobal />
+                    {needsExtensionBridge ? <RotatingRoomExtensionBridgeGlobal /> : null}
                   </>
                 ) : null}
                 {outlet}
