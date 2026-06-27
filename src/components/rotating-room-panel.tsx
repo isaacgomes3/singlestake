@@ -845,13 +845,23 @@ function SalaRouteLink({
   onNavigate?: () => void;
 }) {
   if (isExternalHref(salaRoute)) {
+    let href = salaRoute;
+    if (iframeSearch) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(iframeSearch)) {
+        if (value == null || value === "") continue;
+        params.set(key, String(value));
+      }
+      const qs = params.toString();
+      if (qs) href = `${href}${href.includes("?") ? "&" : "?"}${qs}`;
+    }
     return (
       <a
-        href={salaRoute}
+        href={href}
         className={className}
         aria-label={ariaLabel}
-        target="_blank"
-        rel="noopener noreferrer"
+        target={iframeSearch ? undefined : "_blank"}
+        rel={iframeSearch ? undefined : "noopener noreferrer"}
         onClick={onNavigate}
       >
         {children}
@@ -880,7 +890,9 @@ export function RotatingRoomLobbyCard({
   openInIframe = false,
   className,
 }: LobbyCardProps) {
-  const aproveitamento = rotatingRoomSessionAproveitamentoPct(session.sessionStats);
+  const aproveitamento = embedded
+    ? 0
+    : rotatingRoomSessionAproveitamentoPct(session.sessionStats);
   const focusTableId = rotatingRoomLobbyFocusTableId(session);
   const focusLabel = focusTableId != null ? lobbyTableDisplayName(focusTableId) : null;
   const isPrepare = session.sessionMode === "prepare" && !session.showTapeteSignal;
@@ -937,46 +949,28 @@ export function RotatingRoomLobbyCard({
           borderShell,
         )}
       >
-        <div
-          className={cn(
-            "relative z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5 min-h-[2.25rem] sm:min-h-[2.5rem]",
-            embedded
-              ? "border-border-color bg-bg-secondary"
-              : "border-cyan-950/40 bg-gradient-to-r from-cyan-950/80 via-slate-900/90 to-cyan-950/80",
-          )}
-        >
-          <div className="flex min-w-0 items-center justify-start">
-            <RotateCw
-              className={cn(
-                "h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5",
-                embedded ? "text-info" : "text-cyan-400",
-              )}
-              aria-hidden
-            />
+        {!embedded ? (
+          <div
+            className={cn(
+              "relative z-20 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5 min-h-[2.25rem] sm:min-h-[2.5rem]",
+              "border-cyan-950/40 bg-gradient-to-r from-cyan-950/80 via-slate-900/90 to-cyan-950/80",
+            )}
+          >
+            <div className="flex min-w-0 items-center justify-start">
+              <RotateCw className="h-3 w-3 shrink-0 text-cyan-400 sm:h-3.5 sm:w-3.5" aria-hidden />
+            </div>
+            <div className="flex min-w-0 max-w-full flex-col items-center justify-center px-1 text-center">
+              <p className="text-[7px] font-bold uppercase tracking-[0.16em] text-cyan-300/95 sm:text-[8px]">
+                {salaLabel}
+              </p>
+            </div>
+            <div className="flex min-w-0 items-center justify-end">
+              <span className="inline-flex shrink-0 items-center rounded-md border border-cyan-600/50 bg-black/70 px-1.5 py-0.5 text-[7px] font-bold tabular-nums text-cyan-200 sm:text-[8px]">
+                {aproveitamento.toFixed(0)}%
+              </span>
+            </div>
           </div>
-          <div className="flex min-w-0 max-w-full flex-col items-center justify-center px-1 text-center">
-            <p
-              className={cn(
-                "text-[7px] font-bold uppercase tracking-[0.16em] sm:text-[8px]",
-                embedded ? "text-text-secondary" : "text-cyan-300/95",
-              )}
-            >
-              {salaLabel}
-            </p>
-          </div>
-          <div className="flex min-w-0 items-center justify-end">
-            <span
-              className={cn(
-                "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[7px] font-bold tabular-nums sm:text-[8px]",
-                embedded
-                  ? "border-border-color bg-bg-primary text-text-primary"
-                  : "border-cyan-600/50 bg-black/70 text-cyan-200",
-              )}
-            >
-              {aproveitamento.toFixed(0)}%
-            </span>
-          </div>
-        </div>
+        ) : null}
 
         <div
           className={cn(

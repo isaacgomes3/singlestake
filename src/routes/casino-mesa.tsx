@@ -49,8 +49,8 @@ import { ruas9PctAutoCriticalBundle } from "@/lib/roulette/ruas9PctAutoCritical"
 import { simulateStreetStrategy } from "@/lib/roulette/streetStrategy";
 
 export const Route = createFileRoute("/casino-mesa")({
-  beforeLoad: () => {
-    guardAutomationWorkspaceRoute("/casino-mesa");
+  beforeLoad: ({ search }) => {
+    guardAutomationWorkspaceRoute("/casino-mesa", search);
     requireAuth("/casino-mesa");
   },
   validateSearch: (search: Record<string, unknown>): { mesa?: number; parentOrigin?: string } => {

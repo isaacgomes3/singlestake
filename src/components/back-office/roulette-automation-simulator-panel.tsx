@@ -8,7 +8,6 @@ import { AUTOMATION_CHART_THEME } from "@/hooks/useChartTheme";
 import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
-import { automationWorkspaceHref } from "@/lib/app-profile";
 import {
   ROULETTE_AUTOMATION_INITIAL_BANK,
   automationChartYDomain,
@@ -165,7 +164,7 @@ export function RouletteAutomationSimulatorPanel() {
             embedded
             openInIframe
             session={rotatingRoomSession}
-            salaRoute={automationWorkspaceHref("/sala-rotativa-um-fator")}
+            salaRoute="/sala-rotativa-um-fator"
             salaLabel={t("casino.roomLabel")}
           />
         </div>

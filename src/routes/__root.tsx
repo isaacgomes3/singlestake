@@ -178,9 +178,12 @@ function RootComponent() {
     : backOfficeApp &&
       (pathname === "/back-office" ||
         pathname === "/back-office/" ||
-        pathname.startsWith("/back-office/operacoes"));
+        pathname.startsWith("/back-office/operacoes") ||
+        workspacePath);
   const needsExtensionBridge =
-    (isAutomation && workspacePath) || backOfficeAutomationView;
+    (isAutomation && workspacePath) ||
+    backOfficeAutomationView ||
+    (!isAutomation && workspacePath);
 
   const outlet = <Outlet />;
 

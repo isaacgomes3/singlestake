@@ -58,13 +58,46 @@ export function isBackOfficeAppPath(pathname: string): boolean {
   );
 }
 
+function isIframeWorkspaceSearch(search?: Record<string, unknown>): boolean {
+  const raw = search?.iframe;
+  return raw === true || raw === 1 || raw === "1" || raw === "true" || raw === "yes";
+}
+
+function hrefWithSearch(href: string, search?: Record<string, unknown>): string {
+  if (!search || Object.keys(search).length === 0) return href;
+  try {
+    const url = new URL(href, typeof window !== "undefined" ? window.location.origin : undefined);
+    for (const [key, value] of Object.entries(search)) {
+      if (value == null || value === "") continue;
+      url.searchParams.set(key, String(value));
+    }
+    return url.origin === "null" || !href.startsWith("http")
+      ? `${url.pathname}${url.search}${url.hash}`
+      : url.toString();
+  } catch {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(search)) {
+      if (value == null || value === "") continue;
+      params.set(key, String(value));
+    }
+    const qs = params.toString();
+    if (!qs) return href;
+    return `${href}${href.includes("?") ? "&" : "?"}${qs}`;
+  }
+}
+
 /** No back office, workspace de automação vive no subdomínio dedicado. */
-export function guardAutomationWorkspaceRoute(pathname: string): void {
+export function guardAutomationWorkspaceRoute(
+  pathname: string,
+  search?: Record<string, unknown>,
+): void {
   if (!isBackofficeProfile()) return;
   if (!isBackOfficeWorkspacePath(pathname)) return;
+  /** Modo iframe — mesma origem, como antes do subdomínio. */
+  if (isIframeWorkspaceSearch(search)) return;
   const origin = getAutomationPublicOrigin();
   if (!origin) return;
-  const target = automationWorkspaceHref(pathname);
+  const target = hrefWithSearch(automationWorkspaceHref(pathname), search);
   throw redirect({ href: target, replace: true });
 }
 

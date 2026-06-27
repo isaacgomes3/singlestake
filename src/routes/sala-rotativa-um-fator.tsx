@@ -26,8 +26,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
-  beforeLoad: () => {
-    guardAutomationWorkspaceRoute("/sala-rotativa-um-fator");
+  beforeLoad: ({ search }) => {
+    guardAutomationWorkspaceRoute("/sala-rotativa-um-fator", search);
     requireAuth("/sala-rotativa-um-fator");
   },
   validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {
