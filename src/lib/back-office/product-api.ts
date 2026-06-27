@@ -1,4 +1,4 @@
-import type { PackageDto, UserPackageDto, SubscriptionDto } from "@/lib/back-office/product-types";
+import type { PackageDto, PackagePixOrderDto, UserPackageDto, SubscriptionDto } from "@/lib/back-office/product-types";
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
@@ -10,10 +10,13 @@ async function parseJson<T>(res: Response): Promise<T | null> {
   }
 }
 
-export async function fetchProductPackages(): Promise<PackageDto[]> {
+export async function fetchProductPackages(): Promise<{
+  packages: PackageDto[];
+  pixEnabled: boolean;
+}> {
   const res = await fetch("/api/back-office/packages", { credentials: "include" });
-  const data = await parseJson<{ ok: boolean; packages?: PackageDto[] }>(res);
-  return data?.packages ?? [];
+  const data = await parseJson<{ ok: boolean; packages?: PackageDto[]; pixEnabled?: boolean }>(res);
+  return { packages: data?.packages ?? [], pixEnabled: data?.pixEnabled ?? false };
 }
 
 export async function fetchUserPackages(): Promise<UserPackageDto[]> {
@@ -37,6 +40,44 @@ export async function purchaseProductPackage(
     return { ok: false, error: data?.error ?? "Não foi possível comprar o pacote." };
   }
   return { ok: true };
+}
+
+export async function purchaseProductPackagePix(
+  packageId: string,
+  amount?: number,
+): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
+  const res = await fetch("/api/back-office/packages/purchase-pix", {
+    method: "POST",
+    headers: JSON_HEADERS,
+    credentials: "include",
+    body: JSON.stringify({ packageId, amount }),
+  });
+  const data = await parseJson<{ ok: boolean; order?: PackagePixOrderDto; error?: string }>(res);
+  if (!res.ok || !data?.ok || !data.order) {
+    return { ok: false, error: data?.error ?? "Não foi possível gerar o PIX." };
+  }
+  return { ok: true, order: data.order };
+}
+
+export async function syncProductPackagePixOrder(
+  orderId: string,
+): Promise<
+  | { ok: true; order: PackagePixOrderDto; userPackage?: UserPackageDto }
+  | { ok: false; error: string }
+> {
+  const res = await fetch(`/api/back-office/packages/pix-order/${orderId}`, {
+    credentials: "include",
+  });
+  const data = await parseJson<{
+    ok: boolean;
+    order?: PackagePixOrderDto;
+    userPackage?: UserPackageDto;
+    error?: string;
+  }>(res);
+  if (!res.ok || !data?.ok || !data.order) {
+    return { ok: false, error: data?.error ?? "Erro ao consultar PIX." };
+  }
+  return { ok: true, order: data.order, userPackage: data.userPackage };
 }
 
 export async function fetchSubscription(): Promise<SubscriptionDto | null> {

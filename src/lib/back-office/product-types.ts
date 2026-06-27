@@ -26,6 +26,20 @@ export type UserPackageDto = {
   adhesionEndsAt: string;
 };
 
+export type PackagePixOrderDto = {
+  id: string;
+  packageId: string;
+  amount: number;
+  status: "pending" | "paid" | "expired" | "cancelled";
+  txid: string;
+  pixCopyPaste: string | null;
+  qrCodeBase64: string | null;
+  expiresAt: string | null;
+  userPackageId: string | null;
+  mode?: "efi" | "static";
+  pixFixedAmount?: number | null;
+};
+
 export type SubscriptionDto = {
   status: "grace" | "active" | "pending" | "expired";
   active: boolean;

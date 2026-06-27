@@ -52,9 +52,11 @@ export const sharedContent = {
     rounds: {
       win: "VITÓRIA",
       loss: "DERROTA",
+      inPlay: "EM JOGO",
       spin: "Giro {{n}}",
       gale: "gale {{n}}",
       balanceAfter: "saldo {{amount}}",
+      inPlayHint: "aguardando resultado",
     },
   },
   en: {
@@ -109,9 +111,11 @@ export const sharedContent = {
     rounds: {
       win: "WIN",
       loss: "LOSS",
+      inPlay: "IN PLAY",
       spin: "Spin {{n}}",
       gale: "martingale {{n}}",
       balanceAfter: "balance {{amount}}",
+      inPlayHint: "awaiting result",
     },
   },
   es: {
@@ -166,9 +170,11 @@ export const sharedContent = {
     rounds: {
       win: "VICTORIA",
       loss: "DERROTA",
+      inPlay: "EN JUEGO",
       spin: "Giro {{n}}",
       gale: "gale {{n}}",
       balanceAfter: "saldo {{amount}}",
+      inPlayHint: "esperando resultado",
     },
   },
 } as const;

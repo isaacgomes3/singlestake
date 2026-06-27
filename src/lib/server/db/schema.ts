@@ -266,6 +266,35 @@ export const deposits = sqliteTable(
   (t) => [index("deposits_user_id_idx").on(t.userId)],
 );
 
+/** Cobrança PIX pendente para compra de pacote (Efi Pay). */
+export const packagePixOrders = sqliteTable(
+  "package_pix_orders",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    packageId: text("package_id").notNull(),
+    amount: real("amount").notNull(),
+    status: text("status", { enum: ["pending", "paid", "expired", "cancelled"] })
+      .notNull()
+      .default("pending"),
+    txid: text("txid").notNull().unique(),
+    pixCopyPaste: text("pix_copy_paste"),
+    qrCodeBase64: text("qr_code_base64"),
+    userPackageId: text("user_package_id"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    paidAt: integer("paid_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("package_pix_orders_user_id_idx").on(t.userId),
+    index("package_pix_orders_txid_idx").on(t.txid),
+  ],
+);
+
 /** Pedidos de saque. */
 export const withdrawals = sqliteTable(
   "withdrawals",
@@ -333,6 +362,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   subscription: one(subscriptions),
   binaryNode: one(binaryTreeNodes),
   deposits: many(deposits),
+  packagePixOrders: many(packagePixOrders),
   withdrawals: many(withdrawals),
 }));
 
@@ -342,6 +372,10 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 
 export const depositsRelations = relations(deposits, ({ one }) => ({
   user: one(users, { fields: [deposits.userId], references: [users.id] }),
+}));
+
+export const packagePixOrdersRelations = relations(packagePixOrders, ({ one }) => ({
+  user: one(users, { fields: [packagePixOrders.userId], references: [users.id] }),
 }));
 
 export const withdrawalsRelations = relations(withdrawals, ({ one }) => ({

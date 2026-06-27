@@ -14,6 +14,7 @@ import {
   rebuildAutomationSimFromLedger,
   restartAutomationSimCycle,
   ROULETTE_AUTOMATION_INITIAL_BANK,
+  settleLedgerEntry,
   shouldRestartAutomationCycleAfterSettlement,
   spinHead,
   syncOpenBetFromPending,
@@ -234,6 +235,7 @@ export function useRouletteAutomationSim() {
     working = applyCapturedUmFatorFlashes(
       working,
       capturedFlashesRef.current,
+      histories,
       localProcessedRef.current,
       onSettled,
     );
@@ -260,7 +262,7 @@ export function useRouletteAutomationSim() {
     if (
       effectivePending &&
       !pendingSignalAlreadySettled(working, effectivePending) &&
-      (!working.openBet || working.openBet.signalId === effectivePending.signalId)
+      !working.openBet
     ) {
       const head = spinHead(histories[effectivePending.tableId] ?? []);
       working = syncOpenBetFromPending(working, effectivePending, head);

@@ -991,7 +991,7 @@ export function RotatingRoomLobbyCard({
           ) : embedded ? (
             <Link
               to={salaRoute}
-              className="relative z-[3] text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
+              className="relative z-[3] pointer-events-auto text-[10px] font-bold uppercase tracking-wide text-info hover:underline"
             >
               Abrir sala
             </Link>

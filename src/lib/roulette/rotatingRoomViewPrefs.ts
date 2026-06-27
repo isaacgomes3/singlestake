@@ -81,9 +81,9 @@ export function writeRotatingRoomIframeMode(enabled: boolean): void {
   dispatchRotatingRoomViewPrefsChange();
 }
 
-/** Desactiva iframe embutido — casino abre no navegador normal. */
+/** Activa iframe embutido com painel flutuante sobre o casino. */
 export function prepareRotatingRoomIframeSession(): void {
-  writeRotatingRoomIframeMode(false);
+  writeRotatingRoomIframeMode(true);
   writeRotatingRoomSignalOnlyMode(false);
 }
 

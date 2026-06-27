@@ -109,6 +109,8 @@ if [[ -f .env ]]; then
   else
     echo "DEPLOY_GIT_REV=${REV}" >> .env
   fi
+  pm2 restart singlestake 2>/dev/null || pm2 start deploy/ecosystem.config.cjs
+  pm2 save
 fi
 
 echo "→ verificação pós-deploy (45s — hub Pragmatic)"

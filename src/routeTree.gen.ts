@@ -43,6 +43,7 @@ import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiDamasRouteImport } from './routes/api/damas'
 import { Route as BackOfficeGroupIdIndexRouteImport } from './routes/back-office/$groupId/index'
 import { Route as BackOfficeGroupIdModuleIdRouteImport } from './routes/back-office/$groupId/$moduleId'
+import { Route as ApiWebhooksEfiPixRouteImport } from './routes/api/webhooks/efi-pix'
 import { Route as ApiRouletteTableMetaRouteImport } from './routes/api/roulette/table-meta'
 import { Route as ApiRouletteStrategyGlobalRouteImport } from './routes/api/roulette/strategy-global'
 import { Route as ApiRouletteSpinsRouteImport } from './routes/api/roulette/spins'
@@ -73,6 +74,7 @@ import { Route as ApiRouletteRotatingRoomStreamRouteImport } from './routes/api/
 import { Route as ApiRouletteAutomationSimStreamRouteImport } from './routes/api/roulette/automation-sim.stream'
 import { Route as ApiBackOfficeWithdrawalsWithdrawalIdRouteImport } from './routes/api/back-office/withdrawals.$withdrawalId'
 import { Route as ApiBackOfficeSubscriptionPayRouteImport } from './routes/api/back-office/subscription/pay'
+import { Route as ApiBackOfficePackagesPurchasePixRouteImport } from './routes/api/back-office/packages/purchase-pix'
 import { Route as ApiBackOfficePackagesPurchaseRouteImport } from './routes/api/back-office/packages/purchase'
 import { Route as ApiBackOfficePackagesMineRouteImport } from './routes/api/back-office/packages/mine'
 import { Route as ApiBackOfficeNetworkSubAccountsRouteImport } from './routes/api/back-office/network/sub-accounts'
@@ -82,6 +84,7 @@ import { Route as ApiBackOfficeNetworkBinaryRouteImport } from './routes/api/bac
 import { Route as ApiBackOfficeNetworkAffiliatesRouteImport } from './routes/api/back-office/network/affiliates'
 import { Route as ApiBackOfficeDepositsDepositIdRouteImport } from './routes/api/back-office/deposits.$depositId'
 import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/back-office/automation/daily'
+import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
 
 const UmFatorRoute = UmFatorRouteImport.update({
@@ -255,6 +258,11 @@ const BackOfficeGroupIdModuleIdRoute =
     path: '/$moduleId',
     getParentRoute: () => BackOfficeGroupIdRoute,
   } as any)
+const ApiWebhooksEfiPixRoute = ApiWebhooksEfiPixRouteImport.update({
+  id: '/api/webhooks/efi-pix',
+  path: '/api/webhooks/efi-pix',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRouletteTableMetaRoute = ApiRouletteTableMetaRouteImport.update({
   id: '/api/roulette/table-meta',
   path: '/api/roulette/table-meta',
@@ -419,6 +427,12 @@ const ApiBackOfficeSubscriptionPayRoute =
     path: '/pay',
     getParentRoute: () => ApiBackOfficeSubscriptionRoute,
   } as any)
+const ApiBackOfficePackagesPurchasePixRoute =
+  ApiBackOfficePackagesPurchasePixRouteImport.update({
+    id: '/purchase-pix',
+    path: '/purchase-pix',
+    getParentRoute: () => ApiBackOfficePackagesRoute,
+  } as any)
 const ApiBackOfficePackagesPurchaseRoute =
   ApiBackOfficePackagesPurchaseRouteImport.update({
     id: '/purchase',
@@ -472,6 +486,12 @@ const ApiBackOfficeAutomationDailyRoute =
     id: '/api/back-office/automation/daily',
     path: '/api/back-office/automation/daily',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBackOfficePackagesPixOrderOrderIdRoute =
+  ApiBackOfficePackagesPixOrderOrderIdRouteImport.update({
+    id: '/pix-order/$orderId',
+    path: '/pix-order/$orderId',
+    getParentRoute: () => ApiBackOfficePackagesRoute,
   } as any)
 const ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute =
   ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport.update({
@@ -534,6 +554,7 @@ export interface FileRoutesByFullPath {
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
@@ -545,6 +566,7 @@ export interface FileRoutesByFullPath {
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
   '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
   '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/packages/purchase-pix': typeof ApiBackOfficePackagesPurchasePixRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
@@ -554,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesByTo {
@@ -607,6 +630,7 @@ export interface FileRoutesByTo {
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
@@ -618,6 +642,7 @@ export interface FileRoutesByTo {
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
   '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
   '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/packages/purchase-pix': typeof ApiBackOfficePackagesPurchasePixRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
@@ -627,6 +652,7 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRoutesById {
@@ -684,6 +710,7 @@ export interface FileRoutesById {
   '/api/roulette/spins': typeof ApiRouletteSpinsRoute
   '/api/roulette/strategy-global': typeof ApiRouletteStrategyGlobalRouteWithChildren
   '/api/roulette/table-meta': typeof ApiRouletteTableMetaRoute
+  '/api/webhooks/efi-pix': typeof ApiWebhooksEfiPixRoute
   '/back-office/$groupId/$moduleId': typeof BackOfficeGroupIdModuleIdRoute
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
@@ -695,6 +722,7 @@ export interface FileRoutesById {
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
   '/api/back-office/packages/mine': typeof ApiBackOfficePackagesMineRoute
   '/api/back-office/packages/purchase': typeof ApiBackOfficePackagesPurchaseRoute
+  '/api/back-office/packages/purchase-pix': typeof ApiBackOfficePackagesPurchasePixRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
@@ -704,6 +732,7 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
 export interface FileRouteTypes {
@@ -762,6 +791,7 @@ export interface FileRouteTypes {
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
+    | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
     | '/api/back-office/automation/daily'
@@ -773,6 +803,7 @@ export interface FileRouteTypes {
     | '/api/back-office/network/sub-accounts'
     | '/api/back-office/packages/mine'
     | '/api/back-office/packages/purchase'
+    | '/api/back-office/packages/purchase-pix'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
     | '/api/roulette/automation-sim/stream'
@@ -782,6 +813,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -835,6 +867,7 @@ export interface FileRouteTypes {
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
+    | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId'
     | '/api/back-office/automation/daily'
@@ -846,6 +879,7 @@ export interface FileRouteTypes {
     | '/api/back-office/network/sub-accounts'
     | '/api/back-office/packages/mine'
     | '/api/back-office/packages/purchase'
+    | '/api/back-office/packages/purchase-pix'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
     | '/api/roulette/automation-sim/stream'
@@ -855,6 +889,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId'
+    | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   id:
     | '__root__'
@@ -911,6 +946,7 @@ export interface FileRouteTypes {
     | '/api/roulette/spins'
     | '/api/roulette/strategy-global'
     | '/api/roulette/table-meta'
+    | '/api/webhooks/efi-pix'
     | '/back-office/$groupId/$moduleId'
     | '/back-office/$groupId/'
     | '/api/back-office/automation/daily'
@@ -922,6 +958,7 @@ export interface FileRouteTypes {
     | '/api/back-office/network/sub-accounts'
     | '/api/back-office/packages/mine'
     | '/api/back-office/packages/purchase'
+    | '/api/back-office/packages/purchase-pix'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
     | '/api/roulette/automation-sim/stream'
@@ -931,6 +968,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
   fileRoutesById: FileRoutesById
 }
@@ -981,6 +1019,7 @@ export interface RootRouteChildren {
   ApiRouletteSpinsRoute: typeof ApiRouletteSpinsRoute
   ApiRouletteStrategyGlobalRoute: typeof ApiRouletteStrategyGlobalRouteWithChildren
   ApiRouletteTableMetaRoute: typeof ApiRouletteTableMetaRoute
+  ApiWebhooksEfiPixRoute: typeof ApiWebhooksEfiPixRoute
   ApiBackOfficeAutomationDailyRoute: typeof ApiBackOfficeAutomationDailyRoute
   ApiBackOfficeNetworkAffiliatesRoute: typeof ApiBackOfficeNetworkAffiliatesRoute
   ApiBackOfficeNetworkBinaryRoute: typeof ApiBackOfficeNetworkBinaryRoute
@@ -1229,6 +1268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BackOfficeGroupIdModuleIdRouteImport
       parentRoute: typeof BackOfficeGroupIdRoute
     }
+    '/api/webhooks/efi-pix': {
+      id: '/api/webhooks/efi-pix'
+      path: '/api/webhooks/efi-pix'
+      fullPath: '/api/webhooks/efi-pix'
+      preLoaderRoute: typeof ApiWebhooksEfiPixRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/roulette/table-meta': {
       id: '/api/roulette/table-meta'
       path: '/api/roulette/table-meta'
@@ -1439,6 +1485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeSubscriptionPayRouteImport
       parentRoute: typeof ApiBackOfficeSubscriptionRoute
     }
+    '/api/back-office/packages/purchase-pix': {
+      id: '/api/back-office/packages/purchase-pix'
+      path: '/purchase-pix'
+      fullPath: '/api/back-office/packages/purchase-pix'
+      preLoaderRoute: typeof ApiBackOfficePackagesPurchasePixRouteImport
+      parentRoute: typeof ApiBackOfficePackagesRoute
+    }
     '/api/back-office/packages/purchase': {
       id: '/api/back-office/packages/purchase'
       path: '/purchase'
@@ -1501,6 +1554,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/back-office/automation/daily'
       preLoaderRoute: typeof ApiBackOfficeAutomationDailyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/packages/pix-order/$orderId': {
+      id: '/api/back-office/packages/pix-order/$orderId'
+      path: '/pix-order/$orderId'
+      fullPath: '/api/back-office/packages/pix-order/$orderId'
+      preLoaderRoute: typeof ApiBackOfficePackagesPixOrderOrderIdRouteImport
+      parentRoute: typeof ApiBackOfficePackagesRoute
     }
     '/api/back-office/network/sub-accounts/$subAccountId/start': {
       id: '/api/back-office/network/sub-accounts/$subAccountId/start'
@@ -1580,11 +1640,16 @@ const ApiBackOfficeDepositsRouteWithChildren =
 interface ApiBackOfficePackagesRouteChildren {
   ApiBackOfficePackagesMineRoute: typeof ApiBackOfficePackagesMineRoute
   ApiBackOfficePackagesPurchaseRoute: typeof ApiBackOfficePackagesPurchaseRoute
+  ApiBackOfficePackagesPurchasePixRoute: typeof ApiBackOfficePackagesPurchasePixRoute
+  ApiBackOfficePackagesPixOrderOrderIdRoute: typeof ApiBackOfficePackagesPixOrderOrderIdRoute
 }
 
 const ApiBackOfficePackagesRouteChildren: ApiBackOfficePackagesRouteChildren = {
   ApiBackOfficePackagesMineRoute: ApiBackOfficePackagesMineRoute,
   ApiBackOfficePackagesPurchaseRoute: ApiBackOfficePackagesPurchaseRoute,
+  ApiBackOfficePackagesPurchasePixRoute: ApiBackOfficePackagesPurchasePixRoute,
+  ApiBackOfficePackagesPixOrderOrderIdRoute:
+    ApiBackOfficePackagesPixOrderOrderIdRoute,
 }
 
 const ApiBackOfficePackagesRouteWithChildren =
@@ -1727,6 +1792,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouletteSpinsRoute: ApiRouletteSpinsRoute,
   ApiRouletteStrategyGlobalRoute: ApiRouletteStrategyGlobalRouteWithChildren,
   ApiRouletteTableMetaRoute: ApiRouletteTableMetaRoute,
+  ApiWebhooksEfiPixRoute: ApiWebhooksEfiPixRoute,
   ApiBackOfficeAutomationDailyRoute: ApiBackOfficeAutomationDailyRoute,
   ApiBackOfficeNetworkAffiliatesRoute: ApiBackOfficeNetworkAffiliatesRoute,
   ApiBackOfficeNetworkBinaryRoute: ApiBackOfficeNetworkBinaryRoute,

@@ -21,7 +21,7 @@ export const ROULETTE_AUTOMATION_LEGACY_BASE_STAKE = ROULETTE_AUTOMATION_BASE_ST
 /** Máximo de pontos no gráfico (só performance — sem janela temporal). */
 export const ROULETTE_AUTOMATION_MAX_CHART_POINTS = 500;
 
-export type AutomationRoundBadge = "SINAL" | "RECUPERAÇÃO" | "VITÓRIA" | "DERROTA";
+export type AutomationRoundBadge = "SINAL" | "RECUPERAÇÃO" | "VITÓRIA" | "DERROTA" | "EM JOGO";
 
 export type AutomationPendingSignal = {
   signalId: string;
@@ -260,6 +260,32 @@ export function placeOpenBet(
   };
 }
 
+export function isSpinResultAlreadySettled(
+  state: RouletteAutomationSimState,
+  tableId: number,
+  resultNumber: number,
+): boolean {
+  return state.rounds.some((r) => r.tableId === tableId && r.resultNumber === resultNumber);
+}
+
+/** Giro concluído — pode liquidar a aposta aberta. */
+export function openBetSpinArrived(
+  bet: AutomationOpenBet,
+  histories: Record<number, readonly number[]>,
+): { resultNumber: number; head: string } | null {
+  const history = histories[bet.tableId];
+  if (!history?.length) return null;
+
+  const head = spinHead(history);
+  const resultNumber = history[0]!;
+  const formationNumber = bet.umActive?.resultNumber;
+  const spinArrived =
+    head !== bet.openedHead || (formationNumber != null && resultNumber !== formationNumber);
+  if (!spinArrived) return null;
+
+  return { resultNumber, head };
+}
+
 /** Liquida aposta — o saldo só muda no resultado (vitória = lucro; derrota = perda do stake). */
 export function settleOpenBetEntry(
   state: RouletteAutomationSimState,
@@ -268,12 +294,7 @@ export function settleOpenBetEntry(
 ): RouletteAutomationSimState {
   if (
     entry.resultNumber != null &&
-    state.rounds.some(
-      (r) =>
-        r.tableId === entry.tableId &&
-        r.recovery === entry.recovery &&
-        r.resultNumber === entry.resultNumber,
-    )
+    isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber)
   ) {
     return state;
   }
@@ -281,7 +302,7 @@ export function settleOpenBetEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
-  const stake = state.openBet?.stake ?? stakeForRecovery(entry.recovery, state.balance);
+  const stake = stakeForRecovery(entry.recovery, state.balance);
   const net = entry.won ? stake : -stake;
   const balance = state.balance + net;
 
@@ -445,6 +466,7 @@ export function trySettleOpenBetFromLedger(
   if (candidates.length === 0) return state;
 
   const entry = [...candidates].sort((a, b) => a.ts - b.ts).at(-1)!;
+  if (isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber!)) return state;
   const next = settleOpenBetEntry(state, entry, bet.tableLabel);
   if (next !== state) onSettled?.(entry);
   return next;
@@ -460,15 +482,11 @@ export function trySettleOpenBetFromSpin(
   const bet = state.openBet;
   if (!bet?.umActive) return state;
 
-  const history = histories[bet.tableId];
-  if (!history?.length) return state;
+  const arrived = openBetSpinArrived(bet, histories);
+  if (!arrived) return state;
 
-  const head = spinHead(history);
-  const resultNumber = history[0]!;
-  const formationNumber = bet.umActive.resultNumber;
-  const spinArrived =
-    head !== bet.openedHead || (formationNumber != null && resultNumber !== formationNumber);
-  if (!spinArrived) return state;
+  const { resultNumber, head } = arrived;
+  if (isSpinResultAlreadySettled(state, bet.tableId, resultNumber)) return state;
 
   const key = `spin:${bet.tableId}:${resultNumber}:${bet.recovery}:${head}`;
   if (localProcessed.has(key)) return state;
@@ -486,6 +504,7 @@ export function trySettleOpenBetFromSpin(
 export function applyCapturedUmFatorFlashes(
   state: RouletteAutomationSimState,
   flashes: readonly UmFatorPlacarFlashLike[],
+  histories: Record<number, readonly number[]>,
   localProcessed: Set<string>,
   onSettled?: (entry: StrategyGlobalLedgerEntry) => void,
 ): RouletteAutomationSimState {
@@ -493,6 +512,11 @@ export function applyCapturedUmFatorFlashes(
   for (const flash of flashes) {
     if (!next.openBet || next.openBet.tableId !== flash.tableId) continue;
     const bet = next.openBet;
+    if (isSpinResultAlreadySettled(next, flash.tableId, flash.resultNumber)) continue;
+
+    const arrived = openBetSpinArrived(bet, histories);
+    if (!arrived || arrived.resultNumber !== flash.resultNumber) continue;
+
     const key = umFatorFlashSettlementKey(flash, bet.recovery);
     if (localProcessed.has(key)) continue;
     const entry = ledgerEntryFromFlashSettlement(flash, bet);

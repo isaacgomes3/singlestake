@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
+import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth } from "@/lib/auth/guards";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
@@ -22,6 +23,7 @@ import {
   readRotatingRoomExtensionEnabled,
   writeRotatingRoomExtensionEnabled,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
   beforeLoad: () => {
@@ -48,6 +50,7 @@ export const Route = createFileRoute("/sala-rotativa-um-fator")({
 
 function SalaRotativaUmFatorPage() {
   const { iframe: openIframe } = Route.useSearch();
+  const iframeChrome = useRotatingRoomIframeChrome();
   const [configTick, setConfigTick] = useState(0);
 
   useEffect(() => {
@@ -79,7 +82,12 @@ function SalaRotativaUmFatorPage() {
   const session = useRotatingRoomUmFatorSession(tableIds, histories);
 
   return (
-    <div className="rotating-room-page min-h-screen text-text-primary">
+    <div
+      className={cn(
+        "rotating-room-page min-h-screen text-text-primary",
+        iframeChrome && "rotating-room-iframe-active",
+      )}
+    >
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <BackOfficeWorkspaceNav rotatingRoom />
         <SalaRotativaWorkspace

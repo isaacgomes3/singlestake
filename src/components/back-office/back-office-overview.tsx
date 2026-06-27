@@ -66,7 +66,7 @@ export function BackOfficeOverviewPage() {
   const { t } = useI18n();
   const { money } = useFormat();
   const [overview, setOverview] = useState<BackOfficeOverview | null>(null);
-  const { state: globalAutomation } = useRouletteAutomationSim();
+  const { state: globalAutomation, openBet } = useRouletteAutomationSim();
 
   useEffect(() => {
     void apiFetchOverview().then((data) => {
@@ -128,7 +128,11 @@ export function BackOfficeOverviewPage() {
       </section>
 
       <section>
-        <AutomationHistoryTable rounds={globalAutomation.rounds} />
+        <AutomationHistoryTable
+          rounds={globalAutomation.rounds}
+          openBet={openBet}
+          balance={globalAutomation.balance}
+        />
       </section>
     </div>
   );

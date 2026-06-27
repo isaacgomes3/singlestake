@@ -80,6 +80,35 @@ function resolvePurchaseAmount(
   return { ok: true, amount };
 }
 
+export async function validatePackagePurchase(input: {
+  userId: string;
+  packageId: string;
+  amount?: number;
+}): Promise<
+  { ok: true; amount: number; packageName: string } | { ok: false; error: string }
+> {
+  const db = getDb();
+  const pkg = await db.query.investmentPackages.findFirst({
+    where: and(eq(investmentPackages.id, input.packageId), eq(investmentPackages.active, true)),
+  });
+  if (!pkg) return { ok: false, error: "Pacote não encontrado ou inactivo." };
+
+  const kind = pkg.packageKind as PackageKind;
+  if (kind === "automation") {
+    const hasStart = await userHasActiveStart(input.userId);
+    if (!hasStart) {
+      return {
+        ok: false,
+        error: "É necessário ter o Pacote Start R$ 50 activo antes de depositar em automação.",
+      };
+    }
+  }
+
+  const resolved = resolvePurchaseAmount(pkg, input.amount);
+  if (!resolved.ok) return resolved;
+  return { ok: true, amount: resolved.amount, packageName: pkg.name };
+}
+
 export async function listUserPackages(userId: string): Promise<UserPackageDto[]> {
   const db = getDb();
   const rows = await db.query.userPackages.findMany({
@@ -104,14 +133,17 @@ export async function listUserPackages(userId: string): Promise<UserPackageDto[]
   }));
 }
 
-export async function purchasePackage(input: {
+export type ActivatePackageInput = {
   userId: string;
   packageId: string;
-  /** Quem paga (por defeito o próprio comprador). */
+  amount: number;
+  skipWalletDebit?: boolean;
   payerUserId?: string;
-  /** Obrigatório para pacotes de automação com valor livre (`automacao`). */
-  amount?: number;
-}): Promise<{ ok: true; userPackage: UserPackageDto } | { ok: false; error: string }> {
+};
+
+export async function activatePackageAfterPayment(
+  input: ActivatePackageInput,
+): Promise<{ ok: true; userPackage: UserPackageDto } | { ok: false; error: string }> {
   const db = getDb();
   const pkg = await db.query.investmentPackages.findFirst({
     where: and(eq(investmentPackages.id, input.packageId), eq(investmentPackages.active, true)),
@@ -119,7 +151,6 @@ export async function purchasePackage(input: {
   if (!pkg) return { ok: false, error: "Pacote não encontrado ou inactivo." };
 
   const kind = pkg.packageKind as PackageKind;
-
   if (kind === "automation") {
     const hasStart = await userHasActiveStart(input.userId);
     if (!hasStart) {
@@ -130,16 +161,17 @@ export async function purchasePackage(input: {
     }
   }
 
-  const resolved = resolvePurchaseAmount(pkg, input.amount);
-  if (!resolved.ok) return resolved;
-  const amount = resolved.amount;
+  const amount = input.amount;
   const payerId = input.payerUserId ?? input.userId;
-  const wallet = await getWalletBalance(payerId, "rendimentos");
-  if (!wallet || wallet.availableBalance < amount) {
-    return {
-      ok: false,
-      error: `Saldo insuficiente. Necessário R$ ${amount.toFixed(2)} na carteira de caixa.`,
-    };
+
+  if (!input.skipWalletDebit) {
+    const wallet = await getWalletBalance(payerId, "rendimentos");
+    if (!wallet || wallet.availableBalance < amount) {
+      return {
+        ok: false,
+        error: `Saldo insuficiente. Necessário R$ ${amount.toFixed(2)} na carteira de caixa.`,
+      };
+    }
   }
 
   const split = calculatePackageSplit(amount, kind);
@@ -147,23 +179,25 @@ export async function purchasePackage(input: {
   const adhesionEnds = new Date(now.getTime() + ADHESION_DAYS * 86_400_000);
   const userPackageId = randomUUID();
 
-  const buyer =
-    payerId === input.userId
-      ? null
-      : await db.query.users.findFirst({ where: eq(users.id, input.userId) });
-  const debitDescription =
-    payerId === input.userId
-      ? `Compra — ${pkg.name}`
-      : `Compra — ${pkg.name} (sub-conta: ${buyer?.name ?? input.userId.slice(0, 8)})`;
+  if (!input.skipWalletDebit) {
+    const buyer =
+      payerId === input.userId
+        ? null
+        : await db.query.users.findFirst({ where: eq(users.id, input.userId) });
+    const debitDescription =
+      payerId === input.userId
+        ? `Compra — ${pkg.name}`
+        : `Compra — ${pkg.name} (sub-conta: ${buyer?.name ?? input.userId.slice(0, 8)})`;
 
-  await debitWallet({
-    userId: payerId,
-    bucket: "rendimentos",
-    amount,
-    description: debitDescription,
-    referenceType: "package",
-    referenceId: userPackageId,
-  });
+    await debitWallet({
+      userId: payerId,
+      bucket: "rendimentos",
+      amount,
+      description: debitDescription,
+      referenceType: "package",
+      referenceId: userPackageId,
+    });
+  }
 
   await db.insert(userPackages).values({
     id: userPackageId,
@@ -215,4 +249,23 @@ export async function purchasePackage(input: {
       adhesionEndsAt: created.adhesionEndsAt.toISOString(),
     },
   };
+}
+
+export async function purchasePackage(input: {
+  userId: string;
+  packageId: string;
+  /** Quem paga (por defeito o próprio comprador). */
+  payerUserId?: string;
+  /** Obrigatório para pacotes de automação com valor livre (`automacao`). */
+  amount?: number;
+}): Promise<{ ok: true; userPackage: UserPackageDto } | { ok: false; error: string }> {
+  const validated = await validatePackagePurchase(input);
+  if (!validated.ok) return validated;
+
+  return activatePackageAfterPayment({
+    userId: input.userId,
+    packageId: input.packageId,
+    amount: validated.amount,
+    payerUserId: input.payerUserId,
+  });
 }

@@ -6,15 +6,17 @@ import {
   fetchProductPackages,
   fetchUserPackages,
   purchaseProductPackage,
+  purchaseProductPackagePix,
   runDailyAutomationYield,
 } from "@/lib/back-office/product-api";
-import type { PackageDto, UserPackageDto } from "@/lib/back-office/product-types";
+import type { PackageDto, PackagePixOrderDto, UserPackageDto } from "@/lib/back-office/product-types";
 import {
   AUTOMATION_DEPOSIT_STEP,
 } from "@/lib/back-office/product-constants";
 import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
+import { PackagePixCheckoutDialog } from "@/components/back-office/package-pix-checkout-dialog";
 
 export function BackOfficePackagesPanel() {
   const { t } = useI18n();
@@ -26,13 +28,18 @@ export function BackOfficePackagesPanel() {
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [runningYield, setRunningYield] = useState(false);
   const [customAmount, setCustomAmount] = useState("500");
+  const [pixEnabled, setPixEnabled] = useState(false);
+  const [pixOrder, setPixOrder] = useState<PackagePixOrderDto | null>(null);
+  const [pixPackageName, setPixPackageName] = useState("");
 
   const hasStart = mine.some((p) => p.packageId === "start" && p.status === "active");
 
   const reload = async () => {
     setLoading(true);
-    const [packages, owned] = await Promise.all([fetchProductPackages(), fetchUserPackages()]);
+    const { packages, pixEnabled: pix } = await fetchProductPackages();
+    const owned = await fetchUserPackages();
     setCatalog(packages);
+    setPixEnabled(pix);
     setMine(owned);
     setLoading(false);
   };
@@ -51,6 +58,18 @@ export function BackOfficePackagesPanel() {
     }
     toast.success(t("products.packages.toastPurchased"));
     void reload();
+  };
+
+  const handleBuyPix = async (pkg: PackageDto, amount?: number) => {
+    setBuyingId(pkg.id);
+    const result = await purchaseProductPackagePix(pkg.id, amount);
+    setBuyingId(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setPixPackageName(pkg.name);
+    setPixOrder(result.order);
   };
 
   const handleRunYield = async () => {
@@ -72,6 +91,17 @@ export function BackOfficePackagesPanel() {
 
   return (
     <div className="space-y-5">
+      {pixOrder ? (
+        <PackagePixCheckoutDialog
+          order={pixOrder}
+          packageName={pixPackageName}
+          onClose={() => setPixOrder(null)}
+          onPaid={() => {
+            setPixOrder(null);
+            void reload();
+          }}
+        />
+      ) : null}
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.packages.splitTitle")}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -129,22 +159,41 @@ export function BackOfficePackagesPanel() {
                     ) : (
                       <p className="mt-1 text-lg font-bold tabular-nums">{money(pkg.amount)}</p>
                     )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="mt-3"
-                      disabled={buyingId === pkg.id || locked}
-                      onClick={() =>
-                        void handleBuy(
-                          pkg.id,
-                          pkg.allowsCustomAmount ? Number(customAmount) : undefined,
-                        )
-                      }
-                    >
-                      {buyingId === pkg.id
-                        ? t("products.packages.buying")
-                        : t("products.packages.buy")}
-                    </Button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={buyingId === pkg.id || locked}
+                        onClick={() =>
+                          void handleBuy(
+                            pkg.id,
+                            pkg.allowsCustomAmount ? Number(customAmount) : undefined,
+                          )
+                        }
+                      >
+                        {buyingId === pkg.id
+                          ? t("products.packages.buying")
+                          : t("products.packages.buy")}
+                      </Button>
+                      {pixEnabled ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={buyingId === pkg.id || locked}
+                          onClick={() =>
+                            void handleBuyPix(
+                              pkg,
+                              pkg.allowsCustomAmount ? Number(customAmount) : undefined,
+                            )
+                          }
+                        >
+                          {buyingId === pkg.id
+                            ? t("products.packages.buying")
+                            : t("products.packages.buyPix")}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 );
               })}

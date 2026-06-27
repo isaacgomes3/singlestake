@@ -42,8 +42,8 @@ export function RouletteAutomationSimulatorPanel() {
       <div className="border-b border-border-color px-5 py-4">
         <div className="flex flex-wrap items-center gap-3">
           {openBet ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-primary">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-kpi-green" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
               {t("overview.automation.inPlay", { table: openBet.tableLabel })}
             </span>
           ) : (
@@ -69,11 +69,11 @@ export function RouletteAutomationSimulatorPanel() {
                   {money(freeBalance)}
                 </p>
               </div>
-              <div className="rounded-lg border border-kpi-teal/35 bg-kpi-teal/10 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-kpi-teal">
+              <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-warning">
                   {t("overview.automation.inPlayBalance")}
                 </p>
-                <p className="mt-0.5 text-xl font-bold tabular-nums text-text-primary sm:text-2xl">
+                <p className="mt-0.5 text-xl font-bold tabular-nums text-warning sm:text-2xl">
                   {money(openBet.stake)}
                 </p>
               </div>
@@ -162,6 +162,7 @@ export function RouletteAutomationSimulatorPanel() {
           <RotatingRoomExtensionStatus compact />
           <RotatingRoomLobbyCard
             embedded
+            openInIframe
             session={rotatingRoomSession}
             salaRoute="/sala-rotativa-um-fator"
             salaLabel={t("casino.roomLabel")}
