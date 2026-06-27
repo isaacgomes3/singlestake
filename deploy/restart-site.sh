@@ -5,6 +5,15 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/stake37}"
 cd "$APP_DIR"
+# shellcheck source=deploy-common.sh
+source "$APP_DIR/deploy/deploy-common.sh"
+setup_deploy_path
+ensure_pm2
+
+if [[ ! -f .output/server/index.mjs ]]; then
+  echo "✗ Build em falta (.output/server/index.mjs) — execute: bash deploy/quick-fix-site.sh"
+  exit 1
+fi
 
 echo "=== stake37 — restart site ==="
 pm2 describe singlestake >/dev/null 2>&1 && pm2 restart singlestake || pm2 start deploy/ecosystem.config.cjs

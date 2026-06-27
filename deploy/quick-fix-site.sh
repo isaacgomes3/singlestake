@@ -5,6 +5,10 @@ set -uo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/stake37}"
 cd "$APP_DIR" || { echo "✗ Pasta $APP_DIR não existe"; exit 1; }
+# shellcheck source=deploy-common.sh
+source "$APP_DIR/deploy/deploy-common.sh"
+setup_deploy_path
+ensure_pm2
 
 echo "=== stake37 — quick fix site ==="
 git fetch origin main
