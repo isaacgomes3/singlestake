@@ -56,6 +56,9 @@ pm2 start deploy/ecosystem.config.cjs
 pm2 save
 
 if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
+  echo "→ pm2 stop (migrações DB — evita crash SQLite)"
+  pm2 stop singlestake 2>/dev/null || true
+  sleep 1
   echo "→ npm run db:push"
   npm run db:push || echo "⚠ db:push ignorado"
   if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
@@ -64,6 +67,9 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   fi
   echo "→ npm run db:seed-isaac (rede qualificadora Isaac — idempotente)"
   npm run db:seed-isaac || echo "⚠ db:seed-isaac ignorado"
+  echo "→ pm2 start (após migrações DB)"
+  pm2 start deploy/ecosystem.config.cjs 2>/dev/null || pm2 restart singlestake
+  pm2 save
 fi
 
 if [[ -f "$AAPANEL_CONF" ]]; then
@@ -112,6 +118,22 @@ if [[ -f .env ]]; then
   pm2 restart singlestake 2>/dev/null || pm2 start deploy/ecosystem.config.cjs
   pm2 save
 fi
+
+echo "→ verificar PM2 online"
+for i in 1 2 3 4 5 6; do
+  if curl -sf --max-time 10 http://127.0.0.1:3000/entrar >/dev/null 2>&1; then
+    echo "✓ Node responde em :3000"
+    break
+  fi
+  if [[ "$i" -eq 6 ]]; then
+    echo "✗ Node não responde — pm2 logs singlestake --lines 40"
+    pm2 logs singlestake --lines 40 --nostream 2>/dev/null || true
+    pm2 status 2>/dev/null || true
+    exit 1
+  fi
+  echo "  aguardar arranque (${i}/6)…"
+  sleep 5
+done
 
 echo "→ verificação pós-deploy (45s — hub Pragmatic)"
 sleep 45
