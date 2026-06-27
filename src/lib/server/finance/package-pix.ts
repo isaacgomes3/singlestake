@@ -3,13 +3,13 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 
 import {
-  AUTOMATION_PIX_PACKAGE_ID,
+  PRODUCT_PACKAGES,
   START_PACKAGE_AMOUNT,
   START_PACKAGE_ID,
 } from "@/lib/back-office/product-constants";
 
 import { getDb } from "@/lib/server/db/client";
-import { packagePixOrders, userPackages, users } from "@/lib/server/db/schema";
+import { packagePixOrders, userPackages, users, investmentPackages } from "@/lib/server/db/schema";
 import { readEfiPixConfig } from "@/lib/server/finance/efi-config";
 import { createImmediatePixCharge, getPixChargeStatus } from "@/lib/server/finance/efi-pay-client";
 import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
@@ -117,16 +117,18 @@ export async function createPackagePixOrder(input: {
         error: "O Pacote Start R$ 50 é activado no cadastro da conta.",
       };
     }
-    if (input.packageId !== AUTOMATION_PIX_PACKAGE_ID) {
-      return {
-        ok: false,
-        error: "PIX disponível apenas para Automação R$ 250.",
-      };
-    }
   }
 
   const validated = await validatePackagePurchase(input);
   if (!validated.ok) return validated;
+
+  const db = getDb();
+  const pkgRow = await db.query.investmentPackages.findFirst({
+    where: eq(investmentPackages.id, input.packageId),
+  });
+  if (!pkgRow || pkgRow.packageKind !== "automation") {
+    return { ok: false, error: "PIX disponível apenas para pacotes de automação." };
+  }
 
   const lucReady = await isLucPagueiGatewayReady();
   const efiConfig = readEfiPixConfig();
@@ -154,7 +156,6 @@ export async function createPackagePixOrder(input: {
   const orderId = randomUUID();
   const expirationSeconds = 3600;
   const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
-  const db = getDb();
 
   if (lucReady) {
     const payerCpf = await resolvePayerCpf(input.userId, input.cpfDocument);
@@ -431,17 +432,43 @@ export async function isPixCheckoutEnabledAsync(): Promise<boolean> {
   return isPixCheckoutEnabled();
 }
 
-/** PIX no catálogo — apenas Automação R$ 250. */
-export function isCatalogPackagePixAvailable(packageId: string): boolean {
-  if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
-  if (readStaticPixCopiaColaForAmount(250) != null || readEfiPixConfig() != null) return true;
+function isPixAvailableForAmountSync(amount: number): boolean {
+  if (readEfiPixConfig() != null) return true;
+  if (readStaticPixCopiaColaForAmount(amount) != null) return true;
   return false;
 }
 
-export async function isCatalogPackagePixAvailableAsync(packageId: string): Promise<boolean> {
-  if (packageId !== AUTOMATION_PIX_PACKAGE_ID) return false;
+async function isPixAvailableForAmountAsync(amount: number): Promise<boolean> {
   if (await isLucPagueiGatewayReady()) return true;
-  return isCatalogPackagePixAvailable(packageId);
+  return isPixAvailableForAmountSync(amount);
+}
+
+/** PIX no catálogo — todos os pacotes de automação activos. */
+export function isCatalogPackagePixAvailable(packageId: string): boolean {
+  if (packageId === START_PACKAGE_ID) return false;
+  const pkg = PRODUCT_PACKAGES.find((p) => p.id === packageId);
+  if (!pkg || pkg.packageKind !== "automation" || !pkg.active) return false;
+  if (pkg.minAmount === pkg.maxAmount) {
+    return isPixAvailableForAmountSync(pkg.minAmount);
+  }
+  return isStaticPixConfigured() || readEfiPixConfig() != null;
+}
+
+export async function isCatalogPackagePixAvailableAsync(packageId: string): Promise<boolean> {
+  if (packageId === START_PACKAGE_ID) return false;
+
+  const db = getDb();
+  const pkg = await db.query.investmentPackages.findFirst({
+    where: eq(investmentPackages.id, packageId),
+  });
+  if (!pkg || pkg.packageKind !== "automation" || !pkg.active) return false;
+
+  if (pkg.minAmount === pkg.maxAmount) {
+    return isPixAvailableForAmountAsync(pkg.minAmount);
+  }
+
+  if (await isLucPagueiGatewayReady() || readEfiPixConfig() != null) return true;
+  return listConfiguredStaticPixAmounts().length > 0;
 }
 
 /** @deprecated use isPixCheckoutEnabled */

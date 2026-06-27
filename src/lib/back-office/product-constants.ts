@@ -29,7 +29,7 @@ export const AUTOMATION_DEPOSIT_MAX = 50_000;
 export const START_PACKAGE_AMOUNT = 50;
 export const START_PACKAGE_ID = "start";
 
-/** Automação fixa R$ 250 — única com checkout PIX no catálogo. */
+/** @deprecated Identificador histórico do pacote fixo R$ 250 — PIX agora disponível em todos os pacotes de automação. */
 export const AUTOMATION_PIX_PACKAGE_ID = "auto-250";
 
 /** Pacotes ocultos do catálogo (Start é pago no cadastro). */
