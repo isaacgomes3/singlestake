@@ -74,6 +74,14 @@ function sessionToSlice(
     signalId,
     currentRecovery: session.currentRecovery,
     lobbyWait: isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
+    lobbyCooldownActive:
+      "lobbyCooldownActive" in session && session.lobbyCooldownActive === true,
+    lobbyCooldownUntilMs:
+      "lobbyCooldownUntilMs" in session &&
+      typeof session.lobbyCooldownUntilMs === "number" &&
+      Number.isFinite(session.lobbyCooldownUntilMs)
+        ? session.lobbyCooldownUntilMs
+        : null,
   };
 }
 
@@ -88,6 +96,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
   const prevEmitKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;
     if (sessionSlice.lobbyWait) return;
     if (!sessionSlice.showTapeteSignal) {
       if (sessionSlice.sessionMode !== "prepare") {
@@ -110,6 +119,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
 
   useEffect(() => {
     if (!enabled) return;
+    if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;
     if (fingerprint === lastFingerprintRef.current) return;
 
     const actions = planRotatingRoomClickBotActions(sessionSlice);

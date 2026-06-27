@@ -36,6 +36,10 @@ import {
   tableAcceptableForRotatingRoomEntry,
   tableArmableForUmFatorFormation,
 } from "@/lib/roulette/liveTableBettingWindow";
+import {
+  isRotatingRoomLobbyCooldownActive,
+  rotatingRoomLobbyCooldownUntilMs,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 
 import {
 
@@ -116,6 +120,15 @@ export type UmFatorMachineState = {
    */
   staleFormationHeadByTable: Record<string, string>;
 
+  /** Bloqueia nova entrada até passar o cooldown pós-lobby (vitória ou derrota final). */
+  lobbyCooldownUntilMs: number | null;
+
+  /**
+   * Head por mesa quando o lobby ficou pronto — só arma após giro novo (head diferente).
+   * Ignora gatilhos que já estavam na fila antes/durante o retorno ao lobby.
+   */
+  lobbyArmingGateByTable: Record<string, string>;
+
 };
 
 
@@ -190,8 +203,49 @@ export function defaultUmFatorMachineState(): UmFatorMachineState {
 
     staleFormationHeadByTable: {},
 
+    lobbyCooldownUntilMs: null,
+
+    lobbyArmingGateByTable: {},
+
   };
 
+}
+
+
+
+function snapshotSpinHeadsByTable(
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+): Record<string, string> {
+  const heads: Record<string, string> = {};
+  for (const tableId of tableIds) {
+    heads[String(tableId)] = spinHead(histories[tableId] ?? []);
+  }
+  return heads;
+}
+
+/** Gatilho já visível quando o lobby abriu — aguarda giro novo nesta mesa. */
+function isBlockedByLobbyArmingGate(
+  machine: UmFatorMachineState,
+  tableId: number,
+  head: string,
+): boolean {
+  const gate = machine.lobbyArmingGateByTable?.[String(tableId)];
+  return gate != null && gate === head;
+}
+
+function refreshLobbyArmingGateIfReady(
+  machine: UmFatorMachineState,
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+): UmFatorMachineState {
+  if (machine.lobbyCooldownUntilMs == null) return machine;
+  if (isRotatingRoomLobbyCooldownActive(machine.lobbyCooldownUntilMs)) return machine;
+  return {
+    ...machine,
+    lobbyCooldownUntilMs: null,
+    lobbyArmingGateByTable: snapshotSpinHeadsByTable(tableIds, histories),
+  };
 }
 
 
@@ -390,6 +444,8 @@ function orderTableIdsForTick(
       !isResultAlreadySettled(machine, tableId, head) &&
 
       !isStaleQueuedFormation(machine, tableId, head) &&
+
+      !isBlockedByLobbyArmingGate(machine, tableId, head) &&
 
       detectUmFatorActiveFromHistory(history) != null &&
 
@@ -592,7 +648,7 @@ export function tickUmFatorPlacar(
 } {
 
   let nextMachine: UmFatorMachineState = pruneOrphanUmFatorPending(machine);
-
+  nextMachine = refreshLobbyArmingGateIfReady(nextMachine, tableIds, histories);
   nextMachine = {
 
     ...nextMachine,
@@ -621,6 +677,8 @@ export function tickUmFatorPlacar(
 
 
 
+  const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(nextMachine.lobbyCooldownUntilMs);
+
   const hasWork = tableIds.some((tableId) => {
 
     const history = histories[tableId] ?? [];
@@ -632,6 +690,10 @@ export function tickUmFatorPlacar(
     if (pendingForTable(nextMachine, tableId) != null) return false;
 
     if (isResultAlreadySettled(nextMachine, tableId, head)) return false;
+
+    if (lobbyCooldownActive) return false;
+
+    if (isBlockedByLobbyArmingGate(nextMachine, tableId, head)) return false;
 
     return (
 
@@ -737,6 +799,9 @@ export function tickUmFatorPlacar(
 
         nextMachine.lastLostTableId = null;
 
+        nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
+        nextMachine.lobbyArmingGateByTable = {};
+
         flash = {
           resultNumber,
           won: true,
@@ -763,6 +828,9 @@ export function tickUmFatorPlacar(
           nextMachine.tablePlacarLosses = { [String(tableId)]: 1 };
 
           nextMachine.lastLostTableId = tableId;
+
+          nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
+          nextMachine.lobbyArmingGateByTable = {};
 
           flash = {
             resultNumber,
@@ -801,6 +869,8 @@ export function tickUmFatorPlacar(
 
     if (anyTablePendingEntryOpen(nextMachine, tableIds, histories)) continue;
 
+    if (lobbyCooldownActive) continue;
+
     const formation = detectUmFatorActiveFromHistory(history);
 
     if (!formation) continue;
@@ -808,6 +878,8 @@ export function tickUmFatorPlacar(
     if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
 
     if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
+
+    if (isBlockedByLobbyArmingGate(nextMachine, tableId, head)) continue;
 
     if (!headChanged) continue;
 
@@ -834,6 +906,8 @@ export function tickUmFatorPlacar(
       lastActiveTableId: tableId,
 
       focusLockTableId: tableId,
+
+      lobbyArmingGateByTable: {},
 
     };
 
@@ -901,6 +975,10 @@ export function seedUmFatorMachineAfterPlacarReset(
 
     staleFormationHeadByTable: {},
 
+    lobbyCooldownUntilMs: null,
+
+    lobbyArmingGateByTable: {},
+
   };
 
 }
@@ -949,6 +1027,14 @@ export function sanitizeUmFatorMachineForTableIds(
 
   }
 
+  const lobbyArmingGateByTable: Record<string, string> = {};
+
+  for (const [k, v] of Object.entries(machine.lobbyArmingGateByTable ?? {})) {
+
+    if (allowed.has(k)) lobbyArmingGateByTable[k] = v;
+
+  }
+
   const lastActiveTableId =
 
     machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId)
@@ -976,6 +1062,8 @@ export function sanitizeUmFatorMachineForTableIds(
     settledSpinHeadByTable,
 
     staleFormationHeadByTable,
+
+    lobbyArmingGateByTable,
 
     tablePlacarLosses: {},
 
@@ -1073,6 +1161,10 @@ export function normalizeUmFatorMachineOnLoad(
 
       staleFormationHeadByTable: {},
 
+      lobbyCooldownUntilMs: null,
+
+      lobbyArmingGateByTable: {},
+
       recovery: partialLosses > 0 ? partialLosses : 0,
 
     };
@@ -1081,6 +1173,11 @@ export function normalizeUmFatorMachineOnLoad(
 
 
 
+  const lobbyCooldownUntilMs =
+    typeof machine.lobbyCooldownUntilMs === "number" && Number.isFinite(machine.lobbyCooldownUntilMs)
+      ? machine.lobbyCooldownUntilMs
+      : null;
+
   return {
 
     ...machine,
@@ -1088,6 +1185,10 @@ export function normalizeUmFatorMachineOnLoad(
     pendingByTable: pending,
 
     staleFormationHeadByTable: machine.staleFormationHeadByTable ?? {},
+
+    lobbyArmingGateByTable: machine.lobbyArmingGateByTable ?? {},
+
+    lobbyCooldownUntilMs,
 
     tablePlacarLosses: {},
 

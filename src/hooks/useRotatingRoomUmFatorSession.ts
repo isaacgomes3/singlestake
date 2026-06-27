@@ -39,7 +39,10 @@ import {
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
 
-const ROUND_FLASH_MS = 2800;
+import {
+  isRotatingRoomLobbyCooldownActive,
+  ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 
 export type RotatingRoomUmFatorRoundFlash = {
   resultNumber: number;
@@ -73,6 +76,9 @@ export type RotatingRoomUmFatorSession = {
   prepareCategory: null;
   umFatorScan: UmFatorTableScan[];
   umActive: UmFatorActive | null;
+  /** Bloqueio pós-ciclo (vitória/derrota final) — extensão e UI respeitam antes de nova entrada. */
+  lobbyCooldownUntilMs: number | null;
+  lobbyCooldownActive: boolean;
 };
 
 export function useRotatingRoomUmFatorSession(
@@ -222,7 +228,10 @@ export function useRotatingRoomUmFatorSession(
     () => (umActive ? umFatorToTapeteActive(umActive) : null),
     [umActive],
   );
-  const showTapeteSignal = activeCrossing != null && currentTableId != null;
+  const showTapeteSignalRaw = activeCrossing != null && currentTableId != null;
+  const lobbyCooldownUntilMs = machine.lobbyCooldownUntilMs;
+  const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs);
+  const showTapeteSignal = showTapeteSignalRaw && !lobbyCooldownActive;
   const phase: RotatingRoomPhase = showTapeteSignal ? "active" : "waiting";
 
   const globalUmActive = globalView?.umActive ?? null;
@@ -278,7 +287,7 @@ export function useRotatingRoomUmFatorSession(
       flashClearRef.current = window.setTimeout(() => {
         setRoundFlash(null);
         flashClearRef.current = null;
-      }, ROUND_FLASH_MS);
+      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
     };
 
     applyGlobalFlash();
@@ -315,7 +324,7 @@ export function useRotatingRoomUmFatorSession(
       flashClearRef.current = window.setTimeout(() => {
         setRoundFlash(null);
         flashClearRef.current = null;
-      }, ROUND_FLASH_MS);
+      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useGlobalIndication, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
@@ -327,6 +336,9 @@ export function useRotatingRoomUmFatorSession(
       prepareCategory: null,
       roundFlash,
       activeCrossing: globalActiveCrossing,
+      lobbyCooldownUntilMs,
+      lobbyCooldownActive,
+      showTapeteSignal: globalView.showTapeteSignal && !lobbyCooldownActive,
     };
   }
 
@@ -345,6 +357,8 @@ export function useRotatingRoomUmFatorSession(
     sessionMode: showTapeteSignal ? "active" : "scanning",
     prepareCategory: null,
     umFatorScan: liveView.tableScan,
-    umActive: umActive,
+    umActive: showTapeteSignal ? umActive : null,
+    lobbyCooldownUntilMs,
+    lobbyCooldownActive,
   };
 }

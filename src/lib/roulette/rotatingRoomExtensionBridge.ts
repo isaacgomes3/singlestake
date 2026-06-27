@@ -66,6 +66,8 @@ export type RotatingRoomExtensionContext = {
   executionMode: "demo" | "real";
   /** Aguarde no Lobby — navegar para poker em vez de mesa de roleta. */
   lobbyWait?: boolean;
+  /** Timestamp até ao qual novas apostas ficam bloqueadas (pós-ciclo). */
+  lobbyCooldownUntilMs?: number | null;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -156,6 +158,12 @@ export function buildRotatingRoomExtensionContext(
     executionMode: realMode ? "real" : "demo",
     lobbyWait,
     mesaCatalog,
+    lobbyCooldownUntilMs:
+      "lobbyCooldownUntilMs" in session &&
+      typeof session.lobbyCooldownUntilMs === "number" &&
+      Number.isFinite(session.lobbyCooldownUntilMs)
+        ? session.lobbyCooldownUntilMs
+        : null,
   };
 }
 

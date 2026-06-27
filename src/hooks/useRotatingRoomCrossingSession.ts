@@ -39,7 +39,7 @@ import {
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
 
-const ROUND_FLASH_MS = 2800;
+import { ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT } from "@/lib/roulette/rotatingRoomLobbySignal";
 
 export type RotatingRoomCrossingRoundFlash = {
   resultNumber: number;
@@ -205,7 +205,7 @@ export function useRotatingRoomCrossingSession(
       flashClearRef.current = window.setTimeout(() => {
         setRoundFlash(null);
         flashClearRef.current = null;
-      }, ROUND_FLASH_MS);
+      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
     };
 
     applyGlobalFlash();
@@ -270,7 +270,7 @@ export function useRotatingRoomCrossingSession(
       flashClearRef.current = window.setTimeout(() => {
         setRoundFlash(null);
         flashClearRef.current = null;
-      }, ROUND_FLASH_MS);
+      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
     }
 
     applyMachine(placar.nextMachine);

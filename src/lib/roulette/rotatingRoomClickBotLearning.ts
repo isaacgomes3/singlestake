@@ -36,6 +36,9 @@ export type RotatingRoomClickBotSessionSlice = {
   currentRecovery?: number;
   /** Sem mesa em foco — extensão mantém poker aberto (como o iframe do lobby). */
   lobbyWait?: boolean;
+  /** Pós-ciclo — bloqueia nova indicação até lobby carregar + cooldown. */
+  lobbyCooldownActive?: boolean;
+  lobbyCooldownUntilMs?: number | null;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -58,7 +61,21 @@ export function planRotatingRoomClickBotActions(
     ];
   }
 
-  if (session.showTapeteSignal && session.activeCrossing) {
+  if (session.lobbyCooldownActive && !session.showTapeteSignal) {
+    if (session.lobbyWait) {
+      return [
+        {
+          kind: "click",
+          target: "prepare-open",
+          label: "Lobby — Poker",
+          reason: "Aguarde no Lobby — abrir poker no operador",
+        },
+      ];
+    }
+    return [{ kind: "wait", reason: "Pós-resultado — aguardar lobby carregar" }];
+  }
+
+  if (session.showTapeteSignal && session.activeCrossing && !session.lobbyCooldownActive) {
     const { factor1, factor2 } = session.activeCrossing;
     const mesa =
       session.currentTableId != null ? lobbyTableDisplayName(session.currentTableId) : "mesa";
@@ -121,6 +138,7 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.currentRecovery ?? 0,
     session.singleFactorMode ? 1 : 0,
     session.lobbyWait ? 1 : 0,
+    session.lobbyCooldownActive ? 1 : 0,
     f ? `${f.factor1.kind}:${f.factor1.value}|${f.factor2.kind}:${f.factor2.value}` : "",
   ].join("|");
 }

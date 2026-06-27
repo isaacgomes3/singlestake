@@ -72,6 +72,33 @@ function recoveryFromContext(context) {
   return 0;
 }
 
+/** Intervalo base entre cliques de aposta (ms). */
+const CLICK_STAGGER_BASE_MS = 450;
+
+/**
+ * Gales altos exigem 2^recovery cliques — acelera o ritmo para caber na janela de apostas.
+ * Gale 4 (recovery 4): 2× · Gale 5 (recovery 5): 4×.
+ */
+function clickSpeedMultiplierForRecovery(recovery) {
+  const r =
+    typeof recovery === "number" && Number.isFinite(recovery)
+      ? Math.max(0, Math.floor(recovery))
+      : 0;
+  if (r >= 5) return 4;
+  if (r >= 4) return 2;
+  return 1;
+}
+
+function clickStaggerMsForRecovery(recovery) {
+  const mult = clickSpeedMultiplierForRecovery(recovery);
+  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
+}
+
+function scaledClickDelayMs(baseMs, recovery) {
+  const mult = clickSpeedMultiplierForRecovery(recovery);
+  return Math.max(15, Math.round(baseMs / mult));
+}
+
 async function setStoredMode(mode) {
   await chrome.storage.local.set({
     [GOG.STORAGE_MODE]: mode,
