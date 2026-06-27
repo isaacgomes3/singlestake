@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 import { getDb } from "@/lib/server/db/client";
@@ -11,6 +11,23 @@ import { creditWallet, debitWallet, getWalletBalance } from "@/lib/server/financ
 export const GLOBAL_AUTOMATION_CAPITAL_REF_TYPE = "global-automation-capital-init" as const;
 export const GLOBAL_AUTOMATION_SETTLE_REF_TYPE = "global-automation-settle" as const;
 export const GLOBAL_AUTOMATION_BUCKET = "automacao" as const;
+
+export type GlobalAutomationLedgerEntryDto = {
+  id: string;
+  entryType: "credit" | "debit";
+  amount: number;
+  description: string;
+  referenceType: string | null;
+  referenceId: string | null;
+  createdAt: string;
+};
+
+export type GlobalAutomationFinanceSnapshot = {
+  balance: number;
+  initialCapital: number;
+  capitalRegisteredAt: number | null;
+  entries: GlobalAutomationLedgerEntryDto[];
+};
 
 export async function ensureGlobalAutomationWallet(companyUserId: string): Promise<void> {
   const existing = await getWalletBalance(companyUserId, GLOBAL_AUTOMATION_BUCKET);
@@ -135,4 +152,57 @@ export async function settleGlobalAutomationInLedger(input: {
 
   const balanceAfter = await getGlobalAutomationWalletBalance();
   return { net: -input.stake, balanceAfter };
+}
+
+function toGlobalAutomationLedgerDto(
+  row: typeof ledgerEntries.$inferSelect,
+): GlobalAutomationLedgerEntryDto {
+  return {
+    id: row.id,
+    entryType: row.entryType,
+    amount: row.amount,
+    description: row.description,
+    referenceType: row.referenceType,
+    referenceId: row.referenceId,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+/** Extrato da caixa operacional da automação global — visível a todos os utilizadores autenticados. */
+export async function listGlobalAutomationLedgerEntries(
+  limit = 150,
+): Promise<GlobalAutomationLedgerEntryDto[]> {
+  const companyUserId = await resolveCompanyUserId();
+  const db = getDb();
+  const capped = Math.min(Math.max(limit, 1), 200);
+
+  const rows = await db.query.ledgerEntries.findMany({
+    where: and(
+      eq(ledgerEntries.userId, companyUserId),
+      eq(ledgerEntries.bucket, GLOBAL_AUTOMATION_BUCKET),
+      inArray(ledgerEntries.referenceType, [
+        GLOBAL_AUTOMATION_CAPITAL_REF_TYPE,
+        GLOBAL_AUTOMATION_SETTLE_REF_TYPE,
+      ]),
+    ),
+    orderBy: [desc(ledgerEntries.createdAt)],
+    limit: capped,
+  });
+
+  return rows.map(toGlobalAutomationLedgerDto);
+}
+
+export async function getGlobalAutomationFinanceSnapshot(
+  ledgerLimit = 150,
+): Promise<GlobalAutomationFinanceSnapshot> {
+  const { registeredAt } = await ensureGlobalAutomationCapitalRegistered();
+  const balance = await getGlobalAutomationWalletBalance();
+  const entries = await listGlobalAutomationLedgerEntries(ledgerLimit);
+
+  return {
+    balance,
+    initialCapital: ROULETTE_AUTOMATION_INITIAL_BANK,
+    capitalRegisteredAt: registeredAt,
+    entries,
+  };
 }

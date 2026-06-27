@@ -9,6 +9,7 @@ import { BackOfficeBinaryBonusPanel } from "@/components/back-office/back-office
 import { BackOfficeBinaryPanel } from "@/components/back-office/back-office-binary-panel";
 import { BackOfficeCasinoContent } from "@/components/back-office/back-office-casino-content";
 import { BackOfficeDepositsPanel } from "@/components/back-office/back-office-deposits-panel";
+import { BackOfficeGlobalAutomationPanel } from "@/components/back-office/back-office-global-automation-panel";
 import { BackOfficeLedgerPanel } from "@/components/back-office/back-office-ledger-panel";
 import { BackOfficeQualificationPanel } from "@/components/back-office/back-office-qualification-panel";
 import { BackOfficeTeamBonusPanel } from "@/components/back-office/back-office-team-bonus-panel";
@@ -115,6 +116,9 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "extrato":
       return <BackOfficeLedgerPanel />;
+
+    case "automacao-global":
+      return <BackOfficeGlobalAutomationPanel />;
 
     case "relatorios-rede":
       return (

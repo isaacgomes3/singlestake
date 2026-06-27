@@ -92,12 +92,17 @@ export function BackOfficeOverviewPage() {
           value={money(o.accumulatedEarnings)}
           label={t("overview.kpiNetwork")}
         />
-        <SummaryCard
-          tone="teal"
-          icon={DollarSign}
-          value={money(auto.displayBalance)}
-          label={t("overview.kpiAutomation")}
-        />
+        <Link
+          to="/back-office/financeiro/automacao-global"
+          className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <SummaryCard
+            tone="teal"
+            icon={DollarSign}
+            value={money(auto.displayBalance)}
+            label={t("overview.kpiAutomation")}
+          />
+        </Link>
       </section>
 
       <AutomationOverviewSections />

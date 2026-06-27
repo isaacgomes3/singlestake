@@ -82,6 +82,17 @@ export const financeContent = {
       loading: "A carregar link de indicação…",
       ariaLink: "Link de afiliação",
     },
+    globalAutomation: {
+      noticeTitle: "Caixa operacional compartilhada",
+      noticeBody:
+        "Este saldo pertence à automação global da roleta (todos os utilizadores). Não é saldo pessoal da sua carteira.",
+      balanceLabel: "Saldo automação global",
+      initialCapital: "capital inicial {{amount}}",
+      ledgerTitle: "Extrato financeiro",
+      ledgerSubtitle: "Créditos e débitos oficiais da automação global (vitórias, perdas e capital inicial).",
+      ledgerSummaryTitle: "Resumo do extrato",
+      ledgerEmpty: "Nenhuma movimentação registada na automação global.",
+    },
   },
   en: {
     deposits: {
@@ -166,6 +177,17 @@ export const financeContent = {
       loading: "Loading referral link…",
       ariaLink: "Affiliate link",
     },
+    globalAutomation: {
+      noticeTitle: "Shared operational pool",
+      noticeBody:
+        "This balance belongs to the global roulette automation (all users). It is not your personal wallet balance.",
+      balanceLabel: "Global automation balance",
+      initialCapital: "initial capital {{amount}}",
+      ledgerTitle: "Financial statement",
+      ledgerSubtitle: "Official global automation credits and debits (wins, losses and initial capital).",
+      ledgerSummaryTitle: "Statement summary",
+      ledgerEmpty: "No movements recorded for global automation.",
+    },
   },
   es: {
     deposits: {
@@ -249,6 +271,17 @@ export const financeContent = {
       copyFailed: "No se pudo copiar el enlace.",
       loading: "Cargando enlace de referido…",
       ariaLink: "Enlace de afiliación",
+    },
+    globalAutomation: {
+      noticeTitle: "Caja operacional compartida",
+      noticeBody:
+        "Este saldo pertenece a la automatización global de la ruleta (todos los usuarios). No es saldo personal de su cartera.",
+      balanceLabel: "Saldo automatización global",
+      initialCapital: "capital inicial {{amount}}",
+      ledgerTitle: "Extracto financiero",
+      ledgerSubtitle: "Créditos y débitos oficiales de la automatización global (victorias, pérdidas y capital inicial).",
+      ledgerSummaryTitle: "Resumen del extracto",
+      ledgerEmpty: "Ningún movimiento registrado en la automatización global.",
     },
   },
 } as const;

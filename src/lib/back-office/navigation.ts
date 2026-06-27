@@ -23,6 +23,7 @@ import {
   Users,
   Wallet,
   Headphones,
+  Zap,
 } from "lucide-react";
 
 export type BackOfficeModuleId =
@@ -41,6 +42,7 @@ export type BackOfficeModuleId =
   | "depositos"
   | "saques"
   | "extrato"
+  | "automacao-global"
   | "relatorios-rede"
   | "central-qualificacao"
   | "admin"
@@ -139,8 +141,8 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Financeiro",
     path: "/back-office/financeiro",
     icon: Wallet,
-    description: "Carteira, depósitos, saques e extrato.",
-    moduleIds: ["carteira", "depositos", "saques", "extrato"],
+    description: "Carteira, depósitos, saques, automação global e extrato.",
+    moduleIds: ["carteira", "depositos", "saques", "automacao-global", "extrato"],
   },
   {
     id: "relatorios",
@@ -256,6 +258,11 @@ const MODULE_META: Record<
     label: "Extrato",
     icon: FileText,
     description: "Livro razão financeiro completo.",
+  },
+  "automacao-global": {
+    label: "Automação global",
+    icon: Zap,
+    description: "Saldo operacional compartilhado da roleta e histórico de transações.",
   },
   "relatorios-rede": {
     label: "Relatórios de rede",

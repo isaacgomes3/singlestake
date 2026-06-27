@@ -62,6 +62,7 @@ import { Route as ApiBackOfficeSubscriptionRouteImport } from './routes/api/back
 import { Route as ApiBackOfficePackagesRouteImport } from './routes/api/back-office/packages'
 import { Route as ApiBackOfficeOverviewRouteImport } from './routes/api/back-office/overview'
 import { Route as ApiBackOfficeLedgerRouteImport } from './routes/api/back-office/ledger'
+import { Route as ApiBackOfficeGlobalAutomationRouteImport } from './routes/api/back-office/global-automation'
 import { Route as ApiBackOfficeDepositsRouteImport } from './routes/api/back-office/deposits'
 import { Route as ApiAuthRegisterRouteImport } from './routes/api/auth/register'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
@@ -367,6 +368,12 @@ const ApiBackOfficeLedgerRoute = ApiBackOfficeLedgerRouteImport.update({
   path: '/api/back-office/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBackOfficeGlobalAutomationRoute =
+  ApiBackOfficeGlobalAutomationRouteImport.update({
+    id: '/api/back-office/global-automation',
+    path: '/api/back-office/global-automation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeDepositsRoute = ApiBackOfficeDepositsRouteImport.update({
   id: '/api/back-office/deposits',
   path: '/api/back-office/deposits',
@@ -593,6 +600,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/auth/register': typeof ApiAuthRegisterRoute
   '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/global-automation': typeof ApiBackOfficeGlobalAutomationRoute
   '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
   '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
   '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
@@ -677,6 +685,7 @@ export interface FileRoutesByTo {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/auth/register': typeof ApiAuthRegisterRoute
   '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/global-automation': typeof ApiBackOfficeGlobalAutomationRoute
   '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
   '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
   '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
@@ -765,6 +774,7 @@ export interface FileRoutesById {
   '/api/auth/me': typeof ApiAuthMeRoute
   '/api/auth/register': typeof ApiAuthRegisterRoute
   '/api/back-office/deposits': typeof ApiBackOfficeDepositsRouteWithChildren
+  '/api/back-office/global-automation': typeof ApiBackOfficeGlobalAutomationRoute
   '/api/back-office/ledger': typeof ApiBackOfficeLedgerRoute
   '/api/back-office/overview': typeof ApiBackOfficeOverviewRoute
   '/api/back-office/packages': typeof ApiBackOfficePackagesRouteWithChildren
@@ -854,6 +864,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/auth/register'
     | '/api/back-office/deposits'
+    | '/api/back-office/global-automation'
     | '/api/back-office/ledger'
     | '/api/back-office/overview'
     | '/api/back-office/packages'
@@ -938,6 +949,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/auth/register'
     | '/api/back-office/deposits'
+    | '/api/back-office/global-automation'
     | '/api/back-office/ledger'
     | '/api/back-office/overview'
     | '/api/back-office/packages'
@@ -1025,6 +1037,7 @@ export interface FileRouteTypes {
     | '/api/auth/me'
     | '/api/auth/register'
     | '/api/back-office/deposits'
+    | '/api/back-office/global-automation'
     | '/api/back-office/ledger'
     | '/api/back-office/overview'
     | '/api/back-office/packages'
@@ -1106,6 +1119,7 @@ export interface RootRouteChildren {
   ApiAuthMeRoute: typeof ApiAuthMeRoute
   ApiAuthRegisterRoute: typeof ApiAuthRegisterRoute
   ApiBackOfficeDepositsRoute: typeof ApiBackOfficeDepositsRouteWithChildren
+  ApiBackOfficeGlobalAutomationRoute: typeof ApiBackOfficeGlobalAutomationRoute
   ApiBackOfficeLedgerRoute: typeof ApiBackOfficeLedgerRoute
   ApiBackOfficeOverviewRoute: typeof ApiBackOfficeOverviewRoute
   ApiBackOfficePackagesRoute: typeof ApiBackOfficePackagesRouteWithChildren
@@ -1507,6 +1521,13 @@ declare module '@tanstack/react-router' {
       path: '/api/back-office/ledger'
       fullPath: '/api/back-office/ledger'
       preLoaderRoute: typeof ApiBackOfficeLedgerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/back-office/global-automation': {
+      id: '/api/back-office/global-automation'
+      path: '/api/back-office/global-automation'
+      fullPath: '/api/back-office/global-automation'
+      preLoaderRoute: typeof ApiBackOfficeGlobalAutomationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/back-office/deposits': {
@@ -1957,6 +1978,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthMeRoute: ApiAuthMeRoute,
   ApiAuthRegisterRoute: ApiAuthRegisterRoute,
   ApiBackOfficeDepositsRoute: ApiBackOfficeDepositsRouteWithChildren,
+  ApiBackOfficeGlobalAutomationRoute: ApiBackOfficeGlobalAutomationRoute,
   ApiBackOfficeLedgerRoute: ApiBackOfficeLedgerRoute,
   ApiBackOfficeOverviewRoute: ApiBackOfficeOverviewRoute,
   ApiBackOfficePackagesRoute: ApiBackOfficePackagesRouteWithChildren,
