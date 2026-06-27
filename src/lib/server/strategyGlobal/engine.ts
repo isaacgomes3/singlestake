@@ -24,7 +24,7 @@ import {
   tickRotatingRoomUmFatorSessionPlacar,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
-import { drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
+import { STRATEGY_PLACAR_DRAIN_MAX_STEPS, drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
@@ -121,18 +121,52 @@ function driveCrossing(
 function driveUmFator(
   state: StrategyGlobalPersistedState,
   histories: Record<number, readonly number[]>,
-): { flash: UmFatorPlacarFlash; recoveryBefore: number } {
+): {
+  flash: UmFatorPlacarFlash;
+  recoveryBefore: number;
+  settlements: Array<{ flash: NonNullable<UmFatorPlacarFlash>; recoveryBefore: number }>;
+} {
   const tableIds = state.rotatingRoomTableIds;
-  const recoveryBefore = state.um1fator.machine.recovery;
-  const result = drainPlacarSteps(
-    state.um1fator.machine,
-    state.um1fator.stats,
-    (machine, stats) => tickRotatingRoomUmFatorSessionPlacar(tableIds, histories, machine, stats),
-    umFatorMachinePlacarStepProgressed,
-  );
-  state.um1fator.machine = sanitizeUmFatorMachineForTableIds(result.nextMachine, tableIds);
-  state.um1fator.stats = result.stats;
-  return { flash: result.flash, recoveryBefore };
+  let machine = state.um1fator.machine;
+  let stats = state.um1fator.stats;
+  const settlements: Array<{ flash: NonNullable<UmFatorPlacarFlash>; recoveryBefore: number }> = [];
+
+  for (let i = 0; i < STRATEGY_PLACAR_DRAIN_MAX_STEPS; i++) {
+    const recoveryBefore = machine.recovery;
+    const before = machine;
+    const step = tickRotatingRoomUmFatorSessionPlacar(tableIds, histories, machine, stats);
+    machine = sanitizeUmFatorMachineForTableIds(step.nextMachine, tableIds);
+    stats = step.stats;
+    if (
+      step.flash &&
+      (step.flash.kind === "win" || step.flash.kind === "loss" || step.flash.kind === "recovery")
+    ) {
+      settlements.push({ flash: step.flash, recoveryBefore });
+    }
+    if (!umFatorMachinePlacarStepProgressed(before, machine, step)) break;
+  }
+
+  state.um1fator.machine = machine;
+  state.um1fator.stats = stats;
+
+  const last = settlements.at(-1);
+  return {
+    flash: last?.flash ?? null,
+    recoveryBefore: last?.recoveryBefore ?? state.um1fator.machine.recovery,
+    settlements,
+  };
+}
+
+async function pushAutomationSimSettlements(
+  entries: readonly StrategyGlobalLedgerEntry[],
+  snapshot: StrategyGlobalSnapshot,
+): Promise<void> {
+  const m = await import("@/lib/server/automationSim/engine");
+  await m.ensureAutomationSimEngine();
+  for (const entry of entries) {
+    await m.ingestAutomationSimLedgerEntry(entry, snapshot, { publish: false });
+  }
+  await m.syncAutomationSimWithStrategy(snapshot);
 }
 
 function buildCrossingClientView(
@@ -295,29 +329,17 @@ export function ingestStrategyGlobalSpin(
   }
 
   const um = driveUmFator(state, histories);
-  if (um.flash) {
-    if (um.flash.kind === "win" || um.flash.kind === "loss") {
-      const ledgerEntry = ledgerFromFlash(um.flash, um.recoveryBefore);
-      appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
-      const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
-      void import("@/lib/server/automationSim/engine").then((m) => {
-        void m.ensureAutomationSimEngine().then(() => {
-          void m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
-        });
-      });
-      return snapshot;
-    }
-    if (um.flash.kind === "recovery") {
-      const ledgerEntry = ledgerFromFlash(um.flash, um.recoveryBefore);
-      appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
-      const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
-      void import("@/lib/server/automationSim/engine").then((m) => {
-        void m.ensureAutomationSimEngine().then(() => {
-          void m.ingestAutomationSimLedgerEntry(ledgerEntry, snapshot);
-        });
-      });
-      return snapshot;
-    }
+  const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  for (const settlement of um.settlements) {
+    const ledgerEntry = ledgerFromFlash(settlement.flash, settlement.recoveryBefore);
+    appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
+    umLedgerEntries.push(ledgerEntry);
+  }
+
+  if (umLedgerEntries.length > 0) {
+    const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
+    void pushAutomationSimSettlements(umLedgerEntries, snapshot);
+    return snapshot;
   }
 
   return bumpAndBroadcast(state, crossing.flash, um.flash);

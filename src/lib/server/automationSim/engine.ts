@@ -1,10 +1,16 @@
 import {
   buildAutomationChartData,
+  isSpinResultAlreadySettled,
   ledgerEntryKey,
   pendingSignalFromSnapshot,
+  rebuildAutomationSimDisplayFromLedger,
+  recalculateAutomationRoundBalances,
   ROULETTE_AUTOMATION_INITIAL_BANK,
   settleOpenBetEntry,
+  spinHead,
+  spinSettleKey,
   syncOpenBetFromPending,
+  type RouletteAutomationSimState,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
@@ -61,7 +67,10 @@ export async function ensureAutomationSimEngine(): Promise<void> {
         const { buildStrategyGlobalSnapshot } = await import("@/lib/server/strategyGlobal/engine");
         const globalState = getStrategyGlobalState();
         const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
-        await replayAutomationSimFromLedger(globalState.ledger.um1fator, strategySnapshot);
+        await rebuildAutomationSimHistoryFromLedger(strategySnapshot, {
+          broadcast: false,
+          fullLedger: globalState.ledger.um1fator,
+        });
       }
     })().catch((err) => {
       initPromise = null;
@@ -80,15 +89,20 @@ async function settleAutomationEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
+  const spinKey =
+    entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
+  if (spinKey != null && state.processedKeys.includes(spinKey)) return state;
+
   const stake = (await import("@/lib/back-office/rouletteAutomationSim")).stakeForRecovery(
     entry.recovery,
     state.balance,
   );
 
-  let balanceAfter: number | undefined;
+  const settleKey = spinKey ?? key;
+
   if (capitalReady) {
     const ledgerResult = await settleGlobalAutomationInLedger({
-      settleKey: key,
+      settleKey,
       won: entry.won,
       stake,
       tableLabel,
@@ -96,12 +110,13 @@ async function settleAutomationEntry(
       kind: entry.kind,
     });
     if (ledgerResult == null) return state;
-    balanceAfter = ledgerResult.balanceAfter;
-  } else {
-    balanceAfter = await getGlobalAutomationWalletBalance();
   }
 
-  return settleOpenBetEntry(state, entry, tableLabel, balanceAfter);
+  const next = settleOpenBetEntry(state, entry, tableLabel);
+  if (!capitalReady) return next;
+
+  const walletBalance = await getGlobalAutomationWalletBalance();
+  return { ...next, balance: walletBalance, chart: buildAutomationChartData({ ...next, balance: walletBalance }) };
 }
 
 function buildSnapshotBody(
@@ -142,12 +157,30 @@ export async function syncAutomationSimWithStrategy(
   await ensureCapitalAndSyncBalance();
 
   let state = getAutomationSimState();
+  const openBet = state.openBet;
+  if (openBet?.tableId != null) {
+    const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
+    if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
+      state = { ...state, openBet: null };
+      replaceAutomationSimState(state);
+    }
+  }
+
   const pending = pendingSignalFromSnapshot(
     strategySnapshot,
     state.balance,
     strategySnapshot.tableHistories,
   );
-  const next = syncOpenBetFromPending(state, pending);
+  const openedHead =
+    pending?.tableId != null
+      ? spinHead(strategySnapshot.tableHistories[pending.tableId] ?? [])
+      : "0";
+  const next = syncOpenBetFromPending(
+    state,
+    pending,
+    openedHead,
+    strategySnapshot.tableHistories,
+  );
 
   if (next !== state) {
     replaceAutomationSimState(next);
@@ -164,6 +197,7 @@ export async function syncAutomationSimWithStrategy(
 export async function ingestAutomationSimLedgerEntry(
   entry: StrategyGlobalLedgerEntry,
   strategySnapshot: StrategyGlobalSnapshot,
+  options?: { publish?: boolean },
 ): Promise<AutomationSimApiSnapshot | null> {
   if (!initialized) return null;
 
@@ -174,11 +208,60 @@ export async function ingestAutomationSimLedgerEntry(
 
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return null;
+  if (entry.resultNumber != null) {
+    const spinKey = spinSettleKey(entry.tableId, entry.resultNumber);
+    if (state.processedKeys.includes(spinKey)) return null;
+  }
 
   state = await settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
   replaceAutomationSimState(state);
 
+  if (options?.publish === false) return null;
   return publish(strategySnapshot);
+}
+
+export async function rebuildAutomationSimHistoryFromLedger(
+  strategySnapshot: StrategyGlobalSnapshot,
+  options?: {
+    broadcast?: boolean;
+    fullLedger?: readonly StrategyGlobalLedgerEntry[];
+  },
+): Promise<AutomationSimApiSnapshot> {
+  await ensureCapitalAndSyncBalance();
+
+  const current = getAutomationSimState();
+  const ledger =
+    options?.fullLedger ??
+    (await import("@/lib/server/strategyGlobal/persistence")).getStrategyGlobalState().ledger
+      .um1fator;
+
+  const floorTs = current.capitalRegisteredAt ?? current.startedAt;
+  const openingBalance =
+    typeof current.cycleOpeningBalance === "number" && Number.isFinite(current.cycleOpeningBalance)
+      ? current.cycleOpeningBalance
+      : ROULETTE_AUTOMATION_INITIAL_BANK;
+
+  const rebuilt = rebuildAutomationSimDisplayFromLedger(floorTs, ledger, openingBalance);
+  const walletBalance = await getGlobalAutomationWalletBalance();
+
+  const chainFixed = recalculateAutomationRoundBalances({
+    ...rebuilt,
+    startedAt: current.startedAt,
+    capitalRegisteredAt: current.capitalRegisteredAt,
+  });
+
+  const nextState: RouletteAutomationSimState = {
+    ...chainFixed,
+    balance: walletBalance,
+    chart: buildAutomationChartData({ ...chainFixed, balance: walletBalance }),
+    openBet: null,
+  };
+
+  replaceAutomationSimState(nextState);
+
+  return syncAutomationSimWithStrategy(strategySnapshot, {
+    broadcast: options?.broadcast !== false,
+  });
 }
 
 export async function replayAutomationSimFromLedger(
@@ -212,7 +295,16 @@ export async function replayAutomationSimFromLedger(
     getAutomationSimState().balance,
     strategySnapshot.tableHistories,
   );
-  const withOpen = syncOpenBetFromPending(getAutomationSimState(), pending);
+  const openedHead =
+    pending?.tableId != null
+      ? spinHead(strategySnapshot.tableHistories[pending.tableId] ?? [])
+      : "0";
+  const withOpen = syncOpenBetFromPending(
+    getAutomationSimState(),
+    pending,
+    openedHead,
+    strategySnapshot.tableHistories,
+  );
   if (withOpen !== getAutomationSimState()) {
     replaceAutomationSimState(withOpen);
   }

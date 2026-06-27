@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildAutomationChartData,
   applyCapturedUmFatorFlashes,
+  dedupeStrategyLedgerEntries,
   freshAutomationSimState,
+  ledgerResultKey,
   mergeAutomationLedgerSources,
   openBetWasSettled,
   pendingSignalAlreadySettled,
@@ -12,6 +14,7 @@ import {
   pendingSignalFromUmFatorSession,
   pruneLocalAutomationLedger,
   rebuildAutomationSimFromLedger,
+  recalculateAutomationRoundBalances,
   ROULETTE_AUTOMATION_INITIAL_BANK,
   settleLedgerEntry,
   spinHead,
@@ -84,14 +87,10 @@ export function useRouletteAutomationSim() {
   );
 
   const recordLocalSettlement = (entry: StrategyGlobalLedgerEntry) => {
-    const resultKey =
-      entry.resultNumber != null
-        ? `${entry.tableId}:${entry.recovery}:${entry.resultNumber}`
-        : null;
+    const resultKey = ledgerResultKey(entry);
     const exists = localLedgerRef.current.some((local) => {
-      if (resultKey != null && local.resultNumber != null) {
-        return `${local.tableId}:${local.recovery}:${local.resultNumber}` === resultKey;
-      }
+      const localKey = ledgerResultKey(local);
+      if (resultKey != null && localKey != null) return localKey === resultKey;
       return false;
     });
     if (!exists) localLedgerRef.current.push(entry);
@@ -189,6 +188,7 @@ export function useRouletteAutomationSim() {
     }
 
     const onSettled = recordLocalSettlement;
+    const trustServerLedger = Boolean(clientStrategy && connected && persistedServer);
 
     let base: RouletteAutomationSimState;
     let ledgerForSettle: StrategyGlobalLedgerEntry[] = [];
@@ -196,16 +196,37 @@ export function useRouletteAutomationSim() {
     if (clientStrategy) {
       const serverLedger = clientStrategy.ledgerTail.um1fator;
       localLedgerRef.current = pruneLocalAutomationLedger(serverLedger, localLedgerRef.current);
-      ledgerForSettle = mergeAutomationLedgerSources(serverLedger, localLedgerRef.current);
+      ledgerForSettle = dedupeStrategyLedgerEntries(
+        mergeAutomationLedgerSources(serverLedger, localLedgerRef.current),
+      );
 
-      if (persistedServer?.capitalRegisteredAt != null || persistedServer?.balance != null) {
+      if (trustServerLedger) {
+        const openingBalance =
+          persistedServer?.cycleOpeningBalance ??
+          persistedServer?.balance ??
+          ROULETTE_AUTOMATION_INITIAL_BANK;
+        base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle, openingBalance);
         base = {
-          ...(persistedServer ?? freshAutomationSimState(startedAt > 0 ? startedAt : Date.now())),
-          balance: persistedServer?.balance ?? ROULETTE_AUTOMATION_INITIAL_BANK,
-          cycleOpeningBalance:
-            persistedServer?.cycleOpeningBalance ??
-            persistedServer?.balance ??
-            ROULETTE_AUTOMATION_INITIAL_BANK,
+          ...base,
+          balance: persistedServer?.balance ?? base.balance,
+          cycleOpeningBalance: openingBalance,
+          capitalRegisteredAt: persistedServer?.capitalRegisteredAt ?? base.capitalRegisteredAt,
+          openBet: persistedServer?.openBet ?? null,
+          processedKeys: persistedServer?.processedKeys ?? base.processedKeys,
+        };
+      } else if (persistedServer?.capitalRegisteredAt != null || persistedServer?.balance != null) {
+        const openingBalance =
+          persistedServer?.cycleOpeningBalance ??
+          persistedServer?.balance ??
+          ROULETTE_AUTOMATION_INITIAL_BANK;
+        base = rebuildAutomationSimFromLedger(startedAt, ledgerForSettle, openingBalance);
+        base = {
+          ...base,
+          balance: persistedServer?.balance ?? base.balance,
+          cycleOpeningBalance: openingBalance,
+          capitalRegisteredAt: persistedServer?.capitalRegisteredAt ?? base.capitalRegisteredAt,
+          openBet: persistedServer?.openBet ?? null,
+          processedKeys: persistedServer?.processedKeys ?? base.processedKeys,
         };
       } else {
         const openingBalance =
@@ -225,54 +246,66 @@ export function useRouletteAutomationSim() {
 
     let working: RouletteAutomationSimState = base;
 
-    if (lastOpenBetRef.current && openBetWasSettled(base, lastOpenBetRef.current)) {
-      lastOpenBetRef.current = null;
-    }
+    if (!trustServerLedger) {
+      if (lastOpenBetRef.current && openBetWasSettled(base, lastOpenBetRef.current)) {
+        lastOpenBetRef.current = null;
+      }
 
-    if (!working.openBet && lastOpenBetRef.current) {
-      working = { ...working, openBet: lastOpenBetRef.current };
-    }
+      if (!working.openBet && lastOpenBetRef.current) {
+        working = { ...working, openBet: lastOpenBetRef.current };
+      }
 
-    working = applyCapturedUmFatorFlashes(
-      working,
-      capturedFlashesRef.current,
-      histories,
-      localProcessedRef.current,
-      onSettled,
-    );
-
-    if (working.openBet) {
-      working = trySettleOpenBetFromLedger(working, ledgerForSettle, onSettled);
-    }
-
-    if (working.openBet) {
-      working = trySettleOpenBetFromSpin(
+      working = applyCapturedUmFatorFlashes(
         working,
+        capturedFlashesRef.current,
         histories,
         localProcessedRef.current,
         onSettled,
       );
+
+      if (working.openBet) {
+        working = trySettleOpenBetFromLedger(working, ledgerForSettle, onSettled);
+      }
+
+      if (working.openBet) {
+        working = trySettleOpenBetFromSpin(
+          working,
+          histories,
+          localProcessedRef.current,
+          onSettled,
+          ledgerForSettle,
+        );
+      }
+
+      if (working.openBet) {
+        lastOpenBetRef.current = working.openBet;
+      } else {
+        lastOpenBetRef.current = null;
+      }
+
+      if (
+        effectivePending &&
+        !pendingSignalAlreadySettled(working, effectivePending) &&
+        !working.openBet
+      ) {
+        const head = spinHead(histories[effectivePending.tableId] ?? []);
+        working = syncOpenBetFromPending(working, effectivePending, head, histories);
+        if (working.openBet) lastOpenBetRef.current = working.openBet;
+      }
     }
 
-    if (working.openBet) {
-      lastOpenBetRef.current = working.openBet;
-    } else {
-      lastOpenBetRef.current = null;
-    }
-
-    if (
-      effectivePending &&
-      !pendingSignalAlreadySettled(working, effectivePending) &&
-      !working.openBet
-    ) {
-      const head = spinHead(histories[effectivePending.tableId] ?? []);
-      working = syncOpenBetFromPending(working, effectivePending, head);
-      if (working.openBet) lastOpenBetRef.current = working.openBet;
-    }
+    const openBetFinal = working.openBet;
+    const panelBalance = working.balance;
+    working = recalculateAutomationRoundBalances(working);
 
     return {
       ...working,
-      chart: buildAutomationChartData(working),
+      openBet: openBetFinal,
+      balance: trustServerLedger ? panelBalance : working.balance,
+      chart: buildAutomationChartData({
+        ...working,
+        balance: trustServerLedger ? panelBalance : working.balance,
+      }),
     };
   }, [
     apiSnapshot,
@@ -282,6 +315,7 @@ export function useRouletteAutomationSim() {
     flashTick,
     histories,
     historiesFingerprint,
+    connected,
   ]);
 
   const openBet: AutomationOpenBet | null = state.openBet;

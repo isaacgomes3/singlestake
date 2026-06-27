@@ -5,6 +5,7 @@ import type {
   AutomationOpenBet,
   AutomationSimRound,
 } from "@/lib/back-office/rouletteAutomationSim";
+import { recoveryLevelForRound } from "@/lib/back-office/rouletteAutomationSim";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,11 @@ function formatRoundDescription(
   if (round.resultNumber != null) {
     parts.push(t("shared.rounds.spin", { n: round.resultNumber }));
   }
-  if (round.recovery > 0) {
-    parts.push(t("shared.rounds.gale", { n: round.recovery }));
+  const level = recoveryLevelForRound(round);
+  if (level > 0) {
+    parts.push(t("shared.rounds.gale", { n: level }));
+  } else if (round.badge !== "EM JOGO" && round.badge !== "IN PLAY") {
+    parts.push(t("shared.rounds.entry"));
   }
   return parts.join(" · ");
 }
@@ -37,6 +41,8 @@ function formatOpenBetDescription(
   const parts = [bet.tableLabel];
   if (bet.recovery > 0) {
     parts.push(t("shared.rounds.gale", { n: bet.recovery }));
+  } else {
+    parts.push(t("shared.rounds.entry"));
   }
   return parts.join(" · ");
 }

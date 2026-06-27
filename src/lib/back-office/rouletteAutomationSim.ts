@@ -77,6 +77,38 @@ export type RouletteAutomationSimState = {
   openBet: AutomationOpenBet | null;
 };
 
+/** Saldo imediatamente antes da próxima liquidação (cadeia do histórico). */
+export function runningBalanceBefore(state: RouletteAutomationSimState): number {
+  if (state.rounds.length > 0) {
+    return state.rounds[0]!.balanceAfter;
+  }
+  if (typeof state.cycleOpeningBalance === "number" && Number.isFinite(state.cycleOpeningBalance)) {
+    return state.cycleOpeningBalance;
+  }
+  return state.balance;
+}
+
+/** Recalcula saldo após cada linha — vitórias e perdas sempre coerentes. */
+export function recalculateAutomationRoundBalances(
+  state: RouletteAutomationSimState,
+): RouletteAutomationSimState {
+  const opening =
+    typeof state.cycleOpeningBalance === "number" && Number.isFinite(state.cycleOpeningBalance)
+      ? state.cycleOpeningBalance
+      : ROULETTE_AUTOMATION_INITIAL_BANK;
+
+  const sorted = [...state.rounds].sort((a, b) => a.ts - b.ts);
+  let running = opening;
+  const fixed = sorted.map((round) => {
+    running += round.net;
+    return { ...round, balanceAfter: running };
+  });
+
+  const rounds = fixed.reverse();
+  const next = { ...state, rounds, balance: running };
+  return { ...next, chart: buildAutomationChartData(next) };
+}
+
 export function formatStakeBrl(value: number): string {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -95,6 +127,16 @@ export function stakeForRecovery(recovery: number, _balance?: number): number {
   const level = Math.max(0, Math.floor(recovery));
   if (level > UM_FATOR_MAX_RECOVERY) return ROULETTE_AUTOMATION_BASE_STAKE;
   return ROULETTE_AUTOMATION_BASE_STAKE * 2 ** level;
+}
+
+/** Nível de gale coerente com stake (fallback se recovery no ledger estiver errado). */
+export function recoveryLevelForRound(round: Pick<AutomationSimRound, "recovery" | "stake">): number {
+  const ratio = round.stake / ROULETTE_AUTOMATION_BASE_STAKE;
+  if (ratio >= 1 && Number.isFinite(ratio)) {
+    const fromStake = Math.round(Math.log2(ratio));
+    if (fromStake >= 0 && stakeForRecovery(fromStake) === round.stake) return fromStake;
+  }
+  return Math.max(0, Math.floor(round.recovery));
 }
 
 export function pendingSignalFromSnapshot(
@@ -159,9 +201,14 @@ export function ledgerEntryKey(entry: StrategyGlobalLedgerEntry): string {
   return `${entry.ts}-${entry.tableId}-${entry.recovery}-${entry.kind}-${entry.won}`;
 }
 
-export function ledgerResultKey(entry: Pick<StrategyGlobalLedgerEntry, "tableId" | "recovery" | "resultNumber">): string | null {
+/** Um giro liquidado por mesa — recovery entra só no ledgerEntryKey, não aqui. */
+export function ledgerResultKey(entry: Pick<StrategyGlobalLedgerEntry, "tableId" | "resultNumber">): string | null {
   if (entry.resultNumber == null) return null;
-  return `${entry.tableId}:${entry.recovery}:${entry.resultNumber}`;
+  return `${entry.tableId}:${entry.resultNumber}`;
+}
+
+export function spinSettleKey(tableId: number, resultNumber: number): string {
+  return `spin:${tableId}:${resultNumber}`;
 }
 
 /** Junta ledger do servidor com liquidações locais ainda não sincronizadas. */
@@ -262,10 +309,12 @@ export function placeOpenBet(
   state: RouletteAutomationSimState,
   pending: AutomationPendingSignal,
   openedHead: string,
+  histories?: Record<number, readonly number[]>,
   now = Date.now(),
 ): RouletteAutomationSimState {
   if (state.openBet?.signalId === pending.signalId) return state;
   if (state.openBet && state.openBet.signalId !== pending.signalId) return state;
+  if (histories && pendingConflictsWithSettledHead(state, pending, histories)) return state;
   if (state.balance < pending.stake) return state;
 
   return {
@@ -279,7 +328,21 @@ export function isSpinResultAlreadySettled(
   tableId: number,
   resultNumber: number,
 ): boolean {
+  const spinKey = spinSettleKey(tableId, resultNumber);
+  if (state.processedKeys.includes(spinKey)) return true;
   return state.rounds.some((r) => r.tableId === tableId && r.resultNumber === resultNumber);
+}
+
+/** Não abrir aposta se o giro actual da mesa já foi liquidado no histórico. */
+export function pendingConflictsWithSettledHead(
+  state: RouletteAutomationSimState,
+  pending: AutomationPendingSignal,
+  histories: Record<number, readonly number[]>,
+): boolean {
+  const history = histories[pending.tableId];
+  const head = history?.[0];
+  if (head == null) return false;
+  return isSpinResultAlreadySettled(state, pending.tableId, head);
 }
 
 /** Giro concluído — pode liquidar a aposta aberta. */
@@ -300,12 +363,12 @@ export function openBetSpinArrived(
   return { resultNumber, head };
 }
 
-/** Liquida aposta — saldo vem do extrato (passar balanceAfter) ou calcula localmente em dev. */
+/** Liquida aposta — saldo da linha = cadeia cumulativa (anterior + net). */
 export function settleOpenBetEntry(
   state: RouletteAutomationSimState,
   entry: StrategyGlobalLedgerEntry,
   tableLabel: string,
-  balanceAfter?: number,
+  _balanceAfter?: number,
 ): RouletteAutomationSimState {
   if (
     entry.resultNumber != null &&
@@ -317,16 +380,17 @@ export function settleOpenBetEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
+  const spinKey =
+    entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
+  if (spinKey != null && state.processedKeys.includes(spinKey)) return state;
+
   const stake = stakeForRecovery(entry.recovery, state.balance);
   const net = entry.won ? stake : -stake;
-  const balance =
-    typeof balanceAfter === "number" && Number.isFinite(balanceAfter)
-      ? balanceAfter
-      : state.balance + net;
+  const balance = runningBalanceBefore(state) + net;
 
   const spinIndex = state.spinCounter;
   const round: AutomationSimRound = {
-    id: ledgerEntryKey(entry),
+    id: spinKey ?? key,
     ts: entry.ts,
     tableId: entry.tableId,
     tableLabel,
@@ -339,13 +403,16 @@ export function settleOpenBetEntry(
     resultNumber: entry.resultNumber,
   };
 
+  const processedKeys = [...state.processedKeys, key];
+  if (spinKey != null) processedKeys.push(spinKey);
+
   const next: RouletteAutomationSimState = {
     ...state,
     balance,
     openBet: null,
     spinCounter: spinIndex + 1,
     rounds: [round, ...state.rounds].slice(0, 80),
-    processedKeys: [...state.processedKeys, ledgerEntryKey(entry)].slice(-400),
+    processedKeys: processedKeys.slice(-400),
   };
 
   return {
@@ -358,9 +425,10 @@ export function syncOpenBetFromPending(
   state: RouletteAutomationSimState,
   pending: AutomationPendingSignal | null,
   openedHead = "0",
+  histories?: Record<number, readonly number[]>,
 ): RouletteAutomationSimState {
   if (!pending) return state;
-  return placeOpenBet(state, pending, openedHead);
+  return placeOpenBet(state, pending, openedHead, histories);
 }
 
 export function settleLedgerEntry(
@@ -414,8 +482,37 @@ export function settleFromUmFatorFlash(
   );
 }
 
+/** Remove entradas duplicadas do mesmo giro (mesa + número) — mantém a primeira cronológica. */
+export function dedupeStrategyLedgerEntries(
+  ledger: readonly StrategyGlobalLedgerEntry[],
+): StrategyGlobalLedgerEntry[] {
+  const seen = new Set<string>();
+  const sorted = [...ledger].sort((a, b) => a.ts - b.ts);
+  const deduped: StrategyGlobalLedgerEntry[] = [];
+
+  for (const entry of sorted) {
+    const spinKey = ledgerResultKey(entry);
+    if (spinKey != null) {
+      if (seen.has(spinKey)) continue;
+      seen.add(spinKey);
+    }
+    deduped.push(entry);
+  }
+
+  return deduped;
+}
+
 /** Reconstrói banca/rodadas só a partir do ledger (ignora saldo corrompido do servidor). */
 export function rebuildAutomationSimFromLedger(
+  startedAt: number,
+  ledger: readonly StrategyGlobalLedgerEntry[],
+  openingBalance = ROULETTE_AUTOMATION_INITIAL_BANK,
+): RouletteAutomationSimState {
+  return rebuildAutomationSimDisplayFromLedger(startedAt, ledger, openingBalance);
+}
+
+/** Reconstrói histórico visual a partir do ledger — sem movimentar extrato financeiro. */
+export function rebuildAutomationSimDisplayFromLedger(
   startedAt: number,
   ledger: readonly StrategyGlobalLedgerEntry[],
   openingBalance = ROULETTE_AUTOMATION_INITIAL_BANK,
@@ -426,27 +523,50 @@ export function rebuildAutomationSimFromLedger(
     cycleOpeningBalance: openingBalance,
   };
   state = { ...state, chart: buildAutomationChartData(state) };
-  const sorted = [...ledger]
-    .filter((entry) => entry.ts >= startedAt)
-    .sort((a, b) => a.ts - b.ts);
+
+  const sorted = dedupeStrategyLedgerEntries(ledger).filter((entry) => entry.ts >= startedAt);
 
   for (const entry of sorted) {
     state = settleLedgerEntry(state, entry, lobbyTableDisplayName(entry.tableId));
   }
 
-  return state;
+  return recalculateAutomationRoundBalances(state);
 }
 
 export function openBetWasSettled(
   state: RouletteAutomationSimState,
   bet: AutomationOpenBet,
 ): boolean {
-  return state.rounds.some(
-    (r) =>
-      r.tableId === bet.tableId &&
-      r.recovery === bet.recovery &&
-      r.ts >= bet.openedAt - 3000,
-  );
+  const formationNum = bet.umActive?.resultNumber;
+  return state.rounds.some((r) => {
+    if (r.tableId !== bet.tableId || r.ts < bet.openedAt - 5000) return false;
+    if (r.recovery === bet.recovery) return true;
+    if (r.resultNumber == null) return false;
+    if (formationNum == null) return true;
+    return r.resultNumber !== formationNum;
+  });
+}
+
+/** Liquidação do servidor para aposta aberta — recovery do ledger prevalece sobre openBet. */
+export function findLedgerEntryForOpenBet(
+  bet: AutomationOpenBet,
+  ledger: readonly StrategyGlobalLedgerEntry[],
+  resultNumber?: number,
+): StrategyGlobalLedgerEntry | null {
+  const formationNum = bet.umActive?.resultNumber;
+  const candidates = ledger.filter((e) => {
+    if (e.tableId !== bet.tableId || e.ts < bet.openedAt - 5000 || e.resultNumber == null) {
+      return false;
+    }
+    if (resultNumber != null && e.resultNumber !== resultNumber) return false;
+    if (formationNum != null && e.resultNumber === formationNum) return false;
+    return true;
+  });
+  if (candidates.length === 0) return null;
+
+  const withRecovery = candidates.filter((e) => e.recovery === bet.recovery);
+  const pool = withRecovery.length > 0 ? withRecovery : candidates;
+  return [...pool].sort((a, b) => a.ts - b.ts).at(-1)!;
 }
 
 export function pendingSignalAlreadySettled(
@@ -475,17 +595,9 @@ export function trySettleOpenBetFromLedger(
   const bet = state.openBet;
   if (!bet) return state;
 
-  const candidates = ledger.filter(
-    (e) =>
-      e.tableId === bet.tableId &&
-      e.recovery === bet.recovery &&
-      e.ts >= bet.openedAt - 3000 &&
-      e.resultNumber != null,
-  );
-  if (candidates.length === 0) return state;
-
-  const entry = [...candidates].sort((a, b) => a.ts - b.ts).at(-1)!;
-  if (isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber!)) return state;
+  const entry = findLedgerEntryForOpenBet(bet, ledger);
+  if (!entry || entry.resultNumber == null) return state;
+  if (isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber)) return state;
   const next = settleOpenBetEntry(state, entry, bet.tableLabel);
   if (next !== state) onSettled?.(entry);
   return next;
@@ -497,6 +609,7 @@ export function trySettleOpenBetFromSpin(
   histories: Record<number, readonly number[]>,
   localProcessed: Set<string>,
   onSettled?: (entry: StrategyGlobalLedgerEntry) => void,
+  ledger: readonly StrategyGlobalLedgerEntry[] = [],
 ): RouletteAutomationSimState {
   const bet = state.openBet;
   if (!bet?.umActive) return state;
@@ -507,8 +620,16 @@ export function trySettleOpenBetFromSpin(
   const { resultNumber, head } = arrived;
   if (isSpinResultAlreadySettled(state, bet.tableId, resultNumber)) return state;
 
-  const key = `spin:${bet.tableId}:${resultNumber}:${bet.recovery}:${head}`;
+  const key = `spin:${bet.tableId}:${resultNumber}:${head}`;
   if (localProcessed.has(key)) return state;
+
+  const ledgerEntry = findLedgerEntryForOpenBet(bet, ledger, resultNumber);
+  if (ledgerEntry) {
+    localProcessed.add(key);
+    const next = settleOpenBetEntry(state, ledgerEntry, bet.tableLabel);
+    if (next !== state) onSettled?.(ledgerEntry);
+    return next;
+  }
 
   const outcome = evaluateUmFatorRound(resultNumber, bet.umActive);
   const won = outcome === "W";

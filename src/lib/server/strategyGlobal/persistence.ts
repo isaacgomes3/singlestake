@@ -268,6 +268,16 @@ export function appendLedger(
   entry: StrategyGlobalLedgerEntry,
   maxRecovery: number,
 ): void {
+  if (entry.resultNumber != null) {
+    const spinKey = `${entry.tableId}:${entry.resultNumber}`;
+    const duplicate = state.ledger[kind].some(
+      (existing) =>
+        existing.resultNumber != null &&
+        `${existing.tableId}:${existing.resultNumber}` === spinKey,
+    );
+    if (duplicate) return;
+  }
+
   const list = [...state.ledger[kind], entry].slice(-MAX_LEDGER_ENTRIES);
   state.ledger[kind] = list;
   const life = state.lifetime[kind];
