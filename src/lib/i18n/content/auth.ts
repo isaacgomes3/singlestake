@@ -55,7 +55,8 @@ export const authContent = {
       cpfPlaceholder: "000.000.000-00",
       cpfHint: "Informe o CPF real do titular da conta bancária para gerar o PIX.",
       generatePix: "Gerar PIX",
-      afterPayHint: "Após pagar, a página actualiza automaticamente. Em PIX estático, a equipa confirma manualmente.",
+      regeneratePix: "Gerar novo código PIX",
+      afterPayHint: "Após pagar, a página actualiza automaticamente.",
     },
   },
   en: {
@@ -114,7 +115,8 @@ export const authContent = {
       cpfPlaceholder: "000.000.000-00",
       cpfHint: "Enter the real bank account holder CPF to generate PIX.",
       generatePix: "Generate PIX",
-      afterPayHint: "After paying, this page refreshes automatically. For static PIX, the team confirms manually.",
+      regeneratePix: "Generate new PIX code",
+      afterPayHint: "After paying, this page refreshes automatically.",
     },
   },
   es: {
@@ -173,7 +175,8 @@ export const authContent = {
       cpfPlaceholder: "000.000.000-00",
       cpfHint: "Informe el CPF real del titular de la cuenta bancaria.",
       generatePix: "Generar PIX",
-      afterPayHint: "Tras pagar, la página se actualiza sola. Con PIX estático, el equipo confirma manualmente.",
+      regeneratePix: "Generar nuevo código PIX",
+      afterPayHint: "Tras pagar, la página se actualiza sola.",
     },
   },
 } as const;

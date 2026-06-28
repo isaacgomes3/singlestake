@@ -63,6 +63,7 @@ export const Route = createFileRoute("/api/auth/activation")({
         const result = await getOrCreateStartPackPixOrder({
           userId: user.id,
           cpfDocument: body?.cpfDocument,
+          forceNew: true,
         });
         if (!result.ok) {
           return jsonResponse({ ok: false, error: result.error }, { status: 400 });

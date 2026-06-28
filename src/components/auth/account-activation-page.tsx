@@ -133,11 +133,21 @@ export function AccountActivationPage() {
           </Button>
         </div>
       ) : order ? (
-        <StartPackPaymentBanner
-          order={order}
-          packageName={t("auth.activation.packName")}
-          onPaid={() => void handlePaid()}
-        />
+        <>
+          <StartPackPaymentBanner
+            order={order}
+            packageName={t("auth.activation.packName")}
+            onPaid={() => void handlePaid()}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 w-full"
+            onClick={() => void refreshPix()}
+          >
+            {t("auth.activation.regeneratePix")}
+          </Button>
+        </>
       ) : null}
 
       {!loading && order ? (

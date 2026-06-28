@@ -35,6 +35,8 @@ import {
 import type { UserPackageDto } from "@/lib/back-office/product-types";
 
 const TXID_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+/** Pedidos Luc Paguei mais velhos que isto são substituídos por PIX novo. */
+const LUC_PIX_STALE_MS = 30 * 60 * 1000;
 
 function generateTxid(): string {
   let txid = "stake37";
@@ -99,6 +101,49 @@ async function resolvePayerCpf(
   }
 
   return { ok: true, cpf: candidate };
+}
+
+async function expirePackagePixOrder(orderId: string): Promise<void> {
+  const db = getDb();
+  await db
+    .update(packagePixOrders)
+    .set({ status: "expired" })
+    .where(eq(packagePixOrders.id, orderId));
+}
+
+/** Regenera QR a partir do EMV — corrige pedidos antigos com imagem inválida. */
+async function refreshPackagePixOrderArtifacts(
+  row: typeof packagePixOrders.$inferSelect,
+): Promise<typeof packagePixOrders.$inferSelect | null> {
+  const payload = row.pixCopyPaste ?? "";
+  if (!isPixEmvPayload(payload)) return null;
+
+  const emv = normalizePixEmvPayload(payload);
+  let qrCodeBase64: string;
+  try {
+    qrCodeBase64 = await generatePixQrBase64(emv);
+  } catch {
+    return null;
+  }
+
+  const db = getDb();
+  if (emv !== payload || qrCodeBase64 !== row.qrCodeBase64) {
+    await db
+      .update(packagePixOrders)
+      .set({ pixCopyPaste: emv, qrCodeBase64 })
+      .where(eq(packagePixOrders.id, row.id));
+  }
+
+  const updated = await db.query.packagePixOrders.findFirst({
+    where: eq(packagePixOrders.id, row.id),
+  });
+  return updated ?? { ...row, pixCopyPaste: emv, qrCodeBase64 };
+}
+
+function isPendingPackagePixOrderUsable(row: typeof packagePixOrders.$inferSelect): boolean {
+  if (row.status !== "pending") return false;
+  if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return false;
+  return true;
 }
 
 export async function createPackagePixOrder(input: {
@@ -394,11 +439,9 @@ export async function syncPackagePixOrder(input: {
     return { ok: false, error: "PIX expirado. Gere um novo código." };
   }
 
-  if (row.txid.startsWith("static-")) {
-    return { ok: true, order: toDto(row) };
-  }
-
-  if (row.txid.startsWith("PKG-")) {
+  if (row.txid.startsWith("static-") || row.txid.startsWith("PKG-")) {
+    const refreshed = await refreshPackagePixOrderArtifacts(row);
+    if (refreshed) return { ok: true, order: toDto(refreshed) };
     return { ok: true, order: toDto(row) };
   }
 
@@ -503,12 +546,15 @@ export type PendingActivationRow = {
 export async function getOrCreateStartPackPixOrder(input: {
   userId: string;
   cpfDocument?: string;
+  /** Gera cobrança Luc Paguei nova (ignora pendente). */
+  forceNew?: boolean;
 }): Promise<{ ok: true; order: PackagePixOrderDto } | { ok: false; error: string }> {
   const { userHasActiveStartPack } = await import("@/lib/server/finance/account-access");
   if (await userHasActiveStartPack(input.userId)) {
     return { ok: false, error: "Conta já activada com Pacote Start." };
   }
 
+  const lucReady = await isLucPagueiGatewayReady();
   const db = getDb();
   const pending = await db.query.packagePixOrders.findFirst({
     where: and(
@@ -519,39 +565,27 @@ export async function getOrCreateStartPackPixOrder(input: {
     orderBy: [desc(packagePixOrders.createdAt)],
   });
 
-  if (pending && (!pending.expiresAt || pending.expiresAt.getTime() > Date.now())) {
-    const payload = pending.pixCopyPaste ?? "";
-    if (isPixEmvPayload(payload)) {
-      const emv = normalizePixEmvPayload(payload);
-      if (!pending.qrCodeBase64) {
-        try {
-          const qrCodeBase64 = await generatePixQrBase64(emv);
-          await db
-            .update(packagePixOrders)
-            .set({ pixCopyPaste: emv, qrCodeBase64 })
-            .where(eq(packagePixOrders.id, pending.id));
-          const fixed = await db.query.packagePixOrders.findFirst({
-            where: eq(packagePixOrders.id, pending.id),
-          });
-          if (fixed) return { ok: true, order: toDto(fixed) };
-        } catch {
-          /* gera novo pedido abaixo */
-        }
-      } else {
-        if (emv !== payload) {
-          await db
-            .update(packagePixOrders)
-            .set({ pixCopyPaste: emv })
-            .where(eq(packagePixOrders.id, pending.id));
-        }
-        return { ok: true, order: toDto({ ...pending, pixCopyPaste: emv }) };
-      }
-    }
+  if (pending && !input.forceNew && isPendingPackagePixOrderUsable(pending)) {
+    const isLucOrder = pending.txid.startsWith("PKG-");
+    const isStaticOrder = pending.txid.startsWith("static-");
+    const lucStale =
+      isLucOrder && pending.createdAt.getTime() < Date.now() - LUC_PIX_STALE_MS;
 
-    await db
-      .update(packagePixOrders)
-      .set({ status: "expired" })
-      .where(eq(packagePixOrders.id, pending.id));
+    if (lucReady && (isStaticOrder || !isLucOrder || lucStale)) {
+      await expirePackagePixOrder(pending.id);
+    } else if (isLucOrder || (!lucReady && isStaticOrder)) {
+      const refreshed = await refreshPackagePixOrderArtifacts(pending);
+      if (refreshed) return { ok: true, order: toDto(refreshed) };
+      await expirePackagePixOrder(pending.id);
+    } else if (!isPixEmvPayload(pending.pixCopyPaste ?? "")) {
+      await expirePackagePixOrder(pending.id);
+    } else {
+      const refreshed = await refreshPackagePixOrderArtifacts(pending);
+      if (refreshed) return { ok: true, order: toDto(refreshed) };
+      await expirePackagePixOrder(pending.id);
+    }
+  } else if (pending && !isPendingPackagePixOrderUsable(pending)) {
+    await expirePackagePixOrder(pending.id);
   }
 
   return createPackagePixOrder({
