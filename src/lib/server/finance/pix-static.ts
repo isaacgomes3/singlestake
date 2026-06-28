@@ -1,4 +1,8 @@
-import { parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
+import {
+  isPixEmvPayload,
+  normalizePixEmvPayload,
+  parsePixPayloadAmount,
+} from "@/lib/server/finance/pix-qr";
 
 /** Variáveis de ambiente por valor fixo (Pacote Start R$ 50, Automação R$ 250, etc.). */
 const STATIC_PIX_ENV_BY_AMOUNT: Record<number, string> = {
@@ -7,8 +11,10 @@ const STATIC_PIX_ENV_BY_AMOUNT: Record<number, string> = {
 };
 
 function readEnvPixPayload(key: string): string | null {
-  const value = process.env[key]?.trim();
-  return value && value.startsWith("000201") ? value : null;
+  const raw = process.env[key]?.trim();
+  if (!raw) return null;
+  const normalized = normalizePixEmvPayload(raw);
+  return isPixEmvPayload(normalized) ? normalized : null;
 }
 
 /** Pix copia e cola fixo (Bradesco, Poupex, etc.) — legado, um único código. */

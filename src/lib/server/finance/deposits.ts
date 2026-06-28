@@ -13,7 +13,7 @@ import {
   buildPaymentExternalId,
   lucPagueiCreatePixDeposit,
 } from "@/lib/server/finance/luc-paguei-client";
-import { generatePixQrBase64 } from "@/lib/server/finance/pix-qr";
+import { generatePixQrBase64, isPixEmvPayload, normalizePixEmvPayload } from "@/lib/server/finance/pix-qr";
 import {
   getPaymentGatewaySettings,
   isLucPagueiGatewayReady,
@@ -308,10 +308,16 @@ export async function createDepositPix(input: {
     return charge;
   }
 
+  const pixEmv = normalizePixEmvPayload(charge.charge.pixCode);
+  if (!isPixEmvPayload(pixEmv)) {
+    await db.delete(deposits).where(eq(deposits.id, id));
+    return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
+  }
+
   let qrCodeBase64 = charge.charge.qrCodeBase64;
   if (!qrCodeBase64) {
     try {
-      qrCodeBase64 = await generatePixQrBase64(charge.charge.pixCode);
+      qrCodeBase64 = await generatePixQrBase64(pixEmv);
     } catch {
       qrCodeBase64 = null;
     }
@@ -320,7 +326,7 @@ export async function createDepositPix(input: {
   await db
     .update(deposits)
     .set({
-      pixCopyPaste: charge.charge.pixCode,
+      pixCopyPaste: pixEmv,
       qrCodeBase64,
       gatewayTransactionId: charge.charge.transactionId,
     })

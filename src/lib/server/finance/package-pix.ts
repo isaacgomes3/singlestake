@@ -21,7 +21,7 @@ import {
   getPaymentGatewaySettings,
   isLucPagueiGatewayReady,
 } from "@/lib/server/finance/payment-gateway-settings";
-import { generatePixQrBase64, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
+import { generatePixQrBase64, isPixEmvPayload, normalizePixEmvPayload, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
 import {
   isStaticPixConfigured,
   listConfiguredStaticPixAmounts,
@@ -201,10 +201,16 @@ export async function createPackagePixOrder(input: {
       return chargeResult;
     }
 
+    const pixEmv = normalizePixEmvPayload(chargeResult.charge.pixCode);
+    if (!isPixEmvPayload(pixEmv)) {
+      await db.delete(packagePixOrders).where(eq(packagePixOrders.id, orderId));
+      return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
+    }
+
     let qrCodeBase64 = chargeResult.charge.qrCodeBase64;
     if (!qrCodeBase64) {
       try {
-        qrCodeBase64 = await generatePixQrBase64(chargeResult.charge.pixCode);
+        qrCodeBase64 = await generatePixQrBase64(pixEmv);
       } catch {
         qrCodeBase64 = null;
       }
@@ -213,7 +219,7 @@ export async function createPackagePixOrder(input: {
     await db
       .update(packagePixOrders)
       .set({
-        pixCopyPaste: chargeResult.charge.pixCode,
+        pixCopyPaste: pixEmv,
         qrCodeBase64,
         gatewayTransactionId: chargeResult.charge.transactionId,
       })
@@ -225,10 +231,14 @@ export async function createPackagePixOrder(input: {
   }
 
   if (staticPayload) {
-    const pixFixedAmount = parsePixPayloadAmount(staticPayload);
+    const pixEmv = normalizePixEmvPayload(staticPayload);
+    if (!isPixEmvPayload(pixEmv)) {
+      return { ok: false, error: "PIX estático mal configurado no servidor (payload EMV inválido)." };
+    }
+    const pixFixedAmount = parsePixPayloadAmount(pixEmv);
     let qrCodeBase64: string;
     try {
-      qrCodeBase64 = await generatePixQrBase64(staticPayload);
+      qrCodeBase64 = await generatePixQrBase64(pixEmv);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro ao gerar QR Code.";
       return { ok: false, error: msg };
@@ -241,7 +251,7 @@ export async function createPackagePixOrder(input: {
       amount: validated.amount,
       status: "pending",
       txid: `static-${orderId.replace(/-/g, "").slice(0, 26)}`,
-      pixCopyPaste: staticPayload,
+      pixCopyPaste: pixEmv,
       qrCodeBase64,
       expiresAt,
       createdAt: new Date(),
@@ -510,7 +520,38 @@ export async function getOrCreateStartPackPixOrder(input: {
   });
 
   if (pending && (!pending.expiresAt || pending.expiresAt.getTime() > Date.now())) {
-    return { ok: true, order: toDto(pending) };
+    const payload = pending.pixCopyPaste ?? "";
+    if (isPixEmvPayload(payload)) {
+      const emv = normalizePixEmvPayload(payload);
+      if (!pending.qrCodeBase64) {
+        try {
+          const qrCodeBase64 = await generatePixQrBase64(emv);
+          await db
+            .update(packagePixOrders)
+            .set({ pixCopyPaste: emv, qrCodeBase64 })
+            .where(eq(packagePixOrders.id, pending.id));
+          const fixed = await db.query.packagePixOrders.findFirst({
+            where: eq(packagePixOrders.id, pending.id),
+          });
+          if (fixed) return { ok: true, order: toDto(fixed) };
+        } catch {
+          /* gera novo pedido abaixo */
+        }
+      } else {
+        if (emv !== payload) {
+          await db
+            .update(packagePixOrders)
+            .set({ pixCopyPaste: emv })
+            .where(eq(packagePixOrders.id, pending.id));
+        }
+        return { ok: true, order: toDto({ ...pending, pixCopyPaste: emv }) };
+      }
+    }
+
+    await db
+      .update(packagePixOrders)
+      .set({ status: "expired" })
+      .where(eq(packagePixOrders.id, pending.id));
   }
 
   return createPackagePixOrder({
