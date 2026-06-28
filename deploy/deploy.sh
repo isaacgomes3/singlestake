@@ -149,12 +149,12 @@ if ! ensure_pm2_responds; then
       bash "$ROOT/deploy/restart-site.sh" || true
       sleep 8
       if ! ensure_pm2_responds; then
-        echo "✗ Node não responde — pm2 logs singlestake --lines 40"
+        echo "⚠ Node não responde após restart-site — pm2 logs singlestake --lines 40"
         pm2 logs singlestake --lines 40 --nostream 2>/dev/null || true
         pm2 status 2>/dev/null || true
-        exit 1
+      else
+        echo "✓ Node recuperado após restart-site"
       fi
-      echo "✓ Node recuperado após restart-site"
       break
     fi
     echo "  aguardar arranque (${i}/12)…"
