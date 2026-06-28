@@ -303,6 +303,16 @@ var SinglestakeUmFator = (() => {
         return heightOf(num) === factor.value;
     }
   }
+  function oppositeFactor(f) {
+    switch (f.kind) {
+      case "cor":
+        return { kind: "cor", value: f.value === "Vermelho" ? "Preto" : "Vermelho" };
+      case "paridade":
+        return { kind: "paridade", value: f.value === "Par" ? "Impar" : "Par" };
+      case "altura":
+        return { kind: "altura", value: f.value === "Baixo" ? "Alto" : "Baixo" };
+    }
+  }
   function umFatorSharedFactorsBetween(a, b) {
     if (a === 0 || b === 0) return [];
     const triple = umFatorTripleFactorsForNumber(a);
@@ -354,8 +364,9 @@ var SinglestakeUmFator = (() => {
     const matchOnShared = shared.filter((f) => factorWins(n0, f)).length;
     if (matchOnShared !== 1) return null;
     if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
-    const alertFactor = shared.find((f) => !factorWins(n0, f));
-    if (!alertFactor) return null;
+    const missingOnT0 = shared.find((f) => !factorWins(n0, f));
+    if (!missingOnT0) return null;
+    const alertFactor = oppositeFactor(missingOnT0);
     return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
   }
   function detectUmFatorActiveFromHistory(historyNewestFirst) {

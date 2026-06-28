@@ -166,12 +166,17 @@ export async function ensureAutomationSimEngine(): Promise<void> {
         replayedLedger = true;
         const { getStrategyGlobalState } = await import("@/lib/server/strategyGlobal/persistence");
         const { buildStrategyGlobalSnapshot } = await import("@/lib/server/strategyGlobal/engine");
+        const sim = getAutomationSimState();
         const globalState = getStrategyGlobalState();
-        const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
-        await rebuildAutomationSimHistoryFromLedger(strategySnapshot, {
-          broadcast: false,
-          fullLedger: globalState.ledger.um1fator,
-        });
+        const hasLedger = globalState.ledger.um1fator.length > 0;
+        const hasSimHistory = sim.rounds.length > 0 || sim.processedKeys.length > 0;
+        if (hasLedger && hasSimHistory) {
+          const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
+          await rebuildAutomationSimHistoryFromLedger(strategySnapshot, {
+            broadcast: false,
+            fullLedger: globalState.ledger.um1fator,
+          });
+        }
       }
     })().catch((err) => {
       initPromise = null;

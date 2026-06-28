@@ -120,11 +120,12 @@ export function globalAutomationOpeningBalance(
   return ROULETTE_AUTOMATION_INITIAL_BANK;
 }
 
-/** Timestamp mínimo do ledger estratégico para histórico coerente com o extrato financeiro. */
+/** Timestamp mínimo do ledger estratégico — só entradas após o início do ciclo visual. */
 export function globalAutomationLedgerFloorTs(
   state: Pick<RouletteAutomationSimState, "capitalRegisteredAt" | "startedAt">,
 ): number {
-  return state.capitalRegisteredAt ?? state.startedAt;
+  const capital = state.capitalRegisteredAt ?? 0;
+  return Math.max(state.startedAt, capital);
 }
 
 /**
@@ -350,8 +351,8 @@ function ledgerKindForSpinLoss(recovery: number): StrategyGlobalLedgerEntry["kin
 export function roundBadge(entry: StrategyGlobalLedgerEntry): AutomationRoundBadge {
   if (entry.won) return "VITÓRIA";
   if (entry.kind === "loss") return "DERROTA";
-  if (entry.kind === "recovery") return "RECUPERAÇÃO";
-  return "SINAL";
+  if (entry.kind === "recovery" && entry.recovery > 0) return "RECUPERAÇÃO";
+  return "DERROTA";
 }
 
 /** Badge curto para a lista (como no mock de referência). */

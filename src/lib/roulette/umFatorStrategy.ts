@@ -6,7 +6,7 @@
  *
  * **Gatilho B (2 factores):** t1 e t2 coincidem em exactamente 2 factores (exclui 3).
  * **Confirmação B:** t0 bate em exactamente 1 desses 2 partilhados e só coincide
- * esse factor com t1 → alerta = o outro factor partilhado em falta em t0.
+ * esse factor com t1 → alerta = **oposto** do factor partilhado em falta em t0.
  *
  * Zeros descartam. Bate nos 3 ou em nenhum (A) / ambos ou nenhum dos 2 (B) → descarta.
  * **Placar:** no giro após a formação, vitória se o factor alertado acerta; derrota se zero ou oposto.
@@ -104,6 +104,17 @@ function factorWins(num: number, factor: DoisFatoresFactor): boolean {
   }
 }
 
+function oppositeFactor(f: DoisFatoresFactor): DoisFatoresFactor {
+  switch (f.kind) {
+    case "cor":
+      return { kind: "cor", value: f.value === "Vermelho" ? "Preto" : "Vermelho" };
+    case "paridade":
+      return { kind: "paridade", value: f.value === "Par" ? "Impar" : "Par" };
+    case "altura":
+      return { kind: "altura", value: f.value === "Baixo" ? "Alto" : "Baixo" };
+  }
+}
+
 /** Factores em que dois números coincidem (cor, altura, paridade). */
 function umFatorSharedFactorsBetween(a: number, b: number): DoisFatoresFactor[] {
   if (a === 0 || b === 0) return [];
@@ -173,7 +184,7 @@ function detectUmFatorThreeTierActive(
 
 /**
  * Gatilho 2 factores: t1/t2 com exactamente 2 em comum; t0 com 1 desses 2 e só
- * esse factor em comum com t1 → alerta = o outro factor partilhado.
+ * esse factor em comum com t1 → alerta = oposto do factor partilhado em falta em t0.
  */
 function detectUmFatorTwoTierActive(n0: number, n1: number, n2: number): UmFatorActive | null {
   if (umFatorTriggerMatchCount(n1, n2) !== 2) return null;
@@ -189,8 +200,10 @@ function detectUmFatorTwoTierActive(n0: number, n1: number, n2: number): UmFator
 
   if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
 
-  const alertFactor = shared.find((f) => !factorWins(n0, f));
-  if (!alertFactor) return null;
+  const missingOnT0 = shared.find((f) => !factorWins(n0, f));
+  if (!missingOnT0) return null;
+
+  const alertFactor = oppositeFactor(missingOnT0);
 
   return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
 }
