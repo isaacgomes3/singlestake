@@ -363,6 +363,11 @@ export function useRotatingRoomUmFatorSession(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useGlobalSession, observeOnly, tableIdsKey, historiesFingerprint, visibilityEpoch]);
 
+  const officialSessionStats = useMemo(() => {
+    void observePlacarRevision;
+    return observeOnly ? readRotatingRoomOfficialPlacarStats() : sessionStats;
+  }, [observeOnly, observePlacarRevision, sessionStats]);
+
   if (useGlobalSession && globalView) {
     const effectiveShowSignal =
       globalView.showTapeteSignal && !lobbyCooldownActive && !postResultHoldActive;
@@ -387,11 +392,6 @@ export function useRotatingRoomUmFatorSession(
       postResultHoldActive,
     };
   }
-
-  const officialSessionStats = useMemo(() => {
-    void observePlacarRevision;
-    return observeOnly ? readRotatingRoomOfficialPlacarStats() : sessionStats;
-  }, [observeOnly, observePlacarRevision, sessionStats]);
 
   return {
     phase,
