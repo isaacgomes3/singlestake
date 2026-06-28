@@ -369,13 +369,21 @@ export function ingestStrategyGlobalSpin(
 }
 
 /** Aplica estado do motor da extensão Chrome — visor, extrato e automação seguem a mesma fonte. */
-export function ingestStrategyGlobalExtensionSync(
+export async function ingestStrategyGlobalExtensionSync(
   payload: ExtensionSyncPayload,
   liveTableIds: readonly number[],
-): StrategyGlobalSnapshot | null {
+): Promise<StrategyGlobalSnapshot | null> {
   if (!initialized) return null;
 
   touchExtensionSource(payload);
+  const { saveAutomationConfig, getAutomationConfig } = await import(
+    "@/lib/server/automationSim/config"
+  );
+  const { EXTENSION_REAL_BASE_STAKE } = await import("@/lib/back-office/rouletteAutomationSim");
+  if (getAutomationConfig().baseStake !== EXTENSION_REAL_BASE_STAKE) {
+    await saveAutomationConfig({ baseStake: EXTENSION_REAL_BASE_STAKE });
+  }
+
   const state = getStrategyGlobalState();
   syncRotatingTableIds(state, payload.tableIds.length > 0 ? payload.tableIds : liveTableIds);
 

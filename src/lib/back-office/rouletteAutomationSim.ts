@@ -16,9 +16,10 @@ import {
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
 /** Versão do extrato — incrementar força reset automático (saldo R$ 50.000, histórico limpo). */
-export const AUTOMATION_EXTRACT_FORMAT_VERSION = 3;
-/** Aposta inicial fixa na roleta (sem centavos): R$ 50 → 100 → 200 → 400 → 800 → 1600. */
-export const ROULETTE_AUTOMATION_BASE_STAKE = 50;
+export const AUTOMATION_EXTRACT_FORMAT_VERSION = 4;
+/** Stake real da extensão / roleta: R$ 0,50 → 1 → 2 → 4 → 8 → 16. */
+export const EXTENSION_REAL_BASE_STAKE = 0.5;
+export const ROULETTE_AUTOMATION_BASE_STAKE = EXTENSION_REAL_BASE_STAKE;
 /** @deprecated Mantido só por compatibilidade de import — não usar para calcular stake. */
 export const AUTOMATION_BANK_SHARE = 0.001;
 /** @deprecated Use ROULETTE_AUTOMATION_BASE_STAKE. */
@@ -158,14 +159,17 @@ export function finalizeAutomationSimState(
 }
 
 export function formatStakeBrl(value: number): string {
+  const abs = Math.abs(value);
+  const fractionDigits = abs > 0 && abs < 1 ? 2 : abs % 1 !== 0 ? 2 : 0;
   return value.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
 }
 
-/** Sempre R$ 50 por defeito — stake configurável via automação global. */
+/** Stake inicial configurável — por defeito R$ 0,50 (igual à extensão). */
 export function baseStakeFromBalance(
   _balance?: number,
   baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
@@ -184,13 +188,8 @@ export function stakeForRecovery(
   return baseStake * 2 ** level;
 }
 
-/** Nível de gale coerente com stake (fallback se recovery no ledger estiver errado). */
+/** Nível de gale registado no ledger (recoveryBefore da aposta). */
 export function recoveryLevelForRound(round: Pick<AutomationSimRound, "recovery" | "stake">): number {
-  const ratio = round.stake / ROULETTE_AUTOMATION_BASE_STAKE;
-  if (ratio >= 1 && Number.isFinite(ratio)) {
-    const fromStake = Math.round(Math.log2(ratio));
-    if (fromStake >= 0 && stakeForRecovery(fromStake) === round.stake) return fromStake;
-  }
   return Math.max(0, Math.floor(round.recovery));
 }
 
@@ -455,13 +454,6 @@ export function settleOpenBetEntry(
   _balanceAfter?: number,
   baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): RouletteAutomationSimState {
-  if (
-    entry.resultNumber != null &&
-    isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber)
-  ) {
-    return state;
-  }
-
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 

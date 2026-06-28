@@ -154,6 +154,13 @@ export async function isGlobalAutomationSettleRecorded(settleKey: string): Promi
   return row != null;
 }
 
+function formatLedgerStake(stake: number): string {
+  const abs = Math.abs(stake);
+  if (abs > 0 && abs < 1) return abs.toFixed(2).replace(".", ",");
+  if (abs % 1 !== 0) return abs.toFixed(2).replace(".", ",");
+  return abs.toFixed(0);
+}
+
 /** Liquida vitória/derrota no extrato — saldo oficial da automação global. */
 export async function settleGlobalAutomationInLedger(input: {
   settleKey: string;
@@ -178,7 +185,7 @@ export async function settleGlobalAutomationInLedger(input: {
       userId: companyUserId,
       bucket: GLOBAL_AUTOMATION_BUCKET,
       amount: input.stake,
-      description: `${baseDesc} · vitória (+R$ ${input.stake.toFixed(0)})`,
+      description: `${baseDesc} · vitória (+R$ ${formatLedgerStake(input.stake)})`,
       referenceType: GLOBAL_AUTOMATION_SETTLE_REF_TYPE,
       referenceId: input.settleKey,
     });
@@ -190,7 +197,7 @@ export async function settleGlobalAutomationInLedger(input: {
     userId: companyUserId,
     bucket: GLOBAL_AUTOMATION_BUCKET,
     amount: input.stake,
-    description: `${baseDesc} · ${input.kind === "loss" ? "derrota" : "recuperação"} (-R$ ${input.stake.toFixed(0)})`,
+    description: `${baseDesc} · ${input.kind === "loss" ? "derrota" : "recuperação"} (-R$ ${formatLedgerStake(input.stake)})`,
     referenceType: GLOBAL_AUTOMATION_SETTLE_REF_TYPE,
     referenceId: input.settleKey,
   });

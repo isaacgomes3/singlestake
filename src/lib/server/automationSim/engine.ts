@@ -16,7 +16,6 @@ import {
   resolveLedgerEntryStake,
   settleOpenBetEntry,
   spinHead,
-  spinSettleKey,
   syncOpenBetFromPending,
   type RouletteAutomationSimState,
 } from "@/lib/back-office/rouletteAutomationSim";
@@ -206,12 +205,8 @@ async function settleAutomationEntry(
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
 
-  const legacySpinKey =
-    entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
-  if (legacySpinKey != null && state.processedKeys.includes(legacySpinKey)) return state;
-
   const stake = resolveLedgerEntryStake(entry, state.balance, getAutomationConfig().baseStake);
-  const walletSettleKey = settleKey ?? legacySpinKey ?? key;
+  const walletSettleKey = settleKey ?? key;
   const writeWallet = capitalReady && !isAutomationProfile();
 
   if (writeWallet) {
@@ -309,8 +304,6 @@ export async function ingestAutomationSimLedgerEntry(
   if (entry.resultNumber != null) {
     const settleKey = globalAutomationSettleKey(entry);
     if (settleKey != null && state.processedKeys.includes(settleKey)) return null;
-    const spinKey = spinSettleKey(entry.tableId, entry.resultNumber);
-    if (state.processedKeys.includes(spinKey)) return null;
   }
 
   state = await settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
