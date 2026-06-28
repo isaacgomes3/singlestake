@@ -113,6 +113,17 @@ function hasOwnedStartAtLevel(
   return false;
 }
 
+/** Conta qualificadora nível 1 — compras próprias não pontuam o patrocinador. */
+export function isLevelOneQualifierChild(
+  primaryUserId: string,
+  buyerUserId: string,
+  childIndex: ChildIndex,
+): boolean {
+  const children = childIndex.get(primaryUserId);
+  if (!children) return false;
+  return children.left === buyerUserId || children.right === buyerUserId;
+}
+
 export function isBinaryGloballyActive(
   primaryUserId: string,
   childIndex: ChildIndex,
@@ -291,6 +302,10 @@ async function propagatePointsUpTree(buyerUserId: string, points: number): Promi
   const nodes = await db.query.binaryTreeNodes.findMany();
   const usersMap = await loadUsersMap();
   const nodeByUser = new Map(nodes.map((n) => [n.userId, n]));
+  const childIndex = buildChildIndex(nodes);
+
+  const buyerNode = nodeByUser.get(buyerUserId);
+  if (!buyerNode?.side) return;
 
   let currentId: string | null = buyerUserId;
   let level = 1;
@@ -304,7 +319,12 @@ async function propagatePointsUpTree(buyerUserId: string, points: number): Promi
     if (!parent) break;
 
     const primaryId = resolvePrimaryUserId(parent);
-    await addLegPoints(primaryId, level, node.side as Side, points);
+    const skipQualifier =
+      level === 1 && isLevelOneQualifierChild(primaryId, buyerUserId, childIndex);
+
+    if (!skipQualifier) {
+      await addLegPoints(primaryId, level, node.side as Side, points);
+    }
     currentId = parentId;
     level++;
   }
@@ -344,6 +364,12 @@ export async function onPackagePurchaseBinary(input: {
   buyerUserId: string;
   amount: number;
 }): Promise<void> {
+  const db = getDb();
+  const buyerNode = await db.query.binaryTreeNodes.findFirst({
+    where: eq(binaryTreeNodes.userId, input.buyerUserId),
+  });
+  if (!buyerNode?.side) return;
+
   const points = roundMoney(input.amount * POINTS_PER_REAL);
   if (points <= 0) return;
 

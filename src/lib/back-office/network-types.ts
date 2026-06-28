@@ -41,6 +41,23 @@ export type BinaryTreeNodeView = {
   children: BinaryTreeNodeView[];
 };
 
+export type PendingDirectPlacement = {
+  userId: string;
+  name: string;
+  email: string;
+  joinedAt: string;
+  hasActiveStart: boolean;
+  pending: boolean;
+  leftSlotAvailable: boolean;
+  rightSlotAvailable: boolean;
+};
+
+export type NextDirectSidePreference = {
+  selected: "left" | "right" | null;
+  leftAvailable: boolean;
+  rightAvailable: boolean;
+};
+
 export type BinaryNetworkData = {
   root: BinaryTreeNodeView;
   legs: {
@@ -52,7 +69,11 @@ export type BinaryNetworkData = {
     parentName: string | null;
     side: "left" | "right" | null;
     placedAt: string | null;
+    pending: boolean;
   };
+  nextDirectSide: NextDirectSidePreference;
+  pendingDirects: PendingDirectPlacement[];
+  binaryQualified: boolean;
 };
 
 export type QualificationRequirement = {

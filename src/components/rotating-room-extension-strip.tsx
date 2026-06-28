@@ -40,13 +40,6 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
   useRotatingRoomExtensionAckLog(enabled);
 
   useEffect(() => {
-    if (!readRotatingRoomExtensionEnabled()) {
-      writeRotatingRoomExtensionEnabled(true);
-      setEnabled(true);
-    }
-  }, []);
-
-  useEffect(() => {
     const sync = () => {
       setEnabled(readRotatingRoomExtensionEnabled());
       setRealMode(readRotatingRoomExtensionRealMode());
@@ -122,7 +115,7 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <Puzzle className="h-3.5 w-3.5 shrink-0 text-text-secondary" aria-hidden />
         <span className="text-[10px] font-bold uppercase tracking-wide text-text-primary">
-          Extensão · sinais
+          Extensão · apostas auto
         </span>
 
         {extensionPresent ? (

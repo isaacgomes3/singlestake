@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "@/lib/server/auth/password";
-import { findBinaryPlacement } from "@/lib/server/network/placement";
 import { getDb } from "@/lib/server/db/client";
 import {
   binaryTreeNodes,
@@ -83,9 +82,9 @@ async function provisionNewUser(
     binaryParentId = input.binaryPlacement.parentId;
     binarySide = input.binaryPlacement.side;
   } else if (input.sponsorId) {
-    const placement = await findBinaryPlacement(input.sponsorId);
-    binaryParentId = placement.parentId;
-    binarySide = placement.side;
+    // Indicado directo — aguarda escolha manual de perna pelo patrocinador (sem auto-BFS).
+    binaryParentId = input.sponsorId;
+    binarySide = null;
   }
 
   await db.insert(binaryTreeNodes).values({

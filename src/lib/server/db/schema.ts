@@ -226,7 +226,10 @@ export const binaryTreeNodes = sqliteTable(
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
     parentId: text("parent_id").references(() => users.id),
-    side: text("side", { enum: ["left", "right"] }),
+    /** null = aguardando patrocinador escolher perna (indicado directo activo). */
+    side: text("side"),
+    /** Preferência do patrocinador para posicionar a próxima indicação directa. */
+    nextDirectSide: text("next_direct_side", { enum: ["left", "right"] }),
     placedAt: integer("placed_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),

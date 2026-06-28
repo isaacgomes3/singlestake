@@ -40,6 +40,7 @@ export type BackOfficeModuleId =
   | "central-qualificacao"
   | "admin"
   | "automacao-config"
+  | "automacao-estatisticas"
   | "auditoria"
   | "casino-ao-vivo";
 
@@ -137,7 +138,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/administracao",
     icon: Shield,
     description: "Automação global, painel admin e auditoria.",
-    moduleIds: ["automacao-config", "admin", "auditoria"],
+    moduleIds: ["automacao-config", "automacao-estatisticas", "admin", "auditoria"],
   },
 ];
 
@@ -155,7 +156,7 @@ export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   {
     key: "automacao",
-    moduleIds: ["automacao-config"],
+    moduleIds: ["automacao-config", "automacao-estatisticas"],
   },
   {
     key: "gestao",
@@ -241,6 +242,11 @@ const MODULE_META: Record<
     label: "Automação global",
     icon: Zap,
     description: "Stop win/loss, stake inicial e pausa da automação financeira.",
+  },
+  "automacao-estatisticas": {
+    label: "Estatísticas automação",
+    icon: Percent,
+    description: "Percentual de acerto por gatilho 1 Fator.",
   },
   admin: {
     label: "Painel administrativo",

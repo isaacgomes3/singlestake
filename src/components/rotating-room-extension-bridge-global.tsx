@@ -21,7 +21,6 @@ import {
   readRotatingRoomExtensionEnabled,
   ROTATING_ROOM_EXTENSION_ENABLED_KEY,
   ROTATING_ROOM_EXTENSION_PREFS_EVENT,
-  writeRotatingRoomExtensionEnabled,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
@@ -68,11 +67,6 @@ export function RotatingRoomExtensionBridgeGlobal() {
     const catalog = buildRotatingRoomMesaCatalog();
     return catalog.find((e) => e.tableId === focusId)?.url ?? getCasinoEmbedUrlForTable(focusId);
   }, [session]);
-
-  useEffect(() => {
-    if (!autoBridge) return;
-    if (!readRotatingRoomExtensionEnabled()) writeRotatingRoomExtensionEnabled(true);
-  }, [autoBridge]);
 
   useEffect(() => {
     const syncEnabled = () => setExtensionEnabled(readRotatingRoomExtensionEnabled());

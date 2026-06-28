@@ -1,9 +1,15 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { BINARY_MAX_LEVELS } from "@/lib/back-office/binary-constants";
+import { BINARY_MAX_LEVELS, BINARY_START_PACKAGE_ID } from "@/lib/back-office/binary-constants";
 import type { BinaryNetworkData, BinaryTreeNodeView } from "@/lib/back-office/network-types";
 import { getDb } from "@/lib/server/db/client";
 import { binaryTreeNodes, userPackages, users } from "@/lib/server/db/schema";
+import { isBinaryGloballyActive, resolvePrimaryUserId } from "@/lib/server/network/binary-engine";
+import {
+  isBinaryPlacementPending,
+  listPendingDirectPlacements,
+  resolveNextDirectSide,
+} from "@/lib/server/network/direct-placement";
 
 type NodeRow = typeof binaryTreeNodes.$inferSelect;
 
@@ -114,6 +120,33 @@ export async function buildBinaryNetworkData(
     parentName = names.get(myNode.parentId) ?? null;
   }
 
+  const userRow = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  const primaryId = userRow ? resolvePrimaryUserId(userRow) : userId;
+  const startRows = await db
+    .select({ userId: userPackages.userId })
+    .from(userPackages)
+    .where(
+      and(
+        eq(userPackages.packageId, BINARY_START_PACKAGE_ID),
+        eq(userPackages.status, "active"),
+      ),
+    );
+  const startUsers = new Set(startRows.map((r) => r.userId));
+  const allUsersRows = await db.query.users.findMany();
+  const usersMap = new Map(allUsersRows.map((u) => [u.id, u]));
+  const binaryQualified = isBinaryGloballyActive(primaryId, childIndex, usersMap, startUsers);
+
+  const pendingDirects = await listPendingDirectPlacements(userId);
+  const leftAvailable = myChildren.left == null;
+  const rightAvailable = myChildren.right == null;
+  const selectedNextSide = resolveNextDirectSide({
+    stored: myNode?.nextDirectSide ?? null,
+    leftAvailable,
+    rightAvailable,
+    leftVolume,
+    rightVolume,
+  });
+
   return {
     root: buildTreeNode(userId, names, childIndex, 0, Math.min(BINARY_MAX_LEVELS, 5)),
     legs: {
@@ -125,6 +158,14 @@ export async function buildBinaryNetworkData(
       parentName,
       side: myNode?.side ?? null,
       placedAt: myNode ? formatDate(myNode.placedAt) : null,
+      pending: isBinaryPlacementPending(myNode),
     },
+    nextDirectSide: {
+      selected: selectedNextSide,
+      leftAvailable,
+      rightAvailable,
+    },
+    pendingDirects,
+    binaryQualified,
   };
 }

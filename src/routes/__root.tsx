@@ -171,8 +171,9 @@ function RootComponent() {
     (pathname === "/back-office" ||
       pathname === "/back-office/" ||
       pathname.startsWith("/back-office/operacoes"));
-  /** Simulador + strategy global — back office (visualização) e subdomínio de automação. */
-  const needsGlobalAutomation = isAutomation || backOfficeAutomationView;
+  /** Motor global partilhado — sala rotativa, casino ao vivo e automação (sem extensão no browser). */
+  const needsGlobalAutomation =
+    isAutomation || backOfficeAutomationView || (!isAutomation && workspacePath);
   const needsCasinoStreams = isAutomation
     ? workspacePath || pathname === "/casino-mesa"
     : backOfficeApp &&

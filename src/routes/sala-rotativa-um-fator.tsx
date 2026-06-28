@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
@@ -12,17 +12,13 @@ import {
   correctRotatingRoomUmFatorLastLossAsWin,
   resetRotatingRoomUmFatorSession,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
-import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomViewPrefs";
 import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
   writeLobbyRoletasStrategyTab,
 } from "@/lib/roulette/lobbyTables";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
-import {
-  readRotatingRoomExtensionEnabled,
-  writeRotatingRoomExtensionEnabled,
-} from "@/lib/roulette/rotatingRoomExtensionPrefs";
+import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomViewPrefs";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
@@ -58,8 +54,9 @@ function SalaRotativaUmFatorPage() {
     writeLobbyRoletasStrategyTab("um1fator");
   }, []);
 
-  useEffect(() => {
-    if (!readRotatingRoomExtensionEnabled()) writeRotatingRoomExtensionEnabled(true);
+  /** Iframe + indicações do servidor para todos — extensão não é necessária. */
+  useLayoutEffect(() => {
+    prepareRotatingRoomIframeSession();
   }, []);
 
   useEffect(() => {
@@ -80,7 +77,9 @@ function SalaRotativaUmFatorPage() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const session = useRotatingRoomUmFatorSession(tableIds, histories);
+  const session = useRotatingRoomUmFatorSession(tableIds, histories, {
+    preferLocalSession: false,
+  });
 
   return (
     <div

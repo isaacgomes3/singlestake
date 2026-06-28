@@ -28,6 +28,39 @@ export async function fetchBinaryNetwork(): Promise<BinaryNetworkData | null> {
   return data?.ok ? (data.data ?? null) : null;
 }
 
+export async function placeDirectInBinary(
+  directUserId: string,
+  side: "left" | "right",
+): Promise<{ ok: true; data: BinaryNetworkData } | { ok: false; error: string }> {
+  const res = await fetch("/api/back-office/network/binary/place-direct", {
+    method: "POST",
+    credentials: "include",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ directUserId, side }),
+  });
+  const data = await parseJson<{ ok: boolean; error?: string; data?: BinaryNetworkData }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao posicionar indicado." };
+  }
+  return { ok: true, data: data.data };
+}
+
+export async function setNextDirectSide(
+  side: "left" | "right",
+): Promise<{ ok: true; data: BinaryNetworkData } | { ok: false; error: string }> {
+  const res = await fetch("/api/back-office/network/binary/next-direct-side", {
+    method: "POST",
+    credentials: "include",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ side }),
+  });
+  const data = await parseJson<{ ok: boolean; error?: string; data?: BinaryNetworkData }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao guardar preferência." };
+  }
+  return { ok: true, data: data.data };
+}
+
 export async function fetchQualification(): Promise<QualificationProgress | null> {
   const res = await fetch("/api/back-office/network/qualification", { credentials: "include" });
   const data = await parseJson<{ ok: boolean; data?: QualificationProgress }>(res);

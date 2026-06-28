@@ -73,6 +73,7 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       "central-qualificacao": "Central calificación",
       admin: "Panel administrativo",
       "automacao-config": "Automatización global",
+      "automacao-estatisticas": "Estadísticas automatización",
       auditoria: "Auditoría y logs",
       "casino-ao-vivo": "Casino en vivo",
     },

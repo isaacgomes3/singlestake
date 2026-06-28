@@ -6,7 +6,7 @@ import { networkContent } from "@/lib/i18n/content/network";
 import { overviewContent } from "@/lib/i18n/content/overview";
 import { productsContent } from "@/lib/i18n/content/products";
 import { sharedContent } from "@/lib/i18n/content/shared";
-import { supportContent } from "@/lib/i18n/content/support";
+import { automationStatsContent } from "@/lib/i18n/content/automation-stats";
 
 export function buildPanelMessages(locale: Locale) {
   return {
@@ -20,6 +20,7 @@ export function buildPanelMessages(locale: Locale) {
     casino: casinoContent[locale],
     demo: demoContent[locale],
     admin: adminContent[locale],
+    automationStats: automationStatsContent[locale],
   };
 }
 

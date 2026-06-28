@@ -73,8 +73,12 @@ export function SalaRotativaWorkspace({
 
   /** Iframe segue a mesa em foco (indicação / posicionar / flash). */
   useEffect(() => {
-    if (focusTableId != null) setIframeTableId(focusTableId);
-  }, [focusTableId]);
+    if (focusTableId != null) {
+      setIframeTableId(focusTableId);
+      return;
+    }
+    if (lobbyWait) setIframeTableId(null);
+  }, [focusTableId, lobbyWait]);
 
   useEffect(() => {
     const sync = () => {

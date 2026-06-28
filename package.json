@@ -41,6 +41,8 @@
     "db:seed": "npx --yes tsx scripts/db-seed.ts",
     "db:seed-isaac": "npx --yes tsx scripts/seed-isaac-network.ts",
     "db:reset-admin": "npx --yes tsx scripts/db-reset-admin-password.ts",
+    "db:promote-admin": "npx --yes tsx scripts/db-promote-admin.ts",
+    "db:reset-direct-binary-pending": "npx --yes tsx scripts/db-reset-direct-binary-pending.ts",
     "cron:daily-yield": "npx --yes tsx scripts/run-daily-automation-yield.ts",
     "db:backfill-binary": "npx --yes tsx scripts/db-backfill-binary-points.ts",
     "db:studio": "drizzle-kit studio",

@@ -94,10 +94,13 @@ import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/b
 import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
 import { Route as ApiBackOfficeAdminPaymentGatewayRouteImport } from './routes/api/back-office/admin/payment-gateway'
 import { Route as ApiBackOfficeAdminNotificationsRouteImport } from './routes/api/back-office/admin/notifications'
+import { Route as ApiBackOfficeAdminAutomationStatsRouteImport } from './routes/api/back-office/admin/automation-stats'
 import { Route as ApiBackOfficeAdminAutomationResetCycleRouteImport } from './routes/api/back-office/admin/automation-reset-cycle'
 import { Route as ApiBackOfficeAdminAutomationRebuildHistoryRouteImport } from './routes/api/back-office/admin/automation-rebuild-history'
 import { Route as ApiBackOfficeAdminAutomationConfigRouteImport } from './routes/api/back-office/admin/automation-config'
 import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
+import { Route as ApiBackOfficeNetworkBinaryPlaceDirectRouteImport } from './routes/api/back-office/network/binary.place-direct'
+import { Route as ApiBackOfficeNetworkBinaryNextDirectSideRouteImport } from './routes/api/back-office/network/binary.next-direct-side'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
 import { Route as ApiBackOfficeAdminUsersUserIdUnblockRouteImport } from './routes/api/back-office/admin/users.$userId.unblock'
 import { Route as ApiBackOfficeAdminUsersUserIdPixKeyRouteImport } from './routes/api/back-office/admin/users.$userId.pix-key'
@@ -565,6 +568,12 @@ const ApiBackOfficeAdminNotificationsRoute =
     path: '/api/back-office/admin/notifications',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminAutomationStatsRoute =
+  ApiBackOfficeAdminAutomationStatsRouteImport.update({
+    id: '/api/back-office/admin/automation-stats',
+    path: '/api/back-office/admin/automation-stats',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeAdminAutomationResetCycleRoute =
   ApiBackOfficeAdminAutomationResetCycleRouteImport.update({
     id: '/api/back-office/admin/automation-reset-cycle',
@@ -588,6 +597,18 @@ const ApiBackOfficePackagesPixOrderOrderIdRoute =
     id: '/pix-order/$orderId',
     path: '/pix-order/$orderId',
     getParentRoute: () => ApiBackOfficePackagesRoute,
+  } as any)
+const ApiBackOfficeNetworkBinaryPlaceDirectRoute =
+  ApiBackOfficeNetworkBinaryPlaceDirectRouteImport.update({
+    id: '/place-direct',
+    path: '/place-direct',
+    getParentRoute: () => ApiBackOfficeNetworkBinaryRoute,
+  } as any)
+const ApiBackOfficeNetworkBinaryNextDirectSideRoute =
+  ApiBackOfficeNetworkBinaryNextDirectSideRouteImport.update({
+    id: '/next-direct-side',
+    path: '/next-direct-side',
+    getParentRoute: () => ApiBackOfficeNetworkBinaryRoute,
   } as any)
 const ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute =
   ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport.update({
@@ -710,13 +731,14 @@ export interface FileRoutesByFullPath {
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
+  '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
-  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRouteWithChildren
   '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
   '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
@@ -733,6 +755,8 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
+  '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -807,13 +831,14 @@ export interface FileRoutesByTo {
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
+  '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
-  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRouteWithChildren
   '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
   '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
@@ -830,6 +855,8 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
+  '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -908,13 +935,14 @@ export interface FileRoutesById {
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
+  '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   '/api/back-office/automation/daily': typeof ApiBackOfficeAutomationDailyRoute
   '/api/back-office/deposits/$depositId': typeof ApiBackOfficeDepositsDepositIdRoute
   '/api/back-office/network/affiliates': typeof ApiBackOfficeNetworkAffiliatesRoute
-  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRoute
+  '/api/back-office/network/binary': typeof ApiBackOfficeNetworkBinaryRouteWithChildren
   '/api/back-office/network/bonuses': typeof ApiBackOfficeNetworkBonusesRoute
   '/api/back-office/network/qualification': typeof ApiBackOfficeNetworkQualificationRoute
   '/api/back-office/network/sub-accounts': typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
@@ -931,6 +959,8 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
+  '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -1010,6 +1040,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
+    | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1033,6 +1064,8 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/network/binary/next-direct-side'
+    | '/api/back-office/network/binary/place-direct'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -1107,6 +1140,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
+    | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1130,6 +1164,8 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId'
+    | '/api/back-office/network/binary/next-direct-side'
+    | '/api/back-office/network/binary/place-direct'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -1207,6 +1243,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
+    | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1230,6 +1267,8 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/network/binary/next-direct-side'
+    | '/api/back-office/network/binary/place-direct'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -1299,12 +1338,13 @@ export interface RootRouteChildren {
   ApiBackOfficeAdminAutomationConfigRoute: typeof ApiBackOfficeAdminAutomationConfigRoute
   ApiBackOfficeAdminAutomationRebuildHistoryRoute: typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   ApiBackOfficeAdminAutomationResetCycleRoute: typeof ApiBackOfficeAdminAutomationResetCycleRoute
+  ApiBackOfficeAdminAutomationStatsRoute: typeof ApiBackOfficeAdminAutomationStatsRoute
   ApiBackOfficeAdminNotificationsRoute: typeof ApiBackOfficeAdminNotificationsRoute
   ApiBackOfficeAdminPaymentGatewayRoute: typeof ApiBackOfficeAdminPaymentGatewayRoute
   ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
   ApiBackOfficeAutomationDailyRoute: typeof ApiBackOfficeAutomationDailyRoute
   ApiBackOfficeNetworkAffiliatesRoute: typeof ApiBackOfficeNetworkAffiliatesRoute
-  ApiBackOfficeNetworkBinaryRoute: typeof ApiBackOfficeNetworkBinaryRoute
+  ApiBackOfficeNetworkBinaryRoute: typeof ApiBackOfficeNetworkBinaryRouteWithChildren
   ApiBackOfficeNetworkBonusesRoute: typeof ApiBackOfficeNetworkBonusesRoute
   ApiBackOfficeNetworkQualificationRoute: typeof ApiBackOfficeNetworkQualificationRoute
   ApiBackOfficeNetworkSubAccountsRoute: typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
@@ -1915,6 +1955,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/automation-stats': {
+      id: '/api/back-office/admin/automation-stats'
+      path: '/api/back-office/admin/automation-stats'
+      fullPath: '/api/back-office/admin/automation-stats'
+      preLoaderRoute: typeof ApiBackOfficeAdminAutomationStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/admin/automation-reset-cycle': {
       id: '/api/back-office/admin/automation-reset-cycle'
       path: '/api/back-office/admin/automation-reset-cycle'
@@ -1942,6 +1989,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/back-office/packages/pix-order/$orderId'
       preLoaderRoute: typeof ApiBackOfficePackagesPixOrderOrderIdRouteImport
       parentRoute: typeof ApiBackOfficePackagesRoute
+    }
+    '/api/back-office/network/binary/place-direct': {
+      id: '/api/back-office/network/binary/place-direct'
+      path: '/place-direct'
+      fullPath: '/api/back-office/network/binary/place-direct'
+      preLoaderRoute: typeof ApiBackOfficeNetworkBinaryPlaceDirectRouteImport
+      parentRoute: typeof ApiBackOfficeNetworkBinaryRoute
+    }
+    '/api/back-office/network/binary/next-direct-side': {
+      id: '/api/back-office/network/binary/next-direct-side'
+      path: '/next-direct-side'
+      fullPath: '/api/back-office/network/binary/next-direct-side'
+      preLoaderRoute: typeof ApiBackOfficeNetworkBinaryNextDirectSideRouteImport
+      parentRoute: typeof ApiBackOfficeNetworkBinaryRoute
     }
     '/api/back-office/network/sub-accounts/$subAccountId/start': {
       id: '/api/back-office/network/sub-accounts/$subAccountId/start'
@@ -2182,6 +2243,24 @@ const ApiBackOfficeAdminPendingActivationsRouteWithChildren =
     ApiBackOfficeAdminPendingActivationsRouteChildren,
   )
 
+interface ApiBackOfficeNetworkBinaryRouteChildren {
+  ApiBackOfficeNetworkBinaryNextDirectSideRoute: typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
+  ApiBackOfficeNetworkBinaryPlaceDirectRoute: typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
+}
+
+const ApiBackOfficeNetworkBinaryRouteChildren: ApiBackOfficeNetworkBinaryRouteChildren =
+  {
+    ApiBackOfficeNetworkBinaryNextDirectSideRoute:
+      ApiBackOfficeNetworkBinaryNextDirectSideRoute,
+    ApiBackOfficeNetworkBinaryPlaceDirectRoute:
+      ApiBackOfficeNetworkBinaryPlaceDirectRoute,
+  }
+
+const ApiBackOfficeNetworkBinaryRouteWithChildren =
+  ApiBackOfficeNetworkBinaryRoute._addFileChildren(
+    ApiBackOfficeNetworkBinaryRouteChildren,
+  )
+
 interface ApiBackOfficeNetworkSubAccountsRouteChildren {
   ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute: typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
 }
@@ -2257,13 +2336,15 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeAdminAutomationRebuildHistoryRoute,
   ApiBackOfficeAdminAutomationResetCycleRoute:
     ApiBackOfficeAdminAutomationResetCycleRoute,
+  ApiBackOfficeAdminAutomationStatsRoute:
+    ApiBackOfficeAdminAutomationStatsRoute,
   ApiBackOfficeAdminNotificationsRoute: ApiBackOfficeAdminNotificationsRoute,
   ApiBackOfficeAdminPaymentGatewayRoute: ApiBackOfficeAdminPaymentGatewayRoute,
   ApiBackOfficeAdminPendingActivationsRoute:
     ApiBackOfficeAdminPendingActivationsRouteWithChildren,
   ApiBackOfficeAutomationDailyRoute: ApiBackOfficeAutomationDailyRoute,
   ApiBackOfficeNetworkAffiliatesRoute: ApiBackOfficeNetworkAffiliatesRoute,
-  ApiBackOfficeNetworkBinaryRoute: ApiBackOfficeNetworkBinaryRoute,
+  ApiBackOfficeNetworkBinaryRoute: ApiBackOfficeNetworkBinaryRouteWithChildren,
   ApiBackOfficeNetworkBonusesRoute: ApiBackOfficeNetworkBonusesRoute,
   ApiBackOfficeNetworkQualificationRoute:
     ApiBackOfficeNetworkQualificationRoute,

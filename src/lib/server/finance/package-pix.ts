@@ -126,7 +126,14 @@ export async function createPackagePixOrder(input: {
   const pkgRow = await db.query.investmentPackages.findFirst({
     where: eq(investmentPackages.id, input.packageId),
   });
-  if (!pkgRow || pkgRow.packageKind !== "automation") {
+  if (!pkgRow || !pkgRow.active) {
+    return { ok: false, error: "Pacote não encontrado ou inactivo." };
+  }
+
+  const isStartActivation =
+    input.forAccountActivation === true && input.packageId === START_PACKAGE_ID;
+
+  if (!isStartActivation && pkgRow.packageKind !== "automation") {
     return { ok: false, error: "PIX disponível apenas para pacotes de automação." };
   }
 

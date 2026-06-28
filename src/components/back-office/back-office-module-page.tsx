@@ -2,6 +2,7 @@ import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navigation";
 import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
 import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-office-automation-config-panel";
+import { BackOfficeAutomationStatsPanel } from "@/components/back-office/back-office-automation-stats-panel";
 import { BackOfficeAdminNotificationsPanel } from "@/components/back-office/back-office-admin-notifications-panel";
 import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-office-payment-gateway-panel";
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
@@ -125,6 +126,9 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "automacao-config":
       return <BackOfficeAutomationConfigPanel />;
+
+    case "automacao-estatisticas":
+      return <BackOfficeAutomationStatsPanel />;
 
     case "admin":
       return (
