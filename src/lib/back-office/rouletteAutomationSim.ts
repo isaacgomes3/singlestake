@@ -272,6 +272,25 @@ export function spinSettleKey(tableId: number, resultNumber: number): string {
   return `spin:${tableId}:${resultNumber}`;
 }
 
+/** Chave estável para dedupe financeiro — mesa + resultado + gale + tipo. */
+export function globalAutomationSettleKey(
+  entry: Pick<StrategyGlobalLedgerEntry, "tableId" | "resultNumber" | "recovery" | "kind">,
+): string | null {
+  if (entry.resultNumber == null) return null;
+  return `${entry.tableId}:${entry.resultNumber}:${entry.recovery}:${entry.kind}`;
+}
+
+export function resolveLedgerEntryStake(
+  entry: StrategyGlobalLedgerEntry,
+  balance?: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): number {
+  if (typeof entry.stake === "number" && entry.stake > 0 && Number.isFinite(entry.stake)) {
+    return entry.stake;
+  }
+  return stakeForRecovery(entry.recovery, balance, baseStake);
+}
+
 /** Junta ledger do servidor com liquidações locais ainda não sincronizadas. */
 export function mergeAutomationLedgerSources(
   server: readonly StrategyGlobalLedgerEntry[],
@@ -442,17 +461,16 @@ export function settleOpenBetEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
-  const spinKey =
-    entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
-  if (spinKey != null && state.processedKeys.includes(spinKey)) return state;
+  const settleKey = globalAutomationSettleKey(entry);
+  if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
 
-  const stake = stakeForRecovery(entry.recovery, state.balance, baseStake);
+  const stake = resolveLedgerEntryStake(entry, state.balance, baseStake);
   const net = entry.won ? stake : -stake;
   const balance = runningBalanceBefore(state) + net;
 
   const spinIndex = state.spinCounter;
   const round: AutomationSimRound = {
-    id: spinKey ?? key,
+    id: settleKey ?? key,
     ts: entry.ts,
     tableId: entry.tableId,
     tableLabel,
@@ -466,7 +484,7 @@ export function settleOpenBetEntry(
   };
 
   const processedKeys = [...state.processedKeys, key];
-  if (spinKey != null) processedKeys.push(spinKey);
+  if (settleKey != null) processedKeys.push(settleKey);
 
   const next: RouletteAutomationSimState = {
     ...state,
@@ -554,10 +572,10 @@ export function dedupeStrategyLedgerEntries(
   const deduped: StrategyGlobalLedgerEntry[] = [];
 
   for (const entry of sorted) {
-    const spinKey = ledgerResultKey(entry);
-    if (spinKey != null) {
-      if (seen.has(spinKey)) continue;
-      seen.add(spinKey);
+    const settleKey = globalAutomationSettleKey(entry);
+    if (settleKey != null) {
+      if (seen.has(settleKey)) continue;
+      seen.add(settleKey);
     }
     deduped.push(entry);
   }

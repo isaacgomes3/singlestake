@@ -6,6 +6,8 @@ export const EXTENSION_SYNC_VERSION = 1 as const;
 export type ExtensionSyncSettlement = {
   recoveryBefore: number;
   flash: NonNullable<UmFatorPlacarFlash>;
+  /** Stake apostado na extensão (ex. R$ 0,50 × 2^gale). */
+  stake: number;
   /** Chave estável para dedupe servidor (ex. mesa:resultado:kind:recovery). */
   dedupeKey: string;
 };

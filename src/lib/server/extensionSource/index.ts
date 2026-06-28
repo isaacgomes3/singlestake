@@ -108,11 +108,16 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
             return null;
           }
           const recoveryBefore = Math.max(0, Math.floor(Number(s.recoveryBefore) || 0));
+          const stakeRaw = Number(s.stake);
+          const stake =
+            Number.isFinite(stakeRaw) && stakeRaw > 0
+              ? stakeRaw
+              : 0.5 * 2 ** Math.min(Math.max(0, recoveryBefore), maxRecovery);
           const dedupeKey =
             typeof s.dedupeKey === "string" && s.dedupeKey.trim()
               ? s.dedupeKey.trim()
               : `${f.tableId}:${f.resultNumber}:${f.kind}:${recoveryBefore}`;
-          return { recoveryBefore, flash: f, dedupeKey };
+          return { recoveryBefore, flash: f, stake, dedupeKey };
         })
         .filter((x): x is NonNullable<typeof x> => x != null)
     : [];

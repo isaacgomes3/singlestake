@@ -90,6 +90,7 @@ function syncRotatingTableIds(state: StrategyGlobalPersistedState, liveTableIds:
 function ledgerFromFlash(
   flash: NonNullable<RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash>,
   recovery: number,
+  stake?: number,
 ): StrategyGlobalLedgerEntry {
   return {
     ts: Date.now(),
@@ -102,6 +103,7 @@ function ledgerFromFlash(
     factor2: "factor2" in flash ? flash.factor2 : undefined,
     triggerNumbers: flash.triggerNumbers,
     bucketGap: "bucketGap" in flash ? flash.bucketGap : undefined,
+    ...(typeof stake === "number" && stake > 0 && Number.isFinite(stake) ? { stake } : {}),
   };
 }
 
@@ -405,7 +407,11 @@ export function ingestStrategyGlobalExtensionSync(
   let umFlash: UmFatorPlacarFlash = null;
   for (const settlement of payload.settlements ?? []) {
     if (!rememberExtensionSettlementKey(settlement.dedupeKey)) continue;
-    const ledgerEntry = ledgerFromFlash(settlement.flash, settlement.recoveryBefore);
+    const ledgerEntry = ledgerFromFlash(
+      settlement.flash,
+      settlement.recoveryBefore,
+      settlement.stake,
+    );
     appendLedger(state, "um1fator", ledgerEntry, maxRecovery);
     umLedgerEntries.push(ledgerEntry);
     umFlash = settlement.flash;

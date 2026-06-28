@@ -8,16 +8,19 @@ import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
   globalAutomationOpeningBalance,
+  globalAutomationSettleKey,
   isSpinResultAlreadySettled,
   ledgerEntryKey,
   pendingSignalFromSnapshot,
   rebuildAutomationSimDisplayFromLedger,
+  resolveLedgerEntryStake,
   settleOpenBetEntry,
   spinHead,
   spinSettleKey,
   syncOpenBetFromPending,
   type RouletteAutomationSimState,
 } from "@/lib/back-office/rouletteAutomationSim";
+import { isAutomationProfile } from "@/lib/app-profile";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
 import type { StrategyGlobalLedgerEntry, StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
@@ -195,21 +198,20 @@ async function settleAutomationEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return state;
 
-  const spinKey =
+  const settleKey = globalAutomationSettleKey(entry);
+  if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
+
+  const legacySpinKey =
     entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
-  if (spinKey != null && state.processedKeys.includes(spinKey)) return state;
+  if (legacySpinKey != null && state.processedKeys.includes(legacySpinKey)) return state;
 
-  const stake = (await import("@/lib/back-office/rouletteAutomationSim")).stakeForRecovery(
-    entry.recovery,
-    state.balance,
-    getAutomationConfig().baseStake,
-  );
+  const stake = resolveLedgerEntryStake(entry, state.balance, getAutomationConfig().baseStake);
+  const walletSettleKey = settleKey ?? legacySpinKey ?? key;
+  const writeWallet = capitalReady && !isAutomationProfile();
 
-  const settleKey = spinKey ?? key;
-
-  if (capitalReady) {
+  if (writeWallet) {
     const ledgerResult = await settleGlobalAutomationInLedger({
-      settleKey,
+      settleKey: walletSettleKey,
       won: entry.won,
       stake,
       tableLabel,
@@ -300,6 +302,8 @@ export async function ingestAutomationSimLedgerEntry(
   const key = ledgerEntryKey(entry);
   if (state.processedKeys.includes(key)) return null;
   if (entry.resultNumber != null) {
+    const settleKey = globalAutomationSettleKey(entry);
+    if (settleKey != null && state.processedKeys.includes(settleKey)) return null;
     const spinKey = spinSettleKey(entry.tableId, entry.resultNumber);
     if (state.processedKeys.includes(spinKey)) return null;
   }

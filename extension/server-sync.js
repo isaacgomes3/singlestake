@@ -67,7 +67,11 @@ function buildPayload(engine, cfg, autopilotRunning, settlements) {
     if (flash.kind !== "win" && flash.kind !== "loss" && flash.kind !== "recovery") continue;
     const dedupeKey = settlementDedupeKey(flash, recoveryBefore);
     if (!rememberSyncedSettlement(dedupeKey)) continue;
-    settlementList.push({ recoveryBefore, flash, dedupeKey });
+    const stake =
+      typeof item?.stake === "number" && item.stake > 0
+        ? item.stake
+        : 0.5 * 2 ** Math.max(0, Math.floor(recoveryBefore));
+    settlementList.push({ recoveryBefore, flash, stake, dedupeKey });
   }
 
   syncSeq += 1;

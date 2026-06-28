@@ -19,6 +19,8 @@ export type StrategyGlobalLedgerEntry = {
   factor2?: DoisFatoresFactor;
   triggerNumbers?: number[];
   bucketGap?: number;
+  /** Stake real da extensão (ex. R$ 0,50 × 2^gale) — quando presente, extrato usa este valor. */
+  stake?: number;
 };
 
 export type StrategyGlobalLifetimeAggregate = {

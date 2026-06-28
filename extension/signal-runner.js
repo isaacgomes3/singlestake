@@ -207,6 +207,13 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   void executeBridgePayload(payload, mesaEmbedUrl, result.view);
 }
 
+const EXTENSION_REAL_BASE_STAKE = 0.5;
+
+function extensionStakeForRecovery(recoveryBefore, maxRecovery) {
+  const level = Math.min(Math.max(0, Math.floor(recoveryBefore)), maxRecovery ?? 5);
+  return EXTENSION_REAL_BASE_STAKE * 2 ** level;
+}
+
 async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) {
   if (!result || !engine) return;
   if (result.stats) {
@@ -218,12 +225,14 @@ async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) 
     result.flash &&
     (result.flash.kind === "win" || result.flash.kind === "loss" || result.flash.kind === "recovery")
   ) {
+    const recoveryBefore =
+      typeof tickContext.recoveryBefore === "number"
+        ? tickContext.recoveryBefore
+        : engine.getState().machine.recovery;
     settlements.push({
-      recoveryBefore:
-        typeof tickContext.recoveryBefore === "number"
-          ? tickContext.recoveryBefore
-          : engine.getState().machine.recovery,
+      recoveryBefore,
       flash: result.flash,
+      stake: extensionStakeForRecovery(recoveryBefore, cfg.maxRecovery),
     });
   }
 
