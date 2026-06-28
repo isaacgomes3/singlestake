@@ -36,6 +36,11 @@ if ! command -v sqlite3 >/dev/null 2>&1; then
   exit 0
 fi
 
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='binary_tree_nodes';" | grep -q binary_tree_nodes; then
+  echo "⚠ tabela binary_tree_nodes não existe — confiar em db:push/seed"
+  exit 0
+fi
+
 has_col() {
   sqlite3 "$DB_PATH" "PRAGMA table_info(binary_tree_nodes);" | grep -Fq "|$1|"
 }

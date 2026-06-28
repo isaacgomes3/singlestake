@@ -73,7 +73,7 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   echo "→ colunas admin/PIX (idempotente — fallback se db:push falhar)"
   bash deploy/apply-user-admin-columns.sh
   echo "→ colunas árvore binária (next_direct_side — idempotente)"
-  bash deploy/apply-binary-tree-columns.sh
+  bash deploy/apply-binary-tree-columns.sh || echo "⚠ apply-binary-tree-columns ignorado"
   if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
     echo "→ npm run db:seed (FIRST_DEPLOY=1)"
     npm run db:seed || echo "⚠ db:seed ignorado"

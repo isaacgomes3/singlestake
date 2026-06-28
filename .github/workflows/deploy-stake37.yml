@@ -84,8 +84,15 @@ jobs:
                  exit 0
                fi
                if curl -sf --max-time 20 http://127.0.0.1:3000/entrar | grep -qi "<html"; then
-                 echo "=== Node OK (Apache pode precisar reload) ==="
+                 echo "=== Node OK (verify-site=${VERIFY_RC}) ==="
                  bash deploy/patch-apache-static.sh || true
+                 PUB="${PUBLIC_APP_URL:-https://stake37.com.br}"
+                 PUB_CODE="$(curl -sf -o /dev/null -w '%{http_code}' --max-time 20 "${PUB}/entrar" 2>/dev/null || echo "000")"
+                 if [ "$PUB_CODE" = "200" ] || [ "$PUB_CODE" = "302" ]; then
+                   echo "=== Site público OK (${PUB}/entrar → ${PUB_CODE}) ==="
+                   exit 0
+                 fi
+                 echo "=== Node local OK; público HTTP ${PUB_CODE} — deploy aplicado ==="
                  exit 0
                fi
                pm2 logs singlestake --lines 30 --nostream 2>/dev/null || true
