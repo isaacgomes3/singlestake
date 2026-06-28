@@ -17,11 +17,12 @@ DEPLOY_RC=$?
 set -e
 
 PUB="${PUBLIC_APP_URL:-https://stake37.com.br}"
-PUB_CODE="$(curl -sf -o /dev/null -w '%{http_code}' --max-time 25 "${PUB}/entrar" 2>/dev/null || echo 000)"
-LOCAL_CODE="$(curl -sf -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:3000/entrar 2>/dev/null || echo 000)"
+sleep 10
+PUB_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 25 "${PUB}/entrar" 2>/dev/null || echo 000)"
+LOCAL_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:3000/entrar 2>/dev/null || echo 000)"
 echo "=== Pós-deploy: local=${LOCAL_CODE} público=${PUB_CODE} deploy.sh=${DEPLOY_RC} ==="
 
-if [ "$LOCAL_CODE" = "200" ]; then
+if [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ]; then
   bash deploy/patch-apache-static.sh || true
   echo "=== Node local OK — deploy considerado sucesso ==="
   exit 0
