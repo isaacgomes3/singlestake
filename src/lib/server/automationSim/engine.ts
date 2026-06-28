@@ -13,12 +13,12 @@ import {
   ledgerEntryKey,
   pendingSignalFromSnapshot,
   rebuildAutomationSimDisplayFromLedger,
-  resolveLedgerEntryStake,
   settleOpenBetEntry,
   spinHead,
   syncOpenBetFromPending,
   type RouletteAutomationSimState,
 } from "@/lib/back-office/rouletteAutomationSim";
+import { reviewMartingaleSettlement } from "@/lib/back-office/martingaleSequenceReview";
 import { isAutomationProfile } from "@/lib/app-profile";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
@@ -205,7 +205,14 @@ async function settleAutomationEntry(
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
 
-  const stake = resolveLedgerEntryStake(entry, state.balance, getAutomationConfig().baseStake);
+  const baseStake = getAutomationConfig().baseStake;
+  const review = reviewMartingaleSettlement(state, entry, baseStake);
+  if (!review.accepted) {
+    console.warn("[MartingaleReview] extrato ignorado:", review.reason);
+    return state;
+  }
+
+  const stake = review.stake;
   const walletSettleKey = settleKey ?? key;
   const writeWallet = capitalReady && !isAutomationProfile();
 

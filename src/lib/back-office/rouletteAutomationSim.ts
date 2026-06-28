@@ -13,6 +13,7 @@ import {
   UM_FATOR_MAX_RECOVERY,
   type UmFatorActive,
 } from "@/lib/roulette/umFatorStrategy";
+import { reviewMartingaleSettlement } from "@/lib/back-office/martingaleSequenceReview";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
 /** Versão do extrato — incrementar força reset automático (saldo R$ 50.000, histórico limpo). */
@@ -460,8 +461,16 @@ export function settleOpenBetEntry(
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
 
-  const stake = resolveLedgerEntryStake(entry, state.balance, baseStake);
-  const net = entry.won ? stake : -stake;
+  const review = reviewMartingaleSettlement(state, entry, baseStake);
+  if (!review.accepted) {
+    if (typeof console !== "undefined") {
+      console.warn("[MartingaleReview] liquidação rejeitada:", review.reason);
+    }
+    return state;
+  }
+
+  const stake = review.stake;
+  const net = review.net;
   const balance = runningBalanceBefore(state) + net;
 
   const spinIndex = state.spinCounter;
