@@ -7,6 +7,7 @@ import { overviewContent } from "@/lib/i18n/content/overview";
 import { productsContent } from "@/lib/i18n/content/products";
 import { sharedContent } from "@/lib/i18n/content/shared";
 import { automationStatsContent } from "@/lib/i18n/content/automation-stats";
+import { supportContent } from "@/lib/i18n/content/support";
 
 export function buildPanelMessages(locale: Locale) {
   return {
