@@ -374,7 +374,7 @@ function ledgerKindForSpinLoss(recovery: number): StrategyGlobalLedgerEntry["kin
 export function roundBadge(entry: StrategyGlobalLedgerEntry): AutomationRoundBadge {
   if (entry.won) return "VITÓRIA";
   if (entry.kind === "loss") return "DERROTA";
-  if (entry.kind === "recovery" && entry.recovery > 0) return "RECUPERAÇÃO";
+  if (entry.kind === "recovery") return "RECUPERAÇÃO";
   return "DERROTA";
 }
 
