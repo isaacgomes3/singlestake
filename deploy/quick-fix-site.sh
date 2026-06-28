@@ -37,6 +37,7 @@ fi
 
 if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   npm run db:push || echo "⚠ db:push ignorado"
+  npx tsx scripts/apply-user-admin-columns.ts || echo "⚠ apply-user-admin-columns ignorado"
 fi
 
 pm2 delete singlestake 2>/dev/null || true
