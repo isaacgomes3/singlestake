@@ -6,6 +6,7 @@ import {
   finalizeAutomationSimState,
   freshAutomationSimState,
   ROULETTE_AUTOMATION_INITIAL_BANK,
+  AUTOMATION_EXTRACT_FORMAT_VERSION,
 } from "@/lib/back-office/rouletteAutomationSim";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
 import { broadcastAutomationSim } from "@/lib/server/automationSim/broadcast";
@@ -42,6 +43,7 @@ export function buildFreshAutomationSimState(registeredAt: number) {
       spinCounter: 0,
       openBet: null,
       chart: [],
+      extractFormatVersion: AUTOMATION_EXTRACT_FORMAT_VERSION,
     },
     ROULETTE_AUTOMATION_INITIAL_BANK,
   );

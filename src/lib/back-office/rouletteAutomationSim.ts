@@ -15,6 +15,8 @@ import {
 } from "@/lib/roulette/umFatorStrategy";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
+/** Versão do extrato — incrementar força reset automático (saldo R$ 50.000, histórico limpo). */
+export const AUTOMATION_EXTRACT_FORMAT_VERSION = 3;
 /** Aposta inicial fixa na roleta (sem centavos): R$ 50 → 100 → 200 → 400 → 800 → 1600. */
 export const ROULETTE_AUTOMATION_BASE_STAKE = 50;
 /** @deprecated Mantido só por compatibilidade de import — não usar para calcular stake. */
@@ -75,6 +77,8 @@ export type RouletteAutomationSimState = {
   processedKeys: string[];
   spinCounter: number;
   openBet: AutomationOpenBet | null;
+  /** Incrementar AUTOMATION_EXTRACT_FORMAT_VERSION força reset do extrato no arranque. */
+  extractFormatVersion?: number;
 };
 
 /** Saldo imediatamente antes da próxima liquidação (cadeia do histórico). */
@@ -829,6 +833,7 @@ export function freshAutomationSimState(now = Date.now()): RouletteAutomationSim
     processedKeys: [],
     spinCounter: 0,
     openBet: null,
+    extractFormatVersion: AUTOMATION_EXTRACT_FORMAT_VERSION,
   };
   return { ...state, chart: buildAutomationChartData(state) };
 }
@@ -886,6 +891,10 @@ export function parseAutomationSimState(raw: unknown): RouletteAutomationSimStat
     chart: Array.isArray(o.chart) ? o.chart : [],
     processedKeys: Array.isArray(o.processedKeys) ? o.processedKeys : [],
     spinCounter: typeof o.spinCounter === "number" ? o.spinCounter : 0,
+    extractFormatVersion:
+      typeof o.extractFormatVersion === "number" && Number.isFinite(o.extractFormatVersion)
+        ? o.extractFormatVersion
+        : 0,
     openBet: o.openBet
       ? {
           ...o.openBet,

@@ -159,6 +159,11 @@ export async function ensureAutomationSimEngine(): Promise<void> {
 
   if (!initPromise) {
     initPromise = (async () => {
+      const { ensureAutomationExtractUpToDate } = await import(
+        "@/lib/server/automationSim/ensure-format"
+      );
+      await ensureAutomationExtractUpToDate();
+
       await initAutomationSimState();
       await initAutomationConfig();
       configReady = true;

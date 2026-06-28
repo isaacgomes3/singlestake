@@ -68,5 +68,6 @@ export function useRouletteAutomationSim() {
     openBet,
     syncing,
     config: apiSnapshot?.config ?? null,
+    revision: apiSnapshot?.revision ?? 0,
   };
 }

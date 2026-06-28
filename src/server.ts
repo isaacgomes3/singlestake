@@ -9,6 +9,7 @@ import { tryServePublicStatic } from "./lib/server/serve-public-static";
 
 ensureRouletteHubDaemon();
 ensureAutomationYieldScheduler();
+void import("./lib/server/automationSim/ensure-format").then((m) => m.ensureAutomationExtractUpToDate());
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;

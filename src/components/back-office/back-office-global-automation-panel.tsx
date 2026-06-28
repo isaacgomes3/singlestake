@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
 
 import { AutomationHistoryTable } from "@/components/back-office/automation-history-table";
 import { RouletteAutomationSimulatorPanel } from "@/components/back-office/roulette-automation-simulator-panel";
-import { Button } from "@/components/ui/button";
 import {
   fetchGlobalAutomationFinance,
   type GlobalAutomationFinance,
@@ -153,20 +152,22 @@ function GlobalAutomationLedgerTable({
 export function BackOfficeGlobalAutomationPanel() {
   const { t } = useI18n();
   const { money } = useFormat();
-  const { state, openBet } = useRouletteAutomationSim();
+  const { state, openBet, revision } = useRouletteAutomationSim();
   const [finance, setFinance] = useState<GlobalAutomationFinance | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    const data = await fetchGlobalAutomationFinance();
-    setFinance(data.finance);
-    setLoading(false);
-  }, []);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    setLedgerLoading(true);
+    void fetchGlobalAutomationFinance().then(({ finance: data }) => {
+      if (cancelled) return;
+      setFinance(data);
+      setLedgerLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [revision]);
 
   const officialBalance = finance?.balance ?? state.balance;
   const initialCapital = finance?.initialCapital ?? ROULETTE_AUTOMATION_INITIAL_BANK;
@@ -189,40 +190,35 @@ export function BackOfficeGlobalAutomationPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-kpi-teal/85">
-              {t("finance.globalAutomation.balanceLabel")}
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-kpi-teal/85">
+            {t("finance.globalAutomation.balanceLabel")}
+          </p>
+          <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
+            {money(officialBalance)}
+          </p>
+          <p
+            className={cn(
+              "mt-2 text-sm font-semibold tabular-nums",
+              net >= 0 ? "text-success" : "text-danger",
+            )}
+          >
+            {net >= 0 ? "+" : ""}
+            {money(net)} ({netPct >= 0 ? "+" : ""}
+            {netPct.toFixed(2)}%) ·{" "}
+            {t("finance.globalAutomation.initialCapital", { amount: money(initialCapital) })}
+          </p>
+          {balanceMismatch ? (
+            <p className="mt-2 text-xs text-amber-300">
+              {t("finance.globalAutomation.balanceMismatch")}
             </p>
-            <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
-              {loading ? "…" : money(officialBalance)}
-            </p>
-            <p
-              className={cn(
-                "mt-2 text-sm font-semibold tabular-nums",
-                net >= 0 ? "text-success" : "text-danger",
-              )}
-            >
-              {net >= 0 ? "+" : ""}
-              {money(net)} ({netPct >= 0 ? "+" : ""}
-              {netPct.toFixed(2)}%) ·{" "}
-              {t("finance.globalAutomation.initialCapital", { amount: money(initialCapital) })}
-            </p>
-            {balanceMismatch ? (
-              <p className="mt-2 text-xs text-amber-300">
-                {t("finance.globalAutomation.balanceMismatch")}
-              </p>
-            ) : null}
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void reload()}>
-            {t("shared.refresh")}
-          </Button>
+          ) : null}
         </div>
       </section>
 
       <section>
         <RouletteAutomationSimulatorPanel
-          officialBalance={loading ? null : officialBalance}
+          officialBalance={officialBalance}
           initialCapital={initialCapital}
         />
       </section>
@@ -237,7 +233,7 @@ export function BackOfficeGlobalAutomationPanel() {
       <GlobalAutomationLedgerTable
         entries={finance?.entries ?? []}
         totals={finance?.totals ?? null}
-        loading={loading}
+        loading={ledgerLoading}
       />
     </div>
   );
