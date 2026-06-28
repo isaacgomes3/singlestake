@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { fetchAutomationStats } from "@/lib/back-office/automation-stats-api";
+import { Switch } from "@/components/ui/switch";
+import {
+  fetchAutomationStats,
+  setAutomationTriggerEnabled,
+} from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -33,6 +38,7 @@ export function BackOfficeAutomationStatsPanel() {
   const { time } = useFormat();
   const [data, setData] = useState<AutomationStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const row = await fetchAutomationStats();
@@ -45,6 +51,20 @@ export function BackOfficeAutomationStatsPanel() {
     const timer = window.setInterval(() => void reload(), REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [reload]);
+
+  async function handleToggleTrigger(id: "two" | "three", enabled: boolean) {
+    setTogglingId(id);
+    const result = await setAutomationTriggerEnabled(id, enabled);
+    setTogglingId(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    toast.success(
+      enabled ? t("automationStats.triggerEnabled") : t("automationStats.triggerDisabled"),
+    );
+  }
 
   const sourceLabel =
     data?.source === "extension"
@@ -113,11 +133,20 @@ export function BackOfficeAutomationStatsPanel() {
                   <th className="px-3 py-2.5 text-right font-semibold">
                     {t("automationStats.colAccuracy")}
                   </th>
+                  <th className="px-3 py-2.5 text-center font-semibold">
+                    {t("automationStats.colEnabled")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {(data?.triggers ?? []).map((row) => (
-                  <tr key={row.id} className="border-b border-border-color last:border-0">
+                  <tr
+                    key={row.id}
+                    className={cn(
+                      "border-b border-border-color last:border-0",
+                      !row.enabled && "opacity-60",
+                    )}
+                  >
                     <td className="px-3 py-2.5 font-medium text-text-primary">
                       {triggerLabel(messages, row.labelKey)}
                     </td>
@@ -137,6 +166,16 @@ export function BackOfficeAutomationStatsPanel() {
                       )}
                     >
                       {formatAccuracy(row.accuracyPct)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <Switch
+                        checked={row.enabled}
+                        disabled={togglingId === row.id}
+                        aria-label={triggerLabel(messages, row.labelKey)}
+                        onCheckedChange={(checked) =>
+                          void handleToggleTrigger(row.id, checked)
+                        }
+                      />
                     </td>
                   </tr>
                 ))}

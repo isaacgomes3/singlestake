@@ -31,18 +31,23 @@ export type UmFatorTriggerTierReportRow = {
   losses: number;
   total: number;
   accuracyPct: number | null;
+  enabled: boolean;
 };
 
 export function buildUmFatorTriggerTierReport(
   stats: RotatingRoomSessionStats | undefined,
+  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier, boolean>>,
 ): UmFatorTriggerTierReportRow[] {
   const tier = normalizeUmFatorMatchTierStats(stats?.umFatorMatchTier);
-  return UM_FATOR_TRIGGER_TIER_DEFINITIONS.map((def) => rowFromBucket(def, tier[def.statsKey]));
+  return UM_FATOR_TRIGGER_TIER_DEFINITIONS.map((def) =>
+    rowFromBucket(def, tier[def.statsKey], enabledTriggers?.[def.id] !== false),
+  );
 }
 
 function rowFromBucket(
   def: UmFatorTriggerTierDefinition,
   bucket: UmFatorMatchTierBucket,
+  enabled: boolean,
 ): UmFatorTriggerTierReportRow {
   const wins = Math.max(0, bucket.wins);
   const losses = Math.max(0, bucket.losses);
@@ -53,5 +58,6 @@ function rowFromBucket(
     losses,
     total: wins + losses,
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
+    enabled,
   };
 }

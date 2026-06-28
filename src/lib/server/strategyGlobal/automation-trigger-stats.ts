@@ -1,6 +1,7 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import { buildUmFatorTriggerTierReport } from "@/lib/roulette/umFatorTriggerTiers";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
+import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
 
 function sessionAccuracyPct(wins: number, losses: number): number | null {
@@ -15,6 +16,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const wins = Math.max(0, stats.wins);
   const losses = Math.max(0, stats.losses);
   const extension = getExtensionSourceStatus();
+  const enabledTriggers = getAutomationConfig().enabledTriggers;
 
   return {
     updatedAt: state.updatedAt,
@@ -25,6 +27,11 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       total: wins + losses,
       accuracyPct: sessionAccuracyPct(wins, losses),
     },
-    triggers: buildUmFatorTriggerTierReport(stats),
+    triggers: buildUmFatorTriggerTierReport(stats, enabledTriggers),
   };
+}
+
+export async function buildAutomationTriggerStatsDtoAsync(): Promise<AutomationStatsDto> {
+  await initAutomationConfig();
+  return buildAutomationTriggerStatsDto();
 }

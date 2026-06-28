@@ -18,6 +18,7 @@ import {
   type DoisFatoresFactor,
 } from "@/lib/roulette/doisFatoresStrategy";
 import { colorOf, heightOf, parityOf } from "@/lib/roulette/streetPairTrigger";
+import { isUmFatorTriggerTierEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 export const UM_FATOR_MIN_HISTORY = 3;
 export const UM_FATOR_MAX_RECOVERY = 5;
@@ -211,6 +212,7 @@ function detectUmFatorTwoTierActive(n0: number, n1: number, n2: number): UmFator
 /** Detecta formação de alerta (gatilho 3f ou 2f + confirmação em t0). */
 export function detectUmFatorActiveFromHistory(
   historyNewestFirst: readonly number[],
+  isTierEnabled: (tier: UmFatorTriggerMatchTier) => boolean = isUmFatorTriggerTierEnabled,
 ): UmFatorActive | null {
   if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
 
@@ -219,7 +221,11 @@ export function detectUmFatorActiveFromHistory(
   const n2 = historyNewestFirst[2]!;
   if (n0 === 0 || n1 === 0 || n2 === 0) return null;
 
-  return detectUmFatorThreeTierActive(n0, n1, n2) ?? detectUmFatorTwoTierActive(n0, n1, n2);
+  const three = detectUmFatorThreeTierActive(n0, n1, n2);
+  if (three && isTierEnabled("three")) return three;
+  const two = detectUmFatorTwoTierActive(n0, n1, n2);
+  if (two && isTierEnabled("two")) return two;
+  return null;
 }
 
 /** Avalia o giro de resultado contra o factor alertado (giro seguinte à formação). */

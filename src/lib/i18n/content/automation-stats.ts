@@ -17,6 +17,9 @@ export const automationStatsContent = {
     colLosses: "Derrotas",
     colTotal: "Total",
     colAccuracy: "Acerto",
+    colEnabled: "Activo",
+    triggerEnabled: "Gatilho activo — sinais e entradas permitidos",
+    triggerDisabled: "Gatilho desactivado — ignorado pelo motor",
     noData: "Sem dados",
     triggers: {
       twoFactors: "2 factores iguais",
@@ -41,6 +44,9 @@ export const automationStatsContent = {
     colLosses: "Losses",
     colTotal: "Total",
     colAccuracy: "Hit rate",
+    colEnabled: "Active",
+    triggerEnabled: "Trigger active — signals and entries allowed",
+    triggerDisabled: "Trigger disabled — ignored by the engine",
     noData: "No data",
     triggers: {
       twoFactors: "2 equal factors",
@@ -65,6 +71,9 @@ export const automationStatsContent = {
     colLosses: "Derrotas",
     colTotal: "Total",
     colAccuracy: "Acierto",
+    colEnabled: "Activo",
+    triggerEnabled: "Gatillo activo — señales y entradas permitidas",
+    triggerDisabled: "Gatillo desactivado — ignorado por el motor",
     noData: "Sin datos",
     triggers: {
       twoFactors: "2 factores iguales",

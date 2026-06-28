@@ -6,6 +6,11 @@ import {
   normalizeGlobalAutomationConfig,
   type GlobalAutomationConfig,
 } from "@/lib/back-office/automation-config";
+import { setUmFatorEnabledTriggers } from "@/lib/roulette/umFatorTriggerEnable";
+
+function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
+  setUmFatorEnabledTriggers(config.enabledTriggers);
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -21,6 +26,7 @@ function storagePath(): string {
 export function getAutomationConfig(): GlobalAutomationConfig {
   if (!globalThis.__automationConfigCache) {
     globalThis.__automationConfigCache = { ...DEFAULT_GLOBAL_AUTOMATION_CONFIG };
+    syncTriggerEnableRuntime(globalThis.__automationConfigCache);
   }
   return globalThis.__automationConfigCache;
 }
@@ -31,10 +37,12 @@ export async function initAutomationConfig(): Promise<GlobalAutomationConfig> {
     const raw = await readFile(path, "utf8");
     const parsed = normalizeGlobalAutomationConfig(JSON.parse(raw));
     globalThis.__automationConfigCache = parsed;
+    syncTriggerEnableRuntime(parsed);
     return parsed;
   } catch {
     const fresh = { ...DEFAULT_GLOBAL_AUTOMATION_CONFIG, updatedAt: Date.now() };
     globalThis.__automationConfigCache = fresh;
+    syncTriggerEnableRuntime(fresh);
     return fresh;
   }
 }
@@ -49,6 +57,7 @@ export async function saveAutomationConfig(
     updatedAt: Date.now(),
   });
   globalThis.__automationConfigCache = next;
+  syncTriggerEnableRuntime(next);
   const path = storagePath();
   try {
     await mkdir(dirname(path), { recursive: true });
