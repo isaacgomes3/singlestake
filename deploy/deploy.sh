@@ -71,7 +71,7 @@ if [[ -f .env ]] && grep -q '^DATABASE_URL=' .env; then
   echo "→ npm run db:push (app parado — evita conflito SQLite)"
   npm run db:push || echo "⚠ db:push ignorado"
   echo "→ colunas admin/PIX (idempotente — fallback se db:push falhar)"
-  npx tsx scripts/apply-user-admin-columns.ts || echo "⚠ apply-user-admin-columns ignorado"
+  bash deploy/apply-user-admin-columns.sh
   if [[ "${FIRST_DEPLOY:-0}" == "1" ]]; then
     echo "→ npm run db:seed (FIRST_DEPLOY=1)"
     npm run db:seed || echo "⚠ db:seed ignorado"
