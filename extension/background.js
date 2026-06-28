@@ -1,4 +1,4 @@
-importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js");
+importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js");
 
 const DEFAULT_CHIP_VALUE = 0.5;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */

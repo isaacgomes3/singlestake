@@ -58,7 +58,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation } = useRouletteAutomationSim();
   const session = useRotatingRoomUmFatorSession(tableIds, histories, {
-    preferLocalSession: true,
+    preferLocalSession: false,
   });
 
   const mesaEmbedUrl = useMemo(() => {

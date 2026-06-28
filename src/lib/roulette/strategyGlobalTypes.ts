@@ -74,6 +74,12 @@ export type StrategyGlobalSnapshot = {
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
   ledgerTail: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
+  /** Extensão Chrome a sincronizar o motor Um Fator (prioridade sobre DGA do servidor). */
+  extensionSource?: {
+    active: boolean;
+    lastSyncAt: number | null;
+    autopilotRunning: boolean;
+  };
 };
 
 export type StrategyGlobalFlashPayload = {

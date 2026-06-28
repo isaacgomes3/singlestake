@@ -39,6 +39,14 @@ import type {
   StrategyGlobalSnapshot,
   StrategyGlobalUmFatorClientView,
 } from "@/lib/roulette/strategyGlobalTypes";
+import type { ExtensionSyncPayload } from "@/lib/roulette/extensionSyncTypes";
+import {
+  applyExtensionMachineToState,
+  getExtensionSourceStatus,
+  isExtensionSourceActive,
+  rememberExtensionSettlementKey,
+  touchExtensionSource,
+} from "@/lib/server/extensionSource";
 import { broadcastStrategyGlobal } from "@/lib/server/strategyGlobal/broadcast";
 import {
   appendLedger,
@@ -245,6 +253,7 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
   for (const [id, list] of Object.entries(histories)) {
     tableHistories[Number(id)] = [...list];
   }
+  const extensionSource = getExtensionSourceStatus();
   return {
     revision: state.revision,
     updatedAt: state.updatedAt,
@@ -256,6 +265,11 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     ledgerTail: {
       dois2fatores: state.ledger.dois2fatores.slice(-120),
       um1fator: state.ledger.um1fator.slice(-120),
+    },
+    extensionSource: {
+      active: extensionSource.active,
+      lastSyncAt: extensionSource.lastSyncAt,
+      autopilotRunning: extensionSource.autopilotRunning,
     },
   };
 }
@@ -315,7 +329,10 @@ export function ingestStrategyGlobalSpin(
   if (tableId == null) return null;
   if (!rememberGameId(state, spin.gameId)) return null;
 
-  appendTableSpin(state, tableId, spin.number);
+  const extensionActive = isExtensionSourceActive();
+  if (!extensionActive) {
+    appendTableSpin(state, tableId, spin.number);
+  }
   const histories = historiesRecord(state);
 
   const crossing = driveCrossing(state, histories);
@@ -326,6 +343,10 @@ export function ingestStrategyGlobalSpin(
       ledgerFromFlash(crossing.flash, crossing.recoveryBefore),
       ROTATING_ROOM_CROSSING_MAX_RECOVERY,
     );
+  }
+
+  if (extensionActive) {
+    return bumpAndBroadcast(state, crossing.flash, null);
   }
 
   const um = driveUmFator(state, histories);
@@ -345,13 +366,67 @@ export function ingestStrategyGlobalSpin(
   return bumpAndBroadcast(state, crossing.flash, um.flash);
 }
 
+/** Aplica estado do motor da extensão Chrome — visor, extrato e automação seguem a mesma fonte. */
+export function ingestStrategyGlobalExtensionSync(
+  payload: ExtensionSyncPayload,
+  liveTableIds: readonly number[],
+): StrategyGlobalSnapshot | null {
+  if (!initialized) return null;
+
+  touchExtensionSource(payload);
+  const state = getStrategyGlobalState();
+  syncRotatingTableIds(state, payload.tableIds.length > 0 ? payload.tableIds : liveTableIds);
+
+  const maxRecovery = payload.maxRecovery ?? UM_FATOR_MAX_RECOVERY;
+  for (const [key, numbers] of Object.entries(payload.histories)) {
+    if (!Array.isArray(numbers) || numbers.length === 0) continue;
+    state.tableHistories[key] = numbers.slice(0, 4_000);
+  }
+
+  state.um1fator.stats = payload.stats;
+  state.um1fator.machine = applyExtensionMachineToState(
+    state.rotatingRoomTableIds,
+    payload.machine,
+    payload.stats,
+  );
+
+  const histories = historiesRecord(state);
+  const crossing = driveCrossing(state, histories);
+  if (crossing.flash && (crossing.flash.kind === "win" || crossing.flash.kind === "loss")) {
+    appendLedger(
+      state,
+      "dois2fatores",
+      ledgerFromFlash(crossing.flash, crossing.recoveryBefore),
+      ROTATING_ROOM_CROSSING_MAX_RECOVERY,
+    );
+  }
+
+  const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  let umFlash: UmFatorPlacarFlash = null;
+  for (const settlement of payload.settlements ?? []) {
+    if (!rememberExtensionSettlementKey(settlement.dedupeKey)) continue;
+    const ledgerEntry = ledgerFromFlash(settlement.flash, settlement.recoveryBefore);
+    appendLedger(state, "um1fator", ledgerEntry, maxRecovery);
+    umLedgerEntries.push(ledgerEntry);
+    umFlash = settlement.flash;
+  }
+
+  if (umLedgerEntries.length > 0) {
+    const snapshot = bumpAndBroadcast(state, crossing.flash, umFlash);
+    void pushAutomationSimSettlements(umLedgerEntries, snapshot);
+    return snapshot;
+  }
+
+  return bumpAndBroadcast(state, crossing.flash, umFlash);
+}
+
 /** Sem dedupe — usado para snapshot `last20Results` ao ligar o WS. */
 export function ingestStrategyGlobalHistorySnapshot(
   tableId: number,
   spins: RouletteSpin[],
   liveTableIds: readonly number[],
 ): void {
-  if (!initialized || spins.length === 0) return;
+  if (!initialized || spins.length === 0 || isExtensionSourceActive()) return;
   const state = getStrategyGlobalState();
   syncRotatingTableIds(state, liveTableIds);
 
@@ -375,7 +450,7 @@ export function ingestStrategyGlobalReplayBatch(
   spins: RouletteSpin[],
   liveTableIds: readonly number[],
 ): void {
-  if (!initialized || spins.length === 0) return;
+  if (!initialized || spins.length === 0 || isExtensionSourceActive()) return;
   const state = getStrategyGlobalState();
   syncRotatingTableIds(state, liveTableIds);
 
