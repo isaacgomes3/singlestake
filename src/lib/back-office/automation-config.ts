@@ -1,7 +1,4 @@
-import {
-  EXTENSION_REAL_BASE_STAKE,
-  ROULETTE_AUTOMATION_BASE_STAKE,
-} from "@/lib/back-office/automationStakes";
+import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 
 /** Pausa por stop win/loss retoma sozinha após 1 hora. Pausa manual só pelo admin. */
@@ -16,7 +13,7 @@ export type GlobalAutomationConfig = {
   pauseReason: AutomationPauseReason | null;
   /** Timestamp (ms) em que a pausa actual começou. */
   pausedAt: number | null;
-  /** Stake inicial (R$) — base do martingale 0,50→1→2… (igual à extensão). */
+  /** Stake inicial (R$) — base do martingale 50→100→200… */
   baseStake: number;
   /** Lucro acumulado (vs capital) que pausa a automação; null = desligado. */
   stopWin: number | null;
@@ -55,8 +52,8 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
   const o = raw as Partial<GlobalAutomationConfig>;
   const rawStake = o.baseStake;
   const baseStake =
-    typeof rawStake === "number" && Number.isFinite(rawStake) && rawStake >= EXTENSION_REAL_BASE_STAKE
-      ? Math.round(rawStake * 100) / 100
+    typeof rawStake === "number" && Number.isFinite(rawStake) && rawStake >= 1
+      ? Math.round(rawStake)
       : DEFAULT_GLOBAL_AUTOMATION_CONFIG.baseStake;
   const stopWin =
     o.stopWin === null || o.stopWin === undefined

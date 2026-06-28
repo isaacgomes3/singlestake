@@ -1,5 +1,5 @@
-/** Constantes partilhadas (importadas via importScripts no service worker). */
-const GOG = {
+/** Stake base — igual à automação global (R$ 50 → 100 → 200…). */
+const EXTENSION_REAL_BASE_STAKE = 50;
   BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
   PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
   PING_TYPE: "game-odds-glow/rotating-room-extension-ping",
@@ -160,9 +160,12 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
+      stakeAmount:
+        recovery > 0
+          ? EXTENSION_REAL_BASE_STAKE * 2 ** recovery
+          : EXTENSION_REAL_BASE_STAKE,
       currentRecovery: recovery,
-      baseStake: 0.5,
+      baseStake: EXTENSION_REAL_BASE_STAKE,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

@@ -26,7 +26,7 @@ import { umFatorAlertLabel } from "../src/lib/roulette/umFatorStrategy";
 export const ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
 export { EXTENSION_PRE_BET_WAIT_SEC };
 
-const BASE_STAKE = 0.5;
+const BASE_STAKE = 50;
 export const EXTENSION_MAX_GALES = 6;
 
 export type CreateUmFatorEngineOptions = {

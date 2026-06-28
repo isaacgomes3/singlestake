@@ -1,6 +1,6 @@
 importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js");
 
-const DEFAULT_CHIP_VALUE = 0.5;
+const DEFAULT_CHIP_VALUE = 50;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
 /** Aguarda poker/roleta carregar após navegação (espelha ensureMesaTab). */

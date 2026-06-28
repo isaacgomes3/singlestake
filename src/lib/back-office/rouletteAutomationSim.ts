@@ -30,7 +30,7 @@ export {
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
 /** Versão do extrato — incrementar força reset automático (saldo R$ 50.000, histórico limpo). */
-export const AUTOMATION_EXTRACT_FORMAT_VERSION = 4;
+export const AUTOMATION_EXTRACT_FORMAT_VERSION = 5;
 /** @deprecated Mantido só por compatibilidade de import — não usar para calcular stake. */
 export const AUTOMATION_BANK_SHARE = 0.001;
 /** @deprecated Use ROULETTE_AUTOMATION_BASE_STAKE. */

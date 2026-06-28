@@ -50,14 +50,14 @@ export function BackOfficeAutomationConfigPanel() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const stake = Number(baseStake);
-    if (!Number.isFinite(stake) || stake < 0.5) {
-      toast.error("Stake inicial inválido (mínimo R$ 0,50).");
+    if (!Number.isFinite(stake) || stake < 1) {
+      toast.error("Stake inicial inválido (mínimo R$ 1).");
       return;
     }
     setSaving(true);
     const result = await saveAutomationConfig({
       paused,
-      baseStake: Math.round(stake * 100) / 100,
+      baseStake: Math.round(stake),
       stopWin: parseOptionalMoney(stopWin),
       stopLoss: parseOptionalMoney(stopLoss),
     });
@@ -155,13 +155,13 @@ export function BackOfficeAutomationConfigPanel() {
           <Input
             id="auto-base-stake"
             type="number"
-            min={0.5}
-            step={0.5}
+            min={1}
+            step={1}
             value={baseStake}
             onChange={(e) => setBaseStake(e.target.value)}
           />
           <p className="text-[11px] text-text-secondary">
-            Base do martingale: stake × 2^gale (máx. gale 5). Deve coincidir com a ficha da extensão (R$ 0,50).
+            Base do martingale: stake × 2^gale (máx. gale 5). Deve coincidir com a ficha da extensão (R$ 50).
           </p>
         </div>
 

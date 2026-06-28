@@ -70,7 +70,7 @@ function buildPayload(engine, cfg, autopilotRunning, settlements) {
     const stake =
       typeof item?.stake === "number" && item.stake > 0
         ? item.stake
-        : 0.5 * 2 ** Math.max(0, Math.floor(recoveryBefore));
+        : EXTENSION_REAL_BASE_STAKE * 2 ** Math.max(0, Math.floor(recoveryBefore));
     settlementList.push({ recoveryBefore, flash, stake, dedupeKey });
   }
 

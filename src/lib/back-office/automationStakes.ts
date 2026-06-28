@@ -1,8 +1,8 @@
 import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTypes";
 import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
 
-/** Stake real da extensão / roleta: R$ 0,50 → 1 → 2 → 4 → 8 → 16. */
-export const EXTENSION_REAL_BASE_STAKE = 0.5;
+/** Stake base da automação e extensão: R$ 50 → 100 → 200 → 400 → 800 → 1600. */
+export const EXTENSION_REAL_BASE_STAKE = 50;
 export const ROULETTE_AUTOMATION_BASE_STAKE = EXTENSION_REAL_BASE_STAKE;
 
 /** baseStake × 2^recuperação (máx. rec5). */

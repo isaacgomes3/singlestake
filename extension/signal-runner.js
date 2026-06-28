@@ -207,7 +207,7 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   void executeBridgePayload(payload, mesaEmbedUrl, result.view);
 }
 
-const EXTENSION_REAL_BASE_STAKE = 0.5;
+const EXTENSION_REAL_BASE_STAKE = 50;
 
 function extensionStakeForRecovery(recoveryBefore, maxRecovery) {
   const level = Math.min(Math.max(0, Math.floor(recoveryBefore)), maxRecovery ?? 5);

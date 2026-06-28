@@ -494,7 +494,7 @@ document.querySelectorAll("button.cal").forEach((btn) => {
 
 document.getElementById("calChip")?.addEventListener("click", () => {
   const select = document.getElementById("chipValue");
-  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 0.5 : 0.5;
+  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 50 : 50;
   const label = `Ficha R$ ${chipValue}`;
   if (chipStatus) chipStatus.textContent = `A activar overlay na mesa: ${label}…`;
   chrome.runtime.sendMessage({ kind: "arm-calibration", betKey: "chip", label, chipValue }, (resp) => {

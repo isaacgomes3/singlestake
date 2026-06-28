@@ -842,7 +842,7 @@ var SinglestakeUmFator = (() => {
 
   // extension/strategy-entry.ts
   var ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
-  var BASE_STAKE = 0.5;
+  var BASE_STAKE = 50;
   var EXTENSION_MAX_GALES = 6;
   function clampExtensionMaxRecovery(value, fallback = UM_FATOR_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);

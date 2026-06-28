@@ -112,7 +112,7 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
           const stake =
             Number.isFinite(stakeRaw) && stakeRaw > 0
               ? stakeRaw
-              : 0.5 * 2 ** Math.min(Math.max(0, recoveryBefore), maxRecovery);
+              : 50 * 2 ** Math.min(Math.max(0, recoveryBefore), maxRecovery);
           const dedupeKey =
             typeof s.dedupeKey === "string" && s.dedupeKey.trim()
               ? s.dedupeKey.trim()
