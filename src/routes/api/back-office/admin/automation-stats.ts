@@ -5,6 +5,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
     handlers: {
       GET: async ({ request }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
+        const { ensureRouletteHubDaemon } = await import("@/lib/server/rouletteHubDaemon");
+        const { parseRouletteTableIdsFromEnv } = await import("@/lib/server/rouletteSocket");
         const { ensureStrategyGlobalEngine } = await import("@/lib/server/strategyGlobal/engine");
         const { buildAutomationTriggerStatsDto } = await import(
           "@/lib/server/strategyGlobal/automation-trigger-stats"
@@ -16,7 +18,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        await ensureStrategyGlobalEngine();
+        ensureRouletteHubDaemon();
+        const tableIds = parseRouletteTableIdsFromEnv();
+        await ensureStrategyGlobalEngine(tableIds);
         return jsonResponse({ ok: true, data: buildAutomationTriggerStatsDto() });
       },
     },

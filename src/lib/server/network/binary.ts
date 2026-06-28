@@ -9,9 +9,15 @@ import {
   isBinaryPlacementPending,
   listPendingDirectPlacements,
   resolveNextDirectSide,
+  type BinarySide,
 } from "@/lib/server/network/direct-placement";
 
 type NodeRow = typeof binaryTreeNodes.$inferSelect;
+
+function normalizeBinarySide(value: string | null | undefined): BinarySide | null {
+  if (value === "left" || value === "right") return value;
+  return null;
+}
 
 function formatDate(value: Date): string {
   return value.toLocaleDateString("pt-BR", {
@@ -156,7 +162,7 @@ export async function buildBinaryNetworkData(
     },
     placement: {
       parentName,
-      side: myNode?.side ?? null,
+      side: normalizeBinarySide(myNode?.side),
       placedAt: myNode ? formatDate(myNode.placedAt) : null,
       pending: isBinaryPlacementPending(myNode),
     },
