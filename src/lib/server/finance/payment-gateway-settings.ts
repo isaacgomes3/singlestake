@@ -49,10 +49,10 @@ function mergePaymentGatewaySettings(
   };
 
   return {
-    apiBaseUrl: env.apiBaseUrl ?? base.apiBaseUrl || defaults.apiBaseUrl,
-    clientId: env.clientId ?? base.clientId || defaults.clientId,
-    clientSecret: env.clientSecret ?? base.clientSecret || defaults.clientSecret,
-    callbackUrl: env.callbackUrl ?? base.callbackUrl || defaults.callbackUrl,
+    apiBaseUrl: (env.apiBaseUrl ?? base.apiBaseUrl) || defaults.apiBaseUrl,
+    clientId: (env.clientId ?? base.clientId) || defaults.clientId,
+    clientSecret: (env.clientSecret ?? base.clientSecret) || defaults.clientSecret,
+    callbackUrl: (env.callbackUrl ?? base.callbackUrl) || defaults.callbackUrl,
     enabled: true,
   };
 }
