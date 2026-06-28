@@ -164,8 +164,8 @@ else
   echo "✓ Node responde em :3000"
 fi
 
-echo "→ verificação pós-deploy (45s — hub Pragmatic)"
-sleep 45
+echo "→ verificação pós-deploy (15s — hub Pragmatic)"
+sleep 15
 HIST="$(curl -sf --max-time 60 http://127.0.0.1:3000/api/roulette/histories || echo '{}')"
 if echo "$HIST" | grep -q '"hasData":true'; then
   echo "✓ Roleta: dados Pragmatic OK"
