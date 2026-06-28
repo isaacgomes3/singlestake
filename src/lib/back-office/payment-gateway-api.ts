@@ -15,7 +15,7 @@ export async function fetchPaymentGatewaySettings(): Promise<PaymentGatewaySetti
 }
 
 export async function savePaymentGatewaySettings(
-  input: Partial<PaymentGatewaySettingsDto> & { enabled: boolean },
+  input: Partial<PaymentGatewaySettingsDto>,
 ): Promise<{ ok: true; settings: PaymentGatewaySettingsDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/admin/payment-gateway", {
     method: "PUT",

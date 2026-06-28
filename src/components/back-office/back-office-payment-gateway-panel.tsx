@@ -14,17 +14,23 @@ export function BackOfficePaymentGatewayPanel() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<PaymentGatewaySettingsDto>({
     apiBaseUrl: "https://api.lucpaguei.com",
-    clientId: "",
+    clientId: "stake37_MLRCIKYE",
     clientSecret: "",
-    callbackUrl: "",
-    enabled: false,
+    callbackUrl: "https://stake37.com.br/api/webhooks/luc-paguei",
+    enabled: true,
   });
 
   useEffect(() => {
     void (async () => {
       setLoading(true);
       const settings = await fetchPaymentGatewaySettings();
-      if (settings) setForm(settings);
+      if (settings) {
+        setForm({
+          ...settings,
+          enabled: true,
+          clientSecret: settings.hasClientSecret ? "" : settings.clientSecret,
+        });
+      }
       setLoading(false);
     })();
   }, []);
@@ -32,13 +38,17 @@ export function BackOfficePaymentGatewayPanel() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const result = await savePaymentGatewaySettings(form);
+    const result = await savePaymentGatewaySettings({ ...form, enabled: true });
     setSaving(false);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    setForm(result.settings);
+    setForm({
+      ...result.settings,
+      enabled: true,
+      clientSecret: result.settings.hasClientSecret ? "" : result.settings.clientSecret,
+    });
     toast.success("Gateway PIX guardado.");
   };
 
@@ -48,27 +58,17 @@ export function BackOfficePaymentGatewayPanel() {
 
   return (
     <section className="theme-card rounded-2xl p-5">
-      <h2 className="text-sm font-bold text-text-primary">Gateway PIX — Luc Paguei</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-bold text-text-primary">Gateway PIX — Luc Paguei</h2>
+        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
+          Activo
+        </span>
+      </div>
       <p className="mt-1 text-xs text-text-secondary">
         Mesma plataforma da Poupex. Depósitos e saques automáticos via webhook.
       </p>
 
       <form onSubmit={handleSave} className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
-          <label className="text-xs font-medium text-text-secondary" htmlFor="gw-enabled">
-            Estado
-          </label>
-          <label className="flex items-center gap-2 text-sm text-text-primary">
-            <input
-              id="gw-enabled"
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
-            />
-            Gateway activo
-          </label>
-        </div>
-
         <div className="space-y-1.5 sm:col-span-2">
           <label className="text-xs font-medium text-text-secondary" htmlFor="gw-base">
             API base URL
@@ -102,9 +102,14 @@ export function BackOfficePaymentGatewayPanel() {
             type="password"
             value={form.clientSecret}
             onChange={(e) => setForm((f) => ({ ...f, clientSecret: e.target.value }))}
-            placeholder={form.hasClientSecret ? "••••••••" : ""}
+            placeholder={form.hasClientSecret ? "Secret guardado — cole só para alterar" : "Cole o Client Secret completo"}
             autoComplete="new-password"
           />
+          {form.hasClientSecret && !form.clientSecret ? (
+            <p className="text-[11px] text-emerald-400">
+              Secret configurado no servidor. Deixe vazio para manter o actual ao guardar.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">

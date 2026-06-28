@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/back-office/admin/payment-gateway")({
           clientId: body?.clientId?.trim() ?? current.clientId,
           clientSecret,
           callbackUrl: body?.callbackUrl?.trim() || current.callbackUrl,
-          enabled: body?.enabled === true,
+          enabled: true,
         });
 
         return jsonResponse({ ok: true, settings: redactPaymentGatewaySettings(saved) });

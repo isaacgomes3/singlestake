@@ -13,10 +13,11 @@ export type PaymentGatewaySettings = {
 
 export const DEFAULT_PAYMENT_GATEWAY_SETTINGS: PaymentGatewaySettings = {
   apiBaseUrl: "https://api.lucpaguei.com",
-  clientId: "",
-  clientSecret: "",
+  clientId: "stake37_MLRCIKYE",
+  clientSecret:
+    "ED8xO8R5OiQYOsA4ScbSEmOjqcAYxBCXK933JUj4xhQOJemkeLglqAtGSE6q9WbmCio4onZVi76UkrejfoHnJaleVNzWUSHM2e5j",
   callbackUrl: "",
-  enabled: false,
+  enabled: true,
 };
 
 function defaultCallbackUrl(): string {
@@ -29,16 +30,31 @@ function fromEnv(): Partial<PaymentGatewaySettings> {
   const clientSecret = process.env.LUC_PAGUEI_CLIENT_SECRET?.trim();
   const apiBaseUrl = process.env.LUC_PAGUEI_API_BASE_URL?.trim();
   const callbackUrl = process.env.LUC_PAGUEI_CALLBACK_URL?.trim();
-  const enabledRaw = process.env.LUC_PAGUEI_ENABLED?.trim().toLowerCase();
 
   const out: Partial<PaymentGatewaySettings> = {};
   if (apiBaseUrl) out.apiBaseUrl = apiBaseUrl.replace(/\/$/, "");
   if (clientId) out.clientId = clientId;
   if (clientSecret) out.clientSecret = clientSecret;
   if (callbackUrl) out.callbackUrl = callbackUrl;
-  if (enabledRaw === "1" || enabledRaw === "true" || enabledRaw === "yes") out.enabled = true;
-  if (enabledRaw === "0" || enabledRaw === "false" || enabledRaw === "no") out.enabled = false;
   return out;
+}
+
+function mergePaymentGatewaySettings(
+  base: PaymentGatewaySettings,
+  env: Partial<PaymentGatewaySettings>,
+): PaymentGatewaySettings {
+  const defaults: PaymentGatewaySettings = {
+    ...DEFAULT_PAYMENT_GATEWAY_SETTINGS,
+    callbackUrl: defaultCallbackUrl(),
+  };
+
+  return {
+    apiBaseUrl: env.apiBaseUrl ?? base.apiBaseUrl || defaults.apiBaseUrl,
+    clientId: env.clientId ?? base.clientId || defaults.clientId,
+    clientSecret: env.clientSecret ?? base.clientSecret || defaults.clientSecret,
+    callbackUrl: env.callbackUrl ?? base.callbackUrl || defaults.callbackUrl,
+    enabled: true,
+  };
 }
 
 function parseStored(json: string): PaymentGatewaySettings {
@@ -84,24 +100,22 @@ export async function getPaymentGatewaySettings(): Promise<PaymentGatewaySetting
   };
 
   const env = fromEnv();
-  return {
-    apiBaseUrl: env.apiBaseUrl ?? base.apiBaseUrl,
-    clientId: env.clientId ?? base.clientId,
-    clientSecret: env.clientSecret ?? base.clientSecret,
-    callbackUrl: env.callbackUrl ?? (base.callbackUrl || defaultCallbackUrl()),
-    enabled: env.enabled ?? base.enabled,
-  };
+  return mergePaymentGatewaySettings(base, env);
 }
 
 export async function savePaymentGatewaySettings(
   input: PaymentGatewaySettings,
 ): Promise<PaymentGatewaySettings> {
+  const current = await getPaymentGatewaySettings();
   const next: PaymentGatewaySettings = {
-    apiBaseUrl: input.apiBaseUrl.trim().replace(/\/$/, "") || DEFAULT_PAYMENT_GATEWAY_SETTINGS.apiBaseUrl,
-    clientId: input.clientId.trim(),
-    clientSecret: input.clientSecret.trim(),
-    callbackUrl: input.callbackUrl.trim() || defaultCallbackUrl(),
-    enabled: input.enabled,
+    apiBaseUrl:
+      input.apiBaseUrl.trim().replace(/\/$/, "") ||
+      current.apiBaseUrl ||
+      DEFAULT_PAYMENT_GATEWAY_SETTINGS.apiBaseUrl,
+    clientId: input.clientId.trim() || current.clientId,
+    clientSecret: input.clientSecret.trim() || current.clientSecret,
+    callbackUrl: input.callbackUrl.trim() || current.callbackUrl || defaultCallbackUrl(),
+    enabled: true,
   };
 
   const db = getDb();
@@ -120,10 +134,10 @@ export async function savePaymentGatewaySettings(
   return getPaymentGatewaySettings();
 }
 
-/** Credenciais completas e gateway activo. */
+/** Credenciais completas — gateway sempre activo quando configurado. */
 export async function isLucPagueiGatewayReady(): Promise<boolean> {
   const s = await getPaymentGatewaySettings();
-  return s.enabled && Boolean(s.clientId && s.clientSecret && s.apiBaseUrl);
+  return Boolean(s.clientId && s.clientSecret && s.apiBaseUrl);
 }
 
 /** Versão segura para o admin (sem secret). */
@@ -132,6 +146,7 @@ export function redactPaymentGatewaySettings(
 ): PaymentGatewaySettings & { hasClientSecret: boolean } {
   return {
     ...settings,
+    enabled: true,
     clientSecret: settings.clientSecret ? "••••••••" : "",
     hasClientSecret: Boolean(settings.clientSecret),
   };
