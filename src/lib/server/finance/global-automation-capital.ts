@@ -294,3 +294,52 @@ export async function getGlobalAutomationFinanceSnapshot(
     entries,
   };
 }
+
+/** Remove liquidações do extrato e repõe saldo operacional ao capital inicial (R$ 50.000). */
+export async function resetGlobalAutomationOperationsToInitial(): Promise<{
+  balance: number;
+  settlementsRemoved: number;
+}> {
+  const companyUserId = await resolveCompanyUserId();
+  await ensureGlobalAutomationWallet(companyUserId);
+  const db = getDb();
+
+  const settleRows = await db.query.ledgerEntries.findMany({
+    where: and(
+      eq(ledgerEntries.userId, companyUserId),
+      eq(ledgerEntries.bucket, GLOBAL_AUTOMATION_BUCKET),
+      eq(ledgerEntries.referenceType, GLOBAL_AUTOMATION_SETTLE_REF_TYPE),
+    ),
+  });
+  const settlementsRemoved = settleRows.length;
+
+  if (settlementsRemoved > 0) {
+    await db
+      .delete(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.userId, companyUserId),
+          eq(ledgerEntries.bucket, GLOBAL_AUTOMATION_BUCKET),
+          eq(ledgerEntries.referenceType, GLOBAL_AUTOMATION_SETTLE_REF_TYPE),
+        ),
+      );
+  }
+
+  const personal = await getPersonalAutomationWalletBalance(companyUserId);
+  const account = await db.query.walletAccounts.findFirst({
+    where: and(
+      eq(walletAccounts.userId, companyUserId),
+      eq(walletAccounts.bucket, GLOBAL_AUTOMATION_BUCKET),
+    ),
+  });
+
+  if (account) {
+    const target = Math.round((ROULETTE_AUTOMATION_INITIAL_BANK + personal) * 100) / 100;
+    await db
+      .update(walletAccounts)
+      .set({ availableBalance: target, updatedAt: new Date() })
+      .where(eq(walletAccounts.id, account.id));
+  }
+
+  return { balance: ROULETTE_AUTOMATION_INITIAL_BANK, settlementsRemoved };
+}

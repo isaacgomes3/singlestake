@@ -93,6 +93,7 @@ import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/b
 import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
 import { Route as ApiBackOfficeAdminPaymentGatewayRouteImport } from './routes/api/back-office/admin/payment-gateway'
 import { Route as ApiBackOfficeAdminNotificationsRouteImport } from './routes/api/back-office/admin/notifications'
+import { Route as ApiBackOfficeAdminAutomationResetCycleRouteImport } from './routes/api/back-office/admin/automation-reset-cycle'
 import { Route as ApiBackOfficeAdminAutomationRebuildHistoryRouteImport } from './routes/api/back-office/admin/automation-rebuild-history'
 import { Route as ApiBackOfficeAdminAutomationConfigRouteImport } from './routes/api/back-office/admin/automation-config'
 import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
@@ -557,6 +558,12 @@ const ApiBackOfficeAdminNotificationsRoute =
     path: '/api/back-office/admin/notifications',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminAutomationResetCycleRoute =
+  ApiBackOfficeAdminAutomationResetCycleRouteImport.update({
+    id: '/api/back-office/admin/automation-reset-cycle',
+    path: '/api/back-office/admin/automation-reset-cycle',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeAdminAutomationRebuildHistoryRoute =
   ApiBackOfficeAdminAutomationRebuildHistoryRouteImport.update({
     id: '/api/back-office/admin/automation-rebuild-history',
@@ -694,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
+  '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -789,6 +797,7 @@ export interface FileRoutesByTo {
   '/back-office/$groupId': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
+  '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -888,6 +897,7 @@ export interface FileRoutesById {
   '/back-office/$groupId/': typeof BackOfficeGroupIdIndexRoute
   '/api/back-office/admin/automation-config': typeof ApiBackOfficeAdminAutomationConfigRoute
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
+  '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -988,6 +998,7 @@ export interface FileRouteTypes {
     | '/back-office/$groupId/'
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
+    | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1083,6 +1094,7 @@ export interface FileRouteTypes {
     | '/back-office/$groupId'
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
+    | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1181,6 +1193,7 @@ export interface FileRouteTypes {
     | '/back-office/$groupId/'
     | '/api/back-office/admin/automation-config'
     | '/api/back-office/admin/automation-rebuild-history'
+    | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1271,6 +1284,7 @@ export interface RootRouteChildren {
   ApiWebhooksLucPagueiRoute: typeof ApiWebhooksLucPagueiRoute
   ApiBackOfficeAdminAutomationConfigRoute: typeof ApiBackOfficeAdminAutomationConfigRoute
   ApiBackOfficeAdminAutomationRebuildHistoryRoute: typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
+  ApiBackOfficeAdminAutomationResetCycleRoute: typeof ApiBackOfficeAdminAutomationResetCycleRoute
   ApiBackOfficeAdminNotificationsRoute: typeof ApiBackOfficeAdminNotificationsRoute
   ApiBackOfficeAdminPaymentGatewayRoute: typeof ApiBackOfficeAdminPaymentGatewayRoute
   ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -1880,6 +1894,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/automation-reset-cycle': {
+      id: '/api/back-office/admin/automation-reset-cycle'
+      path: '/api/back-office/admin/automation-reset-cycle'
+      fullPath: '/api/back-office/admin/automation-reset-cycle'
+      preLoaderRoute: typeof ApiBackOfficeAdminAutomationResetCycleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/admin/automation-rebuild-history': {
       id: '/api/back-office/admin/automation-rebuild-history'
       path: '/api/back-office/admin/automation-rebuild-history'
@@ -2212,6 +2233,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeAdminAutomationConfigRoute,
   ApiBackOfficeAdminAutomationRebuildHistoryRoute:
     ApiBackOfficeAdminAutomationRebuildHistoryRoute,
+  ApiBackOfficeAdminAutomationResetCycleRoute:
+    ApiBackOfficeAdminAutomationResetCycleRoute,
   ApiBackOfficeAdminNotificationsRoute: ApiBackOfficeAdminNotificationsRoute,
   ApiBackOfficeAdminPaymentGatewayRoute: ApiBackOfficeAdminPaymentGatewayRoute,
   ApiBackOfficeAdminPendingActivationsRoute:

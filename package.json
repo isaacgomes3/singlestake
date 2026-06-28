@@ -10,6 +10,7 @@
     "reset:local": "npx --yes tsx scripts/reset-local.ts",
     "check:local": "npx --yes tsx scripts/check-local.ts",
     "seed:local-automation": "npx --yes tsx scripts/seed-local-automation.ts",
+    "reset:global-automation": "npx --yes tsx scripts/reset-global-automation.ts",
     "test:local": "npx --yes tsx scripts/test-local.ts",
     "build": "vite build",
     "build:dev": "vite build --mode development",

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { AutomationPauseBanner } from "@/components/back-office/automation-pause-banner";
 import {
   fetchAutomationConfig,
+  resetAutomationCycle,
   saveAutomationConfig,
 } from "@/lib/back-office/automation-config-api";
 import type { GlobalAutomationConfigDto } from "@/lib/back-office/automation-config";
@@ -24,6 +25,7 @@ export function BackOfficeAutomationConfigPanel() {
   const { money } = useFormat();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [config, setConfig] = useState<GlobalAutomationConfigDto | null>(null);
   const [paused, setPaused] = useState(false);
   const [baseStake, setBaseStake] = useState(String(ROULETTE_AUTOMATION_BASE_STAKE));
@@ -66,6 +68,29 @@ export function BackOfficeAutomationConfigPanel() {
     }
     setConfig(result.config);
     toast.success("Configuração da automação guardada.");
+  };
+
+  const handleResetCycle = async () => {
+    if (
+      !window.confirm(
+        "Repor saldo inicial (R$ 50.000) e apagar todo o histórico da automação? Esta acção não pode ser desfeita.",
+      )
+    ) {
+      return;
+    }
+    setResetting(true);
+    const result = await resetAutomationCycle();
+    setResetting(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Não foi possível reiniciar o ciclo.");
+      return;
+    }
+    toast.success(result.message ?? "Ciclo reiniciado.");
+    const row = await fetchAutomationConfig();
+    if (row) {
+      setConfig(row);
+      setPaused(row.paused);
+    }
   };
 
   if (loading) {
@@ -166,9 +191,17 @@ export function BackOfficeAutomationConfigPanel() {
           />
         </div>
 
-        <div className="sm:col-span-2">
-          <Button type="submit" disabled={saving}>
+        <div className="sm:col-span-2 flex flex-wrap gap-2">
+          <Button type="submit" disabled={saving || resetting}>
             {saving ? "A guardar…" : "Guardar configuração"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving || resetting}
+            onClick={() => void handleResetCycle()}
+          >
+            {resetting ? "A reiniciar…" : "Reiniciar ciclo (saldo + histórico)"}
           </Button>
         </div>
       </form>

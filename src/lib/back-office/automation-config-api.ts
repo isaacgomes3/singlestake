@@ -34,3 +34,25 @@ export async function saveAutomationConfig(
     return { ok: false, error: "Falha de rede." };
   }
 }
+
+export async function resetAutomationCycle(): Promise<{
+  ok: boolean;
+  error?: string;
+  balance?: number;
+  message?: string;
+}> {
+  try {
+    const res = await fetch("/api/back-office/admin/automation-reset-cycle", {
+      method: "POST",
+      credentials: "include",
+    });
+    return (await res.json()) as {
+      ok: boolean;
+      error?: string;
+      balance?: number;
+      message?: string;
+    };
+  } catch {
+    return { ok: false, error: "Falha de rede." };
+  }
+}

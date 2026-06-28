@@ -407,3 +407,9 @@ export async function getAutomationSimSnapshotOrThrow(
 ): Promise<AutomationSimApiSnapshot> {
   return syncAutomationSimWithStrategy(strategySnapshot, { broadcast: false });
 }
+
+/** Após reset manual — evita reprocessar ledger antigo em memória. */
+export function resetAutomationSimEngineFlags(): void {
+  replayedLedger = true;
+  capitalReady = true;
+}
