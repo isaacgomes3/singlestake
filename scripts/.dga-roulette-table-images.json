@@ -1,0 +1,106 @@
+[
+  {
+    "tableId": 201,
+    "label": "Roulette 2 Extra Time",
+    "tableName": "Roulette 2 Extra Time",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/5kvxlw4c1qm3xcyn/poster.jpg?v=0.8164555538281012",
+    "localFile": "lobby/dga/201.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 203,
+    "label": "Speed Roulette 1",
+    "tableName": "Speed Roulette 1",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/fl9knouu0yjez2wi/poster.jpg?v=0.8164555538281012",
+    "localFile": "lobby/dga/203.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 205,
+    "label": "Speed Roulette 2",
+    "tableName": "SPEED ROULETTE 2",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/r20speedrtwo201s/poster.jpg?v=0.8406038880023833",
+    "localFile": "lobby/dga/205.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 206,
+    "label": "Roulette Macao",
+    "tableName": "Roulette Macao",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/yqpz3ichst2xg439/poster.jpg?v=0.8164555538281012",
+    "localFile": "lobby/dga/206.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 213,
+    "label": "Korean Roulette",
+    "tableName": "Korean Roulette",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/381rwkr381korean/poster.jpg?v=0.8164555538281012",
+    "localFile": "lobby/dga/213.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 221,
+    "label": "Roleta Russa",
+    "tableName": "Russian Roulette",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/t4jzencinod6iqwi/poster.jpg?v=0.03285013905783041",
+    "localFile": "lobby/dga/221.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 224,
+    "label": "Roleta Turca",
+    "tableName": "Turkish Roulette",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/p8l1j84prrmxzyic/poster.jpg?v=0.8406038880023833",
+    "localFile": "lobby/dga/224.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 227,
+    "label": "Roulette 1",
+    "tableName": "Roulette 1",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/g03y1t9vvuhrfytl/poster.jpg?v=0.03285013905783041",
+    "localFile": "lobby/dga/227.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 230,
+    "label": "Roulette 3",
+    "tableName": "Roulette 3",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/chroma229rwltr22/poster.jpg?v=0.27365200568496817",
+    "localFile": "lobby/dga/230.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 233,
+    "label": "Roleta Romena",
+    "tableName": "Romanian Roulette",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/romania233rwl291/poster.jpg?v=0.8406038880023833",
+    "localFile": "lobby/dga/233.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 234,
+    "label": "Roulette Latina",
+    "tableName": "Roulette Latina",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/roulerw234rwl292/poster.jpg?v=0.27365200568496817",
+    "localFile": "lobby/dga/234.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 237,
+    "label": "Brasileira Roleta",
+    "tableName": "Brazilian Roulette",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/rwbrzportrwa16rg/poster.jpg?v=0.8164555538281012",
+    "localFile": "lobby/dga/237.jpg",
+    "downloadError": null
+  },
+  {
+    "tableId": 28401,
+    "label": "French Roulette la Partage",
+    "tableName": "French Roulette la Partage",
+    "tableImage": "https://client.pragmaticplaylive.net/desktop/assets/snaps/frenchroulette01/poster.jpg?v=0.8406038880023833",
+    "localFile": "lobby/dga/28401.jpg",
+    "downloadError": null
+  }
+]

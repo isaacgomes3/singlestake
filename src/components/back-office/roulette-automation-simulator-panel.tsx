@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Wallet } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { AutomationPauseBanner } from "@/components/back-office/automation-pause-banner";
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
 import { AUTOMATION_CHART_THEME } from "@/hooks/useChartTheme";
@@ -9,6 +10,7 @@ import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import {
+  finalizeAutomationSimState,
   ROULETTE_AUTOMATION_INITIAL_BANK,
   automationChartYDomain,
   formatAutomationChartYTick,
@@ -17,31 +19,49 @@ import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
-export function RouletteAutomationSimulatorPanel() {
+type Props = {
+  /** Saldo oficial da carteira (extrato financeiro). */
+  officialBalance?: number | null;
+  /** Capital inicial de referência para lucro/prejuízo. */
+  initialCapital?: number;
+};
+
+export function RouletteAutomationSimulatorPanel({
+  officialBalance = null,
+  initialCapital = ROULETTE_AUTOMATION_INITIAL_BANK,
+}: Props) {
   const { t } = useI18n();
   const { money } = useFormat();
   const chart = AUTOMATION_CHART_THEME;
-  const { state, openBet } = useRouletteAutomationSim();
+  const { state, openBet, config } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
   const rotatingRoomSession = useRotatingRoomUmFatorSession(tableIds, histories, {
     observeOnly: true,
   });
-  const chartData = state.chart;
+  const displayState = useMemo(() => {
+    if (officialBalance == null) return state;
+    return finalizeAutomationSimState(state, officialBalance);
+  }, [state, officialBalance]);
+  const chartData = displayState.chart;
   const chartYDomain = useMemo(() => automationChartYDomain(chartData), [chartData]);
 
-  const displayBalance = state.balance;
-  const net = displayBalance - ROULETTE_AUTOMATION_INITIAL_BANK;
-  const netPct =
-    ROULETTE_AUTOMATION_INITIAL_BANK > 0
-      ? (net / ROULETTE_AUTOMATION_INITIAL_BANK) * 100
-      : 0;
+  const displayBalance = officialBalance ?? state.balance;
+  const net = displayBalance - initialCapital;
+  const netPct = initialCapital > 0 ? (net / initialCapital) * 100 : 0;
   const freeBalance = displayBalance;
+
+  const isPaused = config?.blocksNewEntries === true;
 
   return (
     <div className="automation-panel overflow-hidden rounded-2xl">
       <div className="border-b border-border-color px-5 py-4">
         <div className="flex flex-wrap items-center gap-3">
-          {openBet ? (
+          {isPaused ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
+              <span className="h-2 w-2 rounded-full bg-warning" />
+              {t("overview.automation.paused")}
+            </span>
+          ) : openBet ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
               <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
               {t("overview.automation.inPlay", { table: openBet.tableLabel })}
@@ -53,6 +73,8 @@ export function RouletteAutomationSimulatorPanel() {
             </span>
           )}
         </div>
+
+        <AutomationPauseBanner config={config} className="mt-3" />
 
         <div className="mt-4">
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-automation-title">
@@ -93,7 +115,7 @@ export function RouletteAutomationSimulatorPanel() {
             {money(net)} ({netPct >= 0 ? "+" : ""}
             {netPct.toFixed(2)}%) ·{" "}
             {t("overview.automation.globalBank", {
-              amount: money(ROULETTE_AUTOMATION_INITIAL_BANK),
+              amount: money(initialCapital),
             })}
             {openBet
               ? ` · ${t("overview.automation.total", { amount: money(displayBalance) })}`

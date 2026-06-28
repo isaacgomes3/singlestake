@@ -109,6 +109,49 @@ export function recalculateAutomationRoundBalances(
   return { ...next, chart: buildAutomationChartData(next) };
 }
 
+/** Banca de referência para lucro/prejuízo após capital registado no extrato. */
+export function globalAutomationOpeningBalance(
+  state: Pick<RouletteAutomationSimState, "capitalRegisteredAt" | "cycleOpeningBalance">,
+): number {
+  if (state.capitalRegisteredAt != null) return ROULETTE_AUTOMATION_INITIAL_BANK;
+  if (typeof state.cycleOpeningBalance === "number" && Number.isFinite(state.cycleOpeningBalance)) {
+    return state.cycleOpeningBalance;
+  }
+  return ROULETTE_AUTOMATION_INITIAL_BANK;
+}
+
+/** Timestamp mínimo do ledger estratégico para histórico coerente com o extrato financeiro. */
+export function globalAutomationLedgerFloorTs(
+  state: Pick<RouletteAutomationSimState, "capitalRegisteredAt" | "startedAt">,
+): number {
+  return state.capitalRegisteredAt ?? state.startedAt;
+}
+
+/**
+ * Saldo oficial da automação global = capital + liquidações de roleta (extrato filtrado).
+ * Histórico/gráfico seguem a cadeia cumulativa das rodadas.
+ */
+export function finalizeAutomationSimState(
+  state: RouletteAutomationSimState,
+  officialBalance: number,
+): RouletteAutomationSimState {
+  const opening = globalAutomationOpeningBalance(state);
+  const recalculated = recalculateAutomationRoundBalances({
+    ...state,
+    cycleOpeningBalance: opening,
+  });
+
+  if (Math.abs(recalculated.balance - officialBalance) <= 0.01) {
+    return {
+      ...recalculated,
+      balance: officialBalance,
+      chart: buildAutomationChartData({ ...recalculated, balance: officialBalance }),
+    };
+  }
+
+  return recalculated;
+}
+
 export function formatStakeBrl(value: number): string {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -117,16 +160,23 @@ export function formatStakeBrl(value: number): string {
   });
 }
 
-/** Sempre R$ 50 — stake não depende mais da banca. */
-export function baseStakeFromBalance(_balance?: number): number {
-  return ROULETTE_AUTOMATION_BASE_STAKE;
+/** Sempre R$ 50 por defeito — stake configurável via automação global. */
+export function baseStakeFromBalance(
+  _balance?: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): number {
+  return baseStake;
 }
 
-/** R$ 50 × 2^recuperação (máx. rec5 = R$ 1600); após isso volta a R$ 50. */
-export function stakeForRecovery(recovery: number, _balance?: number): number {
+/** baseStake × 2^recuperação (máx. rec5); após isso volta ao baseStake. */
+export function stakeForRecovery(
+  recovery: number,
+  _balance?: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): number {
   const level = Math.max(0, Math.floor(recovery));
-  if (level > UM_FATOR_MAX_RECOVERY) return ROULETTE_AUTOMATION_BASE_STAKE;
-  return ROULETTE_AUTOMATION_BASE_STAKE * 2 ** level;
+  if (level > UM_FATOR_MAX_RECOVERY) return baseStake;
+  return baseStake * 2 ** level;
 }
 
 /** Nível de gale coerente com stake (fallback se recovery no ledger estiver errado). */
@@ -143,8 +193,15 @@ export function pendingSignalFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
+  options?: { baseStake?: number; blockNewEntries?: boolean },
 ): AutomationPendingSignal | null {
-  return pendingSignalFromUmFatorSession(snapshot.um1fator, balance, histories);
+  if (options?.blockNewEntries) return null;
+  return pendingSignalFromUmFatorSession(
+    snapshot.um1fator,
+    balance,
+    histories,
+    options?.baseStake,
+  );
 }
 
 /** Mesma lógica do cartão da sala rotativa — só com janela de apostas aberta (início do gatilho). */
@@ -155,6 +212,7 @@ export function pendingSignalFromUmFatorSession(
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): AutomationPendingSignal | null {
   if (!session.showTapeteSignal || session.currentTableId == null || !session.umActive) {
     return null;
@@ -176,7 +234,7 @@ export function pendingSignalFromUmFatorSession(
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
     recovery,
-    stake: stakeForRecovery(recovery, balance),
+    stake: stakeForRecovery(recovery, balance, baseStake),
     umActive: session.umActive,
   };
 }
@@ -201,10 +259,12 @@ export function ledgerEntryKey(entry: StrategyGlobalLedgerEntry): string {
   return `${entry.ts}-${entry.tableId}-${entry.recovery}-${entry.kind}-${entry.won}`;
 }
 
-/** Um giro liquidado por mesa — recovery entra só no ledgerEntryKey, não aqui. */
-export function ledgerResultKey(entry: Pick<StrategyGlobalLedgerEntry, "tableId" | "resultNumber">): string | null {
+/** Um giro liquidado — inclui timestamp para permitir o mesmo número na mesma mesa em giros distintos. */
+export function ledgerResultKey(
+  entry: Pick<StrategyGlobalLedgerEntry, "tableId" | "resultNumber" | "ts">,
+): string | null {
   if (entry.resultNumber == null) return null;
-  return `${entry.tableId}:${entry.resultNumber}`;
+  return `${entry.tableId}:${entry.resultNumber}:${entry.ts}`;
 }
 
 export function spinSettleKey(tableId: number, resultNumber: number): string {
@@ -290,8 +350,8 @@ function ledgerKindForSpinLoss(recovery: number): StrategyGlobalLedgerEntry["kin
 export function roundBadge(entry: StrategyGlobalLedgerEntry): AutomationRoundBadge {
   if (entry.won) return "VITÓRIA";
   if (entry.kind === "loss") return "DERROTA";
-  if (entry.recovery > 0) return "RECUPERAÇÃO";
-  return entry.kind === "recovery" ? "RECUPERAÇÃO" : "SINAL";
+  if (entry.kind === "recovery") return "RECUPERAÇÃO";
+  return "SINAL";
 }
 
 /** Badge curto para a lista (como no mock de referência). */
@@ -369,6 +429,7 @@ export function settleOpenBetEntry(
   entry: StrategyGlobalLedgerEntry,
   tableLabel: string,
   _balanceAfter?: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): RouletteAutomationSimState {
   if (
     entry.resultNumber != null &&
@@ -384,7 +445,7 @@ export function settleOpenBetEntry(
     entry.resultNumber != null ? spinSettleKey(entry.tableId, entry.resultNumber) : null;
   if (spinKey != null && state.processedKeys.includes(spinKey)) return state;
 
-  const stake = stakeForRecovery(entry.recovery, state.balance);
+  const stake = stakeForRecovery(entry.recovery, state.balance, baseStake);
   const net = entry.won ? stake : -stake;
   const balance = runningBalanceBefore(state) + net;
 
@@ -436,8 +497,9 @@ export function settleLedgerEntry(
   entry: StrategyGlobalLedgerEntry,
   tableLabel: string,
   balanceAfter?: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): RouletteAutomationSimState {
-  return settleOpenBetEntry(state, entry, tableLabel, balanceAfter);
+  return settleOpenBetEntry(state, entry, tableLabel, balanceAfter, baseStake);
 }
 
 export type UmFatorPlacarFlashLike = {
@@ -504,18 +566,20 @@ export function dedupeStrategyLedgerEntries(
 
 /** Reconstrói banca/rodadas só a partir do ledger (ignora saldo corrompido do servidor). */
 export function rebuildAutomationSimFromLedger(
-  startedAt: number,
+  floorTs: number,
   ledger: readonly StrategyGlobalLedgerEntry[],
   openingBalance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  startedAt = floorTs,
 ): RouletteAutomationSimState {
-  return rebuildAutomationSimDisplayFromLedger(startedAt, ledger, openingBalance);
+  return rebuildAutomationSimDisplayFromLedger(floorTs, ledger, openingBalance, startedAt);
 }
 
 /** Reconstrói histórico visual a partir do ledger — sem movimentar extrato financeiro. */
 export function rebuildAutomationSimDisplayFromLedger(
-  startedAt: number,
+  floorTs: number,
   ledger: readonly StrategyGlobalLedgerEntry[],
   openingBalance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  startedAt = floorTs,
 ): RouletteAutomationSimState {
   let state: RouletteAutomationSimState = {
     ...freshAutomationSimState(startedAt),
@@ -524,7 +588,7 @@ export function rebuildAutomationSimDisplayFromLedger(
   };
   state = { ...state, chart: buildAutomationChartData(state) };
 
-  const sorted = dedupeStrategyLedgerEntries(ledger).filter((entry) => entry.ts >= startedAt);
+  const sorted = dedupeStrategyLedgerEntries(ledger).filter((entry) => entry.ts >= floorTs);
 
   for (const entry of sorted) {
     state = settleLedgerEntry(state, entry, lobbyTableDisplayName(entry.tableId));

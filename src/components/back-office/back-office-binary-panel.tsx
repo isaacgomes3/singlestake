@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { BackOfficeBinaryBonusPanel } from "@/components/back-office/back-office-binary-bonus-panel";
 import { BinaryTreeView } from "@/components/back-office/binary-tree-view";
 import { BackOfficeSubAccountsPanel } from "@/components/back-office/back-office-sub-accounts-panel";
 import { fetchBinaryNetwork } from "@/lib/back-office/network-api";
@@ -88,6 +89,8 @@ export function BackOfficeBinaryPanel() {
           ))}
         </div>
       </section>
+
+      <BackOfficeBinaryBonusPanel />
 
       <BackOfficeSubAccountsPanel />
 

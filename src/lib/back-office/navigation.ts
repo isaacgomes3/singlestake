@@ -2,12 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  Award,
   BarChart3,
   ClipboardList,
   Coins,
   FileText,
-  Gamepad2,
   GitBranch,
   LayoutDashboard,
   Link2,
@@ -17,8 +15,6 @@ import {
   ScrollText,
   Shield,
   Sparkles,
-  Split,
-  TrendingUp,
   UserCog,
   Users,
   Wallet,
@@ -29,11 +25,8 @@ import {
 export type BackOfficeModuleId =
   | "visao-geral"
   | "pacotes"
-  | "rendimentos"
   | "afiliados"
   | "rede-binaria"
-  | "qualificacao"
-  | "bonus-binario"
   | "bonus-equipe"
   | "mensalidades"
   | "residual"
@@ -46,11 +39,9 @@ export type BackOfficeModuleId =
   | "relatorios-rede"
   | "central-qualificacao"
   | "admin"
+  | "automacao-config"
   | "auditoria"
-  | "casino-ao-vivo"
-  | "casino-outros-jogos"
-  | "casino-simulador"
-  | "casino-estatisticas";
+  | "casino-ao-vivo";
 
 export type BackOfficeGroupId =
   | "produtos"
@@ -105,8 +96,8 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Produtos",
     path: "/back-office/produtos",
     icon: Package,
-    description: "Pacotes, rendimentos e mensalidades.",
-    moduleIds: ["pacotes", "rendimentos", "mensalidades"],
+    description: "Pacotes e mensalidades.",
+    moduleIds: ["pacotes", "mensalidades"],
   },
   {
     id: "rede",
@@ -114,13 +105,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/rede",
     icon: Network,
     description: "Afiliados, binário, qualificação e bônus.",
-    moduleIds: [
-      "afiliados",
-      "rede-binaria",
-      "qualificacao",
-      "bonus-binario",
-      "bonus-equipe",
-    ],
+    moduleIds: ["afiliados", "rede-binaria", "bonus-equipe"],
   },
   {
     id: "operacoes",
@@ -128,13 +113,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/operacoes",
     icon: BarChart3,
     description: "Comissões, automação e casino ao vivo.",
-    moduleIds: [
-      "operacoes",
-      "casino-ao-vivo",
-      "casino-outros-jogos",
-      "casino-simulador",
-      "casino-estatisticas",
-    ],
+    moduleIds: ["operacoes", "casino-ao-vivo"],
   },
   {
     id: "financeiro",
@@ -157,8 +136,8 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Administração",
     path: "/back-office/administracao",
     icon: Shield,
-    description: "Painel admin e auditoria.",
-    moduleIds: ["admin", "auditoria"],
+    description: "Automação global, painel admin e auditoria.",
+    moduleIds: ["automacao-config", "admin", "auditoria"],
   },
 ];
 
@@ -169,16 +148,15 @@ export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [
   },
   {
     key: "liveCasino",
-    moduleIds: [
-      "casino-ao-vivo",
-      "casino-outros-jogos",
-      "casino-simulador",
-      "casino-estatisticas",
-    ],
+    moduleIds: ["casino-ao-vivo"],
   },
 ];
 
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
+  {
+    key: "automacao",
+    moduleIds: ["automacao-config"],
+  },
   {
     key: "gestao",
     moduleIds: ["admin", "auditoria"],
@@ -193,11 +171,6 @@ const MODULE_META: Record<
     label: "Pacotes",
     icon: Package,
     description: "Cadastro e gestão de planos de investimento.",
-  },
-  rendimentos: {
-    label: "Rendimentos diários",
-    icon: TrendingUp,
-    description: "Motor de ganhos automáticos dos pacotes.",
   },
   mensalidades: {
     label: "Mensalidades",
@@ -217,17 +190,7 @@ const MODULE_META: Record<
   "rede-binaria": {
     label: "Rede binária",
     icon: GitBranch,
-    description: "Lados esquerdo/direito e árvore genealógica.",
-  },
-  qualificacao: {
-    label: "Qualificação",
-    icon: Award,
-    description: "Critérios e graduações Bronze a Imperial.",
-  },
-  "bonus-binario": {
-    label: "Bônus binário",
-    icon: Split,
-    description: "Percentual sobre menor lado e tetos.",
+    description: "Estrutura binária, pontos, bônus e árvore genealógica.",
   },
   "bonus-equipe": {
     label: "Bônus de equipe",
@@ -274,10 +237,15 @@ const MODULE_META: Record<
     icon: ClipboardList,
     description: "Acompanhamento de graduação do afiliado.",
   },
+  "automacao-config": {
+    label: "Automação global",
+    icon: Zap,
+    description: "Stop win/loss, stake inicial e pausa da automação financeira.",
+  },
   admin: {
     label: "Painel administrativo",
     icon: UserCog,
-    description: "Usuários, financeiro, bônus e rede.",
+    description: "Utilizadores, gateway PIX, notificações e activações.",
   },
   auditoria: {
     label: "Auditoria e logs",
@@ -288,21 +256,6 @@ const MODULE_META: Record<
     label: "Cassino ao vivo",
     icon: Sparkles,
     description: "Roletas ao vivo e sala rotativa 1 fator.",
-  },
-  "casino-outros-jogos": {
-    label: "Outros jogos",
-    icon: Gamepad2,
-    description: "24D Spin, Super Trunfo e Football Blitz ao vivo.",
-  },
-  "casino-simulador": {
-    label: "Simulador",
-    icon: Coins,
-    description: "Simulador de roleta com giros ao vivo.",
-  },
-  "casino-estatisticas": {
-    label: "Estatísticas",
-    icon: BarChart3,
-    description: "Resumo ao vivo e estatísticas por mesa.",
   },
 };
 

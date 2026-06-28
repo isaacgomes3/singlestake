@@ -9,6 +9,7 @@ import {
   buildRotatingRoomUmFatorSessionLiveView,
   driveRotatingRoomUmFatorPlacar,
   readRotatingRoomUmFatorMachineState,
+  readRotatingRoomOfficialPlacarStats,
   readRotatingRoomUmFatorSessionStats,
   sanitizeUmFatorMachineForTableIds,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
@@ -28,7 +29,10 @@ import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
 import type { RotatingRoomPhase, RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import { useStrategyIndicationActivatedSound } from "@/hooks/useStrategyIndicationActivatedSound";
 import { useStrategySessionVisibilityEpoch } from "@/hooks/useStrategySessionVisibilityEpoch";
-import { shouldPresentStrategyPlacarFeedback } from "@/lib/roulette/strategySessionDrive";
+import {
+  canRunStrategyPlacarDriver,
+  shouldPresentStrategyPlacarFeedback,
+} from "@/lib/roulette/strategySessionDrive";
 import { playPlacarDefeat, playPlacarWinCoins } from "@/lib/sound/strategyTapeteSounds";
 import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
 import {
@@ -109,6 +113,7 @@ export function useRotatingRoomUmFatorSession(
     sanitizeUmFatorMachineForTableIds(readRotatingRoomUmFatorMachineState(), tableIds),
   );
   const [holdEpoch, setHoldEpoch] = useState(0);
+  const [observePlacarRevision, setObservePlacarRevision] = useState(0);
   const flashClearRef = useRef<number | null>(null);
   const machineRef = useRef(machine);
   const statsRef = useRef(sessionStats);
@@ -150,6 +155,21 @@ export function useRotatingRoomUmFatorSession(
       flashClearRef.current = null;
     }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
   };
+
+  useEffect(() => {
+    if (!observeOnly) return;
+    const bump = () => setObservePlacarRevision((n) => n + 1);
+    window.addEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, bump);
+    window.addEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
+    window.addEventListener(ROTATING_ROOM_UM_FATOR_STATS_CORRECTED_EVENT, bump);
+    window.addEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
+    return () => {
+      window.removeEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, bump);
+      window.removeEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
+      window.removeEventListener(ROTATING_ROOM_UM_FATOR_STATS_CORRECTED_EVENT, bump);
+      window.removeEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
+    };
+  }, [observeOnly]);
 
   useEffect(() => {
     const until = machine.postResultHoldUntilMs;
@@ -323,7 +343,7 @@ export function useRotatingRoomUmFatorSession(
 
   useLayoutEffect(() => {
     if (tableIds.length === 0) return;
-    if (useGlobalSession) return;
+    if (useGlobalSession || !canRunStrategyPlacarDriver({ observeOnly })) return;
 
     const tickGen = placarResetGenRef.current;
     isApplyingRef.current = true;
@@ -368,9 +388,14 @@ export function useRotatingRoomUmFatorSession(
     };
   }
 
+  const officialSessionStats = useMemo(() => {
+    void observePlacarRevision;
+    return observeOnly ? readRotatingRoomOfficialPlacarStats() : sessionStats;
+  }, [observeOnly, observePlacarRevision, sessionStats]);
+
   return {
     phase,
-    sessionStats,
+    sessionStats: officialSessionStats,
     showTapeteSignal,
     singleFactorMode: true,
     roundFlash,

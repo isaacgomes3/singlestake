@@ -44,6 +44,7 @@ export async function resolveSessionUser(sessionId: string): Promise<SessionUser
 
   const user = row?.user;
   if (!user) return null;
+  if (user.accountStatus === "blocked" || user.accountStatus === "deleted") return null;
 
   return {
     id: user.id,

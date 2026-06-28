@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   fetchProductPackages,
   fetchUserPackages,
-  purchaseProductPackage,
   purchaseProductPackagePix,
   runDailyAutomationYield,
 } from "@/lib/back-office/product-api";
@@ -52,19 +51,11 @@ export function BackOfficePackagesPanel() {
     void reload();
   }, []);
 
-  const handleBuy = async (packageId: string, amount?: number) => {
-    setBuyingId(packageId);
-    const result = await purchaseProductPackage(packageId, amount);
-    setBuyingId(null);
-    if (!result.ok) {
-      toast.error(result.error);
+  const handleBuyPix = async (pkg: PackageDto, amount?: number) => {
+    if (!pixEnabled) {
+      toast.error(t("products.packages.pixUnavailable"));
       return;
     }
-    toast.success(t("products.packages.toastPurchased"));
-    void reload();
-  };
-
-  const handleBuyPix = async (pkg: PackageDto, amount?: number) => {
     setBuyingId(pkg.id);
     const result = await purchaseProductPackagePix(
       pkg.id,
@@ -131,7 +122,11 @@ export function BackOfficePackagesPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.packages.catalog")}</h2>
-        {pixEnabled && catalog.some((p) => p.pixAvailable) ? (
+        {!pixEnabled ? (
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">
+            {t("products.packages.pixUnavailable")}
+          </p>
+        ) : (
           <div className="mt-3 rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
             <label htmlFor="package-payer-cpf" className="text-xs font-medium text-text-secondary">
               {t("products.packages.cpfLabel")}
@@ -147,7 +142,7 @@ export function BackOfficePackagesPanel() {
             />
             <p className="mt-1.5 text-[11px] text-text-secondary">{t("products.packages.cpfHint")}</p>
           </div>
-        ) : null}
+        )}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {loading
             ? t("shared.loading")
@@ -180,40 +175,23 @@ export function BackOfficePackagesPanel() {
                     ) : (
                       <p className="mt-1 text-lg font-bold tabular-nums">{money(pkg.amount)}</p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3">
                       <Button
                         type="button"
                         size="sm"
-                        disabled={buyingId === pkg.id || locked}
+                        className="w-full sm:w-auto"
+                        disabled={buyingId === pkg.id || locked || !pixEnabled}
                         onClick={() =>
-                          void handleBuy(
-                            pkg.id,
+                          void handleBuyPix(
+                            pkg,
                             pkg.allowsCustomAmount ? Number(customAmount) : undefined,
                           )
                         }
                       >
                         {buyingId === pkg.id
                           ? t("products.packages.buying")
-                          : t("products.packages.buy")}
+                          : t("products.packages.buyPix")}
                       </Button>
-                      {pkg.pixAvailable ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={buyingId === pkg.id || locked}
-                          onClick={() =>
-                            void handleBuyPix(
-                              pkg,
-                              pkg.allowsCustomAmount ? Number(customAmount) : undefined,
-                            )
-                          }
-                        >
-                          {buyingId === pkg.id
-                            ? t("products.packages.buying")
-                            : t("products.packages.buyPix")}
-                        </Button>
-                      ) : null}
                     </div>
                   </div>
                 );

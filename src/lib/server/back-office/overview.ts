@@ -7,6 +7,7 @@ import { WITHDRAWABLE_BUCKETS } from "@/lib/server/finance/constants";
 import { getDb } from "@/lib/server/db/client";
 import { buildAffiliatesData } from "@/lib/server/network/affiliates";
 import { buildQualificationProgress } from "@/lib/server/network/qualification";
+import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
 import {
   deposits,
   ledgerEntries,
@@ -39,12 +40,20 @@ export async function buildBackOfficeOverview(
   });
 
   const withdrawableBuckets = new Set<WalletBucket>(WITHDRAWABLE_BUCKETS);
+  const personalAutomacao = await getPersonalAutomationWalletBalance(userId);
   const availableBalance = wallets
     .filter((w) => withdrawableBuckets.has(w.bucket as WalletBucket))
-    .reduce((sum, w) => sum + w.availableBalance, 0);
+    .reduce(
+      (sum, w) =>
+        sum + (w.bucket === "automacao" ? personalAutomacao : w.availableBalance),
+      0,
+    );
   const blockedBalance = wallets
     .filter((w) => withdrawableBuckets.has(w.bucket as WalletBucket))
-    .reduce((sum, w) => sum + w.blockedBalance, 0);
+    .reduce(
+      (sum, w) => sum + (w.bucket === "automacao" ? 0 : w.blockedBalance),
+      0,
+    );
   const earningsBalance = wallets.find((w) => w.bucket === "rendimentos")?.availableBalance ?? 0;
 
   const ledger = await db.query.ledgerEntries.findMany({
@@ -99,9 +108,10 @@ export async function buildBackOfficeOverview(
 
   const investedBase = activePackages.reduce((sum, p) => sum + p.automationBase, 0);
   const earnedOnBase = activePackages.reduce((sum, p) => sum + p.totalEarned, 0);
-  const automacaoWallet = wallets.find((w) => w.bucket === "automacao")?.availableBalance ?? 0;
+  const automacaoWallet = personalAutomacao;
   const hasStartPack = activePackages.some((p) => p.packageId === BINARY_START_PACKAGE_ID);
-  const displayBalance = automacaoWallet > 0 ? automacaoWallet : investedBase + earnedOnBase;
+  const displayBalance =
+    automacaoWallet > 0 ? automacaoWallet : investedBase + earnedOnBase;
 
   const automation = {
     investedBase,

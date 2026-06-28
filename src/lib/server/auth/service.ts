@@ -114,6 +114,12 @@ export async function loginWithPassword(
   if (!row || !verifyPassword(password, row.passwordHash)) {
     return { ok: false, error: "E-mail ou senha incorretos." };
   }
+  if (row.accountStatus === "blocked") {
+    return { ok: false, error: "Conta bloqueada. Contacte o suporte." };
+  }
+  if (row.accountStatus === "deleted") {
+    return { ok: false, error: "Conta removida." };
+  }
 
   return { ok: true, user: toPublicUser(row) };
 }

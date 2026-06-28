@@ -23,6 +23,15 @@ export const users = sqliteTable(
       .default("bronze"),
     /** CPF do titular (11 dígitos) — obrigatório para PIX via Luc Paguei. */
     cpf: text("cpf"),
+    /** active | blocked | deleted (soft delete). */
+    accountStatus: text("account_status", { enum: ["active", "blocked", "deleted"] })
+      .notNull()
+      .default("active"),
+    /** Chave PIX para saques — bloqueada após 1.º registo até permissão admin. */
+    pixKey: text("pix_key"),
+    pixKeySetAt: integer("pix_key_set_at", { mode: "timestamp_ms" }),
+    /** Admin libera alteração da chave PIX pelo utilizador. */
+    allowPixKeyEdit: integer("allow_pix_key_edit", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -362,6 +371,46 @@ export const systemSettings = sqliteTable("system_settings", {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+/** Notificações enviadas pelo admin (utilizador específico ou em massa). */
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    audience: text("audience", { enum: ["all", "user"] }).notNull(),
+    targetUserId: text("target_user_id").references(() => users.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("notifications_target_user_id_idx").on(t.targetUserId),
+    index("notifications_created_at_idx").on(t.createdAt),
+  ],
+);
+
+/** Leitura de notificações por utilizador. */
+export const notificationReads = sqliteTable(
+  "notification_reads",
+  {
+    notificationId: text("notification_id")
+      .notNull()
+      .references(() => notifications.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    readAt: integer("read_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    uniqueIndex("notification_reads_uidx").on(t.notificationId, t.userId),
+    index("notification_reads_user_id_idx").on(t.userId),
+  ],
+);
+
 export const usersRelations = relations(users, ({ many, one }) => ({
   sponsor: one(users, { fields: [users.sponsorId], references: [users.id] }),
   sessions: many(sessions),
@@ -373,6 +422,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   deposits: many(deposits),
   packagePixOrders: many(packagePixOrders),
   withdrawals: many(withdrawals),
+  notificationsCreated: many(notifications, { relationName: "notificationCreator" }),
+  notificationReads: many(notificationReads),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -405,6 +456,28 @@ export const userPackagesRelations = relations(userPackages, ({ one }) => ({
     fields: [userPackages.packageId],
     references: [investmentPackages.id],
   }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one, many }) => ({
+  targetUser: one(users, {
+    fields: [notifications.targetUserId],
+    references: [users.id],
+    relationName: "notificationTarget",
+  }),
+  createdBy: one(users, {
+    fields: [notifications.createdByUserId],
+    references: [users.id],
+    relationName: "notificationCreator",
+  }),
+  reads: many(notificationReads),
+}));
+
+export const notificationReadsRelations = relations(notificationReads, ({ one }) => ({
+  notification: one(notifications, {
+    fields: [notificationReads.notificationId],
+    references: [notifications.id],
+  }),
+  user: one(users, { fields: [notificationReads.userId], references: [users.id] }),
 }));
 
 export type User = typeof users.$inferSelect;

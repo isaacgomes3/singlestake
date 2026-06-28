@@ -73,7 +73,7 @@ import {
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
 import {
-  readRotatingRoomUmFatorSessionStats,
+  readRotatingRoomOfficialPlacarStats,
   ROTATING_ROOM_UM_FATOR_CHANGED_EVENT,
   ROTATING_ROOM_UM_FATOR_RESET_EVENT,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
@@ -287,8 +287,8 @@ type CasinoLiveRoletasStrategyTab = LobbyRoletasStrategyTab;
 
 const CASINO_LIVE_STRATEGY: CasinoLiveRoletasStrategyTab = "um1fator";
 
-function readLobbyFatoresRotatingRoomStats(): ReturnType<typeof readRotatingRoomUmFatorSessionStats> {
-  return readRotatingRoomUmFatorSessionStats();
+function readLobbyFatoresRotatingRoomStats(): ReturnType<typeof readRotatingRoomOfficialPlacarStats> {
+  return readRotatingRoomOfficialPlacarStats();
 }
 
 function lobbyCasinoLiveStrategyLabel(_tab: CasinoLiveRoletasStrategyTab): string {

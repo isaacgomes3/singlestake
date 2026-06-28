@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
@@ -17,15 +17,7 @@ const backLinkClass =
   "inline-flex w-fit items-center gap-1.5 rounded-lg border border-border-color bg-bg-card px-3 py-2 text-sm font-semibold text-text-secondary transition hover:border-info/40 hover:text-text-primary";
 
 export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Props) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const iframeChrome = useRotatingRoomIframeChrome();
-  const onCasinoOutros =
-    pathname === "/football-blitz" || pathname === "/super-trunfo";
-
-  const backTo = onCasinoOutros
-    ? BACK_OFFICE_PATHS.casinoOutros
-    : BACK_OFFICE_PATHS.casinoAoVivo;
-  const backLabel = onCasinoOutros ? "Outros jogos" : "Cassino ao vivo";
 
   if (rotatingRoom && iframeChrome) {
     return (
@@ -51,8 +43,8 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
         <Link to={BACK_OFFICE_PATHS.home} className={backLinkClass}>
           ← Back office
         </Link>
-        <Link to={backTo} className={backLinkClass}>
-          {backLabel}
+        <Link to={BACK_OFFICE_PATHS.casinoAoVivo} className={backLinkClass}>
+          Cassino ao vivo
         </Link>
       </div>
       {rotatingRoom ? (

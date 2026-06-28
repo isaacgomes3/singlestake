@@ -5,22 +5,36 @@ import { toast } from "sonner";
 import { ReferralLinkField } from "@/components/back-office/referral-link-field";
 import { Button } from "@/components/ui/button";
 import {
+  activateAutomationManual,
   activateStartPackManual,
+  adminSetUserPixKey,
+  allowPixKeyEdit,
   approvePendingActivation,
+  blockUser,
   copyText,
+  deleteUser,
   fetchPendingActivations,
   fetchUsersWithReferralLinks,
+  unblockUser,
 } from "@/lib/back-office/admin-api";
-import type { PendingActivationRecord, UserReferralRecord } from "@/lib/back-office/admin-types";
+import type { AdminUserRecord, PendingActivationRecord } from "@/lib/back-office/admin-types";
 import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
+import { cn } from "@/lib/utils";
+
+function statusLabel(row: AdminUserRecord, t: (key: string) => string): string {
+  if (row.accountStatus === "blocked") return t("admin.statusBlocked");
+  if (row.accountStatus === "deleted") return t("admin.statusDeleted");
+  if (row.accountActive) return t("admin.statusActive");
+  return t("admin.statusPending");
+}
 
 export function BackOfficeAdminUsersPanel() {
   const { t } = useI18n();
   const { money, dateTime } = useFormat();
   const isAdmin = getSession()?.user.role === "admin";
-  const [users, setUsers] = useState<UserReferralRecord[]>([]);
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [pending, setPending] = useState<PendingActivationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionKey, setActionKey] = useState<string | null>(null);
@@ -35,7 +49,7 @@ export function BackOfficeAdminUsersPanel() {
       fetchUsersWithReferralLinks(),
       fetchPendingActivations(),
     ]);
-    setUsers(userRows);
+    setUsers(userRows.filter((u) => u.accountStatus !== "deleted"));
     setPending(pendingRows);
     setLoading(false);
   }, [isAdmin]);
@@ -48,35 +62,68 @@ export function BackOfficeAdminUsersPanel() {
     return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
   }
 
+  const runAction = async (
+    key: string,
+    fn: () => Promise<{ ok: boolean; error?: string }>,
+    successKey: string,
+  ) => {
+    setActionKey(key);
+    const result = await fn();
+    setActionKey(null);
+    if (!result.ok) {
+      toast.error(result.error ?? t("admin.actionFailed"));
+      return;
+    }
+    toast.success(t(successKey));
+    void reload();
+  };
+
   const copyLink = async (link: string) => {
     const ok = await copyText(link);
-    toast[ok ? "success" : "error"](
-      ok ? t("admin.toastCopied") : t("admin.toastCopyFailed"),
+    toast[ok ? "success" : "error"](ok ? t("admin.toastCopied") : t("admin.toastCopyFailed"));
+  };
+
+  const handleApprovePix = (orderId: string) =>
+    void runAction(`approve-${orderId}`, () => approvePendingActivation(orderId), "admin.pendingApproveSuccess");
+
+  const handleActivateManual = (userId: string) =>
+    void runAction(
+      `activate-${userId}`,
+      () => activateStartPackManual(userId),
+      "admin.pendingActivateSuccess",
     );
+
+  const handleActivateAutomation = (userId: string) =>
+    void runAction(
+      `auto-${userId}`,
+      () => activateAutomationManual(userId),
+      "admin.automationActivateSuccess",
+    );
+
+  const handleBlock = (userId: string) => {
+    if (!window.confirm(t("admin.blockConfirm"))) return;
+    void runAction(`block-${userId}`, () => blockUser(userId), "admin.blockSuccess");
   };
 
-  const handleApprovePix = async (orderId: string) => {
-    setActionKey(`approve-${orderId}`);
-    const result = await approvePendingActivation(orderId);
-    setActionKey(null);
-    if (!result.ok) {
-      toast.error(result.error ?? t("admin.pendingActionFailed"));
-      return;
-    }
-    toast.success(t("admin.pendingApproveSuccess"));
-    void reload();
+  const handleUnblock = (userId: string) =>
+    void runAction(`unblock-${userId}`, () => unblockUser(userId), "admin.unblockSuccess");
+
+  const handleDelete = (userId: string) => {
+    if (!window.confirm(t("admin.deleteConfirm"))) return;
+    void runAction(`delete-${userId}`, () => deleteUser(userId), "admin.deleteSuccess");
   };
 
-  const handleActivateManual = async (userId: string) => {
-    setActionKey(`activate-${userId}`);
-    const result = await activateStartPackManual(userId);
-    setActionKey(null);
-    if (!result.ok) {
-      toast.error(result.error ?? t("admin.pendingActionFailed"));
-      return;
-    }
-    toast.success(t("admin.pendingActivateSuccess"));
-    void reload();
+  const handleAllowPixEdit = (userId: string) =>
+    void runAction(`pix-edit-${userId}`, () => allowPixKeyEdit(userId, true), "admin.pixEditAllowed");
+
+  const handleAdminSetPix = (userId: string) => {
+    const pixKey = window.prompt(t("admin.pixSetPrompt"));
+    if (!pixKey?.trim()) return;
+    void runAction(
+      `pix-set-${userId}`,
+      () => adminSetUserPixKey(userId, pixKey.trim()),
+      "admin.pixSetSuccess",
+    );
   };
 
   return (
@@ -84,9 +131,7 @@ export function BackOfficeAdminUsersPanel() {
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("admin.pendingTitle")}</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          {loading
-            ? t("shared.loading")
-            : t("admin.pendingCount", { count: pending.length })}
+          {loading ? t("shared.loading") : t("admin.pendingCount", { count: pending.length })}
         </p>
 
         {loading ? null : pending.length === 0 ? (
@@ -101,7 +146,7 @@ export function BackOfficeAdminUsersPanel() {
                   <th className="px-3 py-2.5 font-semibold">{t("admin.colJoined")}</th>
                   <th className="px-3 py-2.5 font-semibold">{t("admin.pendingColStatus")}</th>
                   <th className="px-3 py-2.5 font-semibold">{t("admin.pendingColAmount")}</th>
-                  <th className="px-3 py-2.5 font-semibold">Ações</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,9 +156,7 @@ export function BackOfficeAdminUsersPanel() {
                     <tr key={row.userId} className="border-b border-border-color/60 last:border-0">
                       <td className="px-3 py-2.5 text-text-primary">{row.userName}</td>
                       <td className="px-3 py-2.5 text-text-secondary">{row.userEmail}</td>
-                      <td className="px-3 py-2.5 text-text-secondary">
-                        {dateTime(row.userCreatedAt)}
-                      </td>
+                      <td className="px-3 py-2.5 text-text-secondary">{dateTime(row.userCreatedAt)}</td>
                       <td className="px-3 py-2.5 text-text-secondary">
                         {hasPendingPix
                           ? t("admin.pendingStatusPending")
@@ -129,7 +172,7 @@ export function BackOfficeAdminUsersPanel() {
                               type="button"
                               size="sm"
                               disabled={actionKey === `approve-${row.orderId}`}
-                              onClick={() => void handleApprovePix(row.orderId!)}
+                              onClick={() => handleApprovePix(row.orderId!)}
                             >
                               {t("admin.pendingApprovePix")}
                             </Button>
@@ -139,7 +182,7 @@ export function BackOfficeAdminUsersPanel() {
                             size="sm"
                             variant="secondary"
                             disabled={actionKey === `activate-${row.userId}`}
-                            onClick={() => void handleActivateManual(row.userId)}
+                            onClick={() => handleActivateManual(row.userId)}
                           >
                             {t("admin.pendingActivateManual")}
                           </Button>
@@ -148,6 +191,156 @@ export function BackOfficeAdminUsersPanel() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("admin.manageTitle")}</h2>
+        <p className="mt-1 text-sm text-text-secondary">
+          {loading ? t("shared.loading") : t("admin.allLinksCount", { count: users.length })}
+        </p>
+
+        {loading ? null : users.length === 0 ? (
+          <p className="mt-3 text-sm text-text-secondary">{t("admin.allLinksEmpty")}</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border-color">
+            <table className="w-full min-w-[1100px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colName")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colEmail")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colStatus")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colAutomation")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colPix")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((row) => (
+                  <tr key={row.id} className="border-b border-border-color/60 last:border-0">
+                    <td className="px-3 py-2.5 text-text-primary">
+                      {row.name}
+                      {row.role === "admin" ? (
+                        <span className="ml-1.5 text-[10px] uppercase text-violet-400">admin</span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-text-secondary">{row.email}</td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                          row.accountStatus === "blocked"
+                            ? "bg-danger/15 text-danger"
+                            : row.accountActive
+                              ? "bg-success/15 text-success"
+                              : "bg-warning/15 text-warning",
+                        )}
+                      >
+                        {statusLabel(row, t)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-text-secondary">
+                      {row.automationActive ? t("admin.automationYes") : t("admin.automationNo")}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-text-secondary">
+                      {row.pixKeyMasked ?? t("admin.pixNone")}
+                      {row.pixKeyLocked ? (
+                        <span className="ml-1 text-[10px] text-warning">🔒</span>
+                      ) : row.allowPixKeyEdit ? (
+                        <span className="ml-1 text-[10px] text-success">✎</span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {row.role === "admin" ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void copyLink(row.referralLink)}
+                        >
+                          <Copy className="size-3.5" />
+                          {t("admin.copy")}
+                        </Button>
+                      ) : (
+                        <div className="flex max-w-[420px] flex-wrap gap-1.5">
+                          {!row.accountActive ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={actionKey === `activate-${row.id}`}
+                              onClick={() => handleActivateManual(row.id)}
+                            >
+                              {t("admin.actionActivateAccount")}
+                            </Button>
+                          ) : null}
+                          {row.accountActive && !row.automationActive ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={actionKey === `auto-${row.id}`}
+                              onClick={() => handleActivateAutomation(row.id)}
+                            >
+                              {t("admin.actionActivateAutomation")}
+                            </Button>
+                          ) : null}
+                          {row.accountStatus === "blocked" ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={actionKey === `unblock-${row.id}`}
+                              onClick={() => handleUnblock(row.id)}
+                            >
+                              {t("admin.actionUnblock")}
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={actionKey === `block-${row.id}`}
+                              onClick={() => handleBlock(row.id)}
+                            >
+                              {t("admin.actionBlock")}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            disabled={actionKey === `pix-edit-${row.id}`}
+                            onClick={() => handleAllowPixEdit(row.id)}
+                          >
+                            {t("admin.actionAllowPixEdit")}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            disabled={actionKey === `pix-set-${row.id}`}
+                            onClick={() => handleAdminSetPix(row.id)}
+                          >
+                            {t("admin.actionSetPix")}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={actionKey === `delete-${row.id}`}
+                            onClick={() => handleDelete(row.id)}
+                          >
+                            {t("admin.actionDelete")}
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -164,61 +357,6 @@ export function BackOfficeAdminUsersPanel() {
             />
           </div>
         ) : null}
-      </section>
-
-      <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">{t("admin.allLinksTitle")}</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          {loading
-            ? t("shared.loading")
-            : t("admin.allLinksCount", { count: users.length })}
-        </p>
-
-        {loading ? null : users.length === 0 ? (
-          <p className="mt-3 text-sm text-text-secondary">{t("admin.allLinksEmpty")}</p>
-        ) : (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-border-color">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
-                  <th className="px-3 py-2.5 font-semibold">{t("admin.colName")}</th>
-                  <th className="px-3 py-2.5 font-semibold">{t("admin.colEmail")}</th>
-                  <th className="px-3 py-2.5 font-semibold">{t("admin.colCode")}</th>
-                  <th className="px-3 py-2.5 font-semibold">{t("admin.colJoined")}</th>
-                  <th className="px-3 py-2.5 font-semibold">{t("admin.colLink")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((row) => (
-                  <tr key={row.id} className="border-b border-border-color/60 last:border-0">
-                    <td className="px-3 py-2.5 text-text-primary">
-                      {row.name}
-                      {row.role === "admin" ? (
-                        <span className="ml-1.5 text-[10px] uppercase text-violet-400">admin</span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-text-secondary">{row.email}</td>
-                    <td className="px-3 py-2.5 font-mono text-xs text-text-primary">
-                      {row.referralCode}
-                    </td>
-                    <td className="px-3 py-2.5 text-text-secondary">{row.createdAt}</td>
-                    <td className="px-3 py-2.5">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void copyLink(row.referralLink)}
-                      >
-                        <Copy className="size-3.5" />
-                        {t("admin.copy")}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </section>
     </div>
   );

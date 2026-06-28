@@ -1,23 +1,26 @@
 /**
- * Apaga a SQLite local e recria do zero (migrations + seed).
+ * Apaga sandbox local (BD + JSON de automação) e recria do zero.
  * Uso: npm run reset:local
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { execSync } from "node:child_process";
 
-import "dotenv/config";
+import { loadLocalEnv, localDataDir, projectRoot, resolveDbPath } from "./load-local-env";
 
-const root = resolve(import.meta.dirname, "..");
-const dbPath = resolve(root, process.env.DATABASE_URL ?? "./data/singlestake.db");
+loadLocalEnv();
+
+const dbPath = resolveDbPath();
 
 for (const file of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
   if (existsSync(file)) rmSync(file);
 }
 
-mkdirSync(dirname(dbPath), { recursive: true });
+const dataDir = localDataDir();
+if (existsSync(dataDir)) {
+  rmSync(dataDir, { recursive: true, force: true });
+}
 
-console.log("BD local removida. A recriar…\n");
-execSync("npm run db:migrate", { cwd: root, stdio: "inherit" });
-execSync("npm run db:seed", { cwd: root, stdio: "inherit" });
-console.log("\nBD local recriada com sucesso.");
+mkdirSync(dataDir, { recursive: true });
+
+console.log("Sandbox local removido. A recriar…\n");
+execSync("npm run setup:local", { cwd: projectRoot, stdio: "inherit", env: process.env });

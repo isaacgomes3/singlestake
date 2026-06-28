@@ -4,13 +4,14 @@ import {
   Headphones,
   Link2,
   Mail,
-  MessageSquare,
   Sparkles,
   X,
 } from "lucide-react";
 
 import { ReferralLinkField } from "@/components/back-office/referral-link-field";
+import { BackOfficeNotificationsList } from "@/components/back-office/back-office-notifications-list";
 import { Button } from "@/components/ui/button";
+import type { UserNotificationRecord } from "@/lib/back-office/notifications-types";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { cn } from "@/lib/utils";
 
@@ -29,8 +30,8 @@ type RailItem = {
 };
 
 const RAIL_ITEMS: RailItem[] = [
-  { id: "notifications", icon: Bell, labelKey: "layout.notifications", badge: 3 },
-  { id: "messages", icon: Mail, labelKey: "layout.messages", badge: 2 },
+  { id: "notifications", icon: Bell, labelKey: "layout.notifications" },
+  { id: "messages", icon: Mail, labelKey: "layout.messages" },
   { id: "affiliate", icon: Link2, labelKey: "layout.affiliate" },
   { id: "support", icon: Headphones, labelKey: "layout.support" },
 ];
@@ -40,6 +41,11 @@ type Props = {
   onSelectPanel: (id: UtilityPanelId) => void;
   referralCode: string;
   referralLink?: string;
+  notifications: UserNotificationRecord[];
+  notificationsLoading?: boolean;
+  unreadCount?: number;
+  onMarkAllNotificationsRead?: () => void;
+  onMarkNotificationRead?: (id: string) => void;
 };
 
 export function BackOfficeUtilityRail({
@@ -47,6 +53,11 @@ export function BackOfficeUtilityRail({
   onSelectPanel,
   referralCode,
   referralLink,
+  notifications,
+  notificationsLoading = false,
+  unreadCount = 0,
+  onMarkAllNotificationsRead,
+  onMarkNotificationRead,
 }: Props) {
   const { t } = useI18n();
 
@@ -91,22 +102,22 @@ export function BackOfficeUtilityRail({
 
           <div className="flex-1 overflow-y-auto p-4">
             {activePanel === "notifications" ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((key) => (
-                  <div key={key} className="theme-card rounded-xl p-3">
-                    <p className="text-sm font-semibold">{t(`notifications.title${key}`)}</p>
-                    <p className="mt-1 text-xs text-text-secondary">
-                      {t(`notifications.body${key}`)}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <BackOfficeNotificationsList
+                notifications={notifications}
+                loading={notificationsLoading}
+                showMarkAll
+                onMarkAllRead={onMarkAllNotificationsRead}
+                onMarkRead={onMarkNotificationRead}
+              />
             ) : null}
 
             {activePanel === "messages" ? (
-              <div className="theme-card flex min-h-[200px] flex-col items-center justify-center rounded-xl p-6 text-center">
-                <MessageSquare className="mb-3 size-8 text-text-secondary" aria-hidden />
-                <p className="text-sm text-text-secondary">{t("utility.messagesEmpty")}</p>
+              <div className="theme-card flex min-h-[240px] flex-col items-center justify-center rounded-xl p-6 text-center">
+                <Mail className="mb-3 size-9 text-text-secondary" aria-hidden />
+                <p className="text-sm font-semibold text-text-primary">{t("utility.messagesInboxTitle")}</p>
+                <p className="mt-2 max-w-xs text-xs leading-relaxed text-text-secondary">
+                  {t("utility.messagesInboxDesc")}
+                </p>
               </div>
             ) : null}
 
@@ -132,13 +143,19 @@ export function BackOfficeUtilityRail({
       ) : null}
 
       <nav
-        className="utility-rail fixed inset-y-0 right-0 z-30 hidden w-14 flex-col items-center border-l border-border-color bg-bg-card py-3 lg:flex"
+        className="utility-rail fixed inset-y-0 right-0 z-30 flex w-14 flex-col items-center border-l border-border-color bg-bg-card py-3"
         aria-label="Quick actions"
       >
         <div className="flex flex-1 flex-col items-center gap-2">
           {RAIL_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activePanel === item.id;
+            const badge =
+              item.id === "notifications"
+                ? unreadCount > 0
+                  ? Math.min(unreadCount, 99)
+                  : undefined
+                : item.badge;
             return (
               <button
                 key={item.id}
@@ -154,9 +171,9 @@ export function BackOfficeUtilityRail({
                 aria-pressed={active}
               >
                 <Icon className="size-[18px]" aria-hidden />
-                {item.badge ? (
+                {badge ? (
                   <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-                    {item.badge}
+                    {badge}
                   </span>
                 ) : null}
               </button>

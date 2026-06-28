@@ -2,10 +2,10 @@
  * Aplica migrations SQL em drizzle/migrations.
  * Uso: npm run db:migrate
  */
-import "dotenv/config";
-
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+
+import "./load-local-env";
 
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";

@@ -1,5 +1,5 @@
 ﻿import { Link } from "@tanstack/react-router";
-import { Crop, Layers, Move, RotateCcw, Smartphone } from "lucide-react";
+import { Briefcase, Crop, Layers, Move, RotateCcw, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RotatingRoomPanel } from "@/components/rotating-room-panel";
@@ -201,6 +201,13 @@ export function SalaRotativaWorkspace({
     <div className={cn("mt-4 space-y-3", signalOnlyMode && "mt-2 flex min-h-[calc(100dvh-11rem)] flex-col justify-center")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/back-office"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border-color px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:bg-bg-card-hover hover:text-text-primary"
+          >
+            <Briefcase className="h-3.5 w-3.5" aria-hidden />
+            Back office
+          </Link>
           <button
             type="button"
             onClick={toggleSignalOnlyMode}

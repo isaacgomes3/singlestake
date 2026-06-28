@@ -93,7 +93,7 @@ export function BackOfficeOverviewPage() {
           label={t("overview.kpiNetwork")}
         />
         <Link
-          to="/back-office/financeiro/automacao-global"
+          to="/back-office/financeiro/carteira"
           className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <SummaryCard

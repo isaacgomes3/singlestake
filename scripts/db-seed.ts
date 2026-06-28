@@ -2,7 +2,7 @@
  * Dados iniciais: pacotes, config MMN, utilizador admin.
  * Uso: npm run db:seed
  */
-import "dotenv/config";
+import "./load-local-env";
 
 import { randomUUID } from "node:crypto";
 
@@ -33,6 +33,8 @@ import {
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@singlestake.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "123456";
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "Admin Demo";
+const COMPANY_EMAIL = process.env.SEED_COMPANY_EMAIL ?? "caixa@singlestake.local";
+const COMPANY_NAME = process.env.SEED_COMPANY_NAME ?? "Caixa Empresa";
 
 const WALLET_BUCKETS = ["rendimentos", "afiliados", "automacao", "empresa"] as const;
 
@@ -146,6 +148,35 @@ async function main() {
   await upsertSetting("residual_levels", RESIDUAL_LEVELS, now);
   await upsertSetting("binary_bonus", DEFAULT_BINARY_CONFIG, now);
 
+  const existingCompany = await db.query.users.findFirst({
+    where: eq(users.email, COMPANY_EMAIL.toLowerCase()),
+  });
+  let companyId = existingCompany?.id;
+  if (!companyId) {
+    companyId = randomUUID();
+    await db.insert(users).values({
+      id: companyId,
+      name: COMPANY_NAME,
+      email: COMPANY_EMAIL.toLowerCase(),
+      passwordHash: hashPassword(randomUUID()),
+      role: "admin",
+      referralCode: makeReferralCode(),
+      qualification: "imperial",
+      createdAt: new Date(now),
+      updatedAt: new Date(now),
+    });
+    for (const bucket of WALLET_BUCKETS) {
+      await db.insert(walletAccounts).values({
+        id: randomUUID(),
+        userId: companyId,
+        bucket,
+        availableBalance: 0,
+        blockedBalance: 0,
+        updatedAt: new Date(now),
+      });
+    }
+  }
+
   const existingAdmin = await db.query.users.findFirst({
     where: eq(users.email, ADMIN_EMAIL.toLowerCase()),
   });
@@ -248,12 +279,13 @@ async function main() {
     }
   }
 
-  if (adminId) {
-    await setCompanyUserId(adminId);
+  if (companyId) {
+    await setCompanyUserId(companyId);
   }
 
   console.log("Seed concluído.");
   console.log("  Admin:", ADMIN_EMAIL);
+  console.log("  Caixa empresa:", COMPANY_EMAIL);
   console.log("  Senha:", ADMIN_PASSWORD);
   console.log("  User id:", adminId);
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/finance/constants";
 import { isAffiliateServicesActive } from "@/lib/server/finance/subscription-access";
 import { debitWallet, getWalletBalance, creditWallet } from "@/lib/server/finance/wallet";
+import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
 import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
 import {
   buildPaymentExternalId,
@@ -162,11 +163,18 @@ export async function createWithdrawal(input: {
     }
   }
 
-  const pixKey = input.pixKey?.trim();
-  if (!pixKey) return { ok: false, error: "Informe a chave PIX para receber o saque." };
+  const pixResolved = await (
+    await import("@/lib/server/admin/users")
+  ).resolveUserPixKeyForWithdrawal(input.userId, input.pixKey);
+  if (!pixResolved.ok) return pixResolved;
+  const pixKey = pixResolved.pixKey;
 
   const wallet = await getWalletBalance(input.userId, bucket);
-  if (!wallet || wallet.availableBalance < amount) {
+  const availableBalance =
+    bucket === "automacao"
+      ? await getPersonalAutomationWalletBalance(input.userId)
+      : (wallet?.availableBalance ?? 0);
+  if (!wallet || availableBalance < amount) {
     return { ok: false, error: "Saldo disponível insuficiente nesta carteira." };
   }
 

@@ -23,6 +23,7 @@ import {
   reclassifyOneFinalLossAsWin,
 } from "@/lib/roulette/entryWinBreakdown";
 import {
+  getStrategyGlobalSnapshot,
   isStrategyGlobalEnabled,
 } from "@/lib/roulette/strategyGlobalClient";
 
@@ -53,6 +54,17 @@ export function readRotatingRoomUmFatorSessionStats(): RotatingRoomSessionStats 
   } catch {
     return emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY);
   }
+}
+
+/** Placar oficial da sala rotativa — strategy-global em produção; local só em dev sem motor global. */
+export function readRotatingRoomOfficialPlacarStats(): RotatingRoomSessionStats {
+  const maxRecovery = readEffectiveUmFatorMaxRecovery(UM_FATOR_MAX_RECOVERY);
+  if (isStrategyGlobalEnabled()) {
+    const fromGlobal = getStrategyGlobalSnapshot()?.um1fator?.sessionStats;
+    if (fromGlobal) return fromGlobal;
+    return emptyRotatingRoomSessionStats(maxRecovery);
+  }
+  return readRotatingRoomUmFatorSessionStats();
 }
 
 export function writeRotatingRoomUmFatorSessionStats(stats: RotatingRoomSessionStats): void {

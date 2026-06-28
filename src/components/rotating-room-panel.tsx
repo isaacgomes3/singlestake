@@ -15,10 +15,12 @@ import {
   lobbyTableCardFallbackBg,
   lobbyTableCardPhotoStyle,
   lobbyTableCardPhotoUrl,
+  rotatingRoomLobbyWaitPhotoStyle,
 } from "@/lib/roulette/lobbyTableCardAssets";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import { isExternalHref } from "@/lib/app-profile";
 import {
+  isRotatingRoomLobbyWait,
   rotatingRoomLobbyFocusTableId,
   rotatingRoomLobbyHasSignal,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
@@ -270,6 +272,40 @@ function IndicationFactorRow({
       {roundFlash ? (
         <RoundFlashOverlay flash={roundFlash} recovery={recovery} dense={dense} />
       ) : null}
+    </div>
+  );
+}
+
+/** Quadro «aguarde no lobby» — imagem Stake 37 e texto no centro-inferior. */
+function RotatingRoomLobbyWaitFrame({
+  className,
+  aspectClassName = "aspect-[16/10]",
+  embedded = false,
+}: {
+  className?: string;
+  aspectClassName?: string;
+  embedded?: boolean;
+}) {
+  return (
+    <div className={cn("relative w-full shrink-0 overflow-hidden", aspectClassName, className)}>
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={rotatingRoomLobbyWaitPhotoStyle()}
+        aria-hidden
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/20" aria-hidden />
+      <div className="absolute inset-x-0 bottom-[10%] flex justify-center px-3 sm:bottom-[11%]">
+        <p
+          className={cn(
+            "text-xs font-semibold lowercase tracking-wide sm:text-sm",
+            embedded
+              ? "text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]"
+              : "text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]",
+          )}
+        >
+          aguardando...
+        </p>
+      </div>
     </div>
   );
 }
@@ -611,6 +647,8 @@ function RotatingRoomStage({
     );
   }
 
+  const lobbyWaitIdle = isRotatingRoomLobbyWait(session) && !isAwaitingNextTable;
+
   const waitingTitle = isAwaitingNextTable
     ? "Aguarde próxima mesa"
     : hasAnyHistory
@@ -618,7 +656,28 @@ function RotatingRoomStage({
       : "Sem giros ao vivo";
 
   if (signalOnly) {
-    if (indicationOnly) return null;
+    if (indicationOnly) {
+      if (lobbyWaitIdle) {
+        return (
+          <RotatingRoomLobbyWaitFrame
+            aspectClassName="min-h-[9rem]"
+            className="rounded-2xl border border-border-color"
+            embedded
+          />
+        );
+      }
+      return null;
+    }
+
+    if (lobbyWaitIdle) {
+      return (
+        <RotatingRoomLobbyWaitFrame
+          aspectClassName="min-h-[9rem]"
+          className="rounded-2xl border border-border-color"
+          embedded
+        />
+      );
+    }
 
     return (
       <div className="flex min-h-[9rem] flex-col items-center justify-center rounded-2xl border border-border-color bg-bg-card px-5 py-8 text-center">
@@ -641,6 +700,17 @@ function RotatingRoomStage({
   }
 
   if (indicationOnly) return null;
+
+  if (lobbyWaitIdle) {
+    return (
+      <RotatingRoomLobbyWaitFrame
+        className={cn(
+          "rounded-3xl border border-border-color",
+          compact ? "rounded-2xl" : "mx-auto max-w-lg",
+        )}
+      />
+    );
+  }
 
   return (
     <div
@@ -985,18 +1055,18 @@ export function RotatingRoomLobbyCard({
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            "relative flex w-full shrink-0 items-center justify-center overflow-hidden",
-            embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]",
-          )}
-          style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
-        >
-          {photoStyle ? (
-            <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
-          ) : null}
-          {photoStyle ? <div className="absolute inset-0 bg-black/30" aria-hidden /> : null}
-          {focusLabel ? (
+        {focusLabel ? (
+          <div
+            className={cn(
+              "relative flex w-full shrink-0 items-center justify-center overflow-hidden",
+              embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]",
+            )}
+            style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
+          >
+            {photoStyle ? (
+              <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
+            ) : null}
+            {photoStyle ? <div className="absolute inset-0 bg-black/30" aria-hidden /> : null}
             <div className="relative px-3 text-center">
               {isPrepare ? (
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300/90 sm:text-xs">
@@ -1012,17 +1082,13 @@ export function RotatingRoomLobbyCard({
                 {focusLabel}
               </p>
             </div>
-          ) : (
-            <p
-              className={cn(
-                "relative px-3 text-center text-xs font-semibold sm:text-sm",
-                embedded ? "text-text-secondary" : "text-slate-400",
-              )}
-            >
-              Aguarde no Lobby
-            </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <RotatingRoomLobbyWaitFrame
+            embedded={embedded}
+            aspectClassName={embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]"}
+          />
+        )}
 
         <div
           className={cn(

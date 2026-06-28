@@ -12,6 +12,7 @@ import {
 import { ReferralLinkField } from "@/components/back-office/referral-link-field";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useBackOfficeNotifications } from "@/hooks/useBackOfficeNotifications";
 import { apiFetchMe, apiLogout } from "@/lib/auth/api";
 import {
   clearSession,
@@ -42,6 +43,14 @@ export function BackOfficeLayout() {
   const [sidebarBoxed, setSidebarBoxed] = useState(true);
   const [utilityPanel, setUtilityPanel] = useState<UtilityPanelId>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    markAllRead,
+    markRead,
+    reload: reloadNotifications,
+  } = useBackOfficeNotifications(booted && session != null);
 
   useLayoutEffect(() => {
     setSidebarBoxed(readSidebarBoxed());
@@ -203,7 +212,7 @@ export function BackOfficeLayout() {
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col lg:pr-14">
+      <div className="flex min-w-0 flex-1 flex-col pr-14">
         <div className="app-top-bar flex items-center gap-2 border-b border-border-color px-3 py-2 lg:hidden">
           <button
             type="button"
@@ -220,7 +229,6 @@ export function BackOfficeLayout() {
           user={session.user}
           sidebarBoxed={sidebarBoxed}
           onToggleSidebarLayout={toggleSidebarLayout}
-          onOpenUtility={setUtilityPanel}
           onOpenSearch={() => setSearchOpen(true)}
           onLogout={() => void handleLogout()}
         />
@@ -243,9 +251,17 @@ export function BackOfficeLayout() {
 
       <BackOfficeUtilityRail
         activePanel={utilityPanel}
-        onSelectPanel={setUtilityPanel}
+        onSelectPanel={(id) => {
+          setUtilityPanel(id);
+          if (id === "notifications") void reloadNotifications();
+        }}
         referralCode={session.user.referralCode}
         referralLink={session.user.referralLink}
+        notifications={notifications}
+        notificationsLoading={notificationsLoading}
+        unreadCount={unreadCount}
+        onMarkAllNotificationsRead={() => void markAllRead()}
+        onMarkNotificationRead={(id) => void markRead(id)}
       />
 
       <BackOfficeSearchCommand open={searchOpen} onOpenChange={setSearchOpen} />

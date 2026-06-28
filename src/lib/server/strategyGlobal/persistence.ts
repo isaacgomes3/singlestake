@@ -269,11 +269,11 @@ export function appendLedger(
   maxRecovery: number,
 ): void {
   if (entry.resultNumber != null) {
-    const spinKey = `${entry.tableId}:${entry.resultNumber}`;
+    const spinKey = `${entry.tableId}:${entry.resultNumber}:${entry.ts}`;
     const duplicate = state.ledger[kind].some(
       (existing) =>
         existing.resultNumber != null &&
-        `${existing.tableId}:${existing.resultNumber}` === spinKey,
+        `${existing.tableId}:${existing.resultNumber}:${existing.ts}` === spinKey,
     );
     if (duplicate) return;
   }

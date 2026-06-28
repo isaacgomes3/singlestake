@@ -35,6 +35,17 @@ export const overviewContent = {
       globalBank: "banca global {{amount}}",
       total: "total {{amount}}",
       roomTitle: "Sala rotativa · 1 fator",
+      paused: "Automação pausada",
+      pauseManualTitle: "Automação pausada manualmente",
+      pauseManualBody:
+        "Novas entradas automáticas estão bloqueadas. A sala rotativa e os sinais 1 Fator continuam activos — só a carteira operacional não abre novas apostas.",
+      pauseStopWinTitle: "Stop win atingido",
+      pauseStopWinBody:
+        "A meta de lucro foi alcançada. A automação financeira está pausada para proteger o resultado.",
+      pauseStopLossTitle: "Stop loss atingido",
+      pauseStopLossBody:
+        "O limite de prejuízo foi alcançado. A automação financeira está pausada para conter perdas.",
+      pauseResumeIn: "Retoma automaticamente em {{time}}.",
     },
   },
   en: {
@@ -73,6 +84,17 @@ export const overviewContent = {
       globalBank: "global bank {{amount}}",
       total: "total {{amount}}",
       roomTitle: "Rotating room · 1 factor",
+      paused: "Automation paused",
+      pauseManualTitle: "Automation paused manually",
+      pauseManualBody:
+        "New automatic entries are blocked. The rotating room and 1-factor signals stay active — only the operating wallet stops opening new bets.",
+      pauseStopWinTitle: "Stop win reached",
+      pauseStopWinBody:
+        "The profit target was hit. Financial automation is paused to protect the result.",
+      pauseStopLossTitle: "Stop loss reached",
+      pauseStopLossBody:
+        "The loss limit was hit. Financial automation is paused to contain losses.",
+      pauseResumeIn: "Resumes automatically in {{time}}.",
     },
   },
   es: {
@@ -111,6 +133,17 @@ export const overviewContent = {
       globalBank: "banca global {{amount}}",
       total: "total {{amount}}",
       roomTitle: "Sala rotativa · 1 factor",
+      paused: "Automatización en pausa",
+      pauseManualTitle: "Automatización pausada manualmente",
+      pauseManualBody:
+        "Las nuevas entradas automáticas están bloqueadas. La sala rotativa y las señales 1 factor siguen activas — solo la cartera operacional deja de abrir apuestas.",
+      pauseStopWinTitle: "Stop win alcanzado",
+      pauseStopWinBody:
+        "Se alcanzó la meta de beneficio. La automatización financiera está en pausa para proteger el resultado.",
+      pauseStopLossTitle: "Stop loss alcanzado",
+      pauseStopLossBody:
+        "Se alcanzó el límite de pérdida. La automatización financiera está en pausa para contener pérdidas.",
+      pauseResumeIn: "Reanuda automáticamente en {{time}}.",
     },
   },
 } as const;

@@ -2,13 +2,21 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
-import { LobbyLiveRouletteColdBlock } from "@/components/lobby-live-table-cold-stats";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
-import { lobbyTableHasRotatingRoomSignal } from "@/lib/roulette/rotatingRoomLobbySignal";
+import { useDgaTableImages } from "@/hooks/useDgaTableImages";
+import { useUmFatorSession } from "@/hooks/useUmFatorSession";
+import {
+  buildUmFatorLiveViewForTable,
+  readUmFatorMachineState,
+} from "@/lib/roulette/umFatorCrossingStrategy";
 import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
-import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useLiveSseStatus } from "@/hooks/useLiveSseStatus";
+import {
+  lobbyTableCardFallbackBg,
+  lobbyTableCardPhotoStyle,
+  lobbyTableCardPhotoUrl,
+} from "@/lib/roulette/lobbyTableCardAssets";
 import {
   getLiveRouletteTableIds,
   getPrimaryLiveTableId,
@@ -30,26 +38,127 @@ import {
   ROULETTE_LIVE_TABLE_HISTORY_EVENT,
   type RouletteLiveTableHistoryDetail,
 } from "@/lib/roulette/historyStorage";
-import { readRotatingRoomUmFatorSessionStats } from "@/lib/roulette/rotatingRoomUmFatorSession";
-import {
-  ROTATING_ROOM_UM_FATOR_CHANGED_EVENT,
-  ROTATING_ROOM_UM_FATOR_RESET_EVENT,
-} from "@/lib/roulette/rotatingRoomUmFatorSession";
-import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
-import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
 import { automationWorkspaceHref, isExternalHref } from "@/lib/app-profile";
 
-import { Dga24dSpinLobbyCard } from "@/components/dga-24d-spin-lobby-card";
-import {
-  FootballBlitzTopCardLobbyCard,
-  SuperTrunfoLobbyCard,
-} from "@/components/football-blitz-lobby-card";
-import { RouletteSimulatorPanel } from "@/components/roulette-simulator-panel";
 import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 
 const AUTOMATION_SALA_ROUTE = automationWorkspaceHref("/sala-rotativa-um-fator");
+
+const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
+function historyCellClass(n: number, highlight: boolean): string {
+  const base =
+    "inline-flex h-5 min-w-[1.1rem] shrink-0 items-center justify-center rounded border px-0.5 text-[9px] font-bold tabular-nums leading-none shadow-inner";
+  if (n === 0) {
+    return `${base} ${highlight ? "border-white" : "border-emerald-500/50"} bg-emerald-600 text-white`;
+  }
+  if (RED.has(n)) {
+    return `${base} ${highlight ? "border-white" : "border-red-500/40"} bg-red-600 text-white`;
+  }
+  return `${base} ${highlight ? "border-white" : "border-slate-700"} bg-slate-950 text-slate-100`;
+}
+
+function tableHasLocalUmFatorSignal(tableId: number, history: readonly number[]): boolean {
+  const machine = readUmFatorMachineState(tableId);
+  return buildUmFatorLiveViewForTable(tableId, history, machine).globalActive != null;
+}
+
+function CasinoTableCard({
+  tableId,
+  macaoTableId,
+  title,
+  tableLabel,
+  recent,
+  noSpinsLabel,
+  signalActiveLabel,
+  isPrimary,
+  href,
+  external,
+}: {
+  tableId: number;
+  macaoTableId: number;
+  title: string;
+  tableLabel: string;
+  recent: number[];
+  noSpinsLabel: string;
+  signalActiveLabel: string;
+  isPrimary: boolean;
+  href: string;
+  external: boolean;
+}) {
+  const session = useUmFatorSession(tableId, recent, { observeOnly: true });
+  const hasSignal = session.showTapeteSignal;
+  const photoBg = lobbyTableCardPhotoUrl(tableId, macaoTableId);
+  const photoStyle = lobbyTableCardPhotoStyle(tableId, macaoTableId);
+  const cardClass = cn(
+    "theme-card flex flex-col overflow-hidden rounded-2xl p-0 transition hover:border-border-color",
+    hasSignal
+      ? "border-warning/55 ring-2 ring-warning/30"
+      : isPrimary
+        ? "border-info/40"
+        : "border-border-color",
+  );
+  const cardBody = (
+    <article className="flex h-full flex-col">
+      <div
+        className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-gradient-to-b from-slate-800 to-slate-950"
+        style={photoBg ? undefined : { background: lobbyTableCardFallbackBg() }}
+      >
+        {photoStyle ? (
+          <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
+        ) : null}
+        <div
+          className={cn("absolute inset-0", photoBg ? "opacity-[0.22]" : "opacity-35")}
+          style={{
+            backgroundImage: photoBg
+              ? "linear-gradient(180deg, rgba(8,13,24,0.28) 0%, transparent 48%, rgba(8,13,24,0.78) 100%), radial-gradient(ellipse 90% 55% at 50% 35%, rgba(0,0,0,0.12), transparent 52%)"
+              : "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(6,182,212,0.15), transparent), linear-gradient(180deg, rgba(15,23,42,0.95) 0%, transparent 50%)",
+          }}
+          aria-hidden
+        />
+        {hasSignal ? (
+          <span className="absolute left-2 top-2 z-[3] inline-flex rounded-full bg-cyan-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-200 ring-1 ring-cyan-400/40 backdrop-blur-sm">
+            {signalActiveLabel}
+          </span>
+        ) : null}
+        <div className="absolute inset-x-0 bottom-0 z-[4] flex flex-col bg-gradient-to-t from-black via-black/85 to-transparent px-1.5 pb-2 pt-5">
+          <div className="flex flex-nowrap justify-center gap-0.5 overflow-x-auto">
+            {recent.length > 0 ? (
+              recent.map((n, i) => (
+                <span key={`${tableId}-${n}-${i}`} className={historyCellClass(n, i === 0)}>
+                  {n}
+                </span>
+              ))
+            ) : (
+              <span className="text-[9px] font-medium text-slate-500">{noSpinsLabel}</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-start justify-between gap-2 border-t border-border-color/80 px-3 py-2">
+        <div className="min-w-0">
+          <h2 className="truncate text-xs font-bold text-white">{title}</h2>
+          <p className="mt-0.5 truncate text-[10px] text-slate-500">{tableLabel}</p>
+        </div>
+      </div>
+    </article>
+  );
+
+  if (external) {
+    return (
+      <a href={href} className={cardClass} target="_blank" rel="noopener noreferrer">
+        {cardBody}
+      </a>
+    );
+  }
+  return (
+    <Link to="/casino-mesa" search={{ mesa: tableId }} className={cardClass}>
+      {cardBody}
+    </Link>
+  );
+}
 
 function readHistoriesForTables(tableIds: readonly number[]): Record<number, number[]> {
   const out: Record<number, number[]> = {};
@@ -128,144 +237,11 @@ export function useBackOfficeCasinoLiveData() {
   return { lobbyCardTableIds, histories, primaryId, rotatingRoomSession };
 }
 
-type StatisticsPanelProps = {
-  tableIds: readonly number[];
-  histories: Record<number, number[]>;
-  rotatingRoomSession?: RotatingRoomUmFatorSession | null;
-};
-
-export function LobbyCasinoLiveStatisticsPanel({
-  tableIds,
-  histories,
-  rotatingRoomSession,
-}: StatisticsPanelProps) {
-  const { t } = useI18n();
-  const [selectedTid, setSelectedTid] = useState<number>(() => tableIds[0] ?? 0);
-  const [placarRevision, setPlacarRevision] = useState(0);
-
-  useEffect(() => {
-    const bump = () => setPlacarRevision((v) => v + 1);
-    window.addEventListener(UM_FATOR_RESET_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
-    window.addEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
-    return () => {
-      window.removeEventListener(UM_FATOR_RESET_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_UM_FATOR_RESET_EVENT, bump);
-      window.removeEventListener(ROTATING_ROOM_UM_FATOR_CHANGED_EVENT, bump);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (tableIds.length === 0) return;
-    if (!tableIds.includes(selectedTid)) setSelectedTid(tableIds[0]!);
-  }, [tableIds, selectedTid]);
-
-  const rows = useMemo(() => {
-    return tableIds.map((tid) => {
-      const h = histories[tid] ?? [];
-      const stats = readRotatingRoomUmFatorSessionStats();
-      const w = stats.wins;
-      const l = stats.losses;
-      const decided = w + l;
-      const pct = rotatingRoomSessionAproveitamentoPct(stats);
-      const isFocus =
-        rotatingRoomSession != null &&
-        lobbyTableHasRotatingRoomSignal(tid, "um1fator", rotatingRoomSession);
-      return {
-        tid,
-        name: lobbyTableDisplayName(tid),
-        spinCount: h.length,
-        placarW: w,
-        placarL: l,
-        placarD: 0,
-        decided,
-        pct,
-        vitSeguidas: 0,
-        isLeader: isFocus,
-      };
-    });
-  }, [tableIds, histories, placarRevision, rotatingRoomSession]);
-
-  return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-900/35 p-4 shadow-inner sm:p-6">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-        {t("casino.statsLiveSummary")}
-      </p>
-      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-800/80">
-        <table className="w-full min-w-[520px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2.5 sm:px-4">{t("casino.colTable")}</th>
-              <th className="px-3 py-2.5 sm:px-4">{t("casino.colId")}</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colSpins")}</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colWld")}</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colUtilization")}</th>
-              <th className="px-3 py-2.5 text-right sm:px-4">{t("casino.colWinStreakShort")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.tid}
-                className={cn(
-                  "border-b border-slate-800/60 last:border-0",
-                  r.isLeader ? "bg-emerald-950/35" : "hover:bg-slate-800/30",
-                )}
-              >
-                <td className="px-3 py-2.5 font-medium text-slate-100 sm:px-4">{r.name}</td>
-                <td className="px-3 py-2.5 tabular-nums text-slate-500 sm:px-4">{r.tid}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300 sm:px-4">{r.spinCount}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300 sm:px-4">
-                  <span className="text-emerald-400/95">{r.placarW}</span>
-                  <span className="text-slate-600"> / </span>
-                  <span className="text-rose-400/90">{r.placarL}</span>
-                  <span className="text-slate-600"> / </span>
-                  <span className="text-amber-300/85">{r.placarD}</span>
-                </td>
-                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-cyan-200 sm:px-4">
-                  {r.decided > 0 ? `${r.pct.toFixed(1)}%` : t("shared.dash")}
-                </td>
-                <td className="px-3 py-2.5 text-right font-bold tabular-nums text-emerald-400 sm:px-4">
-                  {r.vitSeguidas}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-10">
-        <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-end sm:justify-end">
-          <select
-            value={selectedTid}
-            onChange={(e) => setSelectedTid(Number(e.target.value))}
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100"
-          >
-            {tableIds.map((tid) => (
-              <option key={tid} value={tid}>
-                {lobbyTableDisplayName(tid)} — {tid}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mt-5 max-w-3xl">
-          <LobbyLiveRouletteColdBlock
-            tableId={selectedTid}
-            mesaTitle={lobbyTableDisplayName(selectedTid)}
-            historyNewestFirst={histories[selectedTid] ?? []}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type CasinoModuleId = Extract<
-  BackOfficeModuleId,
-  "casino-ao-vivo" | "casino-outros-jogos" | "casino-simulador" | "casino-estatisticas"
->;
+type CasinoModuleId = Extract<BackOfficeModuleId, "casino-ao-vivo">;
 
 function CassinoAoVivoRoletasGrid() {
   const { t } = useI18n();
+  useDgaTableImages();
   const sseStatus = useLiveSseStatus();
   const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
@@ -273,17 +249,14 @@ function CassinoAoVivoRoletasGrid() {
   const sortedTableIds = useMemo(() => {
     return [...lobbyCardTableIds].sort((a, b) => {
       const signal = (tid: number) =>
-        rotatingRoomSession &&
-        lobbyTableHasRotatingRoomSignal(tid, "um1fator", rotatingRoomSession)
-          ? 1
-          : 0;
+        tableHasLocalUmFatorSignal(tid, histories[tid] ?? []) ? 1 : 0;
       const diff = signal(b) - signal(a);
       if (diff !== 0) return diff;
       if (a === primaryId) return -1;
       if (b === primaryId) return 1;
       return a - b;
     });
-  }, [lobbyCardTableIds, primaryId, rotatingRoomSession]);
+  }, [lobbyCardTableIds, histories, primaryId]);
 
   return (
     <div className="space-y-6">
@@ -302,56 +275,23 @@ function CassinoAoVivoRoletasGrid() {
           </div>
         </div>
         {sortedTableIds.map((tid) => {
-          const hasSignal =
-            rotatingRoomSession != null &&
-            lobbyTableHasRotatingRoomSignal(tid, "um1fator", rotatingRoomSession);
           const hist = histories[tid] ?? [];
           const recent = hist.slice(0, 6);
           const mesaHref = automationWorkspaceHref(`/casino-mesa?mesa=${tid}`);
-          const cardClass = cn(
-            "theme-card flex flex-col rounded-2xl p-4 transition hover:border-border-color",
-            hasSignal
-              ? "border-warning/55 ring-2 ring-warning/30"
-              : tid === primaryId
-                ? "border-info/40"
-                : "border-border-color",
-          );
-          const cardBody = (
-            <>
-              <p className="text-sm font-bold text-white">{lobbyTableDisplayName(tid, macaoTid)}</p>
-              <p className="mt-0.5 text-xs text-slate-500">{t("casino.tableLabel", { id: tid })}</p>
-              {hasSignal ? (
-                <span className="mt-2 inline-flex w-fit rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-300">
-                  {t("casino.signalActive")}
-                </span>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-1">
-                {recent.length > 0 ? (
-                  recent.map((n, i) => (
-                    <span
-                      key={`${tid}-${n}-${i}`}
-                      className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-slate-800/90 px-1.5 text-xs font-bold tabular-nums text-slate-200"
-                    >
-                      {n}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-slate-600">{t("casino.noSpins")}</span>
-                )}
-              </div>
-            </>
-          );
-          if (isExternalHref(mesaHref)) {
-            return (
-              <a key={tid} href={mesaHref} className={cardClass} target="_blank" rel="noopener noreferrer">
-                {cardBody}
-              </a>
-            );
-          }
           return (
-            <Link key={tid} to="/casino-mesa" search={{ mesa: tid }} className={cardClass}>
-              {cardBody}
-            </Link>
+            <CasinoTableCard
+              key={tid}
+              tableId={tid}
+              macaoTableId={macaoTid}
+              title={lobbyTableDisplayName(tid, macaoTid)}
+              tableLabel={t("casino.tableLabel", { id: tid })}
+              recent={recent}
+              noSpinsLabel={t("casino.noSpins")}
+              signalActiveLabel={t("casino.signalActive")}
+              isPrimary={tid === primaryId}
+              href={mesaHref}
+              external={isExternalHref(mesaHref)}
+            />
           );
         })}
       </div>
@@ -359,38 +299,6 @@ function CassinoAoVivoRoletasGrid() {
   );
 }
 
-export function BackOfficeCasinoContent({ moduleId }: { moduleId: CasinoModuleId }) {
-  const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession } = useBackOfficeCasinoLiveData();
-
-  if (moduleId === "casino-ao-vivo") {
-    return <CassinoAoVivoRoletasGrid />;
-  }
-
-  if (moduleId === "casino-outros-jogos") {
-    return (
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-2 px-1 sm:gap-3 lg:grid-cols-3">
-        <Dga24dSpinLobbyCard />
-        <SuperTrunfoLobbyCard />
-        <FootballBlitzTopCardLobbyCard />
-      </div>
-    );
-  }
-
-  if (moduleId === "casino-simulador") {
-    return (
-      <RouletteSimulatorPanel
-        tableIds={lobbyCardTableIds}
-        histories={histories}
-        defaultTableId={primaryId}
-      />
-    );
-  }
-
-  return (
-    <LobbyCasinoLiveStatisticsPanel
-      tableIds={lobbyCardTableIds}
-      histories={histories}
-      rotatingRoomSession={rotatingRoomSession}
-    />
-  );
+export function BackOfficeCasinoContent({ moduleId: _moduleId }: { moduleId: CasinoModuleId }) {
+  return <CassinoAoVivoRoletasGrid />;
 }

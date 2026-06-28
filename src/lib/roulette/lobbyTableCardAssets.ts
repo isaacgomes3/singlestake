@@ -2,26 +2,20 @@ import {
   ROULETTE_MACAO_TABLE_ID,
   resolveMacaoTableIdFromLiveTableIds,
 } from "@/lib/roulette/lobbyTables";
+import {
+  DGA_ROULETTE_TABLE_POSTERS,
+  dgaRouletteLocalPosterPath,
+} from "@/lib/roulette/dgaRouletteTablePosters";
 import { getDgaTableImageUrl } from "@/lib/roulette/dgaTableImageStore";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 
-/** Caminhos relativos à pasta `public/lobby/` (copiados para `dist/client/lobby/` no build). */
-const LOBBY_CARD_ASSETS = {
-  227: "lobby/roulette-1-azure.png",
-  234: "lobby/roulette-latina-card.png",
-  230: "lobby/roulette-3-card.png",
-  203: "lobby/speed-roulette-1-card.png",
-  205: "lobby/speed-roulette-2-card.png",
-  201: "lobby/roulette-extra-time-card.png",
-  237: "lobby/roulette-brasileira-card.png",
-  28401: "lobby/french-roulette-la-partage-card.png",
-  macao: "lobby/roulette-macao-card.png",
-} as const;
-
-/** Posters DGA (`tableImage`) — fallback até `/api/roulette/table-meta` responder. */
-const DGA_TABLE_IMAGE_FALLBACK: Record<number, string> = {
-  213: "https://client.pragmaticplaylive.net/desktop/assets/snaps/381rwkr381korean/poster.jpg",
-};
+/** Caminhos locais (`public/lobby/dga/`) — posters oficiais descarregados da DGA. */
+const LOBBY_CARD_ASSETS: Record<number, string> = Object.fromEntries(
+  Object.keys(DGA_ROULETTE_TABLE_POSTERS).map((id) => [
+    Number(id),
+    dgaRouletteLocalPosterPath(Number(id)),
+  ]),
+);
 
 const ROTATING_ROOM_LOBBY_BG =
   "linear-gradient(135deg, #0a1628 0%, #0d2040 40%, #1a0a28 100%)";
@@ -62,13 +56,16 @@ export function lobbyTableCardObjectPosition(tableId: number, macaoTableId?: num
 
 /** Imagem do cartão do lobby para uma mesa Pragmatic. */
 export function lobbyTableCardPhotoUrl(tableId: number, macaoTableId?: number): string | null {
-  const dgaUrl = getDgaTableImageUrl(tableId) ?? DGA_TABLE_IMAGE_FALLBACK[tableId];
+  const dgaUrl = getDgaTableImageUrl(tableId) ?? DGA_ROULETTE_TABLE_POSTERS[tableId];
   if (dgaUrl) return dgaUrl;
 
   const macao = resolveMacaoTableId(macaoTableId);
-  const asset = LOBBY_CARD_ASSETS[tableId as keyof typeof LOBBY_CARD_ASSETS];
+  const asset = LOBBY_CARD_ASSETS[tableId];
   if (asset) return lobbyPublicAssetUrl(asset);
-  if (isMacaoSlot(tableId, macao)) return lobbyPublicAssetUrl(LOBBY_CARD_ASSETS.macao);
+  if (isMacaoSlot(tableId, macao)) {
+    const macaoAsset = LOBBY_CARD_ASSETS[macao];
+    if (macaoAsset) return lobbyPublicAssetUrl(macaoAsset);
+  }
   return null;
 }
 
@@ -87,4 +84,19 @@ export function lobbyTableCardPhotoStyle(
 
 export function lobbyTableCardFallbackBg(): string {
   return ROTATING_ROOM_LOBBY_BG;
+}
+
+/** Poster «aguarde no lobby» da sala rotativa (`public/images/`). */
+export const ROTATING_ROOM_LOBBY_WAIT_PHOTO = "images/sala-rotativa-lobby-wait.png";
+
+export function rotatingRoomLobbyWaitPhotoStyle(): {
+  backgroundImage: string;
+  backgroundPosition: string;
+  backgroundSize: string;
+} {
+  return {
+    backgroundImage: `url("${lobbyPublicAssetUrl(ROTATING_ROOM_LOBBY_WAIT_PHOTO)}")`,
+    backgroundPosition: "center center",
+    backgroundSize: "cover",
+  };
 }

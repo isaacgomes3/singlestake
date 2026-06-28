@@ -22,6 +22,11 @@ dist-ssr
 # SQLite local (não versionar)
 data/singlestake.db
 data/singlestake.db-*
+data/local/
+
+# Env local pessoal (sandbox)
+.env.development.local
+.env.local
 
 # Wrangler / Cloudflare
 .wrangler/

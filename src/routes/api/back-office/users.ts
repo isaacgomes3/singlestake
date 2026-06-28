@@ -5,7 +5,7 @@ export const Route = createFileRoute("/api/back-office/users")({
     handlers: {
       GET: async ({ request }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
-        const { listUsersWithReferralLinks } = await import("@/lib/server/network/referral");
+        const { listAdminUserRecords } = await import("@/lib/server/admin/users");
 
         const user = await requireSessionUser(request);
         if (!user) return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/back-office/users")({
         }
 
         const origin = new URL(request.url).origin;
-        const users = await listUsersWithReferralLinks(origin);
+        const users = await listAdminUserRecords(origin);
         return jsonResponse({ ok: true, users });
       },
     },

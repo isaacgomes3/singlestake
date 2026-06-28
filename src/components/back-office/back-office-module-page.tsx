@@ -1,17 +1,17 @@
 import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navigation";
 import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
+import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-office-automation-config-panel";
+import { BackOfficeAdminNotificationsPanel } from "@/components/back-office/back-office-admin-notifications-panel";
 import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-office-payment-gateway-panel";
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
 import { BackOfficeSubscriptionsPanel } from "@/components/back-office/back-office-subscriptions-panel";
 import { BackOfficeAffiliatesPanel } from "@/components/back-office/back-office-affiliates-panel";
-import { BackOfficeBinaryBonusPanel } from "@/components/back-office/back-office-binary-bonus-panel";
 import { BackOfficeBinaryPanel } from "@/components/back-office/back-office-binary-panel";
 import { BackOfficeCasinoContent } from "@/components/back-office/back-office-casino-content";
 import { BackOfficeDepositsPanel } from "@/components/back-office/back-office-deposits-panel";
 import { BackOfficeGlobalAutomationPanel } from "@/components/back-office/back-office-global-automation-panel";
 import { BackOfficeLedgerPanel } from "@/components/back-office/back-office-ledger-panel";
-import { BackOfficeQualificationPanel } from "@/components/back-office/back-office-qualification-panel";
 import { BackOfficeTeamBonusPanel } from "@/components/back-office/back-office-team-bonus-panel";
 import { BackOfficeWalletPanel } from "@/components/back-office/back-office-wallet-panel";
 import { BackOfficeWithdrawalsPanel } from "@/components/back-office/back-office-withdrawals-panel";
@@ -69,32 +69,11 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
     case "pacotes":
       return <BackOfficePackagesPanel />;
 
-    case "rendimentos":
-      return (
-        <Section title={t("products.yields.lastRunTitle")}>
-          <DataTable
-            headers={[
-              t("shared.columns.date"),
-              t("shared.columns.package"),
-              t("shared.columns.credits"),
-              t("products.yields.colStatus"),
-            ]}
-            rows={messages.demo.yields.demoRows}
-          />
-        </Section>
-      );
-
     case "afiliados":
       return <BackOfficeAffiliatesPanel />;
 
     case "rede-binaria":
       return <BackOfficeBinaryPanel />;
-
-    case "qualificacao":
-      return <BackOfficeQualificationPanel />;
-
-    case "bonus-binario":
-      return <BackOfficeBinaryBonusPanel />;
 
     case "bonus-equipe":
       return <BackOfficeTeamBonusPanel />;
@@ -144,10 +123,14 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
         </Section>
       );
 
+    case "automacao-config":
+      return <BackOfficeAutomationConfigPanel />;
+
     case "admin":
       return (
         <div className="space-y-6">
           <BackOfficePaymentGatewayPanel />
+          <BackOfficeAdminNotificationsPanel />
           <BackOfficeAdminUsersPanel />
         </div>
       );
@@ -168,19 +151,7 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
       );
 
     case "casino-ao-vivo":
-    case "casino-outros-jogos":
-    case "casino-simulador":
-    case "casino-estatisticas":
-      return (
-        <BackOfficeCasinoContent
-          moduleId={
-            moduleId as Extract<
-              BackOfficeModuleId,
-              "casino-ao-vivo" | "casino-outros-jogos" | "casino-simulador" | "casino-estatisticas"
-            >
-          }
-        />
-      );
+      return <BackOfficeCasinoContent moduleId="casino-ao-vivo" />;
 
     default:
       return null;

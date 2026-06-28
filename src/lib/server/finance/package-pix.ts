@@ -456,6 +456,7 @@ export function isCatalogPackagePixAvailable(packageId: string): boolean {
 
 export async function isCatalogPackagePixAvailableAsync(packageId: string): Promise<boolean> {
   if (packageId === START_PACKAGE_ID) return false;
+  if (!(await isPixCheckoutEnabledAsync())) return false;
 
   const db = getDb();
   const pkg = await db.query.investmentPackages.findFirst({
@@ -463,12 +464,7 @@ export async function isCatalogPackagePixAvailableAsync(packageId: string): Prom
   });
   if (!pkg || pkg.packageKind !== "automation" || !pkg.active) return false;
 
-  if (pkg.minAmount === pkg.maxAmount) {
-    return isPixAvailableForAmountAsync(pkg.minAmount);
-  }
-
-  if (await isLucPagueiGatewayReady() || readEfiPixConfig() != null) return true;
-  return listConfiguredStaticPixAmounts().length > 0;
+  return true;
 }
 
 /** @deprecated use isPixCheckoutEnabled */

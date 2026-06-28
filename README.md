@@ -1,6 +1,8 @@
 # singlestake
 
-## Desenvolvimento local (app React / TanStack Start)
+## Desenvolvimento local (sandbox de teste)
+
+Guia completo: **[docs/ambiente-local.md](docs/ambiente-local.md)**
 
 ### Arranque rápido
 
@@ -10,13 +12,15 @@ npm install
 npm run dev:local
 ```
 
-Ou no PowerShell com script dedicado:
+**Windows — erro "execução de scripts desabilitada"?** Use `npm.cmd install` e `npm.cmd run dev:local`, ou execute `scripts\dev-local.cmd` no CMD. Ver [docs/ambiente-local.md](docs/ambiente-local.md).
+
+Ou no PowerShell:
 
 ```powershell
 .\scripts\dev-local.ps1
 ```
 
-Isto cria/atualiza a base SQLite local, aplica migrations, corre o seed (admin demo) e abre **http://localhost:5173/**.
+Isto cria o **sandbox isolado** em `data/local/` (BD + automação), aplica migrations, seed e abre **http://localhost:5173/**.
 
 **Credenciais demo** (após `setup:local`):
 
@@ -25,23 +29,30 @@ Isto cria/atualiza a base SQLite local, aplica migrations, corre o seed (admin d
 | E-mail | `admin@singlestake.local` |
 | Senha | `123456` |
 | Back-office | http://localhost:5173/back-office |
+| Automação global | http://localhost:5173/back-office/financeiro/automacao-global |
+
+### Comandos do sandbox
+
+```powershell
+npm run setup:local          # preparar sandbox (sem servidor)
+npm run dev                  # só servidor (sandbox já preparado)
+npm run reset:local          # apagar e recriar sandbox do zero
+npm run check:local          # verificar se está pronto
+npm run seed:local-automation # repor automação R$ 50.000
+npm run test:local           # build + preview (teste pré-deploy)
+npm run db:studio            # explorar SQLite
+```
+
+**Fluxo:** desenvolver local → `test:local` → um merge em `main` → deploy automático na VPS.
 
 ### Variáveis de ambiente
 
 | Ficheiro | Uso |
 |----------|-----|
-| `.env.development` | Valores locais (commitado) — carregado em `npm run dev` |
-| `.env` | Overrides pessoais (não versionado) — copie de `.env.example` se precisar |
+| `.env.development.local.example` | Modelo do sandbox (versionado) |
+| `.env.development.local` | Sandbox activo (criado pelo setup, não versionado) |
+| `.env.development` | Defaults de dev (versionado) |
 | `.env.example` | Referência completa (WebSocket roleta, embeds casino, etc.) |
-
-Comandos úteis:
-
-```powershell
-npm run setup:local   # só BD + seed (sem subir servidor)
-npm run dev           # só servidor (BD já preparada)
-npm run db:studio     # explorar SQLite no browser
-npm run build         # build de produção local
-```
 
 1. Instalar dependências: `npm install`
 2. (Opcional) Copiar variáveis de ambiente: copie `.env.example` para `.env` e ajuste se precisar do WebSocket da roleta ao vivo.

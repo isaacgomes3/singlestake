@@ -8,8 +8,12 @@ import {
   fetchGlobalAutomationFinance,
   type GlobalAutomationFinance,
   type GlobalAutomationLedgerEntry,
+  type GlobalAutomationLedgerTotals,
 } from "@/lib/back-office/global-automation-api";
-import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
+import {
+  finalizeAutomationSimState,
+  ROULETTE_AUTOMATION_INITIAL_BANK,
+} from "@/lib/back-office/rouletteAutomationSim";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -17,23 +21,17 @@ import { cn } from "@/lib/utils";
 
 function GlobalAutomationLedgerTable({
   entries,
+  totals,
   loading,
 }: {
   entries: readonly GlobalAutomationLedgerEntry[];
+  totals: GlobalAutomationLedgerTotals | null;
   loading: boolean;
 }) {
   const { t } = useI18n();
   const { money, dateTime } = useFormat();
 
-  const totals = useMemo(() => {
-    let credits = 0;
-    let debits = 0;
-    for (const row of entries) {
-      if (row.entryType === "credit") credits += row.amount;
-      else debits += row.amount;
-    }
-    return { credits, debits, net: credits - debits };
-  }, [entries]);
+  const operationsNet = totals?.operationsNet ?? 0;
 
   return (
     <div className="space-y-4">
@@ -41,28 +39,45 @@ function GlobalAutomationLedgerTable({
         <h3 className="text-sm font-semibold text-text-primary">
           {t("finance.globalAutomation.ledgerSummaryTitle")}
         </h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <p className="mt-1 text-xs text-text-secondary">
+          {t("finance.globalAutomation.ledgerSummaryHint")}
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-border-color bg-bg-secondary px-3 py-2">
+            <p className="text-[11px] text-text-secondary">
+              {t("finance.globalAutomation.initialCapitalLabel")}
+            </p>
+            <p className="mt-0.5 text-lg font-bold tabular-nums text-text-primary">
+              {loading ? "…" : money(totals?.capitalCredit ?? 0)}
+            </p>
+          </div>
           <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
-            <p className="text-[11px] text-emerald-200/80">{t("finance.ledger.totalCredits")}</p>
+            <p className="text-[11px] text-emerald-200/80">
+              {t("finance.globalAutomation.totalWins")}
+            </p>
             <p className="mt-0.5 text-lg font-bold tabular-nums text-emerald-100">
-              {loading ? "…" : money(totals.credits)}
+              {loading ? "…" : money(totals?.settlementCredits ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2">
-            <p className="text-[11px] text-red-200/80">{t("finance.ledger.totalDebits")}</p>
+            <p className="text-[11px] text-red-200/80">
+              {t("finance.globalAutomation.totalLosses")}
+            </p>
             <p className="mt-0.5 text-lg font-bold tabular-nums text-red-100">
-              {loading ? "…" : money(totals.debits)}
+              {loading ? "…" : money(totals?.settlementDebits ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border border-border-color bg-bg-secondary px-3 py-2">
-            <p className="text-[11px] text-text-secondary">{t("finance.ledger.netBalanceList")}</p>
+            <p className="text-[11px] text-text-secondary">
+              {t("finance.globalAutomation.operationsNet")}
+            </p>
             <p
               className={cn(
                 "mt-0.5 text-lg font-bold tabular-nums",
-                totals.net >= 0 ? "text-text-primary" : "text-red-300",
+                operationsNet >= 0 ? "text-success" : "text-danger",
               )}
             >
-              {loading ? "…" : money(totals.net)}
+              {loading ? "…" : money(operationsNet)}
             </p>
           </div>
         </div>
@@ -153,11 +168,16 @@ export function BackOfficeGlobalAutomationPanel() {
     void reload();
   }, [reload]);
 
-  const balance = finance?.balance ?? state.balance;
+  const officialBalance = finance?.balance ?? state.balance;
   const initialCapital = finance?.initialCapital ?? ROULETTE_AUTOMATION_INITIAL_BANK;
-  const net = balance - initialCapital;
+  const displayState = useMemo(
+    () => finalizeAutomationSimState(state, officialBalance),
+    [state, officialBalance],
+  );
+  const net = officialBalance - initialCapital;
   const netPct = initialCapital > 0 ? (net / initialCapital) * 100 : 0;
-
+  const balanceMismatch =
+    finance != null && Math.abs(finance.balance - finance.totals.expectedBalance) > 0.01;
   return (
     <div className="space-y-6">
       <section className="theme-card flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -175,7 +195,7 @@ export function BackOfficeGlobalAutomationPanel() {
               {t("finance.globalAutomation.balanceLabel")}
             </p>
             <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
-              {loading ? "…" : money(balance)}
+              {loading ? "…" : money(officialBalance)}
             </p>
             <p
               className={cn(
@@ -188,6 +208,11 @@ export function BackOfficeGlobalAutomationPanel() {
               {netPct.toFixed(2)}%) ·{" "}
               {t("finance.globalAutomation.initialCapital", { amount: money(initialCapital) })}
             </p>
+            {balanceMismatch ? (
+              <p className="mt-2 text-xs text-amber-300">
+                {t("finance.globalAutomation.balanceMismatch")}
+              </p>
+            ) : null}
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void reload()}>
             {t("shared.refresh")}
@@ -196,14 +221,24 @@ export function BackOfficeGlobalAutomationPanel() {
       </section>
 
       <section>
-        <RouletteAutomationSimulatorPanel />
+        <RouletteAutomationSimulatorPanel
+          officialBalance={loading ? null : officialBalance}
+          initialCapital={initialCapital}
+        />
       </section>
 
       <section>
-        <AutomationHistoryTable rounds={state.rounds} openBet={openBet} balance={balance} />
+        <AutomationHistoryTable
+          rounds={displayState.rounds}
+          openBet={openBet}
+          balance={officialBalance}
+        />
       </section>
-
-      <GlobalAutomationLedgerTable entries={finance?.entries ?? []} loading={loading} />
+      <GlobalAutomationLedgerTable
+        entries={finance?.entries ?? []}
+        totals={finance?.totals ?? null}
+        loading={loading}
+      />
     </div>
   );
 }

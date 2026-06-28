@@ -77,6 +77,7 @@ export type Messages = PanelMessages & {
     title3: string;
     body3: string;
     ago: string;
+    empty: string;
   };
   utility: {
     affiliateTitle: string;
@@ -85,5 +86,7 @@ export type Messages = PanelMessages & {
     supportDesc: string;
     messagesTitle: string;
     messagesEmpty: string;
+    messagesInboxTitle: string;
+    messagesInboxDesc: string;
   };
 };

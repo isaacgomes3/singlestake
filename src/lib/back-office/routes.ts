@@ -3,9 +3,6 @@ export const BACK_OFFICE_PATHS = {
   home: "/back-office",
   suporte: "/back-office/suporte",
   casinoAoVivo: "/back-office/operacoes/casino-ao-vivo",
-  casinoOutros: "/back-office/operacoes/casino-outros-jogos",
-  casinoSimulador: "/back-office/operacoes/casino-simulador",
-  casinoEstatisticas: "/back-office/operacoes/casino-estatisticas",
 } as const;
 
 export type BackOfficePath = (typeof BACK_OFFICE_PATHS)[keyof typeof BACK_OFFICE_PATHS];

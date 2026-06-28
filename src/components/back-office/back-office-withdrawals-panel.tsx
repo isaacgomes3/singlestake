@@ -5,6 +5,8 @@ import { FinanceStatusBadge } from "@/components/back-office/finance-status-badg
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSession } from "@/lib/auth/session";
+import { fetchPixKeyProfile, savePixKeyProfile } from "@/lib/back-office/admin-api";
+import type { PixKeyProfileDto } from "@/lib/back-office/admin-types";
 import {
   createWithdrawal,
   fetchWallets,
@@ -27,14 +29,22 @@ export function BackOfficeWithdrawalsPanel() {
   const [amount, setAmount] = useState("");
   const [bucket, setBucket] = useState<WalletBucket>("rendimentos");
   const [pixKey, setPixKey] = useState("");
+  const [pixProfile, setPixProfile] = useState<PixKeyProfileDto | null>(null);
+  const [savingPix, setSavingPix] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const reload = async () => {
     setLoading(true);
-    const [rows, walletRows] = await Promise.all([fetchWithdrawals(), fetchWallets()]);
+    const [rows, walletRows, profile] = await Promise.all([
+      fetchWithdrawals(),
+      fetchWallets(),
+      fetchPixKeyProfile(),
+    ]);
     setWithdrawals(rows);
     setWallets(walletRows);
+    setPixProfile(profile);
+    if (profile?.pixKey) setPixKey(profile.pixKey);
     setLoading(false);
   };
 
@@ -43,6 +53,22 @@ export function BackOfficeWithdrawalsPanel() {
   }, []);
 
   const selectedWallet = wallets.find((w) => w.bucket === bucket);
+
+  const pixFieldLocked = pixProfile != null && !pixProfile.canEdit && !!pixProfile.pixKey;
+
+  const handleSavePix = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPix(true);
+    const result = await savePixKeyProfile(pixKey.trim());
+    setSavingPix(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setPixProfile(result.profile);
+    setPixKey(result.profile.pixKey ?? "");
+    toast.success(t("finance.withdrawals.pixProfileSaved"));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +85,6 @@ export function BackOfficeWithdrawalsPanel() {
     }
     toast.success(t("finance.withdrawals.toastSubmittedWait"));
     setAmount("");
-    setPixKey("");
     void reload();
   };
 
@@ -82,6 +107,44 @@ export function BackOfficeWithdrawalsPanel() {
 
   return (
     <div className="space-y-5">
+      {!isAdmin ? (
+        <section className="theme-card rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-text-primary">
+            {t("finance.withdrawals.pixProfileTitle")}
+          </h2>
+          <p className="mt-1 text-xs text-text-secondary">{t("finance.withdrawals.pixProfileHint")}</p>
+          {pixProfile?.locked ? (
+            <p className="mt-2 text-xs font-medium text-warning">
+              {t("finance.withdrawals.pixProfileLocked")}
+            </p>
+          ) : pixProfile?.allowEdit ? (
+            <p className="mt-2 text-xs font-medium text-success">
+              {t("finance.withdrawals.pixProfileAllowed")}
+            </p>
+          ) : null}
+          <form onSubmit={handleSavePix} className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="min-w-[240px] flex-1 space-y-1.5">
+              <label htmlFor="profile-pix" className="text-xs font-medium text-text-secondary">
+                {t("finance.withdrawals.pixLabel")}
+              </label>
+              <Input
+                id="profile-pix"
+                required
+                readOnly={pixFieldLocked}
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                placeholder={t("finance.withdrawals.pixPlaceholder")}
+              />
+            </div>
+            {!pixFieldLocked ? (
+              <Button type="submit" disabled={savingPix}>
+                {savingPix ? t("shared.submitting") : t("finance.withdrawals.pixProfileSave")}
+              </Button>
+            ) : null}
+          </form>
+        </section>
+      ) : null}
+
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("finance.withdrawals.formTitle")}</h2>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -130,11 +193,17 @@ export function BackOfficeWithdrawalsPanel() {
             </label>
             <Input
               id="withdraw-pix"
-              required
+              required={!pixProfile?.pixKey}
+              readOnly={!!pixProfile?.pixKey}
               value={pixKey}
               onChange={(e) => setPixKey(e.target.value)}
               placeholder={t("finance.withdrawals.pixPlaceholder")}
             />
+            {pixProfile?.pixKey ? (
+              <p className="text-[11px] text-text-secondary">
+                {t("finance.withdrawals.pixProfileHint")}
+              </p>
+            ) : null}
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={submitting}>

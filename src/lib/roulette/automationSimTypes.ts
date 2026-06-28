@@ -3,6 +3,7 @@ export type AutomationSimApiSnapshot = {
   updatedAt: number;
   state: import("@/lib/back-office/rouletteAutomationSim").RouletteAutomationSimState;
   pendingSignal: import("@/lib/back-office/rouletteAutomationSim").AutomationPendingSignal | null;
+  config: import("@/lib/back-office/automation-config").GlobalAutomationConfigDto;
 };
 
 export type AutomationSimStreamMessage =

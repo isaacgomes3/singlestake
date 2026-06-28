@@ -62,6 +62,16 @@ export async function runDailyAutomationYield(
 
   for (const pkg of packages) {
     if (pkg.automationBase <= 0) continue;
+
+    let companyUserId: string | null = null;
+    try {
+      const { resolveCompanyUserId } = await import("@/lib/server/finance/company-pool");
+      companyUserId = await resolveCompanyUserId();
+    } catch {
+      /* caixa empresa ainda não configurada */
+    }
+    if (companyUserId && pkg.userId === companyUserId) continue;
+
     if (pkg.adhesionEndsAt <= now) {
       await db
         .update(userPackages)

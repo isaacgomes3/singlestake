@@ -10,10 +10,20 @@ export type GlobalAutomationLedgerEntry = {
   createdAt: string;
 };
 
+export type GlobalAutomationLedgerTotals = {
+  capitalCredit: number;
+  settlementCredits: number;
+  settlementDebits: number;
+  operationsNet: number;
+  expectedBalance: number;
+  entryCount: number;
+};
+
 export type GlobalAutomationFinance = {
   balance: number;
   initialCapital: number;
   capitalRegisteredAt: number | null;
+  totals: GlobalAutomationLedgerTotals;
   entries: GlobalAutomationLedgerEntry[];
 };
 

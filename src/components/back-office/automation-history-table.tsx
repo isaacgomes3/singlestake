@@ -10,10 +10,19 @@ import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
+function isInPlayRound(round: AutomationSimRound): boolean {
+  return round.badge === "EM JOGO" || round.badge === "IN PLAY";
+}
+
+function isRecoveryRound(round: AutomationSimRound): boolean {
+  return round.badge === "RECUPERAÇÃO" || round.badge === "RECOVERY";
+}
+
 function roundBadgeLabel(badge: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
   if (badge === "VITÓRIA" || badge === "WIN") return t("shared.rounds.win");
   if (badge === "DERROTA" || badge === "LOSS") return t("shared.rounds.loss");
   if (badge === "EM JOGO" || badge === "IN PLAY") return t("shared.rounds.inPlay");
+  if (badge === "RECUPERAÇÃO" || badge === "RECOVERY") return t("shared.rounds.recovery");
   return badge;
 }
 
@@ -28,7 +37,7 @@ function formatRoundDescription(
   const level = recoveryLevelForRound(round);
   if (level > 0) {
     parts.push(t("shared.rounds.gale", { n: level }));
-  } else if (round.badge !== "EM JOGO" && round.badge !== "IN PLAY") {
+  } else if (!isInPlayRound(round)) {
     parts.push(t("shared.rounds.entry"));
   }
   return parts.join(" · ");
@@ -48,7 +57,8 @@ function formatOpenBetDescription(
 }
 
 function tipoTone(round: AutomationSimRound): "success" | "danger" | "warning" {
-  if (round.badge === "EM JOGO") return "warning";
+  if (isInPlayRound(round)) return "warning";
+  if (isRecoveryRound(round)) return "warning";
   if (round.badge === "VITÓRIA" || round.badge === "WIN" || round.net > 0) return "success";
   if (round.badge === "DERROTA" || round.badge === "LOSS" || round.net < 0) return "danger";
   return "warning";
@@ -122,10 +132,12 @@ export function AutomationHistoryTable({ rounds, openBet, balance }: Props) {
                   <p className="font-semibold tabular-nums text-warning">
                     {money(openBet.stake)}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-text-secondary">
+                  <p className="mt-0.5 text-[11px] tabular-nums text-warning">
                     {t("shared.rounds.inPlayHint")}
                     {balance != null
-                      ? ` · ${t("shared.rounds.balanceAfter", { amount: money(balance) })}`
+                      ? ` · ${t("shared.rounds.balanceAfterStake", {
+                          amount: money(Math.max(0, balance - openBet.stake)),
+                        })}`
                       : null}
                   </p>
                 </td>
@@ -140,9 +152,17 @@ export function AutomationHistoryTable({ rounds, openBet, balance }: Props) {
             ) : (
               rounds.map((round) => {
                 const tone = tipoTone(round);
-                const isCredit = round.net >= 0;
+                const inPlay = isInPlayRound(round);
+                const recovery = isRecoveryRound(round);
+                const isCredit = !inPlay && !recovery && round.net >= 0;
                 return (
-                  <tr key={round.id} className="border-b border-border-color last:border-0">
+                  <tr
+                    key={round.id}
+                    className={cn(
+                      "border-b border-border-color last:border-0",
+                      (inPlay || recovery) && "bg-warning/5",
+                    )}
+                  >
                     <td className="whitespace-nowrap px-4 py-3 text-text-secondary">
                       {date(round.ts)}
                       <span className="mt-0.5 block text-[11px] tabular-nums">{time(round.ts)}</span>
@@ -163,18 +183,45 @@ export function AutomationHistoryTable({ rounds, openBet, balance }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <p
-                        className={cn(
-                          "font-semibold tabular-nums",
-                          isCredit ? "text-success" : "text-danger",
-                        )}
-                      >
-                        {isCredit ? "+" : "−"}
-                        {money(Math.abs(round.net))}
-                      </p>
-                      <p className="mt-0.5 text-[11px] tabular-nums text-text-secondary">
-                        {t("shared.rounds.balanceAfter", { amount: money(round.balanceAfter) })}
-                      </p>
+                      {inPlay ? (
+                        <>
+                          <p className="font-semibold tabular-nums text-warning">
+                            {money(round.stake)}
+                          </p>
+                          <p className="mt-0.5 text-[11px] tabular-nums text-warning">
+                            {t("shared.rounds.balanceAfter", { amount: money(round.balanceAfter) })}
+                          </p>
+                        </>
+                      ) : recovery ? (
+                        <>
+                          <p className="font-semibold tabular-nums text-warning">
+                            −{money(Math.abs(round.net))}
+                          </p>
+                          <p className="mt-0.5 text-[11px] tabular-nums text-text-secondary">
+                            {t("shared.rounds.balanceAfter", { amount: money(round.balanceAfter) })}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p
+                            className={cn(
+                              "font-semibold tabular-nums",
+                              isCredit ? "text-success" : "text-danger",
+                            )}
+                          >
+                            {isCredit ? "+" : "−"}
+                            {money(Math.abs(round.net))}
+                          </p>
+                          <p
+                            className={cn(
+                              "mt-0.5 text-[11px] tabular-nums",
+                              round.balanceAfter >= 0 ? "text-text-secondary" : "text-danger",
+                            )}
+                          >
+                            {t("shared.rounds.balanceAfter", { amount: money(round.balanceAfter) })}
+                          </p>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );
