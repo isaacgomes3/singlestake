@@ -3,18 +3,28 @@ import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
 
 import {
   resolveLedgerEntryStake,
+  ROULETTE_AUTOMATION_BASE_STAKE,
   stakeForRecovery,
-  type AutomationSimRound,
-  type RouletteAutomationSimState,
-} from "@/lib/back-office/rouletteAutomationSim";
+} from "@/lib/back-office/automationStakes";
 
 const STAKE_EPS = 0.009;
+
+export type MartingaleReviewRound = {
+  badge: string;
+  recovery: number;
+  net: number;
+};
+
+export type MartingaleReviewState = {
+  rounds: readonly MartingaleReviewRound[];
+  openBet?: { recovery: number; stake: number } | null;
+};
 
 export type MartingaleReviewResult =
   | { accepted: true; stake: number; net: number }
   | { accepted: false; reason: string };
 
-function lastRoundOutcome(round: AutomationSimRound): "win" | "partial" | "final" {
+function lastRoundOutcome(round: MartingaleReviewRound): "win" | "partial" | "final" {
   if (round.badge === "VITÓRIA" || round.badge === "WIN" || round.net > 0) return "win";
   if (round.badge === "DERROTA" || round.badge === "LOSS") return "final";
   return "partial";
@@ -22,7 +32,7 @@ function lastRoundOutcome(round: AutomationSimRound): "win" | "partial" | "final
 
 /** Próximo passo permitido no martingale após a última linha do histórico. */
 export function expectedMartingaleStep(
-  lastRound: AutomationSimRound | null,
+  lastRound: MartingaleReviewRound | null,
   baseStake: number,
 ): { recovery: number; stake: number } {
   if (!lastRound) {
@@ -41,7 +51,7 @@ export function expectedMartingaleStep(
   return { recovery: nextRecovery, stake: stakeForRecovery(nextRecovery, undefined, baseStake) };
 }
 
-function describeLastRound(round: AutomationSimRound | null): string {
+function describeLastRound(round: MartingaleReviewRound | null): string {
   if (!round) return "início do ciclo";
   if (round.badge === "RECUPERAÇÃO" || round.badge === "RECOVERY") {
     return `recuperação −R$ ${Math.abs(round.net).toFixed(2)}`;
@@ -56,9 +66,9 @@ function describeLastRound(round: AutomationSimRound | null): string {
  * recuperação −2S ou vitória +2S no gale seguinte (nunca outro valor).
  */
 export function reviewMartingaleSettlement(
-  state: Pick<RouletteAutomationSimState, "rounds" | "openBet">,
+  state: MartingaleReviewState,
   entry: StrategyGlobalLedgerEntry,
-  baseStake: number,
+  baseStake: number = ROULETTE_AUTOMATION_BASE_STAKE,
 ): MartingaleReviewResult {
   const lastRound = state.rounds[0] ?? null;
   const expected = expectedMartingaleStep(lastRound, baseStake);

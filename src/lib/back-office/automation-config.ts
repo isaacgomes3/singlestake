@@ -1,8 +1,8 @@
 import {
   EXTENSION_REAL_BASE_STAKE,
   ROULETTE_AUTOMATION_BASE_STAKE,
-  ROULETTE_AUTOMATION_INITIAL_BANK,
-} from "@/lib/back-office/rouletteAutomationSim";
+} from "@/lib/back-office/automationStakes";
+import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 
 /** Pausa por stop win/loss retoma sozinha após 1 hora. Pausa manual só pelo admin. */
 export const AUTOMATION_STOP_PAUSE_MS = 60 * 60 * 1000;

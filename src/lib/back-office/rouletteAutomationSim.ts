@@ -14,13 +14,23 @@ import {
   type UmFatorActive,
 } from "@/lib/roulette/umFatorStrategy";
 import { reviewMartingaleSettlement } from "@/lib/back-office/martingaleSequenceReview";
+import {
+  EXTENSION_REAL_BASE_STAKE,
+  resolveLedgerEntryStake,
+  ROULETTE_AUTOMATION_BASE_STAKE,
+  stakeForRecovery,
+} from "@/lib/back-office/automationStakes";
+
+export {
+  EXTENSION_REAL_BASE_STAKE,
+  ROULETTE_AUTOMATION_BASE_STAKE,
+  resolveLedgerEntryStake,
+  stakeForRecovery,
+} from "@/lib/back-office/automationStakes";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
 /** Versão do extrato — incrementar força reset automático (saldo R$ 50.000, histórico limpo). */
 export const AUTOMATION_EXTRACT_FORMAT_VERSION = 4;
-/** Stake real da extensão / roleta: R$ 0,50 → 1 → 2 → 4 → 8 → 16. */
-export const EXTENSION_REAL_BASE_STAKE = 0.5;
-export const ROULETTE_AUTOMATION_BASE_STAKE = EXTENSION_REAL_BASE_STAKE;
 /** @deprecated Mantido só por compatibilidade de import — não usar para calcular stake. */
 export const AUTOMATION_BANK_SHARE = 0.001;
 /** @deprecated Use ROULETTE_AUTOMATION_BASE_STAKE. */
@@ -178,17 +188,6 @@ export function baseStakeFromBalance(
   return baseStake;
 }
 
-/** baseStake × 2^recuperação (máx. rec5); após isso volta ao baseStake. */
-export function stakeForRecovery(
-  recovery: number,
-  _balance?: number,
-  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
-): number {
-  const level = Math.max(0, Math.floor(recovery));
-  if (level > UM_FATOR_MAX_RECOVERY) return baseStake;
-  return baseStake * 2 ** level;
-}
-
 /** Nível de gale registado no ledger (recoveryBefore da aposta). */
 export function recoveryLevelForRound(round: Pick<AutomationSimRound, "recovery" | "stake">): number {
   return Math.max(0, Math.floor(round.recovery));
@@ -282,17 +281,6 @@ export function globalAutomationSettleKey(
 ): string | null {
   if (entry.resultNumber == null) return null;
   return `${entry.tableId}:${entry.resultNumber}:${entry.recovery}:${entry.kind}`;
-}
-
-export function resolveLedgerEntryStake(
-  entry: StrategyGlobalLedgerEntry,
-  balance?: number,
-  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
-): number {
-  if (typeof entry.stake === "number" && entry.stake > 0 && Number.isFinite(entry.stake)) {
-    return entry.stake;
-  }
-  return stakeForRecovery(entry.recovery, balance, baseStake);
 }
 
 /** Junta ledger do servidor com liquidações locais ainda não sincronizadas. */
@@ -463,9 +451,7 @@ export function settleOpenBetEntry(
 
   const review = reviewMartingaleSettlement(state, entry, baseStake);
   if (!review.accepted) {
-    if (typeof console !== "undefined") {
-      console.warn("[MartingaleReview] liquidação rejeitada:", review.reason);
-    }
+    console.warn("[MartingaleReview] liquidação rejeitada:", review.reason);
     return state;
   }
 
