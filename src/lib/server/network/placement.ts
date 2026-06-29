@@ -51,7 +51,10 @@ export function findLegSpilloverPlacement(
   }
 
   let current = legChildOccupied(rootUserId, legSide, children, excludeUserIds)!;
+  const visited = new Set<string>([rootUserId]);
   while (true) {
+    if (visited.has(current)) return null;
+    visited.add(current);
     if (!legChildOccupied(current, legSide, children, excludeUserIds)) {
       return { parentId: current, side: legSide };
     }
@@ -85,10 +88,25 @@ export function isOnLegExtremity(
   if (node.parentId === sponsorId) return true;
 
   const children = buildChildMap(nodes);
-  const parentSlot = children.get(node.parentId);
-  if (parentSlot?.[legSide] !== userId) return false;
+  let current: string | undefined = userId;
+  const visited = new Set<string>();
 
-  return isOnLegExtremity(sponsorId, node.parentId, nodes);
+  while (current && current !== sponsorId) {
+    if (visited.has(current)) return false;
+    visited.add(current);
+
+    const currentNode = byUser.get(current);
+    if (!currentNode?.side || currentNode.side !== legSide) return false;
+
+    const parentId = currentNode.parentId;
+    if (!parentId) return false;
+    if (parentId === sponsorId) return true;
+    if (children.get(parentId)?.[legSide] !== current) return false;
+
+    current = parentId;
+  }
+
+  return false;
 }
 
 /** Primeira posição livre (esquerda, depois direita) em BFS a partir do patrocinador. */

@@ -90,7 +90,6 @@ async function main() {
       continue;
     }
 
-    const sponsor = allUsers.find((u) => u.id === repair.sponsorId);
     console.log(
       `  ${repair.name} → perna ${repair.legSide}, parent ${target.parentId.slice(0, 8)}… side ${target.side}`,
     );
