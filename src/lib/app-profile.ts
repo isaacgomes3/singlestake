@@ -42,12 +42,30 @@ export function isBackofficeProfile(hostname?: string | null): boolean {
 
 /** URL pública do ambiente de automação (subdomínio). */
 export function getAutomationPublicOrigin(): string | null {
+  /** Processo back office (PM2 :3000) — sala rotativa no mesmo domínio. */
+  if (typeof process !== "undefined" && process.env.APP_PROFILE === "backoffice") {
+    return null;
+  }
   const fromEnv =
     (typeof import.meta !== "undefined" &&
       (import.meta.env.VITE_AUTOMATION_PUBLIC_URL as string | undefined)) ||
     (typeof process !== "undefined" && process.env.PUBLIC_AUTOMATION_URL);
   if (typeof fromEnv === "string" && fromEnv.trim()) {
-    return fromEnv.trim().replace(/\/$/, "");
+    const origin = fromEnv.trim().replace(/\/$/, "");
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      /** No domínio principal, manter mesma origem — evita redirect para auto.* sem DNS. */
+      if (host === "stake37.com.br" || host === "www.stake37.com.br") {
+        return null;
+      }
+      try {
+        const target = new URL(origin);
+        if (target.hostname !== host) return null;
+      } catch {
+        return null;
+      }
+    }
+    return origin;
   }
   if (typeof window !== "undefined") {
     const host = window.location.hostname;

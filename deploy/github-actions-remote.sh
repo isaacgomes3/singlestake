@@ -22,6 +22,9 @@ if [ "$DEPLOY_RC" -eq 0 ]; then
   if [[ "${REPROCESS_BONUSES:-0}" == "1" ]] || [[ "$COMMIT_MSG" == *"[reprocess-bonuses]"* ]]; then
     echo "=== A reprocessar bónus na BD de produção ==="
     bash deploy/reprocess-bonuses-on-vps.sh
+  elif [[ "$COMMIT_MSG" == *"[restart-site]"* ]]; then
+    echo "=== A reiniciar PM2 ==="
+    bash deploy/restart-site.sh
   fi
   exit 0
 fi
