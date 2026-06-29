@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { getSession } from "@/lib/auth/session";
 import { fetchLedger } from "@/lib/back-office/finance-api";
 import type { LedgerEntryRecord } from "@/lib/back-office/finance-types";
@@ -35,6 +36,10 @@ export function BackOfficeLedgerPanel() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useBackOfficeFinancePoll(() => {
+    void reload();
+  });
 
   const totals = useMemo(() => {
     let credits = 0;

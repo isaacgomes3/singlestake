@@ -30,14 +30,16 @@ export function useRotatingRoomRotativaSession(
     observeOnly: options.observeOnly,
     preferLocalSession: options.preferLocalSession,
   });
+  const crossingEnabled = isCrossingGatilhoEnabled();
   const crossing = useRotatingRoomCrossingSession(tableIds, histories, {
     observeOnly: options.observeOnly,
+    enabled: crossingEnabled,
   });
 
   return useMemo(
     () =>
       mergeRotatingRoomRotativaSession(umFator, crossing, {
-        crossingEnabled: isCrossingGatilhoEnabled(),
+        crossingEnabled,
       }),
     [umFator, crossing],
   );

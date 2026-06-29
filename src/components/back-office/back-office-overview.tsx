@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
+import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { apiFetchOverview } from "@/lib/auth/api";
 import { MOCK_BACK_OFFICE_OVERVIEW } from "@/lib/back-office/mock-data";
 import type { BackOfficeOverview } from "@/lib/back-office/types";
@@ -65,11 +66,18 @@ export function BackOfficeOverviewPage() {
   const { money } = useFormat();
   const [overview, setOverview] = useState<BackOfficeOverview | null>(null);
 
-  useEffect(() => {
-    void apiFetchOverview().then((data) => {
-      setOverview(data ?? MOCK_BACK_OFFICE_OVERVIEW);
-    });
+  const reload = useCallback(async () => {
+    const data = await apiFetchOverview();
+    setOverview(data ?? MOCK_BACK_OFFICE_OVERVIEW);
   }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  useBackOfficeFinancePoll(() => {
+    void reload();
+  });
 
   const o = overview ?? MOCK_BACK_OFFICE_OVERVIEW;
   const auto = o.automation;

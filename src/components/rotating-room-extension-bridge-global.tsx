@@ -4,7 +4,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
 import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
+import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
@@ -18,11 +18,6 @@ import {
   rotatingRoomLobbyFocusTableId,
   ROTATING_ROOM_LOBBY_WAIT_EMBED_URL,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
-import {
-  readRotatingRoomExtensionEnabled,
-  ROTATING_ROOM_EXTENSION_ENABLED_KEY,
-  ROTATING_ROOM_EXTENSION_PREFS_EVENT,
-} from "@/lib/roulette/rotatingRoomExtensionPrefs";
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
@@ -35,10 +30,9 @@ function isRotatingRoomBridgePath(pathname: string): boolean {
   );
 }
 
-/** Envia sinais da sala rotativa (1F + 2F) à extensão Chrome. */
+/** Envia sinais da sala rotativa (1 Fator) à extensão Chrome. */
 export function RotatingRoomExtensionBridgeGlobal() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [extensionEnabled, setExtensionEnabled] = useState(readRotatingRoomExtensionEnabled);
   const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
 
   const autoBridge = isRotatingRoomBridgePath(pathname);
@@ -60,8 +54,9 @@ export function RotatingRoomExtensionBridgeGlobal() {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation } = useRouletteAutomationSim();
-  const session = useRotatingRoomRotativaSession(tableIds, histories, {
+  const session = useRotatingRoomUmFatorSession(tableIds, histories, {
     preferLocalSession: false,
+    observeOnly: false,
   });
 
   const mesaEmbedUrl = useMemo(() => {
@@ -72,28 +67,11 @@ export function RotatingRoomExtensionBridgeGlobal() {
     return catalog.find((e) => e.tableId === focusId)?.url ?? getCasinoEmbedUrlForTable(focusId);
   }, [session]);
 
-  useEffect(() => {
-    const syncEnabled = () => setExtensionEnabled(readRotatingRoomExtensionEnabled());
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === ROTATING_ROOM_EXTENSION_ENABLED_KEY) syncEnabled();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(ROTATING_ROOM_EXTENSION_PREFS_EVENT, syncEnabled);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(ROTATING_ROOM_EXTENSION_PREFS_EVENT, syncEnabled);
-    };
-  }, []);
-
   const extensionBridgeOn =
     extensionPresent &&
     (extensionPrefs?.bridgeEnabled === undefined || extensionPrefs.bridgeEnabled !== false);
 
-  const bridgeActive =
-    autoBridge &&
-    (extensionEnabled ||
-      readRotatingRoomExtensionEnabled() ||
-      extensionBridgeOn);
+  const bridgeActive = autoBridge && extensionPresent && extensionBridgeOn;
 
   useRotatingRoomClickBotLearning({
     session,

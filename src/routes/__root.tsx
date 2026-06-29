@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { Live24dSpinSseBridge } from "@/components/live-24d-spin-sse-bridge";
 import { LiveFootballBlitzSseBridge } from "@/components/live-football-blitz-sse-bridge";
 import { LiveRouletteSseBridge } from "@/components/live-roulette-sse-bridge";
-import { RouletteRotatingRoomSseBridge } from "@/components/roulette-rotating-room-sse-bridge";
 import { RouletteAutomationSimSseBridge } from "@/components/roulette-automation-sim-sse-bridge";
 import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
 import { RotatingRoomExtensionBridgeGlobal } from "@/components/rotating-room-extension-bridge-global";
@@ -201,14 +200,13 @@ function RootComponent() {
                     <RouletteAutomationSimSseBridge />
                   </>
                 ) : null}
+                {needsExtensionBridge ? <RotatingRoomExtensionBridgeGlobal /> : null}
                 {needsCasinoStreams ? (
                   <>
                     <RouteSoundGate />
                     <LiveRouletteSseBridge />
-                    <RouletteRotatingRoomSseBridge />
                     <Live24dSpinSseBridge />
                     <LiveFootballBlitzSseBridge />
-                    {needsExtensionBridge ? <RotatingRoomExtensionBridgeGlobal /> : null}
                   </>
                 ) : null}
                 {outlet}

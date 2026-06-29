@@ -11,13 +11,15 @@ import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
 const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([
   "operacoes",
   "casino-ao-vivo",
-  "automacao-global",
 ]);
 
 export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
   beforeLoad: async ({ params }) => {
     if (params.moduleId === "residual") {
       throw redirect({ to: "/back-office/rede/bonus-equipe" });
+    }
+    if (params.moduleId === "automacao-global") {
+      throw redirect({ to: "/back-office" });
     }
     const group = getBackOfficeGroup(params.groupId);
     if (!group) throw notFound();

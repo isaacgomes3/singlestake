@@ -986,14 +986,16 @@ export function RotatingRoomLobbyCard({
   openInIframe = false,
   className,
 }: LobbyCardProps) {
-  const aproveitamento = embedded
-    ? 0
-    : rotatingRoomSessionAproveitamentoPct(session.sessionStats);
   const focusTableId = rotatingRoomLobbyFocusTableId(session);
   const focusLabel = focusTableId != null ? lobbyTableDisplayName(focusTableId) : null;
   const isPrepare = session.sessionMode === "prepare" && !session.showTapeteSignal;
   const isActive = session.showTapeteSignal;
   const hasSignal = rotatingRoomLobbyHasSignal(session);
+  const roundStatus = session.showTapeteSignal
+    ? `Gale ${session.currentRecovery}`
+    : session.sessionMode === "prepare"
+      ? "Posicione-se"
+      : "Aguardando";
   const photo = focusTableId != null ? lobbyTableCardPhotoUrl(focusTableId) : null;
   const photoStyle = focusTableId != null ? lobbyTableCardPhotoStyle(focusTableId) : null;
 
@@ -1070,9 +1072,11 @@ export function RotatingRoomLobbyCard({
               ) : null}
             </div>
             <div className="flex min-w-0 items-center justify-end">
-              <span className="inline-flex shrink-0 items-center rounded-md border border-cyan-600/50 bg-black/70 px-1.5 py-0.5 text-[7px] font-bold tabular-nums text-cyan-200 sm:text-[8px]">
-                {aproveitamento.toFixed(0)}%
-              </span>
+              {session.showTapeteSignal || session.sessionMode === "prepare" ? (
+                <span className="inline-flex shrink-0 items-center rounded-md border border-cyan-600/50 bg-black/70 px-1.5 py-0.5 text-[7px] font-bold tabular-nums text-cyan-200 sm:text-[8px]">
+                  {roundStatus}
+                </span>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -1124,7 +1128,7 @@ export function RotatingRoomLobbyCard({
               embedded ? "text-text-secondary" : "text-slate-500",
             )}
           >
-            {session.sessionStats.wins} · {session.sessionStats.losses}
+            {roundStatus}
           </p>
           {embedded && openInIframe ? (
             <SalaRouteLink

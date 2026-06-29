@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { fetchWallets } from "@/lib/back-office/finance-api";
 import type { WalletRecord } from "@/lib/back-office/finance-types";
 import { FINANCE_DISPLAY_BUCKETS } from "@/lib/back-office/finance-constants";
+import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 
@@ -12,12 +13,19 @@ export function BackOfficeWalletPanel() {
   const [wallets, setWallets] = useState<WalletRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    void fetchWallets().then((rows) => {
-      setWallets(rows);
-      setLoading(false);
-    });
+  const reload = useCallback(async () => {
+    const rows = await fetchWallets();
+    setWallets(rows);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  useBackOfficeFinancePoll(() => {
+    void reload();
+  });
 
   const byBucket = new Map(wallets.map((w) => [w.bucket, w]));
   const totalAvailable = wallets.reduce((s, w) => s + w.availableBalance, 0);

@@ -19,6 +19,8 @@ export function SinglestakeLogo({ className, variant = "horizontal" }: Singlesta
       alt="STAKE37"
       width={320}
       height={128}
+      loading="lazy"
+      decoding="async"
       draggable={false}
       className={cn(
         "h-auto w-auto max-w-full object-contain object-center",

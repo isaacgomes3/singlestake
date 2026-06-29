@@ -17,7 +17,7 @@ export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
 
 export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap = {
   ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-  crossing: true,
+  crossing: false,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };

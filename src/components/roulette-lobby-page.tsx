@@ -72,16 +72,8 @@ import {
   lobbyTableHasRotatingRoomSignal,
   type RotatingRoomLobbySession,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
-import { UM_FATOR_RESET_EVENT } from "@/lib/roulette/umFatorCrossingStrategy";
-import {
-  readRotatingRoomOfficialPlacarStats,
-  ROTATING_ROOM_UM_FATOR_CHANGED_EVENT,
-  ROTATING_ROOM_UM_FATOR_RESET_EVENT,
-} from "@/lib/roulette/rotatingRoomUmFatorSession";
-import {
-  rotatingRoomSnapshotForTable,
-  rotatingRoomSessionAproveitamentoPct,
-} from "@/lib/roulette/rotatingRoomStrategy";
+import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { rotatingRoomSnapshotForTable } from "@/lib/roulette/rotatingRoomStrategy";
 
 export {
   LOBBY_FIXED_TABLE_IDS,
@@ -288,10 +280,6 @@ type CasinoLiveRoletasStrategyTab = LobbyRoletasStrategyTab;
 
 const CASINO_LIVE_STRATEGY: CasinoLiveRoletasStrategyTab = "um1fator";
 
-function readLobbyFatoresRotatingRoomStats(): ReturnType<typeof readRotatingRoomOfficialPlacarStats> {
-  return readRotatingRoomOfficialPlacarStats();
-}
-
 function lobbyCasinoLiveStrategyLabel(_tab: CasinoLiveRoletasStrategyTab): string {
   return "1 Fator";
 }
@@ -326,19 +314,11 @@ function lobbyStrategyPlacarOutcomes(
   return [];
 }
 
-function lobbyStrategyAproveitamentoPct(
-  _strategy: CasinoLiveRoletasStrategyTab,
-  _hHour: readonly number[],
-  _tableId: number,
-): number {
-  return rotatingRoomSessionAproveitamentoPct(readLobbyFatoresRotatingRoomStats());
-}
-
-/** Ordem no grid: mesa com sinal da sala rotativa primeiro; depois maior aproveitamento global. */
+/** Ordem no grid: mesa com sinal da sala rotativa primeiro; depois id estável. */
 function sortLobbyTableIdsByAproveitamento(
   tableIds: readonly number[],
-  histories: Record<number, number[]>,
-  strategy: CasinoLiveRoletasStrategyTab,
+  _histories: Record<number, number[]>,
+  _strategy: CasinoLiveRoletasStrategyTab,
   rotatingRoomSession?: RotatingRoomLobbySession | null,
 ): number[] {
   const signalRank = (tid: number): number => {
@@ -354,44 +334,8 @@ function sortLobbyTableIdsByAproveitamento(
   return [...tableIds].sort((a, b) => {
     const rankDiff = signalRank(b) - signalRank(a);
     if (rankDiff !== 0) return rankDiff;
-    const pctA = lobbyStrategyAproveitamentoPct(
-      strategy,
-      lobbyHistoryForStrategyPlacar(strategy, a, histories[a] ?? []),
-      a,
-    );
-    const pctB = lobbyStrategyAproveitamentoPct(
-      strategy,
-      lobbyHistoryForStrategyPlacar(strategy, b, histories[b] ?? []),
-      b,
-    );
-    if (pctB !== pctA) return pctB - pctA;
     return a - b;
   });
-}
-
-/** Aproveitamento da estratégia (valor já calculado a partir do histórico ao vivo da mesa). */
-function LobbyTableAproveitamentoBadge({ pct, compact = false }: { pct: number; compact?: boolean }) {
-  return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center px-2 text-center",
-        compact ? "pb-16 sm:pb-[4.5rem]" : "pb-8 sm:pb-10",
-      )}
-      aria-live="polite"
-    >
-      <div
-        className="rounded-xl border-2 border-[#9e82b7] bg-gradient-to-br from-[#4a2868] via-[#3c1e54] to-[#261238] px-2 py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.35)] sm:px-2 sm:py-1.5"
-        aria-label={`Aproveitamento: ${pct.toFixed(1)} por cento`}
-      >
-        <span className="text-[7px] font-bold uppercase tracking-[0.12em] text-white/90 sm:text-[8px]">
-          Aproveitamento
-        </span>
-        <span className="mt-0.5 block text-base font-extrabold tabular-nums tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)] sm:text-lg">
-          {pct.toFixed(1)}%
-        </span>
-      </div>
-    </div>
-  );
 }
 
 function LobbyTableActiveSignalBadge({ strategyLabel }: { strategyLabel: string }) {
@@ -440,12 +384,6 @@ function LobbyCard({
     () => lobbyHistoryForStrategyPlacar(strategyTab, tableId, liveHistory),
     [tableId, liveHistory, strategyTab],
   );
-  const pct = useMemo(() => {
-    if (usesRotatingRoomPlacar) {
-      return rotatingRoomSessionAproveitamentoPct(rotatingRoomSession.sessionStats);
-    }
-    return lobbyStrategyAproveitamentoPct(strategyTab, historyPlacar, tableId);
-  }, [historyPlacar, rotatingRoomSession, strategyTab, tableId, usesRotatingRoomPlacar]);
   const strategySnap = useMemo(
     () => rotatingRoomSnapshotForTable(strategyTab, historyPlacar, tableId),
     [historyPlacar, strategyTab, tableId],
@@ -570,7 +508,6 @@ function LobbyCard({
         {strategyTab === "um1fator" ? (
           <>
             {hasActiveSignal ? <LobbyTableActiveSignalBadge strategyLabel={strategyLabel} /> : null}
-            <LobbyTableAproveitamentoBadge pct={pct} compact={isFatoresTab} />
           </>
         ) : null}
         <div className="absolute inset-x-0 bottom-0 z-[4] flex flex-col bg-gradient-to-t from-black via-black/85 to-transparent px-1 pb-1.5 pt-4 sm:px-1.5 sm:pb-2 sm:pt-5">
@@ -928,10 +865,11 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly },
   );
+  const crossingEnabled = isCrossingGatilhoEnabled();
   const crossingRoomSession = useRotatingRoomCrossingSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
-    { observeOnly: lobbyRotatingRoomObserveOnly },
+    { observeOnly: lobbyRotatingRoomObserveOnly, enabled: crossingEnabled },
   );
 
   const ruas9StreakLeaderId = useMemo(() => null, []);
@@ -1314,12 +1252,14 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
                       salaRoute={lobbySalaRotativaRoute(CASINO_LIVE_STRATEGY)}
                       salaLabel="Sala Rotativa · 1 Fator"
                     />
-                    <RotatingRoomLobbyCard
-                      session={crossingRoomSession}
-                      salaRoute={lobbySalaRotativa2FatoresRoute(CASINO_LIVE_STRATEGY)}
-                      salaLabel="Sala Rotativa · 2 Fatores"
-                      strategyBadge="2 Fatores"
-                    />
+                    {crossingEnabled ? (
+                      <RotatingRoomLobbyCard
+                        session={crossingRoomSession}
+                        salaRoute={lobbySalaRotativa2FatoresRoute(CASINO_LIVE_STRATEGY)}
+                        salaLabel="Sala Rotativa · 2 Fatores"
+                        strategyBadge="2 Fatores"
+                      />
+                    ) : null}
                     {lobbyCardTableIdsByAproveitamento.map((tid) => (
                       <LobbyCard
                         key={tid}

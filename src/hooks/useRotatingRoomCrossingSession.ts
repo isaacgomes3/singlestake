@@ -50,6 +50,8 @@ export type RotatingRoomCrossingRoundFlash = {
 
 type Options = {
   observeOnly?: boolean;
+  /** Quando falso, não corre motor de placar local (cruzamento desligado). */
+  enabled?: boolean;
 };
 
 export type RotatingRoomCrossingSession = {
@@ -74,6 +76,7 @@ export function useRotatingRoomCrossingSession(
   options: Options = {},
 ): RotatingRoomCrossingSession {
   const observeOnly = options.observeOnly ?? false;
+  const enabled = options.enabled ?? true;
   const globalSnap = useStrategyGlobalSnapshot();
   const globalActive = isStrategyGlobalEnabled() && globalSnap != null;
 
@@ -234,11 +237,11 @@ export function useRotatingRoomCrossingSession(
         ? activeCrossing
         : null,
     prepareKey: crossingPrepareKey,
-    enabled: !observeOnly,
+    enabled: enabled && !observeOnly,
   });
 
   useEffect(() => {
-    if (globalActive || tableIds.length === 0) return;
+    if (!enabled || globalActive || tableIds.length === 0) return;
 
     const tickGen = placarResetGenRef.current;
     const placar = drainPlacarSteps(
@@ -275,7 +278,7 @@ export function useRotatingRoomCrossingSession(
 
     applyMachine(placar.nextMachine);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalActive, observeOnly, tableIds.join(","), historiesFingerprint, visibilityEpoch]);
+  }, [enabled, globalActive, observeOnly, tableIds.join(","), historiesFingerprint, visibilityEpoch]);
 
   const allowedTableIds = useMemo(() => new Set(tableIds), [tableIds.join(",")]);
 

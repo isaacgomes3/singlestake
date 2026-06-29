@@ -22,11 +22,11 @@ export function writeRotatingRoomStatCounterSize(size: RotatingRoomStatCounterSi
 }
 
 export function readRotatingRoomStatsVisible(): boolean {
-  if (typeof localStorage === "undefined") return true;
+  if (typeof localStorage === "undefined") return false;
   try {
-    return localStorage.getItem(STATS_VISIBLE_KEY) !== "0";
+    return localStorage.getItem(STATS_VISIBLE_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
