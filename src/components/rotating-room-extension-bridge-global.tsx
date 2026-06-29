@@ -26,7 +26,7 @@ import {
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
-    pathname.startsWith("/back-office") ||
+    pathname.startsWith("/back-office/operacoes") ||
     pathname.startsWith("/casino-mesa") ||
     pathname === "/sala-rotativa-um-fator" ||
     pathname.startsWith("/sala-rotativa")

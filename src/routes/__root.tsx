@@ -171,19 +171,17 @@ function RootComponent() {
     (pathname === "/back-office" ||
       pathname === "/back-office/" ||
       pathname.startsWith("/back-office/operacoes"));
-  /** Motor global partilhado — sala rotativa, casino ao vivo e automação (sem extensão no browser). */
+  /** SSE do motor global — visão geral (painéis) e sala rotativa. */
   const needsGlobalAutomation =
     isAutomation || backOfficeAutomationView || (!isAutomation && workspacePath);
+  /** Streams DGA / roleta ao vivo — só operações e workspace (não na visão geral). */
   const needsCasinoStreams = isAutomation
     ? workspacePath || pathname === "/casino-mesa"
     : backOfficeApp &&
-      (pathname === "/back-office" ||
-        pathname === "/back-office/" ||
-        pathname.startsWith("/back-office/operacoes") ||
-        workspacePath);
+      (pathname.startsWith("/back-office/operacoes") || workspacePath);
   const needsExtensionBridge =
     (isAutomation && workspacePath) ||
-    backOfficeAutomationView ||
+    pathname.startsWith("/back-office/operacoes") ||
     (!isAutomation && workspacePath);
 
   const outlet = <Outlet />;
