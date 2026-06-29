@@ -1,5 +1,5 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
-import { buildUmFatorTriggerTierReport } from "@/lib/roulette/umFatorTriggerTiers";
+import { buildRotatingRoomGatilhoTriggerReport } from "@/lib/roulette/umFatorTriggerTiers";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -13,6 +13,7 @@ function sessionAccuracyPct(wins: number, losses: number): number | null {
 export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const state = getStrategyGlobalState();
   const stats = state.um1fator.stats;
+  const crossingStats = state.dois2fatores.stats;
   const wins = Math.max(0, stats.wins);
   const losses = Math.max(0, stats.losses);
   const extension = getExtensionSourceStatus();
@@ -27,7 +28,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       total: wins + losses,
       accuracyPct: sessionAccuracyPct(wins, losses),
     },
-    triggers: buildUmFatorTriggerTierReport(stats, enabledTriggers),
+    triggers: buildRotatingRoomGatilhoTriggerReport(stats, crossingStats, enabledTriggers),
   };
 }
 

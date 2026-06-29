@@ -26,6 +26,7 @@ import type { StrategyGlobalLedgerEntry, StrategyGlobalSnapshot } from "@/lib/ro
 import {
   ensureGlobalAutomationCapitalRegistered,
   getGlobalAutomationWalletBalance,
+  isGlobalAutomationSettleRecorded,
   settleGlobalAutomationInLedger,
 } from "@/lib/server/finance/global-automation-capital";
 
@@ -128,9 +129,37 @@ function buildSnapshotBody(
   };
 }
 
+async function reconcileAutomationSimPendingLedger(): Promise<boolean> {
+  const { getStrategyGlobalState } = await import("@/lib/server/strategyGlobal/persistence");
+  const ledger = getStrategyGlobalState().ledger.um1fator;
+  let state = getAutomationSimState();
+  const floorTs = globalAutomationLedgerFloorTs(state);
+  let changed = false;
+
+  for (const entry of ledger) {
+    if (entry.ts < floorTs) continue;
+    const key = ledgerEntryKey(entry);
+    if (state.processedKeys.includes(key)) continue;
+    const settleKey = globalAutomationSettleKey(entry);
+    if (settleKey != null && state.processedKeys.includes(settleKey)) continue;
+
+    const next = await settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
+    if (next !== state) {
+      state = next;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    replaceAutomationSimState(state);
+  }
+  return changed;
+}
+
 async function buildFinalizedSnapshotBody(
   strategySnapshot: StrategyGlobalSnapshot,
 ): Promise<AutomationSimApiSnapshot> {
+  await reconcileAutomationSimPendingLedger();
   const walletBalance = await getGlobalAutomationWalletBalance();
   await maybeAutoResumeAutomation();
   await maybeAutoPauseAutomation(walletBalance);
@@ -225,7 +254,8 @@ async function settleAutomationEntry(
       recovery: entry.recovery,
       kind: entry.kind,
     });
-    if (ledgerResult == null) return state;
+    const alreadyRecorded = await isGlobalAutomationSettleRecorded(walletSettleKey);
+    if (ledgerResult == null && !alreadyRecorded) return state;
   }
 
   const next = settleOpenBetEntry(
@@ -346,13 +376,17 @@ export async function rebuildAutomationSimHistoryFromLedger(
   );
   const walletBalance = await getGlobalAutomationWalletBalance();
 
+  const mergedProcessedKeys = [
+    ...new Set([...rebuilt.processedKeys, ...current.processedKeys]),
+  ];
+
   const nextState = finalizeAutomationSimState(
     {
       ...rebuilt,
       startedAt: current.startedAt,
       capitalRegisteredAt: current.capitalRegisteredAt,
-      processedKeys: current.processedKeys,
-      spinCounter: current.spinCounter,
+      processedKeys: mergedProcessedKeys,
+      spinCounter: Math.max(current.spinCounter, rebuilt.spinCounter),
       openBet: null,
     },
     walletBalance,

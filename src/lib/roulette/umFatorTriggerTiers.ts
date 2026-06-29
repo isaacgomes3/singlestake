@@ -24,8 +24,11 @@ export const UM_FATOR_TRIGGER_TIER_DEFINITIONS: readonly UmFatorTriggerTierDefin
   { id: "three", statsKey: "threeEqualFactors", labelKey: "threeFactors" },
 ] as const;
 
+/** Gatilho 2 Fatores · cruzamento ausente (≥14 giros) — placar com empate/vitória/derrota. */
+export const ROTATING_ROOM_CROSSING_GATILHO_ID = "crossing" as const;
+
 export type UmFatorTriggerTierReportRow = {
-  id: UmFatorTriggerMatchTier;
+  id: UmFatorTriggerMatchTier | typeof ROTATING_ROOM_CROSSING_GATILHO_ID;
   labelKey: string;
   wins: number;
   losses: number;
@@ -42,6 +45,26 @@ export function buildUmFatorTriggerTierReport(
   return UM_FATOR_TRIGGER_TIER_DEFINITIONS.map((def) =>
     rowFromBucket(def, tier[def.statsKey], enabledTriggers?.[def.id] !== false),
   );
+}
+
+export function buildRotatingRoomGatilhoTriggerReport(
+  umStats: RotatingRoomSessionStats | undefined,
+  crossingStats: RotatingRoomSessionStats | undefined,
+  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing", boolean>>,
+): UmFatorTriggerTierReportRow[] {
+  const rows = buildUmFatorTriggerTierReport(umStats, enabledTriggers);
+  const crossWins = Math.max(0, crossingStats?.wins ?? 0);
+  const crossLosses = Math.max(0, crossingStats?.losses ?? 0);
+  rows.push({
+    id: ROTATING_ROOM_CROSSING_GATILHO_ID,
+    labelKey: "crossingAbsence",
+    wins: crossWins,
+    losses: crossLosses,
+    total: crossWins + crossLosses,
+    accuracyPct: umFatorMatchTierAproveitamentoPct({ wins: crossWins, losses: crossLosses }),
+    enabled: enabledTriggers?.crossing !== false,
+  });
+  return rows;
 }
 
 function rowFromBucket(

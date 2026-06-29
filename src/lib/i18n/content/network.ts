@@ -72,6 +72,9 @@ export const networkContent = {
       placing: "A posicionar…",
       nextDirectSideLabel: "Próxima indicação",
       nextDirectSideHint: "Escolha a perna onde o próximo indicado directo será posicionado.",
+      nextDirectSideBothFull:
+        "As duas pernas directas (nível 1) estão ocupadas. Liberte uma perna ou posicione indicados pendentes na tabela acima.",
+      nextDirectSideSaved: "Preferência guardada para a próxima indicação directa.",
       qualifierNote:
         "As contas qualificadoras de nível 1 (uma de cada perna) não geram bónus pelas próprias compras — só a rede abaixo delas.",
     },
@@ -309,6 +312,9 @@ export const networkContent = {
       placing: "Placing…",
       nextDirectSideLabel: "Next referral",
       nextDirectSideHint: "Choose which leg the next direct referral will be placed on.",
+      nextDirectSideBothFull:
+        "Both direct legs (level 1) are full. Free a leg or place pending referrals in the table above.",
+      nextDirectSideSaved: "Preference saved for the next direct referral.",
       qualifierNote:
         "Level-1 qualifier accounts (one per leg) do not generate bonus from their own purchases — only their downline does.",
     },
@@ -546,6 +552,9 @@ export const networkContent = {
       placing: "Posicionando…",
       nextDirectSideLabel: "Próxima indicación",
       nextDirectSideHint: "Elija la pierna donde se posicionará el próximo directo.",
+      nextDirectSideBothFull:
+        "Las dos piernas directas (nivel 1) están ocupadas. Libere una pierna o posicione indicados pendientes en la tabla superior.",
+      nextDirectSideSaved: "Preferencia guardada para la próxima indicación directa.",
       qualifierNote:
         "Las cuentas calificadoras de nivel 1 (una por pierna) no generan bono por sus propias compras — solo la red debajo.",
     },

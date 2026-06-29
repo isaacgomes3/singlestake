@@ -6,10 +6,10 @@ import {
   normalizeGlobalAutomationConfig,
   type GlobalAutomationConfig,
 } from "@/lib/back-office/automation-config";
-import { setUmFatorEnabledTriggers } from "@/lib/roulette/umFatorTriggerEnable";
+import { setRotatingRoomGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
-  setUmFatorEnabledTriggers(config.enabledTriggers);
+  setRotatingRoomGatilhoEnabled(config.enabledTriggers);
 }
 
 declare global {

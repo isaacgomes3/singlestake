@@ -53,6 +53,9 @@ export type PendingDirectPlacement = {
 };
 
 export type NextDirectSidePreference = {
+  /** Valor persistido na base de dados (null = ainda não escolheu). */
+  stored: "left" | "right" | null;
+  /** Perna efectiva para UI (guardada ou sugerida por pernas livres / volume). */
   selected: "left" | "right" | null;
   leftAvailable: boolean;
   rightAvailable: boolean;

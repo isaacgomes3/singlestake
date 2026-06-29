@@ -1,9 +1,9 @@
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 import {
-  DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-  normalizeUmFatorTriggerEnable,
-  type UmFatorTriggerEnableMap,
+  DEFAULT_ROTATING_ROOM_GATILHO_ENABLE,
+  normalizeRotatingRoomGatilhoEnable,
+  type RotatingRoomGatilhoEnableMap,
 } from "@/lib/roulette/umFatorTriggerEnable";
 
 /** Pausa por stop win/loss retoma sozinha após 1 hora. Pausa manual só pelo admin. */
@@ -24,8 +24,8 @@ export type GlobalAutomationConfig = {
   stopWin: number | null;
   /** Prejuízo acumulado (vs capital) que pausa a automação; null = desligado. */
   stopLoss: number | null;
-  /** Gatilhos 1 Fator activos no motor (sinais e entradas). */
-  enabledTriggers: UmFatorTriggerEnableMap;
+  /** Gatilhos activos na sala rotativa (1 Fator + cruzamento 2F). */
+  enabledTriggers: RotatingRoomGatilhoEnableMap;
   updatedAt: number;
 };
 
@@ -46,7 +46,7 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   baseStake: ROULETTE_AUTOMATION_BASE_STAKE,
   stopWin: null,
   stopLoss: null,
-  enabledTriggers: { ...DEFAULT_UM_FATOR_TRIGGER_ENABLE },
+  enabledTriggers: { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE },
   updatedAt: 0,
 };
 
@@ -93,7 +93,7 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     baseStake,
     stopWin,
     stopLoss,
-    enabledTriggers: normalizeUmFatorTriggerEnable(o.enabledTriggers),
+    enabledTriggers: normalizeRotatingRoomGatilhoEnable(o.enabledTriggers),
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

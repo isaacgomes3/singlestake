@@ -24,6 +24,16 @@ import {
 
 } from "@/lib/roulette/umFatorStrategy";
 
+import {
+  applyUmFatorSequenceEnd,
+  applyUmFatorSequenceStart,
+  applyUmFatorTriggerSwitchAfterPartialLoss,
+  buildUmFatorTriggerTierGate,
+  defaultUmFatorTriggerAutoSelectFields,
+  normalizeUmFatorTriggerAutoSelectFields,
+  type UmFatorTriggerAutoSelectFields,
+} from "@/lib/roulette/umFatorTriggerAutoSelect";
+
 import { doisFatoresFactorLabel, type DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
 
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
@@ -60,6 +70,35 @@ import {
 
 
 export { UM_FATOR_MAX_RECOVERY };
+
+export {
+  UM_FATOR_TRIGGER_GALE_SWITCH_AT,
+  umFatorTriggerAutoSelectLabel,
+} from "@/lib/roulette/umFatorTriggerAutoSelect";
+
+function detectUmFatorFormationForMachine(
+  machine: UmFatorMachineState,
+  history: readonly number[],
+): UmFatorActive | null {
+  const gate = buildUmFatorTriggerTierGate({
+    autoPreferredTier: machine.autoPreferredTier,
+    sequenceLockedTier: machine.sequenceLockedTier,
+    recovery: machine.recovery,
+    lastActiveTriggerTier: machine.lastActive?.triggerMatchTier ?? null,
+  });
+  return detectUmFatorActiveFromHistory(history, gate);
+}
+
+function mergeTriggerAutoSelectFields(
+  machine: UmFatorMachineState,
+  patch: UmFatorTriggerAutoSelectFields,
+): UmFatorMachineState {
+  return {
+    ...machine,
+    autoPreferredTier: patch.autoPreferredTier,
+    sequenceLockedTier: patch.sequenceLockedTier,
+  };
+}
 
 
 
@@ -135,6 +174,12 @@ export type UmFatorMachineState = {
   postResultHoldUntilMs: number | null;
 
   postResultHoldTableId: number | null;
+
+  /** Selecção automática de gatilho (alternância após gale 4+). */
+  autoPreferredTier: UmFatorTriggerAutoSelectFields["autoPreferredTier"];
+
+  /** Gatilho preservado durante sequência de recovery. */
+  sequenceLockedTier: UmFatorTriggerAutoSelectFields["sequenceLockedTier"];
 
 };
 
@@ -217,6 +262,8 @@ export function defaultUmFatorMachineState(): UmFatorMachineState {
     postResultHoldUntilMs: null,
 
     postResultHoldTableId: null,
+
+    ...defaultUmFatorTriggerAutoSelectFields(),
 
   };
 
@@ -484,7 +531,7 @@ function orderTableIdsForTick(
 
       !isBlockedByLobbyArmingGate(machine, tableId, head) &&
 
-      detectUmFatorActiveFromHistory(history) != null &&
+      detectUmFatorFormationForMachine(machine, history) != null &&
 
       tableArmableForUmFatorFormation(tableId, history)
 
@@ -563,7 +610,7 @@ function scanUmFatorTables(
       lockedTable != null
         ? null
         : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h))
-          ? detectUmFatorActiveFromHistory(h)
+          ? detectUmFatorFormationForMachine(machine, h)
           : null;
 
     return {
@@ -737,7 +784,7 @@ export function tickUmFatorPlacar(
 
       !isStaleQueuedFormation(nextMachine, tableId, head) &&
 
-      detectUmFatorActiveFromHistory(history) != null &&
+      detectUmFatorFormationForMachine(machine, history) != null &&
 
       tableArmableForUmFatorFormation(tableId, history)
 
@@ -840,6 +887,13 @@ export function tickUmFatorPlacar(
         nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
         nextMachine.lobbyArmingGateByTable = {};
         nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
+        nextMachine = mergeTriggerAutoSelectFields(
+          nextMachine,
+          applyUmFatorSequenceEnd({
+            autoPreferredTier: nextMachine.autoPreferredTier,
+            sequenceLockedTier: nextMachine.sequenceLockedTier,
+          }),
+        );
 
         flash = {
           resultNumber,
@@ -871,6 +925,13 @@ export function tickUmFatorPlacar(
           nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
           nextMachine.lobbyArmingGateByTable = {};
           nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
+          nextMachine = mergeTriggerAutoSelectFields(
+            nextMachine,
+            applyUmFatorSequenceEnd({
+              autoPreferredTier: nextMachine.autoPreferredTier,
+              sequenceLockedTier: nextMachine.sequenceLockedTier,
+            }),
+          );
 
           flash = {
             resultNumber,
@@ -890,6 +951,18 @@ export function tickUmFatorPlacar(
           nextMachine.recovery = nextRecovery;
 
           nextMachine.lastLostTableId = tableId;
+          nextMachine = mergeTriggerAutoSelectFields(
+            nextMachine,
+            applyUmFatorTriggerSwitchAfterPartialLoss(
+              {
+                autoPreferredTier: nextMachine.autoPreferredTier,
+                sequenceLockedTier: nextMachine.sequenceLockedTier,
+              },
+              recoveryBefore,
+              matchTier,
+              nextRecovery,
+            ),
+          );
 
           flash = { resultNumber, won: false, tableId, kind: "recovery" };
 
@@ -911,7 +984,7 @@ export function tickUmFatorPlacar(
 
     if (lobbyCooldownActive) continue;
 
-    const formation = detectUmFatorActiveFromHistory(history);
+    const formation = detectUmFatorFormationForMachine(nextMachine, history);
 
     if (!formation) continue;
 
@@ -927,11 +1000,19 @@ export function tickUmFatorPlacar(
 
     if (!tableArmableForUmFatorFormation(tableId, history)) continue;
 
-
+    const formationTier = umFatorTriggerMatchTierFromActive(formation);
+    const autoFields = applyUmFatorSequenceStart(
+      {
+        autoPreferredTier: nextMachine.autoPreferredTier,
+        sequenceLockedTier: nextMachine.sequenceLockedTier,
+      },
+      nextMachine.recovery,
+      formationTier,
+    );
 
     nextMachine = {
 
-      ...nextMachine,
+      ...mergeTriggerAutoSelectFields(nextMachine, autoFields),
 
       pendingByTable: {
 
@@ -1022,6 +1103,8 @@ export function seedUmFatorMachineAfterPlacarReset(
     postResultHoldUntilMs: null,
 
     postResultHoldTableId: null,
+
+    sequenceLockedTier: null,
 
   };
 
@@ -1249,6 +1332,8 @@ export function normalizeUmFatorMachineOnLoad(
   return {
 
     ...machine,
+
+    ...normalizeUmFatorTriggerAutoSelectFields(machine),
 
     pendingByTable: pending,
 

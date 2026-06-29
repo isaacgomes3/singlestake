@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { RouletteStatCard, type RouletteStatCardSize } from "@/components/roulette-stat-card";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
+import { rotativaTriggerKindLabel } from "@/lib/roulette/rotatingRoomRotativaMerge";
 import type { RotatingRoomPlusSession } from "@/hooks/useRotatingRoomPlusSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
@@ -41,6 +43,7 @@ export type RotatingRoomPanelSession =
   | RotatingRoomCrossingSession
   | RotatingRoomPlusSession
   | RotatingRoomUmFatorSession
+  | RotatingRoomRotativaSession
   | UmFatorSession;
 
 function isSingleFactorSession(session: RotatingRoomPanelSession): boolean {
@@ -808,7 +811,14 @@ export function RotatingRoomPanel({
     <div className={compact ? "space-y-3 p-3 notranslate" : "mt-6 space-y-6 notranslate"} translate="no">
       {!floatingChrome ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-white sm:text-2xl">{panelTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold text-white sm:text-2xl">{panelTitle}</h1>
+            {"rotativaTrigger" in session ? (
+              <span className="rounded-full border border-cyan-500/40 bg-cyan-950/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-200/90">
+                {rotativaTriggerKindLabel(session.rotativaTrigger)}
+              </span>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -905,6 +915,8 @@ type LobbyCardProps = {
   session: RotatingRoomPanelSession;
   salaRoute?: string;
   salaLabel?: string;
+  /** Badge fixo (ex.: «2 Fatores») no cartão do lobby. */
+  strategyBadge?: string;
   /** Integrado num painel (ex.: automação) — sem overlay flutuante. */
   embedded?: boolean;
   /** Ao clicar, abre a sala com modo iframe activo. */
@@ -969,6 +981,7 @@ export function RotatingRoomLobbyCard({
   session,
   salaRoute = "/sala-rotativa-um-fator",
   salaLabel = "Sala Rotativa",
+  strategyBadge,
   embedded = false,
   openInIframe = false,
   className,
@@ -1046,6 +1059,15 @@ export function RotatingRoomLobbyCard({
               <p className="text-[7px] font-bold uppercase tracking-[0.16em] text-cyan-300/95 sm:text-[8px]">
                 {salaLabel}
               </p>
+              {strategyBadge ? (
+                <p className="mt-0.5 text-[7px] font-semibold uppercase tracking-wide text-amber-300/90 sm:text-[8px]">
+                  {strategyBadge}
+                </p>
+              ) : "rotativaTrigger" in session ? (
+                <p className="mt-0.5 text-[7px] font-semibold uppercase tracking-wide text-amber-300/90 sm:text-[8px]">
+                  {rotativaTriggerKindLabel(session.rotativaTrigger)}
+                </p>
+              ) : null}
             </div>
             <div className="flex min-w-0 items-center justify-end">
               <span className="inline-flex shrink-0 items-center rounded-md border border-cyan-600/50 bg-black/70 px-1.5 py-0.5 text-[7px] font-bold tabular-nums text-cyan-200 sm:text-[8px]">

@@ -3,32 +3,27 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
+import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
-import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
-import {
-  ROTATING_ROOM_UM_FATOR_MAX_RECOVERY,
-  correctRotatingRoomUmFatorLastLossAsWin,
-  resetRotatingRoomUmFatorSession,
-} from "@/lib/roulette/rotatingRoomUmFatorSession";
 import {
   correctRotatingRoomCrossingLastLossAsWin,
   resetRotatingRoomCrossingSession,
+  ROTATING_ROOM_CROSSING_MAX_RECOVERY,
 } from "@/lib/roulette/rotatingRoomCrossingSession";
 import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
-  writeLobbyRoletasStrategyTab,
 } from "@/lib/roulette/lobbyTables";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
 import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomViewPrefs";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/sala-rotativa-um-fator")({
+export const Route = createFileRoute("/sala-rotativa-dois-fatores")({
   beforeLoad: ({ search }) => {
-    guardAutomationWorkspaceRoute("/sala-rotativa-um-fator", search);
-    requireAuth("/sala-rotativa-um-fator");
+    guardAutomationWorkspaceRoute("/sala-rotativa-dois-fatores", search);
+    requireAuth("/sala-rotativa-dois-fatores");
   },
   validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {
     const raw = search.iframe;
@@ -38,27 +33,22 @@ export const Route = createFileRoute("/sala-rotativa-um-fator")({
   },
   head: () => ({
     meta: [
-      { title: "Sala Rotativa" },
+      { title: "Sala Rotativa · 2 Fatores" },
       {
         name: "description",
         content:
-          "Sala rotativa — 1 Fator e 2 Fatores (cruzamento ausente ≥14 giros) com empate, vitória e derrota.",
+          "Sala rotativa 2 Fatores — cruzamento ausente ≥14 giros com empate, vitória e derrota.",
       },
     ],
   }),
-  component: SalaRotativaUmFatorPage,
+  component: SalaRotativaDoisFatoresPage,
 });
 
-function SalaRotativaUmFatorPage() {
+function SalaRotativaDoisFatoresPage() {
   const { iframe: openIframe } = Route.useSearch();
   const iframeChrome = useRotatingRoomIframeChrome();
   const [configTick, setConfigTick] = useState(0);
 
-  useEffect(() => {
-    writeLobbyRoletasStrategyTab("um1fator");
-  }, []);
-
-  /** Iframe + indicações do servidor para todos — extensão não é necessária. */
   useLayoutEffect(() => {
     prepareRotatingRoomIframeSession();
   }, []);
@@ -81,9 +71,7 @@ function SalaRotativaUmFatorPage() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const session = useRotatingRoomRotativaSession(tableIds, histories, {
-    preferLocalSession: false,
-  });
+  const session = useRotatingRoomCrossingSession(tableIds, histories);
 
   return (
     <div
@@ -98,19 +86,10 @@ function SalaRotativaUmFatorPage() {
           session={session}
           tableIds={tableIds}
           histories={histories}
-          maxRecovery={ROTATING_ROOM_UM_FATOR_MAX_RECOVERY}
-          panelTitle="Sala Rotativa · 1 Fator + 2 Fatores"
-          onReset={() => {
-            resetRotatingRoomUmFatorSession(tableIds, histories);
-            resetRotatingRoomCrossingSession(tableIds, histories);
-          }}
-          onCorrectLastLoss={() => {
-            if (session.rotativaTrigger === "crossing") {
-              correctRotatingRoomCrossingLastLossAsWin();
-            } else {
-              correctRotatingRoomUmFatorLastLossAsWin();
-            }
-          }}
+          maxRecovery={ROTATING_ROOM_CROSSING_MAX_RECOVERY}
+          panelTitle="Sala Rotativa · 2 Fatores"
+          onReset={() => resetRotatingRoomCrossingSession(tableIds, histories)}
+          onCorrectLastLoss={() => correctRotatingRoomCrossingLastLossAsWin()}
         />
       </main>
     </div>

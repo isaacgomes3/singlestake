@@ -17,7 +17,7 @@ export type MartingaleReviewRound = {
 
 export type MartingaleReviewState = {
   rounds: readonly MartingaleReviewRound[];
-  openBet?: { recovery: number; stake: number } | null;
+  openBet?: { tableId?: number; recovery: number; stake: number } | null;
 };
 
 export type MartingaleReviewResult =
@@ -61,6 +61,39 @@ function describeLastRound(round: MartingaleReviewRound | null): string {
   return "resultado anterior";
 }
 
+function validateSettlementKind(
+  entry: StrategyGlobalLedgerEntry,
+  stake: number,
+): MartingaleReviewResult {
+  const net = entry.won ? stake : -stake;
+
+  if (entry.won) {
+    if (entry.kind !== "win") {
+      return { accepted: false, reason: `vitória com kind inválido (${entry.kind})` };
+    }
+    return { accepted: true, stake, net };
+  }
+
+  if (entry.kind === "recovery") {
+    if (Math.floor(entry.recovery) >= UM_FATOR_MAX_RECOVERY) {
+      return { accepted: false, reason: "recuperação inválida no gale máximo" };
+    }
+    return { accepted: true, stake, net };
+  }
+
+  if (entry.kind === "loss") {
+    if (Math.floor(entry.recovery) < UM_FATOR_MAX_RECOVERY) {
+      return {
+        accepted: false,
+        reason: `derrota final só no gale ${UM_FATOR_MAX_RECOVERY}, recebido gale ${entry.recovery}`,
+      };
+    }
+    return { accepted: true, stake, net };
+  }
+
+  return { accepted: false, reason: `tipo de liquidação desconhecido (${entry.kind})` };
+}
+
 /**
  * Revisor de sequência martingale — após recuperação −S o próximo só pode ser
  * recuperação −2S ou vitória +2S no gale seguinte (nunca outro valor).
@@ -76,19 +109,14 @@ export function reviewMartingaleSettlement(
   const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
   const net = entry.won ? stake : -stake;
 
-  if (state.openBet) {
-    if (recovery !== state.openBet.recovery) {
-      return {
-        accepted: false,
-        reason: `aposta em jogo no gale ${state.openBet.recovery}, liquidação no gale ${recovery}`,
-      };
-    }
-    if (Math.abs(stake - state.openBet.stake) > STAKE_EPS) {
-      return {
-        accepted: false,
-        reason: `stake da aposta em jogo R$ ${state.openBet.stake}, liquidação R$ ${stake}`,
-      };
-    }
+  const openBet =
+    state.openBet && entry.tableId === state.openBet.tableId ? state.openBet : null;
+  if (
+    openBet &&
+    recovery === openBet.recovery &&
+    Math.abs(stake - openBet.stake) <= STAKE_EPS
+  ) {
+    return validateSettlementKind(entry, stake);
   }
 
   if (recovery !== expected.recovery) {

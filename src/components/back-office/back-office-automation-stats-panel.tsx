@@ -52,7 +52,10 @@ export function BackOfficeAutomationStatsPanel() {
     return () => window.clearInterval(timer);
   }, [reload]);
 
-  async function handleToggleTrigger(id: "two" | "three", enabled: boolean) {
+  async function handleToggleTrigger(
+    id: "two" | "three" | "crossing",
+    enabled: boolean,
+  ) {
     setTogglingId(id);
     const result = await setAutomationTriggerEnabled(id, enabled);
     setTogglingId(null);
@@ -173,7 +176,10 @@ export function BackOfficeAutomationStatsPanel() {
                         disabled={togglingId === row.id}
                         aria-label={triggerLabel(messages, row.labelKey)}
                         onCheckedChange={(checked) =>
-                          void handleToggleTrigger(row.id, checked)
+                          void handleToggleTrigger(
+                            row.id as "two" | "three" | "crossing",
+                            checked,
+                          )
                         }
                       />
                     </td>

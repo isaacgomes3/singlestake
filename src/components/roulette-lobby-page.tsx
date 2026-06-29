@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DamasLobbyGrid } from "@/components/damas/DamasLobbyGrid";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
-import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
+import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { setStrategySoundSuppressed } from "@/lib/sound/strategySoundGate";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
@@ -301,6 +302,10 @@ function lobbyCasinoLiveStrategyRoute(_tab: CasinoLiveRoletasStrategyTab): strin
 
 function lobbySalaRotativaRoute(_tab: CasinoLiveRoletasStrategyTab): string {
   return "/sala-rotativa-um-fator";
+}
+
+function lobbySalaRotativa2FatoresRoute(_tab: CasinoLiveRoletasStrategyTab): string {
+  return "/sala-rotativa-dois-fatores";
 }
 
 /** Histórico para placar: todas as estratégias acumulam o histórico completo da mesa. */
@@ -918,7 +923,12 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
   }, [lobbyCardTableIds]);
 
   const rotatingRoomHistories = useRotatingRoomHistories(rotatingRoomTableIds);
-  const rotatingRoomSession = useRotatingRoomUmFatorSession(
+  const rotatingRoomSession = useRotatingRoomRotativaSession(
+    rotatingRoomTableIds,
+    rotatingRoomHistories,
+    { observeOnly: lobbyRotatingRoomObserveOnly },
+  );
+  const crossingRoomSession = useRotatingRoomCrossingSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly },
@@ -1303,6 +1313,12 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
                       session={rotatingRoomSession}
                       salaRoute={lobbySalaRotativaRoute(CASINO_LIVE_STRATEGY)}
                       salaLabel="Sala Rotativa · 1 Fator"
+                    />
+                    <RotatingRoomLobbyCard
+                      session={crossingRoomSession}
+                      salaRoute={lobbySalaRotativa2FatoresRoute(CASINO_LIVE_STRATEGY)}
+                      salaLabel="Sala Rotativa · 2 Fatores"
+                      strategyBadge="2 Fatores"
                     />
                     {lobbyCardTableIdsByAproveitamento.map((tid) => (
                       <LobbyCard

@@ -1,7 +1,12 @@
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 
-export type RotatingRoomLobbySession = (RotatingRoomCrossingSession | RotatingRoomUmFatorSession) & {
+export type RotatingRoomLobbySession = (
+  | RotatingRoomCrossingSession
+  | RotatingRoomUmFatorSession
+  | RotatingRoomRotativaSession
+) & {
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
 };

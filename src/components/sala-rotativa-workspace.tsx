@@ -8,6 +8,7 @@ import { CasinoEmbedViewportControls } from "@/components/casino-embed-viewport-
 import { CasinoGameEmbedFrame } from "@/components/casino-game-embed-frame";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useCasinoEmbedViewport } from "@/hooks/useCasinoEmbedViewport";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
@@ -34,7 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type Props = {
-  session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
+  session: RotatingRoomRotativaSession | RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
   histories: Record<number, readonly number[]>;
   tableIds: readonly number[];
   maxRecovery: number;

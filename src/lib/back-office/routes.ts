@@ -10,6 +10,7 @@ export type BackOfficePath = (typeof BACK_OFFICE_PATHS)[keyof typeof BACK_OFFICE
 /** Ferramentas operacionais abertas a partir do back office (sem menu legado). */
 export const BACK_OFFICE_WORKSPACE_PATHS = [
   "/sala-rotativa-um-fator",
+  "/sala-rotativa-dois-fatores",
   "/sala-rotativa",
   "/casino-mesa",
   "/football-blitz",
@@ -22,6 +23,7 @@ export function isBackOfficeWorkspacePath(pathname: string): boolean {
     pathname === "/football-blitz" ||
     pathname === "/super-trunfo" ||
     pathname === "/sala-rotativa-um-fator" ||
+    pathname === "/sala-rotativa-dois-fatores" ||
     pathname.startsWith("/sala-rotativa")
   );
 }

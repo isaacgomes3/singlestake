@@ -252,6 +252,16 @@ var SinglestakeUmFator = (() => {
     return doisFatoresExteriorCellKey(factor);
   }
 
+  // src/lib/roulette/umFatorTriggerEnable.ts
+  var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
+    two: true,
+    three: true
+  };
+  var runtimeEnabled = { ...DEFAULT_UM_FATOR_TRIGGER_ENABLE };
+  function isUmFatorTriggerTierEnabled(tier) {
+    return runtimeEnabled[tier] !== false;
+  }
+
   // src/lib/roulette/umFatorStrategy.ts
   var UM_FATOR_MIN_HISTORY = 3;
   var UM_FATOR_MAX_RECOVERY = 5;
@@ -369,13 +379,17 @@ var SinglestakeUmFator = (() => {
     const alertFactor = oppositeFactor(missingOnT0);
     return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
   }
-  function detectUmFatorActiveFromHistory(historyNewestFirst) {
+  function detectUmFatorActiveFromHistory(historyNewestFirst, isTierEnabled = isUmFatorTriggerTierEnabled) {
     if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
     const n0 = historyNewestFirst[0];
     const n1 = historyNewestFirst[1];
     const n2 = historyNewestFirst[2];
     if (n0 === 0 || n1 === 0 || n2 === 0) return null;
-    return detectUmFatorThreeTierActive(n0, n1, n2) ?? detectUmFatorTwoTierActive(n0, n1, n2);
+    const three = detectUmFatorThreeTierActive(n0, n1, n2);
+    if (three && isTierEnabled("three")) return three;
+    const two = detectUmFatorTwoTierActive(n0, n1, n2);
+    if (two && isTierEnabled("two")) return two;
+    return null;
   }
   function evaluateUmFatorRound(num, active) {
     if (num === 0) return "L";
@@ -383,6 +397,47 @@ var SinglestakeUmFator = (() => {
   }
   function umFatorAlertLabel(active) {
     return doisFatoresFactorLabel(active.alertFactor);
+  }
+
+  // src/lib/roulette/umFatorTriggerAutoSelect.ts
+  var UM_FATOR_TRIGGER_GALE_SWITCH_AT = 4;
+  function defaultUmFatorTriggerAutoSelectFields() {
+    return {
+      autoPreferredTier: null,
+      sequenceLockedTier: null
+    };
+  }
+  function alternateUmFatorTriggerTier(tier) {
+    return tier === "three" ? "two" : "three";
+  }
+  function resolveUmFatorSequenceLockedTier(ctx) {
+    if (ctx.sequenceLockedTier != null) return ctx.sequenceLockedTier;
+    if (ctx.recovery > 0 && ctx.lastActiveTriggerTier != null) return ctx.lastActiveTriggerTier;
+    return null;
+  }
+  function buildUmFatorTriggerTierGate(ctx, isAdminEnabled = isUmFatorTriggerTierEnabled) {
+    const locked = resolveUmFatorSequenceLockedTier(ctx);
+    return (tier) => {
+      if (!isAdminEnabled(tier)) return false;
+      if (ctx.recovery > 0 && locked != null) return tier === locked;
+      if (ctx.recovery === 0 && ctx.autoPreferredTier != null) return tier === ctx.autoPreferredTier;
+      return true;
+    };
+  }
+  function applyUmFatorSequenceStart(fields, recovery, formationTier) {
+    if (formationTier == null) return fields;
+    if (recovery > 0 && fields.sequenceLockedTier != null) return fields;
+    return { ...fields, sequenceLockedTier: formationTier };
+  }
+  function applyUmFatorSequenceEnd(fields) {
+    if (fields.sequenceLockedTier == null) return fields;
+    return { ...fields, sequenceLockedTier: null };
+  }
+  function applyUmFatorTriggerSwitchAfterPartialLoss(fields, recoveryBefore, matchTier, nextRecovery) {
+    if (matchTier == null || nextRecovery < UM_FATOR_TRIGGER_GALE_SWITCH_AT) return fields;
+    const alternate = alternateUmFatorTriggerTier(matchTier);
+    if (!isUmFatorTriggerTierEnabled(alternate)) return fields;
+    return { ...fields, autoPreferredTier: alternate };
   }
 
   // src/lib/roulette/historyStorage.ts
@@ -455,6 +510,22 @@ var SinglestakeUmFator = (() => {
   }
 
   // src/lib/roulette/rotatingRoomUmFatorStrategy.ts
+  function detectUmFatorFormationForMachine(machine, history) {
+    const gate = buildUmFatorTriggerTierGate({
+      autoPreferredTier: machine.autoPreferredTier,
+      sequenceLockedTier: machine.sequenceLockedTier,
+      recovery: machine.recovery,
+      lastActiveTriggerTier: machine.lastActive?.triggerMatchTier ?? null
+    });
+    return detectUmFatorActiveFromHistory(history, gate);
+  }
+  function mergeTriggerAutoSelectFields(machine, patch) {
+    return {
+      ...machine,
+      autoPreferredTier: patch.autoPreferredTier,
+      sequenceLockedTier: patch.sequenceLockedTier
+    };
+  }
   function spinHead(history) {
     if (history.length === 0) return "0";
     return `${history.length}:${history[0]}`;
@@ -475,7 +546,8 @@ var SinglestakeUmFator = (() => {
       lobbyCooldownUntilMs: null,
       lobbyArmingGateByTable: {},
       postResultHoldUntilMs: null,
-      postResultHoldTableId: null
+      postResultHoldTableId: null,
+      ...defaultUmFatorTriggerAutoSelectFields()
     };
   }
   function snapshotSpinHeadsByTable(tableIds, histories) {
@@ -601,7 +673,7 @@ var SinglestakeUmFator = (() => {
         needsEval.push(tableId);
       } else if (pendingForTable(machine, tableId) != null) {
         withPending.push(tableId);
-      } else if (!isResultAlreadySettled(machine, tableId, head) && !isStaleQueuedFormation(machine, tableId, head) && !isBlockedByLobbyArmingGate(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
+      } else if (!isResultAlreadySettled(machine, tableId, head) && !isStaleQueuedFormation(machine, tableId, head) && !isBlockedByLobbyArmingGate(machine, tableId, head) && detectUmFatorFormationForMachine(machine, history) != null && tableArmableForUmFatorFormation(tableId, history)) {
         withFormation.push(tableId);
       } else {
         rest.push(tableId);
@@ -627,7 +699,7 @@ var SinglestakeUmFator = (() => {
     return tableIds.map((tableId) => {
       const h = histories[tableId] ?? [];
       const active = activeForDisplay(machine, tableId, h);
-      const formation = lockedTable != null ? null : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h)) ? detectUmFatorActiveFromHistory(h) : null;
+      const formation = lockedTable != null ? null : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h)) ? detectUmFatorFormationForMachine(machine, h) : null;
       return {
         tableId,
         hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) >= 2,
@@ -688,7 +760,7 @@ var SinglestakeUmFator = (() => {
       if (isResultAlreadySettled(nextMachine, tableId, head)) return false;
       if (lobbyCooldownActive) return false;
       if (isBlockedByLobbyArmingGate(nextMachine, tableId, head)) return false;
-      return !isStaleQueuedFormation(nextMachine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
+      return !isStaleQueuedFormation(nextMachine, tableId, head) && detectUmFatorFormationForMachine(machine, history) != null && tableArmableForUmFatorFormation(tableId, history);
     });
     if (globalHead === machine.lastEvaluatedHead && !hasWork) {
       return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -732,6 +804,13 @@ var SinglestakeUmFator = (() => {
           nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
           nextMachine.lobbyArmingGateByTable = {};
           nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
+          nextMachine = mergeTriggerAutoSelectFields(
+            nextMachine,
+            applyUmFatorSequenceEnd({
+              autoPreferredTier: nextMachine.autoPreferredTier,
+              sequenceLockedTier: nextMachine.sequenceLockedTier
+            })
+          );
           flash = {
             resultNumber,
             won: true,
@@ -752,6 +831,13 @@ var SinglestakeUmFator = (() => {
             nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
             nextMachine.lobbyArmingGateByTable = {};
             nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
+            nextMachine = mergeTriggerAutoSelectFields(
+              nextMachine,
+              applyUmFatorSequenceEnd({
+                autoPreferredTier: nextMachine.autoPreferredTier,
+                sequenceLockedTier: nextMachine.sequenceLockedTier
+              })
+            );
             flash = {
               resultNumber,
               won: false,
@@ -765,6 +851,18 @@ var SinglestakeUmFator = (() => {
             statsChanged = true;
             nextMachine.recovery = nextRecovery;
             nextMachine.lastLostTableId = tableId;
+            nextMachine = mergeTriggerAutoSelectFields(
+              nextMachine,
+              applyUmFatorTriggerSwitchAfterPartialLoss(
+                {
+                  autoPreferredTier: nextMachine.autoPreferredTier,
+                  sequenceLockedTier: nextMachine.sequenceLockedTier
+                },
+                recoveryBefore,
+                matchTier,
+                nextRecovery
+              )
+            );
             flash = { resultNumber, won: false, tableId, kind: "recovery" };
           }
         }
@@ -774,7 +872,7 @@ var SinglestakeUmFator = (() => {
       if (isResultAlreadySettled(nextMachine, tableId, head)) continue;
       if (anyTablePendingEntryOpen(nextMachine, tableIds, histories)) continue;
       if (lobbyCooldownActive) continue;
-      const formation = detectUmFatorActiveFromHistory(history);
+      const formation = detectUmFatorFormationForMachine(nextMachine, history);
       if (!formation) continue;
       if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
       if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
@@ -782,8 +880,17 @@ var SinglestakeUmFator = (() => {
       if (!headChanged) continue;
       if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
       if (!tableArmableForUmFatorFormation(tableId, history)) continue;
+      const formationTier = umFatorTriggerMatchTierFromActive(formation);
+      const autoFields = applyUmFatorSequenceStart(
+        {
+          autoPreferredTier: nextMachine.autoPreferredTier,
+          sequenceLockedTier: nextMachine.sequenceLockedTier
+        },
+        nextMachine.recovery,
+        formationTier
+      );
       nextMachine = {
-        ...nextMachine,
+        ...mergeTriggerAutoSelectFields(nextMachine, autoFields),
         pendingByTable: {
           ...nextMachine.pendingByTable,
           [String(tableId)]: { active: formation, armedHead: head }

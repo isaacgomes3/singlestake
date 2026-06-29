@@ -167,6 +167,7 @@ export async function buildBinaryNetworkData(
       pending: isBinaryPlacementPending(myNode),
     },
     nextDirectSide: {
+      stored: normalizeBinarySide(myNode?.nextDirectSide),
       selected: selectedNextSide,
       leftAvailable,
       rightAvailable,

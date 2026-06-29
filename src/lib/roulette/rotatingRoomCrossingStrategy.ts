@@ -26,6 +26,8 @@ import {
 
 } from "@/lib/roulette/doisFatoresStrategy";
 
+import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+
 import {
   CROSSING_BUCKET_DEFINITIONS,
   bestAbsentBucketCrossingAlert,
@@ -570,6 +572,7 @@ export function pickGlobalCrossingAlert(
 
 ): RotatingRoomCrossingPick | null {
 
+  if (!isCrossingGatilhoEnabled()) return null;
   return listAllAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins)[0] ?? null;
 
 }

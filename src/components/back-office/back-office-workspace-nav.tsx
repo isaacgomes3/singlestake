@@ -50,6 +50,22 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
       {rotatingRoom ? (
         <div className="flex flex-col gap-2 border-t border-border-color pt-2">
           <RotatingRoomExtensionStatus compact />
+          {!iframeChrome ? (
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/sala-rotativa-um-fator"
+                className="rounded-lg border border-border-color bg-bg-secondary px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:border-info/40 hover:text-text-primary"
+              >
+                Sala · 1 Fator
+              </Link>
+              <Link
+                to="/sala-rotativa-dois-fatores"
+                className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200 hover:border-amber-400/50"
+              >
+                Sala · 2 Fatores
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}

@@ -1,7 +1,7 @@
 export const automationStatsContent = {
   pt: {
     title: "Estatísticas da automação",
-    subtitle: "Percentual de acerto por gatilho 1 Fator (dados do motor global).",
+    subtitle: "Percentual de acerto por gatilho na sala rotativa (1 Fator e 2 Fatores · cruzamento).",
     updatedAt: "Última actualização",
     source: "Fonte dos sinais",
     sourceExtension: "Extensão Chrome",
@@ -24,6 +24,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 factores iguais",
       threeFactors: "3 factores iguais",
+      crossingAbsence: "2 Fatores · cruzamento (≥14 giros)",
     },
   },
   en: {
@@ -51,6 +52,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 equal factors",
       threeFactors: "3 equal factors",
+      crossingAbsence: "2 Factors · crossing (≥14 spins)",
     },
   },
   es: {
@@ -78,6 +80,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 factores iguales",
       threeFactors: "3 factores iguales",
+      crossingAbsence: "2 Factores · cruce (≥14 giros)",
     },
   },
 } as const;

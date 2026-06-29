@@ -14,6 +14,7 @@ import { Route as TresFatoresRouteImport } from './routes/tres-fatores'
 import { Route as SuperTrunfoRouteImport } from './routes/super-trunfo'
 import { Route as SmartMoveRouteImport } from './routes/smart-move'
 import { Route as SalaRotativaUmFatorRouteImport } from './routes/sala-rotativa-um-fator'
+import { Route as SalaRotativaDoisFatoresRouteImport } from './routes/sala-rotativa-dois-fatores'
 import { Route as SalaRotativaRouteImport } from './routes/sala-rotativa'
 import { Route as Ruas25pctRouteImport } from './routes/ruas-25pct'
 import { Route as Ruas10pctRouteImport } from './routes/ruas-10pct'
@@ -134,6 +135,11 @@ const SmartMoveRoute = SmartMoveRouteImport.update({
 const SalaRotativaUmFatorRoute = SalaRotativaUmFatorRouteImport.update({
   id: '/sala-rotativa-um-fator',
   path: '/sala-rotativa-um-fator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalaRotativaDoisFatoresRoute = SalaRotativaDoisFatoresRouteImport.update({
+  id: '/sala-rotativa-dois-fatores',
+  path: '/sala-rotativa-dois-fatores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalaRotativaRoute = SalaRotativaRouteImport.update({
@@ -684,6 +690,7 @@ export interface FileRoutesByFullPath {
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
   '/sala-rotativa': typeof SalaRotativaRoute
+  '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -785,6 +792,7 @@ export interface FileRoutesByTo {
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
   '/sala-rotativa': typeof SalaRotativaRoute
+  '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -888,6 +896,7 @@ export interface FileRoutesById {
   '/ruas-10pct': typeof Ruas10pctRoute
   '/ruas-25pct': typeof Ruas25pctRoute
   '/sala-rotativa': typeof SalaRotativaRoute
+  '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -993,6 +1002,7 @@ export interface FileRouteTypes {
     | '/ruas-10pct'
     | '/ruas-25pct'
     | '/sala-rotativa'
+    | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1094,6 +1104,7 @@ export interface FileRouteTypes {
     | '/ruas-10pct'
     | '/ruas-25pct'
     | '/sala-rotativa'
+    | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1196,6 +1207,7 @@ export interface FileRouteTypes {
     | '/ruas-10pct'
     | '/ruas-25pct'
     | '/sala-rotativa'
+    | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1300,6 +1312,7 @@ export interface RootRouteChildren {
   Ruas10pctRoute: typeof Ruas10pctRoute
   Ruas25pctRoute: typeof Ruas25pctRoute
   SalaRotativaRoute: typeof SalaRotativaRoute
+  SalaRotativaDoisFatoresRoute: typeof SalaRotativaDoisFatoresRoute
   SalaRotativaUmFatorRoute: typeof SalaRotativaUmFatorRoute
   SmartMoveRoute: typeof SmartMoveRoute
   SuperTrunfoRoute: typeof SuperTrunfoRoute
@@ -1393,6 +1406,13 @@ declare module '@tanstack/react-router' {
       path: '/sala-rotativa-um-fator'
       fullPath: '/sala-rotativa-um-fator'
       preLoaderRoute: typeof SalaRotativaUmFatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sala-rotativa-dois-fatores': {
+      id: '/sala-rotativa-dois-fatores'
+      path: '/sala-rotativa-dois-fatores'
+      fullPath: '/sala-rotativa-dois-fatores'
+      preLoaderRoute: typeof SalaRotativaDoisFatoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sala-rotativa': {
@@ -2295,6 +2315,7 @@ const rootRouteChildren: RootRouteChildren = {
   Ruas10pctRoute: Ruas10pctRoute,
   Ruas25pctRoute: Ruas25pctRoute,
   SalaRotativaRoute: SalaRotativaRoute,
+  SalaRotativaDoisFatoresRoute: SalaRotativaDoisFatoresRoute,
   SalaRotativaUmFatorRoute: SalaRotativaUmFatorRoute,
   SmartMoveRoute: SmartMoveRoute,
   SuperTrunfoRoute: SuperTrunfoRoute,
