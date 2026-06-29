@@ -5,6 +5,10 @@ import type { NetworkBonusesData } from "@/lib/back-office/network-types";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 
+function formatPoints(value: number, money: (n: number) => string): string {
+  return `${Math.round(value)} pts (${money(value)})`;
+}
+
 export function BackOfficeBinaryBonusPanel() {
   const { t } = useI18n();
   const { money } = useFormat();
@@ -19,6 +23,7 @@ export function BackOfficeBinaryBonusPanel() {
   }, []);
 
   const points = data?.binaryPoints;
+  const binary = data?.binary;
 
   return (
     <div className="space-y-5">
@@ -84,31 +89,70 @@ export function BackOfficeBinaryBonusPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.pointsPerLegTitle")}</h2>
+        <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.pointsAvailableTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("network.binaryBonus.pointsAvailableHint")}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {[
-            { label: t("network.binaryBonus.left"), value: data?.binary.leftPoints ?? 0 },
-            { label: t("network.binaryBonus.right"), value: data?.binary.rightPoints ?? 0 },
+            {
+              label: t("network.binaryBonus.left"),
+              value: binary?.availableLeft ?? 0,
+              tone: "text-emerald-600",
+            },
+            {
+              label: t("network.binaryBonus.right"),
+              value: binary?.availableRight ?? 0,
+              tone: "text-emerald-600",
+            },
             {
               label: t("network.binaryBonus.estimatePending"),
-              value: data?.binary.estimatedPayout ?? 0,
+              value: binary?.estimatedPayout ?? 0,
+              tone: "text-text-primary",
+              moneyValue: true,
             },
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3"
+              className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3"
             >
               <p className="text-xs text-text-secondary">{item.label}</p>
-              <p className="mt-1 text-lg font-bold tabular-nums text-text-primary">
-                {loading ? "…" : money(item.value)}
+              <p className={`mt-1 text-lg font-bold tabular-nums ${item.tone}`}>
+                {loading
+                  ? "…"
+                  : item.moneyValue
+                    ? money(item.value)
+                    : formatPoints(item.value, money)}
               </p>
             </div>
           ))}
         </div>
       </section>
 
+      {!loading && !points?.globallyActive ? (
+        <section className="theme-card rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.pointsPendingTitle")}</h2>
+          <p className="mt-1 text-xs text-text-secondary">{t("network.binaryBonus.pointsPendingHint")}</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {[
+              { label: t("network.binaryBonus.left"), value: binary?.pendingLeft ?? 0 },
+              { label: t("network.binaryBonus.right"), value: binary?.pendingRight ?? 0 },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+              >
+                <p className="text-xs text-text-secondary">{item.label}</p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-amber-700 dark:text-amber-300">
+                  {formatPoints(item.value, money)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.levelsScoreTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("network.binaryBonus.levelsScoreHint")}</p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
@@ -133,12 +177,12 @@ export function BackOfficeBinaryBonusPanel() {
                   <tr key={level.level} className="border-b border-border-color/60 last:border-0">
                     <td className="px-3 py-2.5 font-semibold text-text-primary">{level.level}</td>
                     <td className="px-3 py-2.5 tabular-nums text-text-primary">
-                      {money(level.left.available)}{" "}
-                      <span className="text-xs text-text-secondary">/ {money(level.left.total)}</span>
+                      {formatPoints(level.left.available, money)}{" "}
+                      <span className="text-xs text-text-secondary">/ {Math.round(level.left.total)}</span>
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-text-primary">
-                      {money(level.right.available)}{" "}
-                      <span className="text-xs text-text-secondary">/ {money(level.right.total)}</span>
+                      {formatPoints(level.right.available, money)}{" "}
+                      <span className="text-xs text-text-secondary">/ {Math.round(level.right.total)}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       {level.qualified ? (

@@ -26,6 +26,9 @@ export const RESIDUAL_LEVELS: ResidualLevel[] = [
   { level: 10, percent: 1 },
 ];
 
+/** Soma dos pesos do residual — reparte 100% da parte rede da mensalidade. */
+export const RESIDUAL_WEIGHT = RESIDUAL_LEVELS.reduce((sum, l) => sum + l.percent, 0);
+
 export const DEFAULT_PACKAGES: InvestmentPackage[] = [
   {
     id: "bronze",

@@ -109,7 +109,7 @@ export const networkContent = {
     binaryBonus: {
       rulesTitle: "Regras do bônus binário",
       scoring: "Pontuação 1:1 em volume de pacotes na perna",
-      conversion: "Conversão: pontos → valor conforme graduação",
+      conversion: "Conversão: 10% dos pontos emparelhados em crédito",
       globalActivation: "Activação global com 2 directos activos",
       creditWallet: "Crédito na carteira Afiliados",
       activationActive: "Binário activo",
@@ -140,10 +140,15 @@ export const networkContent = {
       profitCapTitle: "Teto de lucro (200%)",
       earnedReceived: "Já recebido",
       pointsPerLegTitle: "Pontos disponíveis por perna",
-      estimatePending: "Estimativa pendente",
+      pointsAvailableTitle: "Pontos disponíveis (binário activo)",
+      pointsAvailableHint: "Contam para formação e pagamento — requer Start em cada perna e mensalidade em dia.",
+      pointsPendingTitle: "Pontos aguardando qualificação",
+      pointsPendingHint:
+        "Volume já registado na perna, mas ainda sem os dois directos qualificados (Start) — não formam binário até activar.",
+      estimatePending: "Estimativa de pagamento",
       levelsScoreTitle: "Pontuação por nível",
       levelsScoreHint:
-        "Qualificação: Start R$ 50 em cada perna (nível 1), escolhidos manualmente. Contas qualificadoras não pontuam o patrocinador nas próprias compras.",
+        "Start R$ 50 em cada perna (nível 1), escolhidos manualmente. Contas qualificadoras não pontuam o patrocinador nas próprias compras.",
       colQualified: "Qualificado",
       colCanMatch: "Pode formar",
       colEstimate: "Estimativa",
@@ -160,7 +165,7 @@ export const networkContent = {
       earningsTitle: "Ganhos de equipe",
       totalCredited: "Total creditado",
       walletBalance: "Saldo carteira",
-      description: "Bônus por volume e graduação na rede",
+      description: "Bônus por volume e activos na rede",
       residualTitle: "Residual de mensalidade",
       residualIntro: "Recebe até 10 níveis sobre mensalidades da rede",
       colLevel: "Nível",
@@ -171,9 +176,9 @@ export const networkContent = {
       totalCreditedLedger: "Total creditado (extrato)",
       walletBalanceAffiliates: "Saldo carteira afiliados",
       teamBonusDesc:
-        "O bónus de equipe considera volume, activos na rede e graduação mínima. Os créditos entram na carteira de afiliados conforme as regras de indicação.",
+        "Créditos de indicação, binário e residual de mensalidade entram na carteira de afiliados conforme as regras da rede.",
       residualIntroDetail:
-        "Quando um afiliado na sua rede paga a mensalidade ({{amount}}), {{pct}}% entra na rede e é repartido em até 10 níveis conforme a tabela abaixo.",
+        "Quando um afiliado paga a mensalidade ({{amount}}), metade ({{pct}}%) entra no pool de rede e é repartida integralmente em até 10 níveis.",
       colPercent: "Percentual",
       colOnNetworkPart: "Sobre parte rede",
     },
@@ -359,7 +364,7 @@ export const networkContent = {
     binaryBonus: {
       rulesTitle: "Binary bonus rules",
       scoring: "1:1 scoring on package volume per leg",
-      conversion: "Conversion: points → value by rank",
+      conversion: "Conversion: 10% of matched points as credit",
       globalActivation: "Global activation with 2 active directs",
       creditWallet: "Credit to Affiliates wallet",
       activationActive: "Binary active",
@@ -390,7 +395,12 @@ export const networkContent = {
       profitCapTitle: "Profit cap (200%)",
       earnedReceived: "Already received",
       pointsPerLegTitle: "Available points per leg",
-      estimatePending: "Pending estimate",
+      pointsAvailableTitle: "Available points (binary active)",
+      pointsAvailableHint: "Count toward matching and payout — requires Start on each leg and active subscription.",
+      pointsPendingTitle: "Points awaiting qualification",
+      pointsPendingHint:
+        "Volume recorded on the leg but missing two qualified directs (Start) — no binary match until active.",
+      estimatePending: "Estimated payout",
       levelsScoreTitle: "Scoring by level",
       levelsScoreHint:
         "Each level requires Start R$ 50 from your account on both legs to qualify and generate bonus.",
@@ -609,7 +619,7 @@ export const networkContent = {
     binaryBonus: {
       rulesTitle: "Reglas del bono binario",
       scoring: "Puntuación 1:1 en volumen de paquetes por pierna",
-      conversion: "Conversión: puntos → valor según graduación",
+      conversion: "Conversión: 10% de los puntos emparejados en crédito",
       globalActivation: "Activación global con 2 directos activos",
       creditWallet: "Crédito en cartera Afiliados",
       activationActive: "Binario activo",
@@ -640,7 +650,12 @@ export const networkContent = {
       profitCapTitle: "Tope de lucro (200%)",
       earnedReceived: "Ya recibido",
       pointsPerLegTitle: "Puntos disponibles por pierna",
-      estimatePending: "Estimación pendiente",
+      pointsAvailableTitle: "Puntos disponibles (binario activo)",
+      pointsAvailableHint: "Cuentan para formación y pago — requiere Start en cada pierna y mensualidad al día.",
+      pointsPendingTitle: "Puntos en espera de calificación",
+      pointsPendingHint:
+        "Volumen registrado en la pierna, pero sin dos directos calificados (Start) — no forman binario hasta activar.",
+      estimatePending: "Estimación de pago",
       levelsScoreTitle: "Puntuación por nivel",
       levelsScoreHint:
         "Cada nivel exige Start R$ 50 de su cuenta en ambas piernas para calificar y generar bono.",

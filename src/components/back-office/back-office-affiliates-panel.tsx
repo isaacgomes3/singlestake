@@ -105,9 +105,6 @@ export function BackOfficeAffiliatesPanel() {
                 <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
                   <th className="px-3 py-2.5 font-semibold">{t("network.affiliates.colName")}</th>
                   <th className="px-3 py-2.5 font-semibold">{t("network.affiliates.colJoined")}</th>
-                  <th className="px-3 py-2.5 font-semibold">
-                    {t("network.affiliates.colQualification")}
-                  </th>
                   <th className="px-3 py-2.5 font-semibold">{t("network.affiliates.colPackage")}</th>
                   <th className="px-3 py-2.5 font-semibold">
                     {t("network.affiliates.colSubscription")}
@@ -119,9 +116,6 @@ export function BackOfficeAffiliatesPanel() {
                   <tr key={member.id} className="border-b border-border-color/60 last:border-0">
                     <td className="px-3 py-2.5 text-text-primary">{member.name}</td>
                     <td className="px-3 py-2.5 text-text-secondary">{member.joinedAt}</td>
-                    <td className="px-3 py-2.5 text-text-primary">
-                      {t(`network.ranks.${member.qualification}`)}
-                    </td>
                     <td className="px-3 py-2.5 tabular-nums text-text-primary">
                       {member.hasActivePackage ? money(member.packageAmount) : t("shared.dash")}
                     </td>

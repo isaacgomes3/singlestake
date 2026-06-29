@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { RESIDUAL_LEVELS } from "@/lib/back-office/constants";
+import { RESIDUAL_LEVELS, RESIDUAL_WEIGHT } from "@/lib/back-office/constants";
 import { DEFAULT_SUBSCRIPTION_AMOUNT, SUBSCRIPTION_NETWORK_SHARE } from "@/lib/back-office/product-constants";
 import { fetchNetworkBonuses } from "@/lib/back-office/network-api";
 import type { NetworkBonusesData } from "@/lib/back-office/network-types";
@@ -35,8 +35,8 @@ export function BackOfficeTeamBonusPanel() {
               value: loading ? "…" : money(team?.networkVolume ?? 0),
             },
             {
-              label: t("network.teamBonus.yourRank"),
-              value: team ? t(`network.ranks.${team.qualification}`) : "…",
+              label: t("network.affiliates.direct"),
+              value: team?.directCount ?? 0,
             },
           ].map((item) => (
             <div
@@ -82,7 +82,7 @@ export function BackOfficeTeamBonusPanel() {
             <tbody>
               {RESIDUAL_LEVELS.map((row) => {
                 const networkPart = DEFAULT_SUBSCRIPTION_AMOUNT * SUBSCRIPTION_NETWORK_SHARE;
-                const payout = (networkPart * row.percent) / 100;
+                const payout = (networkPart * row.percent) / RESIDUAL_WEIGHT;
                 return (
                   <tr key={row.level} className="border-b border-border-color/60 last:border-0">
                     <td className="px-3 py-2.5 font-semibold text-text-primary">{row.level}</td>

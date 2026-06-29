@@ -4,8 +4,6 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { NetworkBonusesData } from "@/lib/back-office/network-types";
 
-import type { QualificationRank } from "@/lib/back-office/types";
-
 import { getDb } from "@/lib/server/db/client";
 
 import { ledgerEntries, walletAccounts } from "@/lib/server/db/schema";
@@ -31,13 +29,7 @@ import {
 
 
 export async function buildNetworkBonusesData(
-
   userId: string,
-
-  _userName: string,
-
-  qualification: QualificationRank,
-
 ): Promise<NetworkBonusesData> {
 
   const db = getDb();
@@ -110,11 +102,9 @@ export async function buildNetworkBonusesData(
 
 
 
-  const totalLeft = binaryPoints.levels.reduce((s, l) => s + l.left.available, 0);
-
-  const totalRight = binaryPoints.levels.reduce((s, l) => s + l.right.available, 0);
-
-  const estimatedPayout = binaryPoints.levels.reduce((s, l) => s + l.potentialPayout, 0);
+  const totalLeft = binaryPoints.availableLeft;
+  const totalRight = binaryPoints.availableRight;
+  const estimatedPayout = binaryPoints.potentialPayout;
 
 
 
@@ -127,41 +117,28 @@ export async function buildNetworkBonusesData(
     binaryPoints,
 
     binary: {
-
       globallyActive: binaryPoints.globallyActive,
-
+      availableLeft: binaryPoints.availableLeft,
+      availableRight: binaryPoints.availableRight,
+      pendingLeft: binaryPoints.pendingLeft,
+      pendingRight: binaryPoints.pendingRight,
       leftPoints: totalLeft,
-
       rightPoints: totalRight,
-
       estimatedPayout,
-
       paidTotal: binaryCredits[0]?.total ?? 0,
-
       walletBalance: affiliateWallet?.availableBalance ?? 0,
-
     },
 
     team: {
-
       activeInNetwork: countActiveUsers(networkIds, packageAmounts),
-
       networkVolume: sumVolumeForUsers(networkIds, packageAmounts),
-
       directActive: countActiveUsers(
-
         direct.map((u) => u.id),
-
         packageAmounts,
-
       ),
-
-      qualification,
-
+      directCount: direct.length,
       affiliateEarnings: affiliateCredits[0]?.total ?? 0,
-
       walletBalance: affiliateWallet?.availableBalance ?? 0,
-
     },
 
   };

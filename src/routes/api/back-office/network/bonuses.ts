@@ -6,18 +6,11 @@ export const Route = createFileRoute("/api/back-office/network/bonuses")({
       GET: async ({ request }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
         const { buildNetworkBonusesData } = await import("@/lib/server/network/bonuses");
-        const { getDb } = await import("@/lib/server/db/client");
-        const { users } = await import("@/lib/server/db/schema");
-        const { eq } = await import("drizzle-orm");
 
         const user = await requireSessionUser(request);
         if (!user) return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
 
-        const db = getDb();
-        const row = await db.query.users.findFirst({ where: eq(users.id, user.id) });
-        const qualification = row?.qualification ?? "bronze";
-
-        const data = await buildNetworkBonusesData(user.id, user.name, qualification);
+        const data = await buildNetworkBonusesData(user.id);
         return jsonResponse({ ok: true, data });
       },
     },

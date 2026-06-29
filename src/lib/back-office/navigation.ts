@@ -105,7 +105,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Rede",
     path: "/back-office/rede",
     icon: Network,
-    description: "Afiliados, binário, qualificação e bônus.",
+    description: "Afiliados, binário e bônus de equipe.",
     moduleIds: ["afiliados", "rede-binaria", "bonus-equipe"],
   },
   {
@@ -129,7 +129,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Relatórios",
     path: "/back-office/relatorios",
     icon: ClipboardList,
-    description: "Rede e central de qualificação.",
+    description: "Rede directa, indireta e volume.",
     moduleIds: ["relatorios-rede"],
   },
   {

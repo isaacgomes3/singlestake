@@ -120,7 +120,13 @@ export type NetworkBonusesData = {
   binaryPoints: import("@/lib/server/network/binary-engine").BinaryPointsDashboard;
   binary: {
     globallyActive: boolean;
+    availableLeft: number;
+    availableRight: number;
+    pendingLeft: number;
+    pendingRight: number;
+    /** @deprecated Use availableLeft */
     leftPoints: number;
+    /** @deprecated Use availableRight */
     rightPoints: number;
     estimatedPayout: number;
     paidTotal: number;
@@ -130,7 +136,7 @@ export type NetworkBonusesData = {
     activeInNetwork: number;
     networkVolume: number;
     directActive: number;
-    qualification: QualificationRank;
+    directCount: number;
     affiliateEarnings: number;
     walletBalance: number;
   };

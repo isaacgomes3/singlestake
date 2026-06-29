@@ -21,6 +21,9 @@ export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
     if (params.moduleId === "automacao-global") {
       throw redirect({ to: "/back-office" });
     }
+    if (params.moduleId === "central-qualificacao") {
+      throw redirect({ to: "/back-office/rede/bonus-equipe" });
+    }
     const group = getBackOfficeGroup(params.groupId);
     if (!group) throw notFound();
     if (!group.moduleIds.includes(params.moduleId as BackOfficeModuleId)) {

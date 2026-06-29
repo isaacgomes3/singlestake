@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { REFERRAL_LEVELS, RESIDUAL_LEVELS } from "@/lib/back-office/constants";
+import { REFERRAL_LEVELS, RESIDUAL_LEVELS, RESIDUAL_WEIGHT } from "@/lib/back-office/constants";
 import type { PackageKind } from "@/lib/back-office/product-constants";
 import {
   calculateCompanyAutomationPaymentSplit,
@@ -130,7 +130,7 @@ export async function distributeResidualPool(input: {
     const sponsorId = sponsors[i];
     if (!sponsorId) continue;
 
-    const share = roundMoney((input.poolAmount * level.percent) / 100);
+    const share = roundMoney((input.poolAmount * level.percent) / RESIDUAL_WEIGHT);
     if (share <= 0) continue;
 
     await paySponsorFromAffiliatePool({
