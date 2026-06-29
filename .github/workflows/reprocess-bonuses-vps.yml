@@ -1,0 +1,42 @@
+# Reprocessa bónus na BD de produção (manual — requer backup implícito no script).
+#
+# Secrets: VPS_HOST, VPS_USER, VPS_SSH_KEY_B64 (ou VPS_SSH_KEY)
+name: Reprocess bonuses VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reprocess:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Reprocessar bónus na VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VPS_HOST:-}" ] || [ -z "${VPS_USER:-}" ]; then
+            echo "::error::Defina VPS_HOST e VPS_USER nos secrets do repositório."
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          if [ -n "${SSH_KEY_B64:-}" ]; then
+            echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/vps_deploy_key
+          elif [ -n "${SSH_KEY:-}" ]; then
+            printf '%s' "$SSH_KEY" > ~/.ssh/vps_deploy_key
+            printf '\n' >> ~/.ssh/vps_deploy_key
+          else
+            echo "::error::Defina VPS_SSH_KEY_B64 ou VPS_SSH_KEY."
+            exit 1
+          fi
+          chmod 600 ~/.ssh/vps_deploy_key
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ServerAliveInterval=30 \
+              -o ConnectTimeout=120 \
+              -i ~/.ssh/vps_deploy_key \
+              "${VPS_USER}@${VPS_HOST}" \
+              "APP_DIR=/var/www/stake37; [ -d \"\$APP_DIR\" ] || APP_DIR=/var/www/singlestake; cd \"\$APP_DIR\" && git fetch origin main && git reset --hard origin/main && bash deploy/reprocess-bonuses-on-vps.sh"
