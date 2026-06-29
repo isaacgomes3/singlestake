@@ -15,6 +15,7 @@ import {
   userPackages,
   users,
 } from "@/lib/server/db/schema";
+import { getBinaryPositionRelativeTo } from "@/lib/server/network/placement";
 import { capPayoutAmount } from "@/lib/server/finance/profit-cap";
 import {
   isAffiliateServicesActive,
@@ -323,7 +324,10 @@ async function propagatePointsUpTree(buyerUserId: string, points: number): Promi
       level === 1 && isLevelOneQualifierChild(primaryId, buyerUserId, childIndex);
 
     if (!skipQualifier) {
-      await addLegPoints(primaryId, level, node.side as Side, points);
+      const legSide =
+        getBinaryPositionRelativeTo(primaryId, buyerUserId, nodes)?.legSide ??
+        (node.side as Side);
+      await addLegPoints(primaryId, level, legSide, points);
     }
     currentId = parentId;
     level++;

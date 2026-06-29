@@ -2,6 +2,7 @@ import { getDb } from "@/lib/server/db/client";
 import { binaryTreeNodes } from "@/lib/server/db/schema";
 
 type ChildMap = Map<string, { left?: string; right?: string }>;
+type LegSide = "left" | "right";
 
 function buildChildMap(nodes: (typeof binaryTreeNodes.$inferSelect)[]): ChildMap {
   const children: ChildMap = new Map();
@@ -13,6 +14,42 @@ function buildChildMap(nodes: (typeof binaryTreeNodes.$inferSelect)[]): ChildMap
     children.set(node.parentId, entry);
   }
   return children;
+}
+
+/**
+ * Primeira posição livre na perna escolhida (nível 1 directo ou spillover abaixo).
+ * Usado para indicados directos quando L1 já tem qualificador.
+ */
+export function findLegSpilloverPlacement(
+  rootUserId: string,
+  legSide: LegSide,
+  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+): { parentId: string; side: LegSide } | null {
+  const children = buildChildMap(nodes);
+  const rootSlot = children.get(rootUserId) ?? {};
+
+  if (!rootSlot[legSide]) {
+    return { parentId: rootUserId, side: legSide };
+  }
+
+  const queue = [rootSlot[legSide]!];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const slot = children.get(current) ?? {};
+    if (!slot.left) return { parentId: current, side: "left" };
+    if (!slot.right) return { parentId: current, side: "right" };
+    queue.push(slot.left, slot.right);
+  }
+
+  return null;
+}
+
+export function legSpilloverSlotAvailable(
+  rootUserId: string,
+  legSide: LegSide,
+  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+): boolean {
+  return findLegSpilloverPlacement(rootUserId, legSide, nodes) != null;
 }
 
 /** Primeira posição livre (esquerda, depois direita) em BFS a partir do patrocinador. */
@@ -34,8 +71,6 @@ export async function findBinaryPlacement(
 
   return { parentId: sponsorUserId, side: "left" };
 }
-
-type LegSide = "left" | "right";
 
 /**
  * Posição livre na perna indicada ao nível N (1 = filho directo do root nessa perna).

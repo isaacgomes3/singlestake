@@ -9,8 +9,8 @@ import {
   isBinaryPlacementPending,
   listPendingDirectPlacements,
   resolveNextDirectSide,
-  type BinarySide,
 } from "@/lib/server/network/direct-placement";
+import { legSpilloverSlotAvailable } from "@/lib/server/network/placement";
 
 type NodeRow = typeof binaryTreeNodes.$inferSelect;
 
@@ -143,12 +143,10 @@ export async function buildBinaryNetworkData(
   const binaryQualified = isBinaryGloballyActive(primaryId, childIndex, usersMap, startUsers);
 
   const pendingDirects = await listPendingDirectPlacements(userId);
-  const leftAvailable = myChildren.left == null;
-  const rightAvailable = myChildren.right == null;
+  const leftAvailable = legSpilloverSlotAvailable(userId, "left", nodes);
+  const rightAvailable = legSpilloverSlotAvailable(userId, "right", nodes);
   const selectedNextSide = resolveNextDirectSide({
     stored: myNode?.nextDirectSide ?? null,
-    leftAvailable,
-    rightAvailable,
     leftVolume,
     rightVolume,
   });

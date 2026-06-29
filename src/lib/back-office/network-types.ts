@@ -55,8 +55,9 @@ export type PendingDirectPlacement = {
 export type NextDirectSidePreference = {
   /** Valor persistido na base de dados (null = ainda não escolheu). */
   stored: "left" | "right" | null;
-  /** Perna efectiva para UI (guardada ou sugerida por pernas livres / volume). */
-  selected: "left" | "right" | null;
+  /** Perna preferida para UI (guardada ou sugerida por volume). */
+  selected: "left" | "right";
+  /** Há posição livre na perna para posicionar indicado pendente. */
   leftAvailable: boolean;
   rightAvailable: boolean;
 };

@@ -63,7 +63,7 @@ export const networkContent = {
       startActive: "Start activo",
       chooseLegRequiresStart: "Active o Start antes de escolher a perna",
       treePendingNote:
-        "Indicados directos só aparecem na árvore depois de activar o Start e o patrocinador escolher a perna.",
+        "Indicados directos só aparecem na árvore depois de activar o Start e o patrocinador escolher a perna. Com qualificadores no nível 1, o 3.º directo desce na extremidade da perna escolhida — continua seu directo, mas pontua toda a linha acima.",
       colDirectName: "Indicado",
       colJoined: "Cadastro",
       colStatus: "Estado",
@@ -71,9 +71,8 @@ export const networkContent = {
       chooseRight: "Direita",
       placing: "A posicionar…",
       nextDirectSideLabel: "Próxima indicação",
-      nextDirectSideHint: "Escolha a perna onde o próximo indicado directo será posicionado.",
-      nextDirectSideBothFull:
-        "As duas pernas directas (nível 1) estão ocupadas. Liberte uma perna ou posicione indicados pendentes na tabela acima.",
+      nextDirectSideHint:
+        "Escolha a perna (esquerda ou direita). O indicado desce na primeira vaga livre dessa perna — mesmo abaixo dos qualificadores.",
       nextDirectSideSaved: "Preferência guardada para a próxima indicação directa.",
       qualifierNote:
         "As contas qualificadoras de nível 1 (uma de cada perna) não geram bónus pelas próprias compras — só a rede abaixo delas.",
@@ -311,9 +310,8 @@ export const networkContent = {
       chooseRight: "Right",
       placing: "Placing…",
       nextDirectSideLabel: "Next referral",
-      nextDirectSideHint: "Choose which leg the next direct referral will be placed on.",
-      nextDirectSideBothFull:
-        "Both direct legs (level 1) are full. Free a leg or place pending referrals in the table above.",
+      nextDirectSideHint:
+        "Choose the leg (left or right). The referral fills the first open slot on that leg — even below qualifiers.",
       nextDirectSideSaved: "Preference saved for the next direct referral.",
       qualifierNote:
         "Level-1 qualifier accounts (one per leg) do not generate bonus from their own purchases — only their downline does.",
@@ -551,9 +549,8 @@ export const networkContent = {
       chooseRight: "Derecha",
       placing: "Posicionando…",
       nextDirectSideLabel: "Próxima indicación",
-      nextDirectSideHint: "Elija la pierna donde se posicionará el próximo directo.",
-      nextDirectSideBothFull:
-        "Las dos piernas directas (nivel 1) están ocupadas. Libere una pierna o posicione indicados pendientes en la tabla superior.",
+      nextDirectSideHint:
+        "Elija la pierna (izquierda o derecha). El directo ocupa la primera vacante de esa pierna — incluso debajo de calificadores.",
       nextDirectSideSaved: "Preferencia guardada para la próxima indicación directa.",
       qualifierNote:
         "Las cuentas calificadoras de nivel 1 (una por pierna) no generan bono por sus propias compras — solo la red debajo.",

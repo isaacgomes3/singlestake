@@ -5,6 +5,10 @@ import type { PendingDirectPlacement } from "@/lib/back-office/network-types";
 import { getDb } from "@/lib/server/db/client";
 import { binaryTreeNodes, userPackages, users } from "@/lib/server/db/schema";
 import { onPackagePurchaseBinary } from "@/lib/server/network/binary-engine";
+import {
+  findLegSpilloverPlacement,
+  legSpilloverSlotAvailable,
+} from "@/lib/server/network/placement";
 
 export type BinarySide = "left" | "right";
 
@@ -21,14 +25,6 @@ export function isBinaryPlacementPending(
   node: Pick<typeof binaryTreeNodes.$inferSelect, "parentId" | "side"> | null | undefined,
 ): boolean {
   return node != null && node.parentId != null && node.side == null;
-}
-
-export function sponsorDirectSlotTaken(
-  sponsorId: string,
-  side: BinarySide,
-  nodes: (typeof binaryTreeNodes.$inferSelect)[],
-): boolean {
-  return nodes.some((n) => n.parentId === sponsorId && n.side === side);
 }
 
 export async function listPendingDirectPlacements(
@@ -51,8 +47,6 @@ export async function listPendingDirectPlacements(
 
   const startUsers = new Set(startRows.map((r) => r.userId));
   const nodeByUser = new Map(nodes.map((n) => [n.userId, n]));
-  const leftTaken = sponsorDirectSlotTaken(sponsorId, "left", nodes);
-  const rightTaken = sponsorDirectSlotTaken(sponsorId, "right", nodes);
 
   return directs
     .filter((u) => !u.masterUserId)
@@ -66,8 +60,8 @@ export async function listPendingDirectPlacements(
         joinedAt: formatDate(u.createdAt),
         hasActiveStart: startUsers.has(u.id),
         pending,
-        leftSlotAvailable: !leftTaken,
-        rightSlotAvailable: !rightTaken,
+        leftSlotAvailable: legSpilloverSlotAvailable(sponsorId, "left", nodes),
+        rightSlotAvailable: legSpilloverSlotAvailable(sponsorId, "right", nodes),
       };
     })
     .filter((row) => row.pending)
@@ -117,26 +111,36 @@ export async function confirmDirectBinaryPlacement(input: {
   }
 
   const nodes = await db.query.binaryTreeNodes.findMany();
-  if (sponsorDirectSlotTaken(input.sponsorId, input.side, nodes)) {
+  const target = findLegSpilloverPlacement(input.sponsorId, input.side, nodes);
+  if (!target) {
     return {
       ok: false,
-      error: `A perna ${input.side === "left" ? "esquerda" : "direita"} já está ocupada.`,
+      error: `Sem posição livre na perna ${input.side === "left" ? "esquerda" : "direita"}.`,
     };
+  }
+
+  const slotTaken = nodes.some(
+    (n) => n.parentId === target.parentId && n.side === target.side && n.userId !== input.directUserId,
+  );
+  if (slotTaken) {
+    return { ok: false, error: "Posição já ocupada. Actualize e tente novamente." };
   }
 
   const now = new Date();
   await db
     .update(binaryTreeNodes)
-    .set({ side: input.side, placedAt: now })
+    .set({
+      parentId: target.parentId,
+      side: target.side,
+      placedAt: now,
+    })
     .where(eq(binaryTreeNodes.userId, input.directUserId));
 
   await replayBinaryPointsForUser(input.directUserId);
 
-  const otherSide: BinarySide = input.side === "left" ? "right" : "left";
-  const otherWasFree = !sponsorDirectSlotTaken(input.sponsorId, otherSide, nodes);
   await db
     .update(binaryTreeNodes)
-    .set({ nextDirectSide: otherWasFree ? otherSide : null })
+    .set({ nextDirectSide: input.side })
     .where(eq(binaryTreeNodes.userId, input.sponsorId));
 
   return { ok: true };
@@ -144,19 +148,11 @@ export async function confirmDirectBinaryPlacement(input: {
 
 export function resolveNextDirectSide(input: {
   stored: BinarySide | null | undefined;
-  leftAvailable: boolean;
-  rightAvailable: boolean;
   leftVolume: number;
   rightVolume: number;
-}): BinarySide | null {
-  if (input.stored === "left" && input.leftAvailable) return "left";
-  if (input.stored === "right" && input.rightAvailable) return "right";
-  if (input.leftAvailable && !input.rightAvailable) return "left";
-  if (input.rightAvailable && !input.leftAvailable) return "right";
-  if (input.leftAvailable && input.rightAvailable) {
-    return input.leftVolume <= input.rightVolume ? "left" : "right";
-  }
-  return null;
+}): BinarySide {
+  if (input.stored === "left" || input.stored === "right") return input.stored;
+  return input.leftVolume <= input.rightVolume ? "left" : "right";
 }
 
 export async function setNextDirectBinarySide(input: {
@@ -164,16 +160,6 @@ export async function setNextDirectBinarySide(input: {
   side: BinarySide;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const db = getDb();
-  const nodes = await db.query.binaryTreeNodes.findMany();
-  const leftAvailable = !sponsorDirectSlotTaken(input.userId, "left", nodes);
-  const rightAvailable = !sponsorDirectSlotTaken(input.userId, "right", nodes);
-
-  if (input.side === "left" && !leftAvailable) {
-    return { ok: false, error: "A perna esquerda já está ocupada." };
-  }
-  if (input.side === "right" && !rightAvailable) {
-    return { ok: false, error: "A perna direita já está ocupada." };
-  }
 
   await db
     .update(binaryTreeNodes)

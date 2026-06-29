@@ -51,10 +51,7 @@ export function BackOfficeBinaryPanel() {
   }
 
   async function handleNextSideChange(side: "left" | "right") {
-    if (!data) return;
-    if (data.nextDirectSide.stored === side) return;
-    if (side === "left" && !data.nextDirectSide.leftAvailable) return;
-    if (side === "right" && !data.nextDirectSide.rightAvailable) return;
+    if (!data || data.nextDirectSide.stored === side) return;
 
     setSavingSideTarget(side);
     const result = await setNextDirectSide(side);
@@ -67,9 +64,7 @@ export function BackOfficeBinaryPanel() {
     toast.success(t("network.binary.nextDirectSideSaved"));
   }
 
-  const preferredSide = data?.nextDirectSide.selected ?? null;
-  const nextSideBothFull =
-    !!data && !data.nextDirectSide.leftAvailable && !data.nextDirectSide.rightAvailable;
+  const preferredSide = data?.nextDirectSide.selected ?? "left";
 
   return (
     <div className="space-y-5">
@@ -261,41 +256,31 @@ export function BackOfficeBinaryPanel() {
               <p className="mt-0.5 text-[11px] text-text-secondary">
                 {t("network.binary.nextDirectSideHint")}
               </p>
-              {nextSideBothFull ? (
-                <p className="mt-2 text-[11px] font-medium text-warning">
-                  {t("network.binary.nextDirectSideBothFull")}
-                </p>
-              ) : (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(["left", "right"] as const).map((side) => {
-                    const available =
-                      side === "left"
-                        ? data.nextDirectSide.leftAvailable
-                        : data.nextDirectSide.rightAvailable;
-                    const active = preferredSide === side;
-                    return (
-                      <button
-                        key={side}
-                        type="button"
-                        disabled={!available || savingSideTarget != null}
-                        onClick={() => void handleNextSideChange(side)}
-                        className={cn(
-                          "min-w-[5.5rem] rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-bg-card-hover disabled:cursor-not-allowed disabled:opacity-40",
-                          active
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border-color text-text-primary",
-                        )}
-                      >
-                        {savingSideTarget === side
-                          ? t("network.binary.placing")
-                          : side === "left"
-                            ? t("network.binary.chooseLeft")
-                            : t("network.binary.chooseRight")}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(["left", "right"] as const).map((side) => {
+                  const active = preferredSide === side;
+                  return (
+                    <button
+                      key={side}
+                      type="button"
+                      disabled={savingSideTarget != null}
+                      onClick={() => void handleNextSideChange(side)}
+                      className={cn(
+                        "min-w-[5.5rem] rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-bg-card-hover disabled:cursor-not-allowed disabled:opacity-40",
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border-color text-text-primary",
+                      )}
+                    >
+                      {savingSideTarget === side
+                        ? t("network.binary.placing")
+                        : side === "left"
+                          ? t("network.binary.chooseLeft")
+                          : t("network.binary.chooseRight")}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </div>
