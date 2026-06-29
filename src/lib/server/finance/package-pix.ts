@@ -21,7 +21,7 @@ import {
   getPaymentGatewaySettings,
   isLucPagueiGatewayReady,
 } from "@/lib/server/finance/payment-gateway-settings";
-import { buildPixQrArtifactsFromEmv, isPixEmvPayload, normalizePixEmvPayload, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
+import { buildPixQrArtifactsFromEmv, isPixEmvPayload, normalizePixEmvPayload, parsePixPayloadAmount, validatePixEmvCrc } from "@/lib/server/finance/pix-qr";
 import {
   isStaticPixConfigured,
   listConfiguredStaticPixAmounts,
@@ -573,11 +573,13 @@ export async function getOrCreateStartPackPixOrder(input: {
 
     if (lucReady && (isStaticOrder || !isLucOrder || lucStale)) {
       await expirePackagePixOrder(pending.id);
-    } else if (isLucOrder || (!lucReady && isStaticOrder)) {
+    } else     if (isLucOrder || (!lucReady && isStaticOrder)) {
       const refreshed = await refreshPackagePixOrderArtifacts(pending);
-      if (refreshed) return { ok: true, order: toDto(refreshed) };
+      if (refreshed && validatePixEmvCrc(refreshed.pixCopyPaste ?? "")) {
+        return { ok: true, order: toDto(refreshed) };
+      }
       await expirePackagePixOrder(pending.id);
-    } else if (!isPixEmvPayload(pending.pixCopyPaste ?? "")) {
+    } else if (!isPixEmvPayload(pending.pixCopyPaste ?? "") || !validatePixEmvCrc(pending.pixCopyPaste ?? "")) {
       await expirePackagePixOrder(pending.id);
     } else {
       const refreshed = await refreshPackagePixOrderArtifacts(pending);

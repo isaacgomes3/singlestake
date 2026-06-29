@@ -55,7 +55,7 @@ export function StartPackPaymentBanner({ order, packageName, onPaid }: Props) {
   const qrSrc = current.qrCodeBase64
     ? current.qrCodeBase64.startsWith("data:")
       ? current.qrCodeBase64
-      : `data:image/png;base64,${current.qrCodeBase64}`
+      : `data:image/png;base64,${current.qrCodeBase64.replace(/\s/g, "")}`
     : null;
 
   if (current.status === "paid") {

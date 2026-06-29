@@ -1,8 +1,8 @@
 import QRCode from "qrcode";
 
-/** Remove espaços/quebras — PIX copia e cola deve ser uma linha contínua. */
+/** Remove quebras de linha e espaços nas pontas — não remover espaços no meio (ex.: nome do recebedor no campo 59). */
 export function normalizePixEmvPayload(raw: string): string {
-  return raw.replace(/\s+/g, "").trim();
+  return raw.replace(/[\r\n\t]/g, "").trim();
 }
 
 /** CRC16-CCITT-FALSE (padrão EMVCo / PIX Bacen) sobre bytes UTF-8. */
@@ -91,8 +91,8 @@ export async function generatePixQrBase64(payload: string): Promise<string> {
   }
   const dataUrl = await QRCode.toDataURL(emv, {
     errorCorrectionLevel: "M",
-    margin: 2,
-    width: 320,
+    margin: 4,
+    width: 400,
     type: "image/png",
   });
   return dataUrl.replace(/^data:image\/png;base64,/, "");
