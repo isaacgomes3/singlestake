@@ -18,8 +18,12 @@ import {
 } from "@/lib/roulette/casinoEmbedProviderHint";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { ROTATING_ROOM_LOBBY_WAIT_EMBED_URL } from "@/lib/roulette/rotatingRoomLobbySignal";
-import type { RotatingRoomClickBotAction } from "@/lib/roulette/rotatingRoomClickBotLearning";
-import type { RotatingRoomClickBotSessionSlice } from "@/lib/roulette/rotatingRoomClickBotLearning";
+import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
+import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
+import {
+  planRotatingRoomClickBotActions,
+  type RotatingRoomClickBotSessionSlice,
+} from "@/lib/roulette/rotatingRoomClickBotLearning";
 import { readRotatingRoomExtensionRealMode, readEffectiveUmFatorMaxRecovery } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import type { RotatingUmFatorIndication } from "@/lib/roulette/rotatingUmFatorSimHarness";
 
@@ -106,7 +110,7 @@ export type RotatingRoomExtensionBridgePayload = {
   type: typeof ROTATING_ROOM_EXTENSION_MESSAGE_TYPE;
   version: typeof ROTATING_ROOM_EXTENSION_VERSION;
   fingerprint: string;
-  actions: RotatingRoomClickBotAction[];
+  actions: import("@/lib/roulette/rotatingRoomClickBotLearning").RotatingRoomClickBotAction[];
   context: RotatingRoomExtensionContext;
 };
 
@@ -255,6 +259,41 @@ export function isRotatingRoomExtensionPong(
 }
 
 export { isLikelyExtensionBridgeOrigin } from "@/lib/app-domains";
+
+/** Payload directo a partir de «Em jogo» / pending da automação global. */
+export function buildExtensionBridgeFromAutomationBet(
+  bet: AutomationPendingSignal,
+  automationBalance?: number | null,
+): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
+  if (bet.tableId == null || !bet.signalId?.trim()) return null;
+
+  const activeCrossing = activeCrossingFromAutomationBet(bet);
+  if (!activeCrossing) return null;
+
+  const singleFactorMode = bet.strategy !== "dois2fatores";
+  const sessionSlice: RotatingRoomClickBotSessionSlice = {
+    sessionMode: "active",
+    showTapeteSignal: true,
+    prepareTableId: null,
+    currentTableId: bet.tableId,
+    activeCrossing,
+    singleFactorMode,
+    signalId: bet.signalId,
+    betAttemptKey: bet.signalId,
+    rotativaTrigger: singleFactorMode ? "umFator" : "crossing",
+    currentRecovery: bet.recovery,
+    lobbyWait: false,
+  };
+
+  const actions = planRotatingRoomClickBotActions(sessionSlice);
+  if (!actions.some((a) => a.kind === "click")) return null;
+
+  const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
+  const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
+  const fingerprint = `${bet.signalId}|r${bet.recovery}`;
+
+  return { fingerprint, actions, context };
+}
 
 /** Converte indicação da estratégia (sim ou ao vivo) no payload da extensão Chrome. */
 export function buildExtensionBridgeFromUmFatorIndication(

@@ -11,18 +11,26 @@ import { useFormat } from "@/lib/i18n/use-format";
 type Props = {
   order: PackagePixOrderDto;
   packageName: string;
+  /** Automação: confirmação manual pelo admin (sem polling automático). */
+  awaitAdminApproval?: boolean;
   onClose: () => void;
   onPaid: () => void;
 };
 
-export function PackagePixCheckoutDialog({ order, packageName, onClose, onPaid }: Props) {
+export function PackagePixCheckoutDialog({
+  order,
+  packageName,
+  awaitAdminApproval = false,
+  onClose,
+  onPaid,
+}: Props) {
   const { t } = useI18n();
   const { money } = useFormat();
   const [current, setCurrent] = useState(order);
-  const [polling, setPolling] = useState(true);
+  const [polling, setPolling] = useState(!awaitAdminApproval);
 
   useEffect(() => {
-    if (!polling || current.status === "paid") return;
+    if (awaitAdminApproval || !polling || current.status === "paid") return;
 
     const tick = async () => {
       const result = await syncProductPackagePixOrder(current.id);
@@ -41,7 +49,7 @@ export function PackagePixCheckoutDialog({ order, packageName, onClose, onPaid }
     void tick();
     const id = window.setInterval(() => void tick(), 4000);
     return () => window.clearInterval(id);
-  }, [current.id, current.status, onPaid, polling, t]);
+  }, [awaitAdminApproval, current.id, current.status, onPaid, polling, t]);
 
   const copyPix = async () => {
     if (!current.pixCopyPaste) return;
@@ -97,8 +105,12 @@ export function PackagePixCheckoutDialog({ order, packageName, onClose, onPaid }
                 })}
               </p>
             ) : null}
-            {current.mode === "static" ? (
-              <p className="mt-2 text-xs text-text-secondary">{t("products.packages.pixStaticHint")}</p>
+            {current.mode === "static" || awaitAdminApproval ? (
+              <p className="mt-2 text-xs text-text-secondary">
+                {awaitAdminApproval
+                  ? t("products.packages.pixAutomationAdminHint")
+                  : t("products.packages.pixStaticHint")}
+              </p>
             ) : null}
             {qrSrc ? (
               <img
@@ -121,7 +133,11 @@ export function PackagePixCheckoutDialog({ order, packageName, onClose, onPaid }
               </div>
             ) : null}
             <p className="mt-3 text-center text-xs text-text-secondary">
-              {polling ? t("products.packages.pixWaiting") : t("products.packages.pixExpired")}
+              {awaitAdminApproval
+                ? t("products.packages.pixAwaitAdmin")
+                : polling
+                  ? t("products.packages.pixWaiting")
+                  : t("products.packages.pixExpired")}
             </p>
           </>
         )}

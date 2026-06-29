@@ -1,6 +1,8 @@
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
+import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 
 export type RotatingRoomLobbySession = (
   | RotatingRoomCrossingSession
@@ -109,21 +111,37 @@ export function alignRotatingRoomSessionWithAutomationBet<
         tableId: number;
         recovery: number;
         strategy?: "um1fator" | "dois2fatores";
-        activeCrossing?: import("@/lib/roulette/doisFatoresStrategy").DoisFatoresActive | null;
+        signalId?: string;
+        alertLabel?: string;
+        umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
+        activeCrossing?: DoisFatoresActive | null;
       }
     | null
     | undefined,
 ): T {
   if (!bet?.tableId) return session;
-  if (rotatingRoomLobbyFocusTableId(session) != null) return session;
+
+  const betCrossing = activeCrossingFromAutomationBet(bet);
+  const sameActiveBet =
+    session.showTapeteSignal === true &&
+    session.currentTableId === bet.tableId &&
+    (session.activeCrossing != null || betCrossing != null);
+  if (sameActiveBet && betCrossing != null && session.activeCrossing != null) {
+    return session;
+  }
 
   const isCrossing = bet.strategy === "dois2fatores";
+  const alignedCrossing: DoisFatoresActive | null =
+    betCrossing ?? session.activeCrossing ?? null;
+
   return {
     ...session,
     currentTableId: bet.tableId,
     showTapeteSignal: true,
+    prepareTableId: null,
     currentRecovery: bet.recovery,
-    activeCrossing: bet.activeCrossing ?? session.activeCrossing ?? null,
+    activeCrossing: alignedCrossing,
+    ...(bet.umActive ? { umActive: bet.umActive } : {}),
     sessionMode: isCrossing ? "active" : session.sessionMode,
     ...(isCrossing ? { rotativaTrigger: "crossing" as const } : { rotativaTrigger: "umFator" as const }),
   };

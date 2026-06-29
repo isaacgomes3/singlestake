@@ -12,18 +12,25 @@ import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
 } from "@/lib/roulette/lobbyTables";
-import { buildRotatingRoomMesaCatalog } from "@/lib/roulette/rotatingRoomExtensionBridge";
+import { buildRotatingRoomMesaCatalog, buildExtensionBridgeFromAutomationBet, emitRotatingRoomExtensionBridge } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
+  alignRotatingRoomSessionWithAutomationBet,
   isRotatingRoomLobbyWait,
   rotatingRoomLobbyFocusTableId,
   ROTATING_ROOM_LOBBY_WAIT_EMBED_URL,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
+import {
+  clearExtensionLastEmitKey,
+  readExtensionLastEmitKey,
+  readRotatingRoomExtensionEnabled,
+  ROTATING_ROOM_EXTENSION_PREFS_EVENT,
+  writeExtensionLastEmitKey,
+} from "@/lib/roulette/rotatingRoomExtensionPrefs";
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
-    pathname === "/back-office" ||
-    pathname === "/back-office/" ||
-    pathname.startsWith("/back-office/operacoes") ||
+    pathname.startsWith("/back-office") ||
+    pathname === "/casino-mesa" ||
     pathname.startsWith("/casino-mesa") ||
     pathname === "/sala-rotativa-um-fator" ||
     pathname.startsWith("/sala-rotativa")
@@ -34,7 +41,6 @@ type BridgeInnerProps = {
   bridgeActive: boolean;
 };
 
-/** Só monta com extensão presente — evita motores de placar duplicados na visão geral. */
 function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const [configTick, setConfigTick] = useState(0);
 
@@ -52,11 +58,20 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const { state: globalAutomation } = useRouletteAutomationSim();
-  const session = useRotatingRoomRotativaSession(tableIds, histories, {
+  const { state: globalAutomation, openBet, pendingSignal } = useRouletteAutomationSim();
+  const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
     observeOnly: true,
   });
+
+  const session = useMemo(
+    () =>
+      alignRotatingRoomSessionWithAutomationBet(
+        rawSession,
+        openBet ?? pendingSignal,
+      ),
+    [rawSession, openBet, pendingSignal],
+  );
 
   const mesaEmbedUrl = useMemo(() => {
     if (isRotatingRoomLobbyWait(session)) return ROTATING_ROOM_LOBBY_WAIT_EMBED_URL;
@@ -65,6 +80,37 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     const catalog = buildRotatingRoomMesaCatalog();
     return catalog.find((e) => e.tableId === focusId)?.url ?? getCasinoEmbedUrlForTable(focusId);
   }, [session]);
+
+  useEffect(() => {
+    if (!bridgeActive) return;
+    clearExtensionLastEmitKey();
+  }, [bridgeActive]);
+
+  useEffect(() => {
+    if (!bridgeActive) return;
+    const betKey = openBet?.signalId ?? pendingSignal?.signalId;
+    if (!betKey) return;
+    clearExtensionLastEmitKey();
+  }, [bridgeActive, openBet?.signalId, pendingSignal?.signalId]);
+
+  useEffect(() => {
+    if (!bridgeActive) return;
+    const bet = openBet ?? pendingSignal;
+    if (!bet?.signalId || bet.tableId == null) return;
+
+    const payload = buildExtensionBridgeFromAutomationBet(bet, globalAutomation.balance);
+    if (!payload) return;
+
+    const emitKey = payload.fingerprint;
+    if (readExtensionLastEmitKey() === emitKey) return;
+    writeExtensionLastEmitKey(emitKey);
+    emitRotatingRoomExtensionBridge(payload);
+  }, [
+    bridgeActive,
+    openBet,
+    pendingSignal,
+    globalAutomation.balance,
+  ]);
 
   useRotatingRoomClickBotLearning({
     session,
@@ -77,15 +123,30 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   return null;
 }
 
-/** Envia sinais da sala rotativa (1 Fator + cruzamento 2F) à extensão Chrome. */
+/** Envia sinais da sala rotativa à extensão Chrome. */
 export function RotatingRoomExtensionBridgeGlobal() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
+  const [localBridgeOn, setLocalBridgeOn] = useState(readRotatingRoomExtensionEnabled);
+
+  useEffect(() => {
+    const sync = () => setLocalBridgeOn(readRotatingRoomExtensionEnabled());
+    window.addEventListener(ROTATING_ROOM_EXTENSION_PREFS_EVENT, sync);
+    return () => window.removeEventListener(ROTATING_ROOM_EXTENSION_PREFS_EVENT, sync);
+  }, []);
+
+  useEffect(() => {
+    if (typeof extensionPrefs?.bridgeEnabled === "boolean") {
+      setLocalBridgeOn(extensionPrefs.bridgeEnabled);
+    }
+  }, [extensionPrefs?.bridgeEnabled]);
 
   const autoBridge = isRotatingRoomBridgePath(pathname);
   const extensionBridgeOn =
     extensionPresent &&
-    (extensionPrefs?.bridgeEnabled === undefined || extensionPrefs.bridgeEnabled !== false);
+    (extensionPrefs?.bridgeEnabled !== undefined
+      ? extensionPrefs.bridgeEnabled !== false
+      : localBridgeOn);
   const bridgeActive = autoBridge && extensionPresent && extensionBridgeOn;
 
   if (!autoBridge || !extensionPresent) return null;

@@ -26,6 +26,9 @@ const bridgePrefsStatus = document.getElementById("bridgePrefsStatus");
 const bridgeStatus = document.getElementById("bridgeStatus");
 const bridgeOnBtn = document.getElementById("bridgeOn");
 const bridgeOffBtn = document.getElementById("bridgeOff");
+const connDot = document.getElementById("connDot");
+const connTitle = document.getElementById("connTitle");
+const connDetail = document.getElementById("connDetail");
 const dgaConfigStatus = document.getElementById("dgaConfigStatus");
 const dgaSaveBtn = document.getElementById("dgaSave");
 const dgaResetBtn = document.getElementById("dgaReset");
@@ -241,10 +244,22 @@ function setBridgeUi(enabled) {
   const on = enabled !== false;
   bridgeOnBtn?.classList.toggle("active-real", on);
   bridgeOffBtn?.classList.toggle("active-demo", !on);
+  if (connDot) {
+    connDot.classList.toggle("on", on);
+    connDot.classList.toggle("off", !on);
+  }
+  if (connTitle) {
+    connTitle.textContent = on ? "Sala ligada" : "Sala desligada";
+  }
+  if (connDetail) {
+    connDetail.textContent = on
+      ? "Posicionado no lobby. Aguarda indicações do back-office."
+      : "Ligue para abrir o lobby poker no operador.";
+  }
   if (bridgeStatus) {
     bridgeStatus.textContent = on
-      ? "Ligada — segue sinais da sala rotativa no app."
-      : "Desligada — ignora entradas da sala. Use «Ligar» para voltar a apostar.";
+      ? "Ligada — ao activar vai ao lobby; com sinal abre a mesa."
+      : "Desligada — não segue indicações do app.";
   }
 }
 
@@ -507,6 +522,44 @@ function setMode(mode) {
   });
 }
 
+function sendExtensionMessage(payload, onDone) {
+  chrome.runtime.sendMessage(payload, (response) => {
+    if (chrome.runtime.lastError) {
+      const err = chrome.runtime.lastError.message || "Service worker sem resposta";
+      if (out) {
+        out.textContent = `⚠ ${err}\n\nRecarregue a extensão em chrome://extensions e feche/reabra este popup.`;
+      }
+      onDone?.(null, err);
+      return;
+    }
+    onDone?.(response, null);
+  });
+}
+
+function readPopupMode(cb) {
+  chrome.storage.local.get([STORAGE_MODE], (data) => {
+    if (chrome.runtime.lastError) {
+      cb("demo");
+      return;
+    }
+    cb(data[STORAGE_MODE] === "real" ? "real" : "demo");
+  });
+}
+
+function runTestBet(betKey, label) {
+  readPopupMode((mode) => {
+    if (out) out.textContent = `A testar ${label} (${mode === "real" ? "REAL" : "DEMO"})…`;
+    sendExtensionMessage({ kind: "test-bet", betKey, label, mode }, (resp, err) => {
+      if (err) return;
+      if (resp && out) {
+        const prefix = resp.ok ? "✓" : "⚠";
+        out.textContent = `${prefix} Teste ${label} (${resp.mode ?? mode}): ${resp.detail ?? "concluído"}`;
+      }
+      loadStatus();
+    });
+  });
+}
+
 function setBridgeEnabled(enabled) {
   chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled === true }, () => {
     if (chrome.runtime.lastError) {
@@ -566,12 +619,13 @@ document.querySelectorAll("button[data-bet]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const betKey = btn.getAttribute("data-bet");
     const label = btn.getAttribute("data-label") ?? betKey;
-    chrome.runtime.sendMessage({ kind: "test-bet", betKey, label }, () => loadStatus());
+    runTestBet(betKey, label);
   });
 });
 
 document.getElementById("scan")?.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ kind: "scan-bets" }, () => loadStatus());
+  if (out) out.textContent = "Varredura em curso…";
+  sendExtensionMessage({ kind: "scan-bets" }, () => loadStatus());
 });
 
 document.getElementById("refresh")?.addEventListener("click", loadStatus);
@@ -586,6 +640,7 @@ document.querySelectorAll("button.cal").forEach((btn) => {
     chrome.runtime.sendMessage({ kind: "arm-calibration", betKey, label }, (resp) => {
       if (chrome.runtime.lastError) {
         if (calStatus) calStatus.textContent = chrome.runtime.lastError.message;
+        if (out) out.textContent = chrome.runtime.lastError.message;
         return;
       }
       if (calStatus) {

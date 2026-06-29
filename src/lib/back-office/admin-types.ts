@@ -28,6 +28,17 @@ export type PendingActivationRecord = {
   orderCreatedAt: string | null;
 };
 
+export type PendingAutomationPixRecord = {
+  orderId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  packageId: string;
+  packageName: string;
+  amount: number;
+  orderCreatedAt: string;
+};
+
 export type PixKeyProfileDto = {
   pixKey: string | null;
   pixKeySetAt: string | null;

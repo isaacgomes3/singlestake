@@ -5,7 +5,9 @@ export const Route = createFileRoute("/api/back-office/admin/pending-activations
     handlers: {
       GET: async ({ request }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
-        const { listPendingAccountActivations } = await import("@/lib/server/finance/package-pix");
+        const { listPendingAccountActivations, listPendingAutomationPixOrders } = await import(
+          "@/lib/server/finance/package-pix"
+        );
 
         const user = await requireSessionUser(request);
         if (!user) {
@@ -15,8 +17,11 @@ export const Route = createFileRoute("/api/back-office/admin/pending-activations
           return jsonResponse({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        const rows = await listPendingAccountActivations();
-        return jsonResponse({ ok: true, rows });
+        const [rows, automationRows] = await Promise.all([
+          listPendingAccountActivations(),
+          listPendingAutomationPixOrders(),
+        ]);
+        return jsonResponse({ ok: true, rows, automationRows });
       },
     },
   },

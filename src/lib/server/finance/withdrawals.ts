@@ -3,15 +3,20 @@ import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 
 import {
-  MIN_WITHDRAWAL_AMOUNT,
   WITHDRAWABLE_BUCKETS,
   type WalletBucket,
 } from "@/lib/server/finance/constants";
+import {
+  ensureWithdrawalDebited,
+  validateWithdrawalDailyLimit,
+  validateWithdrawalRequest,
+  hasWithdrawalDebit,
+} from "@/lib/server/finance/withdrawal-rules";
 import { isAffiliateServicesActive } from "@/lib/server/finance/subscription-access";
-import { debitCompanyAffiliatePool, creditCompanyBucket } from "@/lib/server/finance/company-pool";
-import { debitWallet, getWalletBalance, creditWallet } from "@/lib/server/finance/wallet";
+import { creditCompanyBucket } from "@/lib/server/finance/company-pool";
+import { getWalletBalance, creditWallet } from "@/lib/server/finance/wallet";
 import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
-import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
+import { isValidCpf } from "@/lib/server/finance/cpf";
 import {
   buildPaymentExternalId,
   lucPagueiWithdrawPix,
@@ -77,12 +82,19 @@ export async function listWithdrawals(input: {
   );
 }
 
-async function creditWalletRollback(row: typeof withdrawals.$inferSelect & { user: { email: string } }) {
+async function creditWalletRollback(
+  row: typeof withdrawals.$inferSelect & { user: { email: string } },
+  reason: "reject" | "gateway" = "gateway",
+) {
+  const label =
+    reason === "reject"
+      ? `Estorno — saque rejeitado (${row.bucket})`
+      : `Estorno — falha saque gateway (${row.bucket})`;
   await creditWallet({
     userId: row.userId,
     bucket: row.bucket as WalletBucket,
     amount: row.amount,
-    description: `Estorno — falha saque gateway (${row.bucket})`,
+    description: label,
     referenceType: "withdrawal-rollback",
     referenceId: row.id,
   });
@@ -95,18 +107,6 @@ async function creditWalletRollback(row: typeof withdrawals.$inferSelect & { use
       referenceId: row.id,
     });
   }
-}
-
-async function debitAffiliateWithdrawalFromCompanyPool(
-  row: typeof withdrawals.$inferSelect,
-): Promise<void> {
-  if (row.bucket !== "afiliados") return;
-  await debitCompanyAffiliatePool({
-    amount: row.amount,
-    description: `Saque afiliados — ${row.id}`,
-    referenceType: "withdrawal",
-    referenceId: row.id,
-  });
 }
 
 /** Webhook confirma PIX enviado ao cliente. */
@@ -128,15 +128,7 @@ export async function confirmWithdrawalPaidFromGateway(
 
   if (row.status === "pending") {
     try {
-      await debitWallet({
-        userId: row.userId,
-        bucket: row.bucket as WalletBucket,
-        amount: row.amount,
-        description: `Saque PIX confirmado (${row.bucket})`,
-        referenceType: "withdrawal",
-        referenceId: row.id,
-      });
-      await debitAffiliateWithdrawalFromCompanyPool(row);
+      await ensureWithdrawalDebited(row);
     } catch {
       return { ok: false, error: "Saldo insuficiente para confirmar saque." };
     }
@@ -167,9 +159,11 @@ export async function createWithdrawal(input: {
   pixKey?: string;
 }): Promise<{ ok: true; withdrawal: WithdrawalDto } | { ok: false; error: string }> {
   const amount = Number(input.amount);
-  if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL_AMOUNT) {
-    return { ok: false, error: `Valor mínimo de saque: R$ ${MIN_WITHDRAWAL_AMOUNT.toFixed(2)}.` };
-  }
+  const rules = validateWithdrawalRequest({ amount });
+  if (!rules.ok) return rules;
+
+  const daily = await validateWithdrawalDailyLimit(input.userId);
+  if (!daily.ok) return daily;
 
   const bucket = input.bucket as WalletBucket;
   if (!WITHDRAWABLE_BUCKETS.includes(bucket)) {
@@ -217,6 +211,17 @@ export async function createWithdrawal(input: {
     createdAt: now,
   });
 
+  try {
+    await ensureWithdrawalDebited({ id, userId: input.userId, bucket, amount });
+  } catch (err) {
+    await db.delete(withdrawals).where(eq(withdrawals.id, id));
+    const message = err instanceof Error ? err.message : "";
+    if (message === "INSUFFICIENT_BALANCE") {
+      return { ok: false, error: "Saldo disponível insuficiente nesta carteira." };
+    }
+    return { ok: false, error: "Não foi possível reservar o saldo para o saque." };
+  }
+
   const row = await db.query.withdrawals.findFirst({
     where: eq(withdrawals.id, id),
     with: { user: true },
@@ -249,6 +254,9 @@ export async function processWithdrawal(input: {
     if (row.status !== "pending") {
       return { ok: false, error: "Só é possível rejeitar saques pendentes." };
     }
+    if (await hasWithdrawalDebit(row.id)) {
+      await creditWalletRollback(row, "reject");
+    }
     await db
       .update(withdrawals)
       .set({ status: "rejected", processedAt: now })
@@ -269,15 +277,7 @@ export async function processWithdrawal(input: {
     }
 
     try {
-      await debitWallet({
-        userId: row.userId,
-        bucket: row.bucket as WalletBucket,
-        amount: row.amount,
-        description: `Saque PIX aprovado (${row.bucket})`,
-        referenceType: "withdrawal",
-        referenceId: row.id,
-      });
-      await debitAffiliateWithdrawalFromCompanyPool(row);
+      await ensureWithdrawalDebited(row);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
       if (message === "INSUFFICIENT_BALANCE") {
@@ -311,7 +311,7 @@ export async function processWithdrawal(input: {
       });
 
       if (!withdraw.ok) {
-        await creditWalletRollback(row);
+        await creditWalletRollback(row, "gateway");
         return withdraw;
       }
 

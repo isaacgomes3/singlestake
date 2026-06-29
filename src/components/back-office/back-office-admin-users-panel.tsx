@@ -17,7 +17,7 @@ import {
   fetchUsersWithReferralLinks,
   unblockUser,
 } from "@/lib/back-office/admin-api";
-import type { AdminUserRecord, PendingActivationRecord } from "@/lib/back-office/admin-types";
+import type { AdminUserRecord, PendingActivationRecord, PendingAutomationPixRecord } from "@/lib/back-office/admin-types";
 import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -36,6 +36,7 @@ export function BackOfficeAdminUsersPanel() {
   const isAdmin = getSession()?.user.role === "admin";
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [pending, setPending] = useState<PendingActivationRecord[]>([]);
+  const [pendingAutomationPix, setPendingAutomationPix] = useState<PendingAutomationPixRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionKey, setActionKey] = useState<string | null>(null);
 
@@ -45,12 +46,13 @@ export function BackOfficeAdminUsersPanel() {
       return;
     }
     setLoading(true);
-    const [userRows, pendingRows] = await Promise.all([
+    const [userRows, pendingData] = await Promise.all([
       fetchUsersWithReferralLinks(),
       fetchPendingActivations(),
     ]);
     setUsers(userRows.filter((u) => u.accountStatus !== "deleted"));
-    setPending(pendingRows);
+    setPending(pendingData.startRows);
+    setPendingAutomationPix(pendingData.automationRows);
     setLoading(false);
   }, [isAdmin]);
 
@@ -83,8 +85,12 @@ export function BackOfficeAdminUsersPanel() {
     toast[ok ? "success" : "error"](ok ? t("admin.toastCopied") : t("admin.toastCopyFailed"));
   };
 
-  const handleApprovePix = (orderId: string) =>
-    void runAction(`approve-${orderId}`, () => approvePendingActivation(orderId), "admin.pendingApproveSuccess");
+  const handleApprovePix = (orderId: string, automation = false) =>
+    void runAction(
+      `approve-${orderId}`,
+      () => approvePendingActivation(orderId),
+      automation ? "admin.automationPixApproveSuccess" : "admin.pendingApproveSuccess",
+    );
 
   const handleActivateManual = (userId: string) =>
     void runAction(
@@ -191,6 +197,55 @@ export function BackOfficeAdminUsersPanel() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("admin.automationPixTitle")}</h2>
+        <p className="mt-1 text-sm text-text-secondary">
+          {loading
+            ? t("shared.loading")
+            : t("admin.automationPixCount", { count: pendingAutomationPix.length })}
+        </p>
+
+        {loading ? null : pendingAutomationPix.length === 0 ? (
+          <p className="mt-3 text-sm text-text-secondary">{t("admin.automationPixEmpty")}</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border-color">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colName")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colEmail")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.automationPixColPackage")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.pendingColAmount")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colJoined")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("admin.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingAutomationPix.map((row) => (
+                  <tr key={row.orderId} className="border-b border-border-color/60 last:border-0">
+                    <td className="px-3 py-2.5 text-text-primary">{row.userName}</td>
+                    <td className="px-3 py-2.5 text-text-secondary">{row.userEmail}</td>
+                    <td className="px-3 py-2.5 text-text-secondary">{row.packageName}</td>
+                    <td className="px-3 py-2.5 tabular-nums text-text-primary">{money(row.amount)}</td>
+                    <td className="px-3 py-2.5 text-text-secondary">{dateTime(row.orderCreatedAt)}</td>
+                    <td className="px-3 py-2.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={actionKey === `approve-${row.orderId}`}
+                        onClick={() => handleApprovePix(row.orderId, true)}
+                      >
+                        {t("admin.pendingApprovePix")}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

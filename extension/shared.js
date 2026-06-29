@@ -123,6 +123,20 @@ function updateActionBadge(mode) {
   chrome.action.setBadgeBackgroundColor({ color: mode === "demo" ? "#2563eb" : "#15803d" });
 }
 
+globalThis.GOG = GOG;
+globalThis.readStoredMode = readStoredMode;
+globalThis.setStoredMode = setStoredMode;
+globalThis.isDryRun = isDryRun;
+globalThis.resolveExecutionMode = resolveExecutionMode;
+globalThis.recoveryFromContext = recoveryFromContext;
+globalThis.clickStaggerMsForRecovery = clickStaggerMsForRecovery;
+globalThis.clickSpeedMultiplierForRecovery = clickSpeedMultiplierForRecovery;
+globalThis.scaledClickDelayMs = scaledClickDelayMs;
+globalThis.panelSignalToBridge = panelSignalToBridge;
+globalThis.isAppProductionHostname = isAppProductionHostname;
+globalThis.sleep = sleep;
+globalThis.updateActionBadge = updateActionBadge;
+
 /** Converte sinal simplificado do painel Playtech → payload bridge. */
 function panelSignalToBridge(data) {
   if (!data || typeof data !== "object") return null;

@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import {
   PRODUCT_PACKAGES,
@@ -351,6 +351,24 @@ export async function createPackagePixOrder(input: {
   return { ok: true, order: toDto(row) };
 }
 
+async function isAutomationPackageOrder(
+  row: typeof packagePixOrders.$inferSelect,
+): Promise<boolean> {
+  if (row.packageId === START_PACKAGE_ID) return false;
+  const db = getDb();
+  const pkg = await db.query.investmentPackages.findFirst({
+    where: eq(investmentPackages.id, row.packageId),
+  });
+  return pkg?.packageKind === "automation";
+}
+
+/** Pacotes de automação exigem confirmação manual do administrador (como Start estático). */
+async function requiresAdminPixApproval(
+  row: typeof packagePixOrders.$inferSelect,
+): Promise<boolean> {
+  return isAutomationPackageOrder(row);
+}
+
 async function fulfillPaidOrder(orderId: string): Promise<UserPackageDto | null> {
   const db = getDb();
   const row = await db.query.packagePixOrders.findFirst({
@@ -382,8 +400,14 @@ async function fulfillPaidOrder(orderId: string): Promise<UserPackageDto | null>
   return result.userPackage;
 }
 
-/** Usado pelo webhook Luc Paguei. */
+/** Usado pelos webhooks — ignora pedidos de automação (aprovação manual). */
 export async function fulfillPackagePixOrderById(orderId: string): Promise<boolean> {
+  const db = getDb();
+  const row = await db.query.packagePixOrders.findFirst({
+    where: eq(packagePixOrders.id, orderId),
+  });
+  if (!row || row.status !== "pending") return false;
+  if (await requiresAdminPixApproval(row)) return false;
   const pkg = await fulfillPaidOrder(orderId);
   return pkg != null;
 }
@@ -446,7 +470,7 @@ export async function syncPackagePixOrder(input: {
   }
 
   const config = readEfiPixConfig();
-  if (config && row.status === "pending") {
+  if (config && row.status === "pending" && !(await requiresAdminPixApproval(row))) {
     try {
       const remote = await getPixChargeStatus(config, row.txid);
       if (remote.paid) {
@@ -478,6 +502,7 @@ export async function handleEfiPixWebhook(body: unknown): Promise<void> {
       where: eq(packagePixOrders.txid, txid),
     });
     if (!row || row.status !== "pending") continue;
+    if (await requiresAdminPixApproval(row)) continue;
 
     await fulfillPaidOrder(row.id);
   }
@@ -596,6 +621,52 @@ export async function getOrCreateStartPackPixOrder(input: {
     forAccountActivation: true,
     cpfDocument: input.cpfDocument,
   });
+}
+
+export type PendingAutomationPixRow = {
+  orderId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  packageId: string;
+  packageName: string;
+  amount: number;
+  orderCreatedAt: string;
+};
+
+export async function listPendingAutomationPixOrders(): Promise<PendingAutomationPixRow[]> {
+  const db = getDb();
+  const pendingOrders = await db.query.packagePixOrders.findMany({
+    where: and(
+      eq(packagePixOrders.status, "pending"),
+      ne(packagePixOrders.packageId, START_PACKAGE_ID),
+    ),
+    orderBy: [desc(packagePixOrders.createdAt)],
+    with: { user: true },
+  });
+
+  const rows: PendingAutomationPixRow[] = [];
+  for (const order of pendingOrders) {
+    if (order.expiresAt && order.expiresAt.getTime() <= Date.now()) continue;
+
+    const pkg = await db.query.investmentPackages.findFirst({
+      where: eq(investmentPackages.id, order.packageId),
+    });
+    if (!pkg || pkg.packageKind !== "automation") continue;
+
+    rows.push({
+      orderId: order.id,
+      userId: order.userId,
+      userName: order.user?.name ?? "—",
+      userEmail: order.user?.email ?? "—",
+      packageId: order.packageId,
+      packageName: pkg.name,
+      amount: order.amount,
+      orderCreatedAt: order.createdAt.toISOString(),
+    });
+  }
+
+  return rows;
 }
 
 export async function listPendingAccountActivations(): Promise<PendingActivationRow[]> {

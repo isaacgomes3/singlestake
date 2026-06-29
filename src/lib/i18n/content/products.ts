@@ -5,7 +5,7 @@ export const productsContent = {
       withAutomation: "Com automação",
       startPack: "Start (R$ 50)",
       startAtRegistration:
-        "O Pacote Start (R$ 50) é pago no cadastro. Todos os pacotes de automação abaixo aceitam PIX.",
+        "O Pacote Start (R$ 50) é pago no cadastro. Os pacotes de automação abaixo podem ser pagos com saldo da carteira (caixa) ou PIX.",
       rulesLong:
         "Pack Start {{start}} obrigatório antes de qualquer depósito de automação. Valores de automação em múltiplos de {{step}}. Lucro máximo 200% do valor aportado · adesão 1 ano · rendimento diário até 1% sobre a base de automação (automação global). Processamento automático às 00:05 (horário de Brasília) enquanto o servidor estiver activo.",
       runYield: "Processar rendimento diário (admin)",
@@ -18,6 +18,10 @@ export const productsContent = {
       withAutomationShort: "Com automação · rendimento só sobre a base",
       buy: "Pagar com PIX",
       buyPix: "Pagar com PIX",
+      buyBalance: "Pagar com saldo",
+      buyingBalance: "A debitar saldo…",
+      walletBalance: "Saldo disponível (caixa): {{amount}}",
+      insufficientBalance: "Saldo insuficiente na carteira de caixa.",
       buying: "A gerar PIX…",
       pixUnavailable:
         "PIX indisponível. Configure o gateway Luc Paguei em Administração ou as chaves PIX no servidor.",
@@ -32,6 +36,9 @@ export const productsContent = {
       toastPixPaid: "PIX recebido. Pacote activado.",
       pixStaticHint:
         "Pague o valor exacto do QR. A confirmação é feita manualmente pelo administrador.",
+      pixAutomationAdminHint:
+        "Após pagar o PIX, aguarde a confirmação manual do administrador para activar o pacote.",
+      pixAwaitAdmin: "Aguardando confirmação do administrador após o pagamento PIX.",
       pixStaticAmountWarning:
         "Este QR é de {{pixAmount}} — o pacote seleccionado é {{packageAmount}}. Confirme o valor antes de pagar.",
       cpfLabel: "CPF do pagador",
@@ -109,7 +116,7 @@ export const productsContent = {
       withAutomation: "With automation",
       startPack: "Start (R$ 50)",
       startAtRegistration:
-        "The Start Pack (R$ 50) is paid at registration. All automation packages below accept PIX.",
+        "The Start Pack (R$ 50) is paid at registration. Automation packages below can be paid with wallet balance (cash) or PIX.",
       rulesLong:
         "Start Pack {{start}} required before any automation deposit. Automation amounts in multiples of {{step}}. Max profit 200% of invested amount · 1-year term · daily yield up to 1% on automation base (global automation). Automatic processing at 00:05 (Brasília time) while server is active.",
       runYield: "Process daily yield (admin)",
@@ -122,6 +129,10 @@ export const productsContent = {
       withAutomationShort: "With automation · yield only on base",
       buy: "Pay with PIX",
       buyPix: "Pay with PIX",
+      buyBalance: "Pay with balance",
+      buyingBalance: "Debiting balance…",
+      walletBalance: "Available balance (cash): {{amount}}",
+      insufficientBalance: "Insufficient balance in cash wallet.",
       buying: "Generating PIX…",
       pixUnavailable:
         "PIX unavailable. Configure the Luc Paguei gateway in Administration or PIX keys on the server.",
@@ -135,6 +146,9 @@ export const productsContent = {
       pixCopyFailed: "Could not copy.",
       toastPixPaid: "PIX received. Package activated.",
       pixStaticHint: "Pay the exact QR amount. Confirmation is done manually by an administrator.",
+      pixAutomationAdminHint:
+        "After paying PIX, wait for manual administrator confirmation to activate the package.",
+      pixAwaitAdmin: "Waiting for administrator confirmation after PIX payment.",
       pixStaticAmountWarning:
         "This QR is for {{pixAmount}} — selected package is {{packageAmount}}. Confirm before paying.",
       cpfLabel: "Payer CPF",
@@ -211,7 +225,7 @@ export const productsContent = {
       withAutomation: "Con automatización",
       startPack: "Start (R$ 50)",
       startAtRegistration:
-        "El Pack Start (R$ 50) se paga en el registro. Todos los paquetes de automatización abajo aceptan PIX.",
+        "El Pack Start (R$ 50) se paga en el registro. Los paquetes de automatización abajo pueden pagarse con saldo de cartera (caja) o PIX.",
       rulesLong:
         "Pack Start {{start}} obligatorio antes de cualquier depósito de automatización. Valores en múltiplos de {{step}}. Lucro máximo 200% del aporte · adhesión 1 año · rendimiento diario hasta 1% sobre la base (automatización global). Procesamiento automático a las 00:05 (hora de Brasilia) mientras el servidor esté activo.",
       runYield: "Procesar rendimiento diario (admin)",
@@ -224,6 +238,10 @@ export const productsContent = {
       withAutomationShort: "Con automatización · rendimiento solo sobre la base",
       buy: "Pagar con PIX",
       buyPix: "Pagar con PIX",
+      buyBalance: "Pagar con saldo",
+      buyingBalance: "Debitando saldo…",
+      walletBalance: "Saldo disponible (caja): {{amount}}",
+      insufficientBalance: "Saldo insuficiente en la cartera de caja.",
       buying: "Generando PIX…",
       pixUnavailable:
         "PIX no disponible. Configure el gateway Luc Paguei en Administración o las claves PIX en el servidor.",
@@ -238,6 +256,9 @@ export const productsContent = {
       toastPixPaid: "PIX recibido. Paquete activado.",
       pixStaticHint:
         "Pague el valor exacto del QR. La confirmación la hace el administrador manualmente.",
+      pixAutomationAdminHint:
+        "Después de pagar el PIX, espere la confirmación manual del administrador para activar el paquete.",
+      pixAwaitAdmin: "Esperando confirmación del administrador después del pago PIX.",
       pixStaticAmountWarning:
         "Este QR es de {{pixAmount}} — el paquete seleccionado es {{packageAmount}}. Confirme antes de pagar.",
       cpfLabel: "CPF del pagador",

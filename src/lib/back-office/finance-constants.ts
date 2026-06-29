@@ -1,5 +1,7 @@
 export const MIN_DEPOSIT_AMOUNT = 50;
 export const MIN_WITHDRAWAL_AMOUNT = 50;
+/** Máximo de pedidos de saque (não rejeitados) por utilizador por dia civil (SP). */
+export const MAX_WITHDRAWALS_PER_USER_PER_DAY = 1;
 
 export const DEPOSIT_METHODS = ["pix", "crypto"] as const;
 export type DepositMethod = (typeof DEPOSIT_METHODS)[number];

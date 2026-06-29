@@ -1,5 +1,29 @@
 const __EXT_LOAD_ERRORS = [];
-for (const __extFile of ["shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js"]) {
+try {
+  importScripts("shared.js");
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  __EXT_LOAD_ERRORS.push(`shared.js: ${msg}`);
+  console.error("[Singlestake] shared.js falhou:", e);
+  globalThis.GOG = {
+    BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
+    PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
+    VERSION: 1,
+    STORAGE_MODE: "gogExecutionMode",
+    STORAGE_BRIDGE_PREFS: "gogBridgePrefs",
+    DEFAULT_MODE: "demo",
+  };
+  globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  globalThis.readStoredMode = async () => "demo";
+  globalThis.isDryRun = async () => true;
+  globalThis.resolveExecutionMode = async () => "demo";
+  globalThis.recoveryFromContext = () => 0;
+  globalThis.clickStaggerMsForRecovery = () => 450;
+  globalThis.isAppProductionHostname = () => false;
+  globalThis.panelSignalToBridge = () => null;
+  globalThis.updateActionBadge = () => {};
+}
+for (const __extFile of ["um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js"]) {
   try {
     importScripts(__extFile);
   } catch (e) {
@@ -8,12 +32,29 @@ for (const __extFile of ["shared.js", "um-fator-engine.js", "dga-hub.js", "serve
     console.error("[Singlestake] importScripts falhou:", __extFile, e);
   }
 }
+const GOG = globalThis.GOG;
+const readStoredMode = globalThis.readStoredMode;
+const setStoredMode = globalThis.setStoredMode;
+const isDryRun = globalThis.isDryRun;
+const resolveExecutionMode = globalThis.resolveExecutionMode;
+const recoveryFromContext = globalThis.recoveryFromContext;
+const clickStaggerMsForRecovery = globalThis.clickStaggerMsForRecovery;
+const clickSpeedMultiplierForRecovery = globalThis.clickSpeedMultiplierForRecovery;
+const scaledClickDelayMs = globalThis.scaledClickDelayMs;
+const panelSignalToBridge = globalThis.panelSignalToBridge;
+const isAppProductionHostname = globalThis.isAppProductionHostname;
+const sleep = globalThis.sleep;
+const updateActionBadge = globalThis.updateActionBadge;
 
 const DEFAULT_CHIP_VALUE = 50;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
 /** Aguarda poker/roleta carregar após navegação (espelha ensureMesaTab). */
 const LOBBY_NAV_SETTLE_MS = 6500;
+/** URL do lobby poker — igual ao iframe «Aguarde no Lobby» do app. */
+const LOBBY_POKER_URL = "https://br4.bet.br/play/pragmatic/poker";
+/** Roleta por defeito para testes / calibração quando só o poker está aberto. */
+const DEFAULT_ROULETTE_MESA_URL = "https://br4.bet.br/play/pragmatic/roulette-macao";
 
 /** @type {{ fingerprint: string; at: string; actions: unknown[] } | null} */
 let lastBridge = null;
@@ -51,6 +92,9 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureContentBridgeOnAppTabs();
+  void readBridgeEnabled().then((on) => {
+    if (on) return navigateBridgeToLobbyWait();
+  });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -154,6 +198,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const enabled = message.enabled === true;
     void chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled }).then(async () => {
       await ensureContentBridgeOnAppTabs();
+      if (enabled) {
+        await navigateBridgeToLobbyWait();
+      }
       sendResponse({ ok: true, enabled });
     });
     return true;
@@ -395,6 +442,33 @@ async function buildStatus() {
     calibrationArmed: stored.gogCalibrationArmed ?? null,
     clickChipBeforeBet: stored.gogClickChipBeforeBet === true,
   };
+}
+
+async function navigateBridgeToLobbyWait() {
+  const context = {
+    lobbyWait: true,
+    mesaEmbedUrl: LOBBY_POKER_URL,
+    mesaCatalog: [],
+    currentTableId: null,
+    singleFactorMode: true,
+  };
+  const payload = {
+    fingerprint: `bridge-lobby-${Date.now()}`,
+    actions: [
+      {
+        kind: "click",
+        target: "prepare-open",
+        label: "Lobby — Poker",
+        reason: "Sala ligada — posicionar no lobby",
+      },
+    ],
+    context,
+    type: GOG.BRIDGE_TYPE,
+    version: GOG.VERSION,
+  };
+  lastBridgeDedupeKey = null;
+  lastExecutedSignalId = null;
+  return handleBridgePayload(payload, null);
 }
 
 async function handleBridgePayload(payload, sourceTabId) {
@@ -1092,8 +1166,11 @@ async function resolveMesaTabId(context, preferredTabId) {
     return active.id;
   }
 
-  const anyPlay = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
+  const anyPlay = tabs.find((t) => t.url && isRouletteCasinoUrl(t.url));
   if (anyPlay?.id != null) return anyPlay.id;
+
+  const anyCasino = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
+  if (anyCasino?.id != null) return anyCasino.id;
 
   return null;
 }
@@ -1188,6 +1265,68 @@ async function ensureMesaTab(context, preferredTabId) {
 
 function isCasinoPlayUrl(url) {
   return /\/play\/(playtech|pragmatic)\//i.test(url);
+}
+
+function isPokerLobbyUrl(url) {
+  if (!url) return false;
+  try {
+    const path = new URL(url).pathname.toLowerCase();
+    return /\/play\/(playtech|pragmatic)\/poker\/?$/i.test(path);
+  } catch {
+    return /\/poker\/?$/i.test(String(url).toLowerCase());
+  }
+}
+
+function isRouletteCasinoUrl(url) {
+  return isCasinoPlayUrl(url) && !isPokerLobbyUrl(url);
+}
+
+/**
+ * Encontra ou abre separador de roleta (não poker).
+ * Testes e calibração precisam do iframe da roleta, não do lobby poker.
+ */
+async function findRouletteTabForAction(preferredTabId, mesaUrl = DEFAULT_ROULETTE_MESA_URL) {
+  const tabs = await chrome.tabs.query({});
+  const targetUrl = mesaUrl || DEFAULT_ROULETTE_MESA_URL;
+
+  if (preferredTabId != null) {
+    const pref = tabs.find((t) => t.id === preferredTabId);
+    if (pref?.url && isRouletteCasinoUrl(pref.url)) {
+      return { tabId: preferredTabId, navigated: false };
+    }
+  }
+
+  if (targetUrl) {
+    const exact = tabs.find((t) => t.url && casinoPathsMatch(t.url, targetUrl));
+    if (exact?.id != null) return { tabId: exact.id, navigated: false };
+
+    let slug = null;
+    try {
+      slug = new URL(targetUrl).pathname.split("/").filter(Boolean).pop();
+    } catch {
+      slug = null;
+    }
+    if (slug) {
+      const bySlug = tabs.find(
+        (t) => t.url && t.url.toLowerCase().includes(slug.toLowerCase()) && isRouletteCasinoUrl(t.url),
+      );
+      if (bySlug?.id != null) return { tabId: bySlug.id, navigated: false };
+    }
+  }
+
+  const roulette = tabs.find((t) => t.url && isRouletteCasinoUrl(t.url));
+  if (roulette?.id != null) return { tabId: roulette.id, navigated: false };
+
+  const reuse = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
+  if (reuse?.id != null) {
+    await chrome.tabs.update(reuse.id, { url: targetUrl, active: true });
+    await sleep(LOBBY_NAV_SETTLE_MS);
+    return { tabId: reuse.id, navigated: true };
+  }
+
+  const tab = await chrome.tabs.create({ url: targetUrl, active: true });
+  await sleep(5500);
+  return { tabId: tab.id ?? null, navigated: true };
 }
 
 /** Prefer iframe Pragmatic/Playtech sobre a shell do operador (br4.bet). */
@@ -1302,21 +1441,19 @@ async function testExteriorBet(tabId, betKey, label, modeOverride) {
   const dryRun =
     modeOverride === "real" ? false : modeOverride === "demo" ? true : await isDryRun(null);
 
-  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const preferredId = tabId ?? activeTabs[0]?.id ?? null;
-  let id = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, preferredId);
+  const { tabId: id, navigated } = await findRouletteTabForAction(tabId ?? null);
   if (id == null) {
-    const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const activeUrl = activeTabs[0]?.url ?? "";
     return {
       ok: false,
-      detail: `Separador activo não é a mesa (${activeUrl.slice(0, 60)}…). Clique na aba da roleta e teste de novo.`,
+      detail:
+        "Não foi possível abrir a roleta — abra br4.bet.br/play/pragmatic/roulette-macao num separador.",
       betKey,
       mode: dryRun ? "demo" : "real",
     };
   }
 
   const result = await executeBetWithChip(id, betKey, label ?? betKey, dryRun, {});
+  const navNote = navigated ? " · navegou do poker para a roleta" : "";
   await chrome.storage.local.set({
     gogLastTest: {
       at: new Date().toISOString(),
@@ -1326,13 +1463,21 @@ async function testExteriorBet(tabId, betKey, label, modeOverride) {
       ...result,
     },
   });
-  return { ...result, mode: dryRun ? "demo" : "real", tabId: id };
+  return {
+    ...result,
+    mode: dryRun ? "demo" : "real",
+    tabId: id,
+    detail: `${result.detail ?? ""}${navNote}`.trim(),
+  };
 }
 
 async function scanExteriorBets(tabId) {
-  const id = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, tabId);
+  const { tabId: id } = await findRouletteTabForAction(tabId ?? null);
   if (id == null) {
-    return { ok: false, detail: "Abra a mesa Pragmatic/Playtech num separador antes da varredura" };
+    return {
+      ok: false,
+      detail: "Abra a roleta Pragmatic (ex.: roulette-macao) num separador antes da varredura",
+    };
   }
 
   await chrome.scripting.executeScript({
@@ -1572,17 +1717,12 @@ async function disarmCalibration(tabId) {
 async function armCalibration(betKey, label, chipValue) {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const preferredId = activeTabs[0]?.id ?? null;
-  let tabId = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, preferredId);
-
-  if (tabId == null) {
-    const anyPlay = (await chrome.tabs.query({})).find((t) => t.url && isCasinoPlayUrl(t.url));
-    tabId = anyPlay?.id ?? null;
-  }
+  const { tabId, navigated } = await findRouletteTabForAction(preferredId);
 
   if (tabId == null) {
     return {
       ok: false,
-      detail: "Abra a mesa Pragmatic num separador (br4.bet.br/play/pragmatic/…).",
+      detail: "Abra a roleta Pragmatic (ex.: roulette-macao) num separador.",
     };
   }
 
@@ -1637,7 +1777,7 @@ async function armCalibration(betKey, label, chipValue) {
 
   return {
     ok: true,
-    detail: `Overlay activo — clique em ${resolvedLabel} na mesa (aba ${tabId})`,
+    detail: `Overlay activo — clique em ${resolvedLabel} na mesa${navigated ? " (roleta aberta)" : ""}`,
     tabId,
   };
 }

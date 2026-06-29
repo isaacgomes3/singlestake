@@ -147,6 +147,7 @@ export function BackOfficeWithdrawalsPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("finance.withdrawals.formTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("finance.withdrawals.formHint")}</p>
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="withdraw-bucket" className="text-xs font-medium text-text-secondary">

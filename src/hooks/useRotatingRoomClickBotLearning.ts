@@ -245,7 +245,17 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       setLog((prev) => [{ id: entryId, at, fingerprint, actions }, ...prev].slice(0, MAX_LOG));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, mode, fingerprint, mesaEmbedUrl, sessionSlice.currentRecovery, sessionSlice.signalId]);
+  }, [
+    enabled,
+    mode,
+    fingerprint,
+    mesaEmbedUrl,
+    sessionSlice.currentRecovery,
+    sessionSlice.signalId,
+    sessionSlice.lobbyWait,
+    sessionSlice.showTapeteSignal,
+    sessionSlice.postResultHoldActive,
+  ]);
 
   useEffect(() => {
     if (!enabled || mode !== "extension") return;
@@ -291,8 +301,15 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
   }, [enabled, mode]);
 
   useEffect(() => {
-    if (!enabled) lastFingerprintRef.current = null;
-  }, [enabled]);
+    if (!enabled) {
+      lastFingerprintRef.current = null;
+      return;
+    }
+    if (mode === "extension") {
+      clearExtensionLastEmitKey();
+      lastFingerprintRef.current = null;
+    }
+  }, [enabled, mode]);
 
   const clearLog = () => setLog([]);
 

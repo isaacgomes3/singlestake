@@ -1,4 +1,9 @@
-import type { AdminUserRecord, PendingActivationRecord, PixKeyProfileDto } from "@/lib/back-office/admin-types";
+import type {
+  AdminUserRecord,
+  PendingActivationRecord,
+  PendingAutomationPixRecord,
+  PixKeyProfileDto,
+} from "@/lib/back-office/admin-types";
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
@@ -17,11 +22,19 @@ export async function fetchUsersWithReferralLinks(): Promise<AdminUserRecord[]> 
   return data.users ?? [];
 }
 
-export async function fetchPendingActivations(): Promise<PendingActivationRecord[]> {
+export async function fetchPendingActivations(): Promise<{
+  startRows: PendingActivationRecord[];
+  automationRows: PendingAutomationPixRecord[];
+}> {
   const res = await fetch("/api/back-office/admin/pending-activations", { credentials: "include" });
-  const data = await parseJson<{ ok: boolean; rows?: PendingActivationRecord[]; error?: string }>(res);
-  if (!res.ok || !data?.ok) return [];
-  return data.rows ?? [];
+  const data = await parseJson<{
+    ok: boolean;
+    rows?: PendingActivationRecord[];
+    automationRows?: PendingAutomationPixRecord[];
+    error?: string;
+  }>(res);
+  if (!res.ok || !data?.ok) return { startRows: [], automationRows: [] };
+  return { startRows: data.rows ?? [], automationRows: data.automationRows ?? [] };
 }
 
 export async function approvePendingActivation(

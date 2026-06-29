@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import {
   fetchProductPackages,
   fetchUserPackages,
+  purchaseProductPackage,
   purchaseProductPackagePix,
   runDailyAutomationYield,
 } from "@/lib/back-office/product-api";
+import { fetchWallets } from "@/lib/back-office/finance-api";
 import type { PackageDto, PackagePixOrderDto, UserPackageDto } from "@/lib/back-office/product-types";
 import {
   AUTOMATION_DEPOSIT_STEP,
@@ -31,6 +33,8 @@ export function BackOfficePackagesPanel() {
   const [pixPackageName, setPixPackageName] = useState("");
   const [payerCpf, setPayerCpf] = useState("");
   const [pixEnabled, setPixEnabled] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [buyingMode, setBuyingMode] = useState<"pix" | "balance" | null>(null);
 
   const sessionUser = getSession()?.user;
   const hasStart =
@@ -39,11 +43,15 @@ export function BackOfficePackagesPanel() {
 
   const reload = async () => {
     setLoading(true);
-    const { packages, pixEnabled: pixOn } = await fetchProductPackages();
-    const owned = await fetchUserPackages();
+    const [{ packages, pixEnabled: pixOn }, owned, wallets] = await Promise.all([
+      fetchProductPackages(),
+      fetchUserPackages(),
+      fetchWallets(),
+    ]);
     setCatalog(packages);
     setPixEnabled(pixOn);
     setMine(owned);
+    setWalletBalance(wallets.find((w) => w.bucket === "rendimentos")?.availableBalance ?? 0);
     setLoading(false);
   };
 
@@ -57,18 +65,39 @@ export function BackOfficePackagesPanel() {
       return;
     }
     setBuyingId(pkg.id);
+    setBuyingMode("pix");
     const result = await purchaseProductPackagePix(
       pkg.id,
       amount,
       payerCpf.trim() || undefined,
     );
     setBuyingId(null);
+    setBuyingMode(null);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
     setPixPackageName(pkg.name);
     setPixOrder(result.order);
+  };
+
+  const handleBuyBalance = async (pkg: PackageDto, amount?: number) => {
+    const purchaseAmount = amount ?? pkg.amount;
+    if (walletBalance != null && walletBalance < purchaseAmount) {
+      toast.error(t("products.packages.insufficientBalance"));
+      return;
+    }
+    setBuyingId(pkg.id);
+    setBuyingMode("balance");
+    const result = await purchaseProductPackage(pkg.id, amount);
+    setBuyingId(null);
+    setBuyingMode(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(t("products.packages.toastPurchased"));
+    void reload();
   };
 
   const handleRunYield = async () => {
@@ -94,6 +123,7 @@ export function BackOfficePackagesPanel() {
         <PackagePixCheckoutDialog
           order={pixOrder}
           packageName={pixPackageName}
+          awaitAdminApproval
           onClose={() => setPixOrder(null)}
           onPaid={() => {
             setPixOrder(null);
@@ -122,6 +152,11 @@ export function BackOfficePackagesPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("products.packages.catalog")}</h2>
+        <p className="mt-2 text-sm text-text-secondary">
+          {t("products.packages.walletBalance", {
+            amount: walletBalance != null ? money(walletBalance) : "…",
+          })}
+        </p>
         {!pixEnabled ? (
           <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">
             {t("products.packages.pixUnavailable")}
@@ -175,7 +210,24 @@ export function BackOfficePackagesPanel() {
                     ) : (
                       <p className="mt-1 text-lg font-bold tabular-nums">{money(pkg.amount)}</p>
                     )}
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        disabled={buyingId === pkg.id || locked}
+                        onClick={() =>
+                          void handleBuyBalance(
+                            pkg,
+                            pkg.allowsCustomAmount ? Number(customAmount) : undefined,
+                          )
+                        }
+                      >
+                        {buyingId === pkg.id && buyingMode === "balance"
+                          ? t("products.packages.buyingBalance")
+                          : t("products.packages.buyBalance")}
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -188,7 +240,7 @@ export function BackOfficePackagesPanel() {
                           )
                         }
                       >
-                        {buyingId === pkg.id
+                        {buyingId === pkg.id && buyingMode === "pix"
                           ? t("products.packages.buying")
                           : t("products.packages.buyPix")}
                       </Button>
