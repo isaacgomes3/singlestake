@@ -24,7 +24,7 @@ if [ "$DEPLOY_RC" -eq 0 ]; then
     bash deploy/reprocess-bonuses-on-vps.sh
   elif [[ "$COMMIT_MSG" == *"[restart-site]"* ]]; then
     echo "=== A reiniciar PM2 ==="
-    bash deploy/restart-site.sh
+    bash deploy/restart-site.sh || true
   fi
   exit 0
 fi
