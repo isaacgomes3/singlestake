@@ -100,6 +100,7 @@ import { Route as ApiBackOfficeAdminAutomationResetCycleRouteImport } from './ro
 import { Route as ApiBackOfficeAdminAutomationRebuildHistoryRouteImport } from './routes/api/back-office/admin/automation-rebuild-history'
 import { Route as ApiBackOfficeAdminAutomationConfigRouteImport } from './routes/api/back-office/admin/automation-config'
 import { Route as ApiBackOfficePackagesPixOrderOrderIdRouteImport } from './routes/api/back-office/packages/pix-order/$orderId'
+import { Route as ApiBackOfficeNetworkBinarySubtreeRouteImport } from './routes/api/back-office/network/binary.subtree'
 import { Route as ApiBackOfficeNetworkBinaryPlaceDirectRouteImport } from './routes/api/back-office/network/binary.place-direct'
 import { Route as ApiBackOfficeNetworkBinaryNextDirectSideRouteImport } from './routes/api/back-office/network/binary.next-direct-side'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
@@ -604,6 +605,12 @@ const ApiBackOfficePackagesPixOrderOrderIdRoute =
     path: '/pix-order/$orderId',
     getParentRoute: () => ApiBackOfficePackagesRoute,
   } as any)
+const ApiBackOfficeNetworkBinarySubtreeRoute =
+  ApiBackOfficeNetworkBinarySubtreeRouteImport.update({
+    id: '/subtree',
+    path: '/subtree',
+    getParentRoute: () => ApiBackOfficeNetworkBinaryRoute,
+  } as any)
 const ApiBackOfficeNetworkBinaryPlaceDirectRoute =
   ApiBackOfficeNetworkBinaryPlaceDirectRouteImport.update({
     id: '/place-direct',
@@ -764,6 +771,7 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
+  '/api/back-office/network/binary/subtree': typeof ApiBackOfficeNetworkBinarySubtreeRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -865,6 +873,7 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
+  '/api/back-office/network/binary/subtree': typeof ApiBackOfficeNetworkBinarySubtreeRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -970,6 +979,7 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
+  '/api/back-office/network/binary/subtree': typeof ApiBackOfficeNetworkBinarySubtreeRoute
   '/api/back-office/packages/pix-order/$orderId': typeof ApiBackOfficePackagesPixOrderOrderIdRoute
   '/api/back-office/admin/pending-activations/$orderId/approve': typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute
   '/api/back-office/admin/users/$userId/activate-automation': typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
@@ -1076,6 +1086,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
+    | '/api/back-office/network/binary/subtree'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -1177,6 +1188,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
+    | '/api/back-office/network/binary/subtree'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -1281,6 +1293,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
+    | '/api/back-office/network/binary/subtree'
     | '/api/back-office/packages/pix-order/$orderId'
     | '/api/back-office/admin/pending-activations/$orderId/approve'
     | '/api/back-office/admin/users/$userId/activate-automation'
@@ -2010,6 +2023,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficePackagesPixOrderOrderIdRouteImport
       parentRoute: typeof ApiBackOfficePackagesRoute
     }
+    '/api/back-office/network/binary/subtree': {
+      id: '/api/back-office/network/binary/subtree'
+      path: '/subtree'
+      fullPath: '/api/back-office/network/binary/subtree'
+      preLoaderRoute: typeof ApiBackOfficeNetworkBinarySubtreeRouteImport
+      parentRoute: typeof ApiBackOfficeNetworkBinaryRoute
+    }
     '/api/back-office/network/binary/place-direct': {
       id: '/api/back-office/network/binary/place-direct'
       path: '/place-direct'
@@ -2266,6 +2286,7 @@ const ApiBackOfficeAdminPendingActivationsRouteWithChildren =
 interface ApiBackOfficeNetworkBinaryRouteChildren {
   ApiBackOfficeNetworkBinaryNextDirectSideRoute: typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   ApiBackOfficeNetworkBinaryPlaceDirectRoute: typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
+  ApiBackOfficeNetworkBinarySubtreeRoute: typeof ApiBackOfficeNetworkBinarySubtreeRoute
 }
 
 const ApiBackOfficeNetworkBinaryRouteChildren: ApiBackOfficeNetworkBinaryRouteChildren =
@@ -2274,6 +2295,8 @@ const ApiBackOfficeNetworkBinaryRouteChildren: ApiBackOfficeNetworkBinaryRouteCh
       ApiBackOfficeNetworkBinaryNextDirectSideRoute,
     ApiBackOfficeNetworkBinaryPlaceDirectRoute:
       ApiBackOfficeNetworkBinaryPlaceDirectRoute,
+    ApiBackOfficeNetworkBinarySubtreeRoute:
+      ApiBackOfficeNetworkBinarySubtreeRoute,
   }
 
 const ApiBackOfficeNetworkBinaryRouteWithChildren =

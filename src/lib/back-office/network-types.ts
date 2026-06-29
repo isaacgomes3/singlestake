@@ -34,11 +34,23 @@ export type AffiliatesData = {
   };
 };
 
+export type BinaryTreeNodeDetails = {
+  email: string;
+  joinedAt: string;
+  hasActiveStart: boolean;
+  packageAmount: number;
+};
+
 export type BinaryTreeNodeView = {
-  userId: string;
+  userId: string | null;
   name: string;
   side: "left" | "right" | null;
+  level: number;
+  isEmpty: boolean;
+  /** Tem descendentes na BD além do que está visível — clique para expandir. */
+  canExpand: boolean;
   children: BinaryTreeNodeView[];
+  details?: BinaryTreeNodeDetails;
 };
 
 export type PendingDirectPlacement = {

@@ -28,6 +28,26 @@ export async function fetchBinaryNetwork(): Promise<BinaryNetworkData | null> {
   return data?.ok ? (data.data ?? null) : null;
 }
 
+export async function fetchBinarySubtree(
+  userId: string,
+  depth?: number,
+): Promise<{ ok: true; subtree: import("@/lib/back-office/network-types").BinaryTreeNodeView } | { ok: false; error: string }> {
+  const params = new URLSearchParams({ userId });
+  if (depth != null) params.set("depth", String(depth));
+  const res = await fetch(`/api/back-office/network/binary/subtree?${params}`, {
+    credentials: "include",
+  });
+  const data = await parseJson<{
+    ok: boolean;
+    error?: string;
+    subtree?: import("@/lib/back-office/network-types").BinaryTreeNodeView;
+  }>(res);
+  if (!data?.ok || !data.subtree) {
+    return { ok: false, error: data?.error ?? "Erro ao expandir árvore." };
+  }
+  return { ok: true, subtree: data.subtree };
+}
+
 export async function placeDirectInBinary(
   directUserId: string,
   side: "left" | "right",
