@@ -179,9 +179,10 @@ function RootComponent() {
     ? workspacePath || pathname === "/casino-mesa"
     : backOfficeApp &&
       (pathname.startsWith("/back-office/operacoes") || workspacePath);
+  /** Ponte extensão — visão geral (painel automação) + operações + workspace. */
   const needsExtensionBridge =
     (isAutomation && workspacePath) ||
-    pathname.startsWith("/back-office/operacoes") ||
+    backOfficeAutomationView ||
     (!isAutomation && workspacePath);
 
   const outlet = <Outlet />;
