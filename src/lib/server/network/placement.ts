@@ -130,45 +130,47 @@ export async function findBinaryPlacement(
 }
 
 /**
- * Posição livre na perna indicada ao nível N (1 = filho directo do root nessa perna).
- * Usado para sub-contas de qualificação binária.
+ * Posição na perna ao nível N (1 = filho directo do root nessa perna).
+ * Níveis 2+ empilham na extremidade da perna (não preenchem filho interno oposto).
+ * Se o nível nominal estiver ocupado, desce pelo spillover na mesma perna.
  */
 export function findLegPlacementAtLevel(
   rootUserId: string,
   legSide: LegSide,
   targetLevel: number,
   nodes: NodeRow[],
+  excludeUserIds?: ReadonlySet<string>,
 ): { parentId: string; side: LegSide } | null {
   if (targetLevel < 1) return null;
 
   const children = buildChildMap(nodes);
 
   if (targetLevel === 1) {
-    const slot = children.get(rootUserId) ?? {};
-    if (legSide === "left" && !slot.left) return { parentId: rootUserId, side: "left" };
-    if (legSide === "right" && !slot.right) return { parentId: rootUserId, side: "right" };
+    if (!legChildOccupied(rootUserId, legSide, children, excludeUserIds)) {
+      return { parentId: rootUserId, side: legSide };
+    }
     return null;
   }
 
-  const direct = children.get(rootUserId)?.[legSide];
-  if (!direct) return null;
+  let current = legChildOccupied(rootUserId, legSide, children, excludeUserIds);
+  if (!current) return null;
 
-  const queue: { userId: string; depth: number }[] = [{ userId: direct, depth: 1 }];
-  while (queue.length > 0) {
-    const { userId, depth } = queue.shift()!;
-    if (depth === targetLevel - 1) {
-      const slot = children.get(userId) ?? {};
-      if (!slot.left) return { parentId: userId, side: "left" };
-      if (!slot.right) return { parentId: userId, side: "right" };
+  for (let depth = 1; depth < targetLevel - 1; depth++) {
+    const next = legChildOccupied(current, legSide, children, excludeUserIds);
+    if (!next) {
+      if (!legChildOccupied(current, legSide, children, excludeUserIds)) {
+        return { parentId: current, side: legSide };
+      }
+      return findLegSpilloverPlacement(rootUserId, legSide, nodes, excludeUserIds);
     }
-    if (depth < targetLevel - 1) {
-      const slot = children.get(userId) ?? {};
-      if (slot.left) queue.push({ userId: slot.left, depth: depth + 1 });
-      if (slot.right) queue.push({ userId: slot.right, depth: depth + 1 });
-    }
+    current = next;
   }
 
-  return null;
+  if (!legChildOccupied(current, legSide, children, excludeUserIds)) {
+    return { parentId: current, side: legSide };
+  }
+
+  return findLegSpilloverPlacement(rootUserId, legSide, nodes, excludeUserIds);
 }
 
 /** Nível e perna de um nó relativamente ao root da árvore binária. */

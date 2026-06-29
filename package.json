@@ -45,6 +45,7 @@
     "db:reset-direct-binary-pending": "npx --yes tsx scripts/db-reset-direct-binary-pending.ts",
     "cron:daily-yield": "npx --yes tsx scripts/run-daily-automation-yield.ts",
     "db:backfill-binary": "npx --yes tsx scripts/db-backfill-binary-points.ts",
+    "db:repair-binary-extremity": "npx --yes tsx scripts/db-repair-binary-extremity.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint .",
     "format": "prettier --write ."

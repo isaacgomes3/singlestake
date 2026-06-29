@@ -1,5 +1,5 @@
 /**
- * Repõe indicados directos que estão em posição interna para a extremidade da perna.
+ * Reorganiza qualificadores e indicados directos na extremidade de cada perna.
  * Uso: npx tsx scripts/db-repair-binary-extremity.ts [--dry-run]
  */
 import "./load-local-env";
@@ -10,13 +10,40 @@ import { closeDb, getDb } from "../src/lib/server/db/client";
 import { binaryTreeNodes, users } from "../src/lib/server/db/schema";
 import { onPackagePurchaseBinary } from "../src/lib/server/network/binary-engine";
 import {
-  collectSubtreeUserIds,
   findLegSpilloverPlacement,
   getBinaryPositionRelativeTo,
   isOnLegExtremity,
 } from "../src/lib/server/network/placement";
 
 const dryRun = process.argv.includes("--dry-run");
+
+type NodeRow = typeof binaryTreeNodes.$inferSelect;
+type LegSide = "left" | "right";
+
+function applyVirtualPlacement(
+  nodes: NodeRow[],
+  userId: string,
+  parentId: string,
+  side: LegSide,
+  placedAt: Date,
+): NodeRow[] {
+  const idx = nodes.findIndex((n) => n.userId === userId);
+  if (idx >= 0) {
+    const next = [...nodes];
+    next[idx] = { ...next[idx]!, parentId, side, placedAt };
+    return next;
+  }
+  return [
+    ...nodes,
+    {
+      userId,
+      parentId,
+      side,
+      placedAt,
+      nextDirectSide: null,
+    },
+  ];
+}
 
 async function replayPointsForUser(userId: string): Promise<void> {
   const db = getDb();
@@ -29,6 +56,109 @@ async function replayPointsForUser(userId: string): Promise<void> {
   }
 }
 
+function collectSponsorLegMembers(
+  sponsorId: string,
+  legSide: LegSide,
+  nodes: NodeRow[],
+  allUsers: (typeof users.$inferSelect)[],
+): Array<{
+  userId: string;
+  name: string;
+  isQual: boolean;
+  level: number;
+  placedAt: Date;
+}> {
+  const members: Array<{
+    userId: string;
+    name: string;
+    isQual: boolean;
+    level: number;
+    placedAt: Date;
+  }> = [];
+
+  for (const user of allUsers) {
+    if (user.id === sponsorId) continue;
+    const node = nodes.find((n) => n.userId === user.id);
+    if (!node?.side) continue;
+
+    const isQual = user.masterUserId === sponsorId;
+    const isDirect = user.sponsorId === sponsorId && !user.masterUserId;
+    if (!isQual && !isDirect) continue;
+
+    const pos = getBinaryPositionRelativeTo(sponsorId, user.id, nodes);
+    if (!pos || pos.legSide !== legSide) continue;
+
+    members.push({
+      userId: user.id,
+      name: user.name,
+      isQual,
+      level: pos.level,
+      placedAt: node.placedAt,
+    });
+  }
+
+  members.sort((a, b) => {
+    if (a.isQual !== b.isQual) return a.isQual ? -1 : 1;
+    if (a.level !== b.level) return a.level - b.level;
+    return a.placedAt.getTime() - b.placedAt.getTime();
+  });
+
+  return members;
+}
+
+function needsLegRebuild(
+  sponsorId: string,
+  legSide: LegSide,
+  nodes: NodeRow[],
+  allUsers: (typeof users.$inferSelect)[],
+): boolean {
+  const members = collectSponsorLegMembers(sponsorId, legSide, nodes, allUsers);
+  return members.some((m) => !isOnLegExtremity(sponsorId, m.userId, nodes));
+}
+
+async function rebuildLegExtremity(
+  sponsorId: string,
+  legSide: LegSide,
+  nodes: NodeRow[],
+  allUsers: (typeof users.$inferSelect)[],
+): Promise<Array<{ userId: string; name: string; parentId: string; side: LegSide }>> {
+  const members = collectSponsorLegMembers(sponsorId, legSide, nodes, allUsers);
+  if (members.length === 0) return [];
+
+  const memberIds = new Set(members.map((m) => m.userId));
+  let virtualNodes = nodes.filter((n) => !memberIds.has(n.userId));
+  const moves: Array<{ userId: string; name: string; parentId: string; side: LegSide }> = [];
+
+  for (const member of members) {
+    const target = findLegSpilloverPlacement(sponsorId, legSide, virtualNodes);
+    if (!target) break;
+
+    const node = nodes.find((n) => n.userId === member.userId);
+    virtualNodes = applyVirtualPlacement(
+      virtualNodes,
+      member.userId,
+      target.parentId,
+      target.side,
+      node?.placedAt ?? new Date(),
+    );
+
+    const existing = nodes.find((n) => n.userId === member.userId);
+    if (
+      existing?.parentId !== target.parentId ||
+      existing?.side !== target.side
+    ) {
+      moves.push({
+        userId: member.userId,
+        name: member.name,
+        parentId: target.parentId,
+        side: target.side,
+      });
+    }
+  }
+
+  return moves;
+}
+
 async function main() {
   const db = getDb();
   const [nodes, allUsers] = await Promise.all([
@@ -36,80 +166,65 @@ async function main() {
     db.query.users.findMany(),
   ]);
 
-  const directsBySponsor = new Map<string, typeof allUsers>();
+  const sponsorIds = new Set<string>();
   for (const user of allUsers) {
-    if (!user.sponsorId || user.masterUserId) continue;
-    const list = directsBySponsor.get(user.sponsorId) ?? [];
-    list.push(user);
-    directsBySponsor.set(user.sponsorId, list);
+    if (user.sponsorId) sponsorIds.add(user.sponsorId);
+    if (user.masterUserId) sponsorIds.add(user.masterUserId);
   }
 
-  type Repair = { userId: string; name: string; sponsorId: string; legSide: "left" | "right" };
-  const repairs: Repair[] = [];
+  const allMoves: Array<{
+    sponsorId: string;
+    legSide: LegSide;
+    userId: string;
+    name: string;
+    parentId: string;
+    side: LegSide;
+  }> = [];
 
-  for (const [sponsorId, directs] of directsBySponsor) {
-    for (const direct of directs) {
-      const node = nodes.find((n) => n.userId === direct.id);
-      if (!node?.side || !node.parentId) continue;
-
-      if (isOnLegExtremity(sponsorId, direct.id, nodes)) continue;
-
-      const pos = getBinaryPositionRelativeTo(sponsorId, direct.id, nodes);
-      if (!pos) continue;
-
-      repairs.push({
-        userId: direct.id,
-        name: direct.name,
-        sponsorId,
-        legSide: pos.legSide,
-      });
+  for (const sponsorId of sponsorIds) {
+    for (const legSide of ["left", "right"] as const) {
+      if (!needsLegRebuild(sponsorId, legSide, nodes, allUsers)) continue;
+      const sponsor = allUsers.find((u) => u.id === sponsorId);
+      const moves = await rebuildLegExtremity(sponsorId, legSide, nodes, allUsers);
+      for (const move of moves) {
+        allMoves.push({ sponsorId, legSide, ...move });
+      }
+      if (moves.length > 0) {
+        console.log(
+          `\n${sponsor?.name ?? sponsorId.slice(0, 8)} — perna ${legSide}: ${moves.length} movimento(s)`,
+        );
+        for (const move of moves) {
+          console.log(`  ${move.name} → parent ${move.parentId.slice(0, 8)}… (${move.side})`);
+        }
+      }
     }
   }
 
-  repairs.sort((a, b) => {
-    const depthA = getBinaryPositionRelativeTo(a.sponsorId, a.userId, nodes)?.level ?? 0;
-    const depthB = getBinaryPositionRelativeTo(b.sponsorId, b.userId, nodes)?.level ?? 0;
-    return depthB - depthA;
-  });
-
-  if (repairs.length === 0) {
-    console.log("Nenhum indicado directo em posição interna.");
+  if (allMoves.length === 0) {
+    console.log("Todas as pernas já estão na extremidade correcta.");
     return;
   }
 
-  console.log(`${dryRun ? "[DRY-RUN] " : ""}${repairs.length} indicado(s) a corrigir:`);
-
-  let moved = 0;
-  for (const repair of repairs) {
-    const freshNodes = await db.query.binaryTreeNodes.findMany();
-    const exclude = collectSubtreeUserIds(repair.userId, freshNodes);
-    const target = findLegSpilloverPlacement(repair.sponsorId, repair.legSide, freshNodes, exclude);
-
-    if (!target) {
-      console.warn(`  SKIP ${repair.name} — sem vaga na extremidade ${repair.legSide}`);
-      continue;
-    }
-
-    console.log(
-      `  ${repair.name} → perna ${repair.legSide}, parent ${target.parentId.slice(0, 8)}… side ${target.side}`,
-    );
-
-    if (!dryRun) {
-      await db
-        .update(binaryTreeNodes)
-        .set({
-          parentId: target.parentId,
-          side: target.side,
-          placedAt: new Date(),
-        })
-        .where(eq(binaryTreeNodes.userId, repair.userId));
-
-      await replayPointsForUser(repair.userId);
-      moved++;
-    }
+  if (dryRun) {
+    console.log(`\n[DRY-RUN] ${allMoves.length} movimento(s) planeados.`);
+    return;
   }
 
-  console.log(dryRun ? "Dry-run concluído." : `OK — ${moved} indicado(s) movido(s) para a extremidade.`);
+  let moved = 0;
+  for (const move of allMoves) {
+    await db
+      .update(binaryTreeNodes)
+      .set({
+        parentId: move.parentId,
+        side: move.side,
+        placedAt: new Date(),
+      })
+      .where(eq(binaryTreeNodes.userId, move.userId));
+    await replayPointsForUser(move.userId);
+    moved++;
+  }
+
+  console.log(`\nOK — ${moved} conta(s) reorganizada(s) na extremidade.`);
 }
 
 main()
