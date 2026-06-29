@@ -9,6 +9,7 @@ import {
   isBinaryPlacementPending,
   listPendingDirectPlacements,
   resolveNextDirectSide,
+  autoPlacePendingDirectsWithPreferredSide,
 } from "@/lib/server/network/direct-placement";
 import { legSpilloverSlotAvailable } from "@/lib/server/network/placement";
 
@@ -88,6 +89,8 @@ export async function buildBinaryNetworkData(
   userId: string,
   rootName: string,
 ): Promise<BinaryNetworkData> {
+  await autoPlacePendingDirectsWithPreferredSide(userId);
+
   const db = getDb();
 
   const [nodes, allUsers, activePackages, myNode] = await Promise.all([

@@ -72,7 +72,7 @@ export const networkContent = {
       placing: "A posicionar…",
       nextDirectSideLabel: "Próxima indicação",
       nextDirectSideHint:
-        "Escolha a perna (esquerda ou direita). O indicado desce na primeira vaga livre dessa perna — mesmo abaixo dos qualificadores.",
+        "Escolha a perna (esquerda ou direita). Indicados com Start activo descem automaticamente na primeira vaga livre dessa perna.",
       nextDirectSideSaved: "Preferência guardada para a próxima indicação directa.",
       qualifierNote:
         "As contas qualificadoras de nível 1 (uma de cada perna) não geram bónus pelas próprias compras — só a rede abaixo delas.",

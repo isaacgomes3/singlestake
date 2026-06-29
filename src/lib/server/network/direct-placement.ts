@@ -169,6 +169,122 @@ export async function setNextDirectBinarySide(input: {
   return { ok: true };
 }
 
+/** Posiciona indicado pendente na perna preferida do patrocinador (spillover). */
+export async function tryAutoPlaceDirectAfterStartActivation(
+  directUserId: string,
+): Promise<{ placed: boolean; side?: BinarySide; error?: string }> {
+  const db = getDb();
+  const direct = await db.query.users.findFirst({ where: eq(users.id, directUserId) });
+  if (!direct?.sponsorId || direct.masterUserId) return { placed: false };
+
+  const node = await db.query.binaryTreeNodes.findFirst({
+    where: eq(binaryTreeNodes.userId, directUserId),
+  });
+  if (!isBinaryPlacementPending(node) || node!.parentId !== direct.sponsorId) {
+    return { placed: false };
+  }
+
+  const hasStart = await db.query.userPackages.findFirst({
+    where: and(
+      eq(userPackages.userId, directUserId),
+      eq(userPackages.packageId, BINARY_START_PACKAGE_ID),
+      eq(userPackages.status, "active"),
+    ),
+  });
+  if (!hasStart) return { placed: false };
+
+  const side = await resolveSponsorPreferredPlacementSide(direct.sponsorId);
+  const result = await confirmDirectBinaryPlacement({
+    sponsorId: direct.sponsorId,
+    directUserId,
+    side,
+  });
+  if (!result.ok) return { placed: false, error: result.error };
+  return { placed: true, side };
+}
+
+async function resolveSponsorPreferredPlacementSide(sponsorId: string): Promise<BinarySide> {
+  const db = getDb();
+  const [sponsorNode, nodes, activePackages] = await Promise.all([
+    db.query.binaryTreeNodes.findFirst({ where: eq(binaryTreeNodes.userId, sponsorId) }),
+    db.query.binaryTreeNodes.findMany(),
+    db
+      .select({ userId: userPackages.userId, amount: userPackages.amount })
+      .from(userPackages)
+      .where(eq(userPackages.status, "active")),
+  ]);
+
+  if (sponsorNode?.nextDirectSide === "left" || sponsorNode?.nextDirectSide === "right") {
+    return sponsorNode.nextDirectSide;
+  }
+
+  const childIndex = new Map<string, { left?: string; right?: string }>();
+  for (const node of nodes) {
+    if (!node.parentId || !node.side) continue;
+    const entry = childIndex.get(node.parentId) ?? {};
+    if (node.side === "left") entry.left = node.userId;
+    else entry.right = node.userId;
+    childIndex.set(node.parentId, entry);
+  }
+
+  const packageByUser = new Map<string, number>();
+  for (const row of activePackages) {
+    packageByUser.set(row.userId, (packageByUser.get(row.userId) ?? 0) + row.amount);
+  }
+
+  const sumLeg = (startUserId: string | undefined): number => {
+    if (!startUserId) return 0;
+    const queue = [startUserId];
+    const ids: string[] = [];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      ids.push(current);
+      const children = childIndex.get(current);
+      if (children?.left) queue.push(children.left);
+      if (children?.right) queue.push(children.right);
+    }
+    return ids.reduce((sum, id) => sum + (packageByUser.get(id) ?? 0), 0);
+  };
+
+  const myChildren = childIndex.get(sponsorId) ?? {};
+  return resolveNextDirectSide({
+    stored: null,
+    leftVolume: sumLeg(myChildren.left),
+    rightVolume: sumLeg(myChildren.right),
+  });
+}
+
+/**
+ * Posiciona na árvore todos os indicados pendentes com Start activo,
+ * usando a perna guardada em «Próxima indicação».
+ */
+export async function autoPlacePendingDirectsWithPreferredSide(
+  sponsorId: string,
+): Promise<number> {
+  const db = getDb();
+  const sponsorNode = await db.query.binaryTreeNodes.findFirst({
+    where: eq(binaryTreeNodes.userId, sponsorId),
+  });
+  if (!sponsorNode?.nextDirectSide) return 0;
+
+  const side = sponsorNode.nextDirectSide as BinarySide;
+  const pending = await listPendingDirectPlacements(sponsorId);
+  const ready = pending.filter((row) => row.hasActiveStart);
+  let placed = 0;
+
+  for (const row of ready) {
+    const result = await confirmDirectBinaryPlacement({
+      sponsorId,
+      directUserId: row.userId,
+      side,
+    });
+    if (result.ok) placed++;
+    else break;
+  }
+
+  return placed;
+}
+
 /** Compras efectuadas enquanto aguardava perna — pontua após confirmação. */
 async function replayBinaryPointsForUser(userId: string): Promise<void> {
   const db = getDb();

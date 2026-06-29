@@ -230,8 +230,25 @@ export async function activatePackageAfterPayment(
     packageName: pkg.name,
   });
 
-  const { onPackagePurchaseBinary } = await import("@/lib/server/network/binary-engine");
-  await onPackagePurchaseBinary({ buyerUserId: input.userId, amount });
+  const isStartPackage = input.packageId === START_PACKAGE_ID;
+  let binaryPointsHandled = false;
+
+  if (isStartPackage) {
+    const { tryAutoPlaceDirectAfterStartActivation } = await import(
+      "@/lib/server/network/direct-placement"
+    );
+    const placement = await tryAutoPlaceDirectAfterStartActivation(input.userId);
+    if (placement.placed) {
+      binaryPointsHandled = true;
+    } else if (placement.error) {
+      console.warn("[packages] auto-place Start pendente:", placement.error, input.userId);
+    }
+  }
+
+  if (!binaryPointsHandled) {
+    const { onPackagePurchaseBinary } = await import("@/lib/server/network/binary-engine");
+    await onPackagePurchaseBinary({ buyerUserId: input.userId, amount });
+  }
 
   const created = await db.query.userPackages.findFirst({
     where: eq(userPackages.id, userPackageId),
