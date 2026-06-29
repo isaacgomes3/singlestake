@@ -1,5 +1,5 @@
-/** Stake base — igual à automação global (R$ 50 → 100 → 200…). */
-const EXTENSION_REAL_BASE_STAKE = 50;
+/** Constantes partilhadas (importadas via importScripts no service worker). */
+const GOG = {
   BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
   PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
   PING_TYPE: "game-odds-glow/rotating-room-extension-ping",
@@ -18,7 +18,6 @@ const APP_PRODUCTION_HOSTS = [
   "www.stake37.com.br",
   "singlestake.bet.br",
   "www.singlestake.bet.br",
-  "auto.stake37.com.br",
 ];
 
 function isAppProductionHostname(hostname) {
@@ -70,33 +69,6 @@ function recoveryFromContext(context) {
     if (Number.isFinite(n)) return Math.max(0, n);
   }
   return 0;
-}
-
-/** Intervalo base entre cliques de aposta (ms). */
-const CLICK_STAGGER_BASE_MS = 450;
-
-/**
- * Gales altos exigem 2^recovery cliques — acelera o ritmo para caber na janela de apostas.
- * Gale 4 (recovery 4): 2× · Gale 5 (recovery 5): 4×.
- */
-function clickSpeedMultiplierForRecovery(recovery) {
-  const r =
-    typeof recovery === "number" && Number.isFinite(recovery)
-      ? Math.max(0, Math.floor(recovery))
-      : 0;
-  if (r >= 5) return 4;
-  if (r >= 4) return 2;
-  return 1;
-}
-
-function clickStaggerMsForRecovery(recovery) {
-  const mult = clickSpeedMultiplierForRecovery(recovery);
-  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
-}
-
-function scaledClickDelayMs(baseMs, recovery) {
-  const mult = clickSpeedMultiplierForRecovery(recovery);
-  return Math.max(15, Math.round(baseMs / mult));
 }
 
 async function setStoredMode(mode) {
@@ -160,12 +132,9 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount:
-        recovery > 0
-          ? EXTENSION_REAL_BASE_STAKE * 2 ** recovery
-          : EXTENSION_REAL_BASE_STAKE,
+      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
       currentRecovery: recovery,
-      baseStake: EXTENSION_REAL_BASE_STAKE,
+      baseStake: 0.5,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

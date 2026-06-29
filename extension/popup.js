@@ -9,7 +9,6 @@ const DGA_CONFIG_DEFAULTS = {
   mesaEmbedUrl: "",
   preBetWaitSec: 11,
   maxRecovery: 5,
-  syncSecret: "",
 };
 
 const dgaCasinoId = document.getElementById("dgaCasinoId");
@@ -18,7 +17,6 @@ const dgaTableIds = document.getElementById("dgaTableIds");
 const dgaMesaUrl = document.getElementById("dgaMesaUrl");
 const dgaWsUrl = document.getElementById("dgaWsUrl");
 const dgaPreBetWait = document.getElementById("dgaPreBetWait");
-const dgaSyncSecret = document.getElementById("dgaSyncSecret");
 const maxGales = document.getElementById("maxGales");
 const bridgePrefsStatus = document.getElementById("bridgePrefsStatus");
 const bridgeStatus = document.getElementById("bridgeStatus");
@@ -62,7 +60,6 @@ function mergeDgaConfig(stored) {
         ? stored.preBetWaitSec
         : base.preBetWaitSec,
     maxRecovery: clampMaxGales(stored.maxRecovery ?? base.maxRecovery),
-    syncSecret: typeof stored.syncSecret === "string" ? stored.syncSecret.trim() : "",
   };
 }
 
@@ -82,9 +79,6 @@ function fillDgaConfigForm(config) {
   if (dgaWsUrl instanceof HTMLInputElement) dgaWsUrl.value = config.wsUrl;
   if (dgaPreBetWait instanceof HTMLInputElement) {
     dgaPreBetWait.value = String(config.preBetWaitSec ?? 11);
-  }
-  if (dgaSyncSecret instanceof HTMLInputElement) {
-    dgaSyncSecret.value = config.syncSecret ?? "";
   }
 }
 
@@ -110,9 +104,6 @@ function readDgaConfigForm() {
     wsUrl:
       (dgaWsUrl instanceof HTMLInputElement ? dgaWsUrl.value : "").trim() ||
       DGA_CONFIG_DEFAULTS.wsUrl,
-    syncSecret:
-      (dgaSyncSecret instanceof HTMLInputElement ? dgaSyncSecret.value : "").trim() ||
-      DGA_CONFIG_DEFAULTS.syncSecret,
   };
 }
 
@@ -494,7 +485,7 @@ document.querySelectorAll("button.cal").forEach((btn) => {
 
 document.getElementById("calChip")?.addEventListener("click", () => {
   const select = document.getElementById("chipValue");
-  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 50 : 50;
+  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 0.5 : 0.5;
   const label = `Ficha R$ ${chipValue}`;
   if (chipStatus) chipStatus.textContent = `A activar overlay na mesa: ${label}…`;
   chrome.runtime.sendMessage({ kind: "arm-calibration", betKey: "chip", label, chipValue }, (resp) => {

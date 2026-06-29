@@ -80,13 +80,6 @@ async function readDgaConfig() {
         ? stored.preBetWaitSec
         : defaults.preBetWaitSec,
     maxRecovery: clampMaxGales(stored.maxRecovery ?? defaults.maxRecovery),
-    syncSecret:
-      typeof stored.syncSecret === "string" && stored.syncSecret.trim()
-        ? stored.syncSecret.trim()
-        : null,
-    syncUrls: Array.isArray(stored.syncUrls)
-      ? stored.syncUrls.filter((u) => typeof u === "string" && u.trim())
-      : SinglestakeServerSync?.DEFAULT_SYNC_URLS ?? [],
   };
 }
 
@@ -193,11 +186,7 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
     const timer = setTimeout(() => {
       pendingBetTimers.delete(signalKey);
       if (!engine) return;
-      const recoveryBefore = engine.getState().machine.recovery;
-      const tickResult = engine.runTick();
-      void readDgaConfig().then((cfgNow) =>
-        processEngineResult(tickResult, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore }),
-      );
+      scheduleBetAttempt(engine.runTick(), mesaEmbedUrl, cfg);
     }, delayMs);
     pendingBetTimers.set(signalKey, timer);
     return;
@@ -207,42 +196,11 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   void executeBridgePayload(payload, mesaEmbedUrl, result.view);
 }
 
-const EXTENSION_REAL_BASE_STAKE = 50;
-
-function extensionStakeForRecovery(recoveryBefore, maxRecovery) {
-  const level = Math.min(Math.max(0, Math.floor(recoveryBefore)), maxRecovery ?? 5);
-  return EXTENSION_REAL_BASE_STAKE * 2 ** level;
-}
-
-async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) {
+async function processEngineResult(result, mesaEmbedUrl, cfg) {
   if (!result || !engine) return;
   if (result.stats) {
     await persistAutopilotStats(result.stats, cfg.maxRecovery);
   }
-
-  const settlements = [];
-  if (
-    result.flash &&
-    (result.flash.kind === "win" || result.flash.kind === "loss" || result.flash.kind === "recovery")
-  ) {
-    const recoveryBefore =
-      typeof tickContext.recoveryBefore === "number"
-        ? tickContext.recoveryBefore
-        : engine.getState().machine.recovery;
-    settlements.push({
-      recoveryBefore,
-      flash: result.flash,
-      stake: extensionStakeForRecovery(recoveryBefore, cfg.maxRecovery),
-    });
-  }
-
-  if (globalThis.SinglestakeServerSync?.scheduleExtensionServerSync) {
-    SinglestakeServerSync.scheduleExtensionServerSync(engine, cfg, {
-      autopilotRunning: true,
-      settlements,
-    });
-  }
-
   if (!bridgeHandler || !result.view?.globalActive) return;
 
   scheduleBetAttempt(result, mesaEmbedUrl, cfg);
@@ -287,17 +245,15 @@ async function startAutopilot(handleBridgePayload) {
     onStatus: (status) => void writeAutopilotStatus({ dga: status }),
     onHistorySnapshot: async (tableId, spins) => {
       if (!engine) return;
-      const recoveryBefore = engine.getState().machine.recovery;
       const result = engine.ingestHistorySnapshot(tableId, spins);
       const cfgNow = await readDgaConfig();
-      void processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore });
+      void processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow);
     },
     onSpin: (tableId, spin) => {
       if (!engine) return;
-      const recoveryBefore = engine.getState().machine.recovery;
       const result = engine.ingestSpin(tableId, spin.number, spin.gameId);
       void readDgaConfig().then((cfgNow) =>
-        processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore }),
+        processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow),
       );
     },
   });
