@@ -4,7 +4,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
 import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
-import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
@@ -30,7 +30,7 @@ function isRotatingRoomBridgePath(pathname: string): boolean {
   );
 }
 
-/** Envia sinais da sala rotativa (1 Fator) à extensão Chrome. */
+/** Envia sinais da sala rotativa (1 Fator + cruzamento 2F) à extensão Chrome. */
 export function RotatingRoomExtensionBridgeGlobal() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
@@ -54,7 +54,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation } = useRouletteAutomationSim();
-  const session = useRotatingRoomUmFatorSession(tableIds, histories, {
+  const session = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
     observeOnly: false,
   });

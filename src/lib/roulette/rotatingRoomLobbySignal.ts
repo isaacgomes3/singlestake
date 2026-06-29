@@ -98,3 +98,33 @@ export function lobbyTableHasRotatingRoomSignal(
   if (rotatingRoomLobbyFocusTableId(session) !== tableId) return false;
   return rotatingRoomLobbyHasSignal(session);
 }
+
+/** Alinha o cartão da sala com entrada em jogo da automação financeira (quando o motor ainda não expõe mesa). */
+export function alignRotatingRoomSessionWithAutomationBet<
+  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" },
+>(
+  session: T,
+  bet:
+    | {
+        tableId: number;
+        recovery: number;
+        strategy?: "um1fator" | "dois2fatores";
+        activeCrossing?: import("@/lib/roulette/doisFatoresStrategy").DoisFatoresActive | null;
+      }
+    | null
+    | undefined,
+): T {
+  if (!bet?.tableId) return session;
+  if (rotatingRoomLobbyFocusTableId(session) != null) return session;
+
+  const isCrossing = bet.strategy === "dois2fatores";
+  return {
+    ...session,
+    currentTableId: bet.tableId,
+    showTapeteSignal: true,
+    currentRecovery: bet.recovery,
+    activeCrossing: bet.activeCrossing ?? session.activeCrossing ?? null,
+    sessionMode: isCrossing ? "active" : session.sessionMode,
+    ...(isCrossing ? { rotativaTrigger: "crossing" as const } : { rotativaTrigger: "umFator" as const }),
+  };
+}

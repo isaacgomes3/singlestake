@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { DEFAULT_GLOBAL_AUTOMATION_CONFIG } from "@/lib/back-office/automation-config";
+import { DEFAULT_ROTATING_ROOM_GATILHO_ENABLE } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   freshAutomationSimState,
@@ -131,7 +132,12 @@ export async function resetGlobalAutomationCycle(input: {
   replaceAutomationSimState(simState);
   await persistAutomationSimState(simState);
 
-  await saveAutomationConfig({ paused: false, pauseReason: null, pausedAt: null });
+  await saveAutomationConfig({
+    paused: false,
+    pauseReason: null,
+    pausedAt: null,
+    enabledTriggers: { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE },
+  });
   resetAutomationSimEngineFlags();
 
   const paths = await writeAutomationResetFiles({

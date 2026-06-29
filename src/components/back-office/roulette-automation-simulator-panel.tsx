@@ -15,6 +15,7 @@ import {
   automationChartYDomain,
   formatAutomationChartYTick,
 } from "@/lib/back-office/rouletteAutomationSim";
+import { alignRotatingRoomSessionWithAutomationBet } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -33,11 +34,19 @@ export function RouletteAutomationSimulatorPanel({
   const { t } = useI18n();
   const { money } = useFormat();
   const chart = AUTOMATION_CHART_THEME;
-  const { state, openBet, config } = useRouletteAutomationSim();
+  const { state, openBet, pendingSignal, config } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
   const rotatingRoomSession = useRotatingRoomRotativaSession(tableIds, histories, {
     observeOnly: true,
   });
+  const lobbySession = useMemo(
+    () =>
+      alignRotatingRoomSessionWithAutomationBet(
+        rotatingRoomSession,
+        openBet ?? pendingSignal,
+      ),
+    [rotatingRoomSession, openBet, pendingSignal],
+  );
   const displayState = useMemo(() => {
     if (officialBalance == null) return state;
     return finalizeAutomationSimState(state, officialBalance);
@@ -185,7 +194,7 @@ export function RouletteAutomationSimulatorPanel({
           <RotatingRoomLobbyCard
             embedded
             openInIframe
-            session={rotatingRoomSession}
+            session={lobbySession}
             salaRoute="/sala-rotativa-um-fator"
             salaLabel={t("casino.roomLabel")}
           />

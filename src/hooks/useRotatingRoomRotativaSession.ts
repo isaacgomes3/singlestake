@@ -41,7 +41,7 @@ export function useRotatingRoomRotativaSession(
       mergeRotatingRoomRotativaSession(umFator, crossing, {
         crossingEnabled,
       }),
-    [umFator, crossing],
+    [umFator, crossing, crossingEnabled],
   );
 }
 

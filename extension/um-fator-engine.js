@@ -276,11 +276,11 @@ var SinglestakeUmFator = (() => {
   // src/lib/roulette/umFatorTriggerEnable.ts
   var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
     two: false,
-    three: true
+    three: false
   };
   var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
     ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-    crossing: false
+    crossing: true
   };
   var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
   function isUmFatorTriggerTierEnabled(tier) {

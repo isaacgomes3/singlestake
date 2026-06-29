@@ -1,7 +1,7 @@
 import type { ThemeMode } from "./types";
 
 export const THEME_STORAGE_KEY = "singlestake-theme";
-export const DEFAULT_THEME: ThemeMode = "dark";
+export const DEFAULT_THEME: ThemeMode = "light";
 
 export function isThemeMode(value: unknown): value is ThemeMode {
   return value === "dark" || value === "light";
