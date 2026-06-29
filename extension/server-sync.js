@@ -63,7 +63,6 @@ function buildPayload(engine, cfg, autopilotRunning, settlements) {
   for (const item of settlements ?? []) {
     const flash = item?.flash;
     const recoveryBefore = item?.recoveryBefore;
-    const trigger = item?.trigger === "crossing" ? "crossing" : "um1fator";
     if (!flash || typeof recoveryBefore !== "number") continue;
     if (flash.kind !== "win" && flash.kind !== "loss" && flash.kind !== "recovery") continue;
     const dedupeKey = settlementDedupeKey(flash, recoveryBefore);
@@ -72,7 +71,7 @@ function buildPayload(engine, cfg, autopilotRunning, settlements) {
       typeof item?.stake === "number" && item.stake > 0
         ? item.stake
         : EXTENSION_REAL_BASE_STAKE * 2 ** Math.max(0, Math.floor(recoveryBefore));
-    settlementList.push({ recoveryBefore, flash, stake, dedupeKey, trigger });
+    settlementList.push({ recoveryBefore, flash, stake, dedupeKey });
   }
 
   syncSeq += 1;
@@ -89,8 +88,6 @@ function buildPayload(engine, cfg, autopilotRunning, settlements) {
     histories,
     machine: state.machine,
     stats: state.stats,
-    crossingMachine: state.crossingMachine ?? null,
-    crossingStats: state.crossingStats ?? null,
     maxRecovery: state.maxRecovery,
     settlements: settlementList,
   };

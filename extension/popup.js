@@ -1,7 +1,5 @@
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_BRIDGE_PREFS = "gogBridgePrefs";
-const STORAGE_MODE = "gogExecutionMode";
-const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 const DGA_CONFIG_DEFAULTS = {
   wsUrl: "wss://dga.pragmaticplaylive.net/ws",
@@ -152,13 +150,6 @@ function resetDgaConfigForm() {
 
 loadDgaConfigForm();
 loadBridgePrefsForm();
-
-/** Estado «Ligar» e modo Demo/Real logo ao abrir o popup. */
-chrome.storage.local.get([STORAGE_BRIDGE_ENABLED, STORAGE_MODE], (data) => {
-  if (chrome.runtime.lastError) return;
-  setBridgeUi(data[STORAGE_BRIDGE_ENABLED] !== false);
-  setModeUi(data[STORAGE_MODE] === "real" ? "real" : "demo");
-});
 
 dgaSaveBtn?.addEventListener("click", saveDgaConfigForm);
 dgaResetBtn?.addEventListener("click", resetDgaConfigForm);
@@ -398,60 +389,10 @@ function renderStatus(status) {
   }
 }
 
-function loadStatusFromStorage(extraLines = []) {
-  chrome.storage.local.get(
-    [
-      STORAGE_MODE,
-      STORAGE_BRIDGE_ENABLED,
-      "gogLastBridge",
-      "gogLastContext",
-      "gogLastResults",
-      "gogLastTest",
-      "gogBetCalibration",
-      "gogCalibrationArmed",
-      "gogClickChipBeforeBet",
-      STORAGE_BRIDGE_PREFS,
-      "gogAutopilotStatus",
-      "gogAutopilotEnabled",
-    ],
-    (data) => {
-      if (chrome.runtime.lastError && out) {
-        out.textContent = chrome.runtime.lastError.message;
-        return;
-      }
-      const mode = data[STORAGE_MODE] === "real" ? "real" : "demo";
-      renderStatus({
-        mode,
-        bridgeEnabled: data[STORAGE_BRIDGE_ENABLED] !== false,
-        bridgePrefs: data[STORAGE_BRIDGE_PREFS] ?? {},
-        lastBridge: data.gogLastBridge ?? null,
-        lastContext: data.gogLastContext ?? null,
-        lastResults: data.gogLastResults ?? null,
-        lastTest: data.gogLastTest ?? null,
-        calibration: null,
-        calibrationArmed: data.gogCalibrationArmed ?? null,
-        clickChipBeforeBet: data.gogClickChipBeforeBet === true,
-        autopilot: {
-          enabled: data.gogAutopilotEnabled === true,
-          status: data.gogAutopilotStatus ?? { running: false },
-        },
-      });
-      if (extraLines.length && out) {
-        out.textContent = `${extraLines.join("\n")}\n\n${out.textContent}`;
-      }
-    },
-  );
-}
-
 function loadStatus() {
   chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
-    if (chrome.runtime.lastError || !status?.ok) {
-      const err = chrome.runtime.lastError?.message ?? "Service worker sem resposta";
-      loadStatusFromStorage([
-        `⚠ ${err}`,
-        "Modo e «Ligar» funcionam via armazenamento local.",
-        "Se persistir: chrome://extensions → Recarregar → feche e reabra este popup.",
-      ]);
+    if (chrome.runtime.lastError) {
+      out.textContent = chrome.runtime.lastError.message;
       return;
     }
     renderStatus(status);
@@ -468,42 +409,8 @@ function loadStatus() {
   });
 }
 
-function applyModeToStorage(mode, done) {
-  const isReal = mode === "real";
-  chrome.storage.local.set(
-    {
-      [STORAGE_MODE]: isReal ? "real" : "demo",
-      gogExteriorDryRun: !isReal,
-      gogPragmaticDryRun: !isReal,
-    },
-    () => {
-      if (chrome.runtime.lastError) {
-        if (out) out.textContent = chrome.runtime.lastError.message;
-        return;
-      }
-      setModeUi(mode);
-      done?.();
-    },
-  );
-}
-
 function setMode(mode) {
-  applyModeToStorage(mode, () => {
-    chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
-  });
-}
-
-function setBridgeEnabled(enabled) {
-  chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled === true }, () => {
-    if (chrome.runtime.lastError) {
-      if (out) out.textContent = chrome.runtime.lastError.message;
-      return;
-    }
-    setBridgeUi(enabled);
-    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, () =>
-      loadStatus(),
-    );
-  });
+  chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
 }
 
 modeDemoBtn?.addEventListener("click", () => setMode("demo"));
@@ -520,9 +427,13 @@ autopilotOffBtn?.addEventListener("click", () => {
   chrome.runtime.sendMessage({ kind: "set-autopilot", enabled: false }, () => loadStatus());
 });
 
-bridgeOnBtn?.addEventListener("click", () => setBridgeEnabled(true));
+bridgeOnBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: true }, () => loadStatus());
+});
 
-bridgeOffBtn?.addEventListener("click", () => setBridgeEnabled(false));
+bridgeOffBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: false }, () => loadStatus());
+});
 
 maxGales?.addEventListener("change", () => {
   if (!(maxGales instanceof HTMLSelectElement)) return;
@@ -534,11 +445,8 @@ maxGales?.addEventListener("change", () => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes[STORAGE_MODE]) {
-    setModeUi(changes[STORAGE_MODE].newValue === "real" ? "real" : "demo");
-  }
-  if (changes[STORAGE_BRIDGE_ENABLED]) {
-    setBridgeUi(changes[STORAGE_BRIDGE_ENABLED].newValue !== false);
+  if (changes.gogBridgeEnabled) {
+    setBridgeUi(changes.gogBridgeEnabled.newValue !== false);
   }
   if (changes[STORAGE_BRIDGE_PREFS]) {
     renderBridgePrefs(changes[STORAGE_BRIDGE_PREFS].newValue);

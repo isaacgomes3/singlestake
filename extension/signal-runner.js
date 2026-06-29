@@ -1,4 +1,4 @@
-/** Autopilot — capta giros na DGA, corre Sala Rotativa (1F + 2F) e dispara apostas. */
+/** Autopilot — capta giros na DGA, corre Um Fator e dispara apostas (sem localhost). */
 const STORAGE_AUTOPLAY = "gogAutopilotEnabled";
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_AUTO_STATUS = "gogAutopilotStatus";
@@ -19,9 +19,9 @@ function clampMaxGales(value) {
 
 /** @type {ReturnType<import('./dga-hub.js').createDgaHub>|null} */
 let dgaHub = null;
-/** @type {ReturnType<SinglestakeUmFator['createRotativaEngine']>|null} */
+/** @type {ReturnType<SinglestakeUmFator['createUmFatorEngine']>|null} */
 let engine = null;
-let lastEmittedBetKey = null;
+let lastEmittedSignalId = null;
 /** @type {((payload: unknown, tabId: number|null) => Promise<unknown>)|null} */
 let bridgeHandler = null;
 /** @type {Map<string, ReturnType<typeof setTimeout>>} */
@@ -93,35 +93,24 @@ async function readDgaConfig() {
 async function readAutopilotStats(maxRecovery) {
   const data = await chrome.storage.local.get([STORAGE_AUTO_STATS]);
   const raw = data[STORAGE_AUTO_STATS];
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw?.stats || typeof raw.stats !== "object") return null;
   const mr = clampMaxGales(raw.maxRecovery ?? maxRecovery);
-  return {
-    umStats: raw.umStats ?? raw.stats ?? null,
-    crossingStats: raw.crossingStats ?? null,
-    maxRecovery: mr,
-  };
+  return { stats: raw.stats, maxRecovery: mr };
 }
 
-async function persistAutopilotStats(umStats, crossingStats, maxRecovery) {
+async function persistAutopilotStats(stats, maxRecovery) {
   const mr = clampMaxGales(maxRecovery);
   await chrome.storage.local.set({
-    [STORAGE_AUTO_STATS]: {
-      umStats,
-      crossingStats,
-      maxRecovery: mr,
-      updatedAt: new Date().toISOString(),
-    },
+    [STORAGE_AUTO_STATS]: { stats, maxRecovery: mr, updatedAt: new Date().toISOString() },
   });
-  const wins = (umStats?.wins ?? 0) + (crossingStats?.wins ?? 0);
-  const losses = (umStats?.losses ?? 0) + (crossingStats?.losses ?? 0);
-  await writeAutopilotStatus({ wins, losses, maxRecovery: mr });
+  await writeAutopilotStatus({ wins: stats.wins ?? 0, losses: stats.losses ?? 0, maxRecovery: mr });
 }
 
 async function resetAutopilotStats() {
   const cfg = await readDgaConfig();
   const mr = cfg.maxRecovery;
   const empty = { wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] };
-  await persistAutopilotStats(empty, empty, mr);
+  await persistAutopilotStats(empty, mr);
   if (engine?.resetStats) engine.resetStats();
   return { ok: true, wins: 0, losses: 0, maxRecovery: mr };
 }
@@ -142,19 +131,17 @@ async function writeAutopilotStatus(patch) {
   return next;
 }
 
-async function executeBridgePayload(payload, active) {
+async function executeBridgePayload(payload, mesaEmbedUrl, view) {
   if (!bridgeHandler || !payload?.context?.signalId) return;
-  const betKey = payload.context.betAttemptKey ?? payload.context.signalId;
-  if (betKey === lastEmittedBetKey) return;
+  if (payload.context.signalId === lastEmittedSignalId) return;
 
-  lastEmittedBetKey = betKey;
+  lastEmittedSignalId = payload.context.signalId;
   await writeAutopilotStatus({
     active: true,
-    tableId: active?.currentTableId ?? payload.context.currentTableId,
+    tableId: view.globalTableId,
     label: payload.context.factor1Label,
     signalId: payload.context.signalId,
     recovery: payload.context.currentRecovery,
-    trigger: payload.context.rotativaTrigger ?? (payload.context.singleFactorMode ? "umFator" : "crossing"),
     waitingBet: false,
   });
 
@@ -168,9 +155,9 @@ async function executeBridgePayload(payload, active) {
 }
 
 function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
-  if (!engine || !result?.active?.showTapeteSignal || result.active.currentTableId == null) {
+  if (!engine || !result?.view?.globalActive || result.view.globalTableId == null) {
     clearPendingBetTimers();
-    lastEmittedBetKey = null;
+    lastEmittedSignalId = null;
     void writeAutopilotStatus({
       active: false,
       tableId: null,
@@ -184,39 +171,32 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   const payload = engine.buildBridgePayload(result, mesaEmbedUrl);
   if (!payload?.context?.signalId) {
     const waitSec = cfg.preBetWaitSec ?? preBetWaitSec();
-    const tableId = result.active.currentTableId;
+    const tableId = result.view.globalTableId;
     const state = engine.getState();
     const at = state.lastLiveSpinAtByTable?.[tableId];
     const elapsed = at ? (Date.now() - at) / 1000 : 0;
     const remaining = Math.max(0, waitSec - elapsed);
-    const label =
-      result.active.trigger === "crossing" && result.active.activeCrossing
-        ? `${SinglestakeUmFator.doisFatoresFactorLabel(result.active.activeCrossing.factor1)} · ${SinglestakeUmFator.doisFatoresFactorLabel(result.active.activeCrossing.factor2)}`
-        : result.active.umActive
-          ? SinglestakeUmFator.doisFatoresFactorLabel(result.active.umActive.alertFactor)
-          : null;
     void writeAutopilotStatus({
       active: true,
       tableId,
-      label,
+      label: result.view.globalActive
+        ? SinglestakeUmFator.doisFatoresFactorLabel(result.view.globalActive.alertFactor)
+        : null,
       waitingBet: true,
       waitRemainingSec: Math.ceil(remaining),
     });
 
-    const signalKey = result.active.betAttemptKey ?? `${tableId}:${result.active.currentRecovery}`;
+    const signalKey = `${tableId}:${result.view.globalActive.resultNumber}:${result.machine.recovery}`;
     if (pendingBetTimers.has(signalKey)) return;
 
     const delayMs = Math.max(BET_RETRY_MS, remaining * 1000);
     const timer = setTimeout(() => {
       pendingBetTimers.delete(signalKey);
       if (!engine) return;
-      const recoveryBefore =
-        result.active.trigger === "crossing"
-          ? engine.getState().crossingMachine.recovery
-          : engine.getState().machine.recovery;
+      const recoveryBefore = engine.getState().machine.recovery;
       const tickResult = engine.runTick();
       void readDgaConfig().then((cfgNow) =>
-        processEngineResult(tickResult, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore, trigger: tickResult.trigger }),
+        processEngineResult(tickResult, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore }),
       );
     }, delayMs);
     pendingBetTimers.set(signalKey, timer);
@@ -224,7 +204,7 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
   }
 
   clearPendingBetTimers();
-  void executeBridgePayload(payload, result.active);
+  void executeBridgePayload(payload, mesaEmbedUrl, result.view);
 }
 
 const EXTENSION_REAL_BASE_STAKE = 50;
@@ -236,36 +216,24 @@ function extensionStakeForRecovery(recoveryBefore, maxRecovery) {
 
 async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) {
   if (!result || !engine) return;
-  if (result.umStats || result.crossingStats) {
-    await persistAutopilotStats(result.umStats, result.crossingStats, cfg.maxRecovery);
+  if (result.stats) {
+    await persistAutopilotStats(result.stats, cfg.maxRecovery);
   }
 
   const settlements = [];
-  const trigger = tickContext.trigger ?? result.trigger ?? "umFator";
-  const flashes =
-    trigger === "crossing"
-      ? [{ flash: result.crossingFlash, recoveryBefore: tickContext.recoveryBefore }]
-      : [{ flash: result.umFlash, recoveryBefore: tickContext.recoveryBefore }];
-
-  for (const item of flashes) {
-    const { flash, recoveryBefore } = item;
-    if (
-      flash &&
-      (flash.kind === "win" || flash.kind === "loss" || flash.kind === "recovery")
-    ) {
-      const rb =
-        typeof recoveryBefore === "number"
-          ? recoveryBefore
-          : trigger === "crossing"
-            ? engine.getState().crossingMachine.recovery
-            : engine.getState().machine.recovery;
-      settlements.push({
-        trigger,
-        recoveryBefore: rb,
-        flash,
-        stake: extensionStakeForRecovery(rb, cfg.maxRecovery),
-      });
-    }
+  if (
+    result.flash &&
+    (result.flash.kind === "win" || result.flash.kind === "loss" || result.flash.kind === "recovery")
+  ) {
+    const recoveryBefore =
+      typeof tickContext.recoveryBefore === "number"
+        ? tickContext.recoveryBefore
+        : engine.getState().machine.recovery;
+    settlements.push({
+      recoveryBefore,
+      flash: result.flash,
+      stake: extensionStakeForRecovery(recoveryBefore, cfg.maxRecovery),
+    });
   }
 
   if (globalThis.SinglestakeServerSync?.scheduleExtensionServerSync) {
@@ -275,16 +243,9 @@ async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) 
     });
   }
 
-  if (!bridgeHandler) return;
+  if (!bridgeHandler || !result.view?.globalActive) return;
 
-  if (result.active?.showTapeteSignal) {
-    scheduleBetAttempt(result, mesaEmbedUrl, cfg);
-    return;
-  }
-
-  clearPendingBetTimers();
-  lastEmittedBetKey = null;
-  void writeAutopilotStatus({ active: false, waitingBet: false });
+  scheduleBetAttempt(result, mesaEmbedUrl, cfg);
 }
 
 async function startAutopilot(handleBridgePayload) {
@@ -295,7 +256,7 @@ async function startAutopilot(handleBridgePayload) {
     return;
   }
 
-  if (!globalThis.SinglestakeUmFator?.createRotativaEngine) {
+  if (!globalThis.SinglestakeUmFator?.createUmFatorEngine) {
     await writeAutopilotStatus({
       running: false,
       reason: "um-fator-engine.js em falta — corra npm run extension:build",
@@ -307,14 +268,12 @@ async function startAutopilot(handleBridgePayload) {
 
   const cfg = await readDgaConfig();
   const saved = await readAutopilotStats(cfg.maxRecovery);
-  engine = SinglestakeUmFator.createRotativaEngine({
+  engine = SinglestakeUmFator.createUmFatorEngine({
     tableIds: cfg.tableIds,
     maxRecovery: cfg.maxRecovery,
-    initialUmStats: saved?.umStats ?? null,
-    initialCrossingStats: saved?.crossingStats ?? null,
-    crossingEnabled: true,
+    initialStats: saved?.stats ?? null,
   });
-  lastEmittedBetKey = null;
+  lastEmittedSignalId = null;
   clearPendingBetTimers();
 
   dgaHub = SinglestakeDgaHub.createDgaHub({
@@ -328,29 +287,17 @@ async function startAutopilot(handleBridgePayload) {
     onStatus: (status) => void writeAutopilotStatus({ dga: status }),
     onHistorySnapshot: async (tableId, spins) => {
       if (!engine) return;
-      const state = engine.getState();
-      const recoveryBefore = state.crossingMachine.recovery;
-      const umRecoveryBefore = state.machine.recovery;
+      const recoveryBefore = engine.getState().machine.recovery;
       const result = engine.ingestHistorySnapshot(tableId, spins);
       const cfgNow = await readDgaConfig();
-      void processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, {
-        recoveryBefore:
-          result?.trigger === "crossing" ? recoveryBefore : umRecoveryBefore,
-        trigger: result?.trigger,
-      });
+      void processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore });
     },
     onSpin: (tableId, spin) => {
       if (!engine) return;
-      const state = engine.getState();
-      const trigger =
-        state.crossingMachine.cycleActive && state.crossingMachine.cycleTableId === tableId
-          ? "crossing"
-          : "umFator";
-      const recoveryBefore =
-        trigger === "crossing" ? state.crossingMachine.recovery : state.machine.recovery;
+      const recoveryBefore = engine.getState().machine.recovery;
       const result = engine.ingestSpin(tableId, spin.number, spin.gameId);
       void readDgaConfig().then((cfgNow) =>
-        processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore, trigger: result?.trigger }),
+        processEngineResult(result, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore }),
       );
     },
   });
@@ -373,7 +320,7 @@ function stopAutopilot() {
   dgaHub?.stop();
   dgaHub = null;
   engine = null;
-  lastEmittedBetKey = null;
+  lastEmittedSignalId = null;
   void writeAutopilotStatus({ running: false, active: false, waitingBet: false });
 }
 
@@ -391,16 +338,8 @@ async function getAutopilotStatus() {
   const data = await chrome.storage.local.get([STORAGE_AUTO_STATUS, STORAGE_AUTOPLAY, STORAGE_AUTO_STATS]);
   const statsPack = data[STORAGE_AUTO_STATS];
   const live = engine?.getState?.();
-  const liveWins = (live?.stats?.wins ?? 0) + (live?.crossingStats?.wins ?? 0);
-  const liveLosses = (live?.stats?.losses ?? 0) + (live?.crossingStats?.losses ?? 0);
-  const packWins =
-    (statsPack?.umStats?.wins ?? statsPack?.stats?.wins ?? 0) +
-    (statsPack?.crossingStats?.wins ?? 0);
-  const packLosses =
-    (statsPack?.umStats?.losses ?? statsPack?.stats?.losses ?? 0) +
-    (statsPack?.crossingStats?.losses ?? 0);
-  const wins = (liveWins || packWins || data[STORAGE_AUTO_STATUS]?.wins) ?? 0;
-  const losses = (liveLosses || packLosses || data[STORAGE_AUTO_STATUS]?.losses) ?? 0;
+  const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_AUTO_STATUS]?.wins ?? 0;
+  const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_AUTO_STATUS]?.losses ?? 0;
   const maxRecovery =
     live?.maxRecovery ?? statsPack?.maxRecovery ?? data[STORAGE_AUTO_STATUS]?.maxRecovery ?? DEFAULT_MAX_GALES;
   return {
