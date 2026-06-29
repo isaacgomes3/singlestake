@@ -74,7 +74,7 @@ export const networkContent = {
       startActive: "Start activo",
       chooseLegRequiresStart: "Active o Start antes de escolher a perna",
       treePendingNote:
-        "Indicados directos só aparecem na árvore depois de activar o Start e o patrocinador escolher a perna. Com qualificadores no nível 1, o 3.º directo desce na extremidade da perna escolhida — continua seu directo, mas pontua toda a linha acima.",
+        "Indicados directos ocupam a extremidade da perna (esquerda ou direita) — nunca posições internas. O 3.º directo desce na borda da perna escolhida, abaixo dos qualificadores.",
       colDirectName: "Indicado",
       colJoined: "Cadastro",
       colStatus: "Estado",
@@ -324,7 +324,7 @@ export const networkContent = {
       startActive: "Start active",
       chooseLegRequiresStart: "Activate Start before choosing the leg",
       treePendingNote:
-        "Direct referrals only appear in the tree after Start activation and sponsor leg placement.",
+        "Direct referrals sit on the leg extremity (left or right edge) — never internal slots. The 3rd direct spills down the chosen leg border, below qualifiers.",
       colDirectName: "Referral",
       colJoined: "Joined",
       colStatus: "Status",
@@ -574,7 +574,7 @@ export const networkContent = {
       startActive: "Start activo",
       chooseLegRequiresStart: "Active Start antes de elegir la pierna",
       treePendingNote:
-        "Los directos solo aparecen en el árbol tras activar Start y que el patrocinador elija la pierna.",
+        "Los directos ocupan la extremidad de la pierna (izquierda o derecha) — nunca posiciones internas. El 3.er directo baja por el borde de la pierna elegida, debajo de los calificadores.",
       colDirectName: "Directo",
       colJoined: "Registro",
       colStatus: "Estado",

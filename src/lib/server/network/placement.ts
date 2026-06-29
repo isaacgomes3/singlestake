@@ -3,8 +3,9 @@ import { binaryTreeNodes } from "@/lib/server/db/schema";
 
 type ChildMap = Map<string, { left?: string; right?: string }>;
 type LegSide = "left" | "right";
+type NodeRow = typeof binaryTreeNodes.$inferSelect;
 
-function buildChildMap(nodes: (typeof binaryTreeNodes.$inferSelect)[]): ChildMap {
+function buildChildMap(nodes: NodeRow[]): ChildMap {
   const children: ChildMap = new Map();
   for (const node of nodes) {
     if (!node.parentId || !node.side) continue;
@@ -16,40 +17,78 @@ function buildChildMap(nodes: (typeof binaryTreeNodes.$inferSelect)[]): ChildMap
   return children;
 }
 
+function isNodeExcluded(userId: string, exclude: ReadonlySet<string> | undefined): boolean {
+  return exclude?.has(userId) ?? false;
+}
+
+function legChildOccupied(
+  parentId: string,
+  side: LegSide,
+  children: ChildMap,
+  exclude: ReadonlySet<string> | undefined,
+): string | undefined {
+  const occupant = children.get(parentId)?.[side];
+  if (!occupant || isNodeExcluded(occupant, exclude)) return undefined;
+  return occupant;
+}
+
 /**
- * Primeira posição livre na perna escolhida (nível 1 directo ou spillover abaixo).
- * Usado para indicados directos quando L1 já tem qualificador.
+ * Spillover na extremidade da perna:
+ * - esquerda: desce sempre pelo filho esquerdo (L1 → L2 esq → L3 esq …)
+ * - direita: desce sempre pelo filho direito
+ * Indicados directos não ocupam posições internas (filho oposto no meio da perna).
  */
 export function findLegSpilloverPlacement(
   rootUserId: string,
   legSide: LegSide,
-  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+  nodes: NodeRow[],
+  excludeUserIds?: ReadonlySet<string>,
 ): { parentId: string; side: LegSide } | null {
   const children = buildChildMap(nodes);
-  const rootSlot = children.get(rootUserId) ?? {};
 
-  if (!rootSlot[legSide]) {
+  if (!legChildOccupied(rootUserId, legSide, children, excludeUserIds)) {
     return { parentId: rootUserId, side: legSide };
   }
 
-  const queue = [rootSlot[legSide]!];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const slot = children.get(current) ?? {};
-    if (!slot.left) return { parentId: current, side: "left" };
-    if (!slot.right) return { parentId: current, side: "right" };
-    queue.push(slot.left, slot.right);
+  let current = legChildOccupied(rootUserId, legSide, children, excludeUserIds)!;
+  while (true) {
+    if (!legChildOccupied(current, legSide, children, excludeUserIds)) {
+      return { parentId: current, side: legSide };
+    }
+    current = legChildOccupied(current, legSide, children, excludeUserIds)!;
   }
-
-  return null;
 }
 
 export function legSpilloverSlotAvailable(
   rootUserId: string,
   legSide: LegSide,
-  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+  nodes: NodeRow[],
 ): boolean {
   return findLegSpilloverPlacement(rootUserId, legSide, nodes) != null;
+}
+
+/** Indicado está na extremidade da perna (não em posição interna). */
+export function isOnLegExtremity(
+  sponsorId: string,
+  userId: string,
+  nodes: NodeRow[],
+): boolean {
+  const byUser = new Map(nodes.map((n) => [n.userId, n]));
+  const node = byUser.get(userId);
+  if (!node?.side || !node.parentId) return true;
+
+  const pos = getBinaryPositionRelativeTo(sponsorId, userId, nodes);
+  if (!pos) return false;
+  const { legSide } = pos;
+
+  if (node.side !== legSide) return false;
+  if (node.parentId === sponsorId) return true;
+
+  const children = buildChildMap(nodes);
+  const parentSlot = children.get(node.parentId);
+  if (parentSlot?.[legSide] !== userId) return false;
+
+  return isOnLegExtremity(sponsorId, node.parentId, nodes);
 }
 
 /** Primeira posição livre (esquerda, depois direita) em BFS a partir do patrocinador. */
@@ -80,7 +119,7 @@ export function findLegPlacementAtLevel(
   rootUserId: string,
   legSide: LegSide,
   targetLevel: number,
-  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+  nodes: NodeRow[],
 ): { parentId: string; side: LegSide } | null {
   if (targetLevel < 1) return null;
 
@@ -118,7 +157,7 @@ export function findLegPlacementAtLevel(
 export function getBinaryPositionRelativeTo(
   rootUserId: string,
   nodeUserId: string,
-  nodes: (typeof binaryTreeNodes.$inferSelect)[],
+  nodes: NodeRow[],
 ): { level: number; legSide: LegSide } | null {
   const byUser = new Map(nodes.map((n) => [n.userId, n]));
   let current = byUser.get(nodeUserId);
@@ -141,4 +180,22 @@ export function getBinaryPositionRelativeTo(
   if (!legSide) return null;
 
   return { level: tail.length, legSide };
+}
+
+/** IDs do utilizador e de toda a sub-árvore abaixo. */
+export function collectSubtreeUserIds(
+  rootUserId: string,
+  nodes: NodeRow[],
+): Set<string> {
+  const children = buildChildMap(nodes);
+  const ids = new Set<string>();
+  const queue = [rootUserId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    ids.add(current);
+    const slot = children.get(current);
+    if (slot?.left) queue.push(slot.left);
+    if (slot?.right) queue.push(slot.right);
+  }
+  return ids;
 }
