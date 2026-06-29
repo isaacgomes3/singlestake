@@ -1,4 +1,5 @@
-/** Constantes partilhadas (importadas via importScripts no service worker). */
+/** Stake base — igual à automação global (R$ 50 → 100 → 200…). */
+const EXTENSION_REAL_BASE_STAKE = 50;
 const GOG = {
   BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
   PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
@@ -18,6 +19,7 @@ const APP_PRODUCTION_HOSTS = [
   "www.stake37.com.br",
   "singlestake.bet.br",
   "www.singlestake.bet.br",
+  "auto.stake37.com.br",
 ];
 
 function isAppProductionHostname(hostname) {
@@ -69,6 +71,42 @@ function recoveryFromContext(context) {
     if (Number.isFinite(n)) return Math.max(0, n);
   }
   return 0;
+}
+
+/** Intervalo base entre cliques de aposta (ms). */
+const CLICK_STAGGER_BASE_MS = 450;
+
+/**
+ * Gales altos exigem 2^recovery cliques — acelera o ritmo para caber na janela de apostas.
+ * Gale 4 (recovery 4): 2× · Gale 5 (recovery 5): 4×.
+ * 2 Fatores em recuperação: +2× (dois campos com fichas).
+ */
+function clickSpeedMultiplierForRecovery(recovery, context) {
+  const r =
+    typeof recovery === "number" && Number.isFinite(recovery)
+      ? Math.max(0, Math.floor(recovery))
+      : 0;
+  let mult = 1;
+  if (r >= 5) mult = 4;
+  else if (r >= 4) mult = 2;
+
+  const is2F =
+    context?.singleFactorMode === false ||
+    context?.rotativaTrigger === "crossing" ||
+    context?.strategy === "dois2fatores";
+  if (is2F && r > 0) mult *= 2;
+
+  return mult;
+}
+
+function clickStaggerMsForRecovery(recovery, context) {
+  const mult = clickSpeedMultiplierForRecovery(recovery, context);
+  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
+}
+
+function scaledClickDelayMs(baseMs, recovery, context) {
+  const mult = clickSpeedMultiplierForRecovery(recovery, context);
+  return Math.max(15, Math.round(baseMs / mult));
 }
 
 async function setStoredMode(mode) {
@@ -132,9 +170,12 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
+      stakeAmount:
+        recovery > 0
+          ? EXTENSION_REAL_BASE_STAKE * 2 ** recovery
+          : EXTENSION_REAL_BASE_STAKE,
       currentRecovery: recovery,
-      baseStake: 0.5,
+      baseStake: EXTENSION_REAL_BASE_STAKE,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

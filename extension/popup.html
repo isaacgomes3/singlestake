@@ -211,7 +211,7 @@
     </style>
   </head>
   <body>
-    <h1>Singlestake · Pragmatic v1.4.6</h1>
+    <h1>Singlestake · Pragmatic v1.5.4</h1>
     <p class="sub">Um Fator · sala rotativa via app (iframe)</p>
 
     <h2>Modo de execução</h2>
@@ -301,11 +301,11 @@
     <div class="row" style="align-items:center">
       <label for="chipValue" style="font-size:10px;color:#94a3b8">Valor:</label>
       <select id="chipValue" style="flex:1;font-size:10px;padding:4px;border-radius:6px;border:1px solid #334155;background:#111827;color:#e2e8f0">
-        <option value="0.5" selected>R$ 0,50</option>
+        <option value="0.5">R$ 0,50</option>
         <option value="1">R$ 1</option>
         <option value="2">R$ 2</option>
         <option value="5">R$ 5</option>
-        <option value="50">R$ 50</option>
+        <option value="50" selected>R$ 50</option>
       </select>
       <button type="button" id="calChip">📍 Gravar ficha</button>
     </div>
@@ -372,6 +372,16 @@
           type="url"
           spellcheck="false"
           placeholder="wss://dga.pragmaticplaylive.net/ws"
+        />
+      </div>
+      <div class="field">
+        <label for="dgaSyncSecret">Sync servidor (segredo)</label>
+        <input
+          id="dgaSyncSecret"
+          type="password"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="mesmo valor que EXTENSION_SYNC_SECRET na VPS"
         />
       </div>
       <div class="row" style="margin-top:8px">

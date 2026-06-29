@@ -1,9 +1,19 @@
-importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js");
+const __EXT_LOAD_ERRORS = [];
+for (const __extFile of ["shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js"]) {
+  try {
+    importScripts(__extFile);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    __EXT_LOAD_ERRORS.push(`${__extFile}: ${msg}`);
+    console.error("[Singlestake] importScripts falhou:", __extFile, e);
+  }
+}
 
-const CLICK_STAGGER_MS = 450;
-const DEFAULT_CHIP_VALUE = 0.5;
+const DEFAULT_CHIP_VALUE = 50;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
+/** Aguarda poker/roleta carregar após navegação (espelha ensureMesaTab). */
+const LOBBY_NAV_SETTLE_MS = 6500;
 
 /** @type {{ fingerprint: string; at: string; actions: unknown[] } | null} */
 let lastBridge = null;
@@ -16,12 +26,26 @@ let bridgeInFlightKey = null;
 /** Último gale/mesa — permite nova aposta quando recovery sobe. */
 let lastBridgeRecovery = null;
 let lastBridgeTableId = null;
+/** Bloqueia abrir roleta enquanto poker do lobby ainda carrega. */
+let mesaNavLockUntil = 0;
+/** Serializa execuções da bridge — evita poker + roleta em paralelo. */
+let bridgePlanChain = Promise.resolve();
 
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 chrome.runtime.onInstalled.addListener(() => {
-  void setStoredMode(GOG.DEFAULT_MODE);
-  void chrome.storage.local.set({ gogAutopilotEnabled: false });
+  void chrome.storage.local.get([GOG.STORAGE_MODE, STORAGE_BRIDGE_ENABLED], (data) => {
+    const patch = { gogAutopilotEnabled: false };
+    if (data[GOG.STORAGE_MODE] === undefined) {
+      void setStoredMode(GOG.DEFAULT_MODE);
+    } else if (data[GOG.STORAGE_MODE] === "real" || data[GOG.STORAGE_MODE] === "demo") {
+      void updateActionBadge(data[GOG.STORAGE_MODE]);
+    }
+    if (data[STORAGE_BRIDGE_ENABLED] === undefined) {
+      patch[STORAGE_BRIDGE_ENABLED] = true;
+    }
+    void chrome.storage.local.set(patch);
+  });
   void ensureContentBridgeOnAppTabs();
 });
 
@@ -93,7 +117,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-void readStoredMode().then(updateActionBadge);
+void (typeof readStoredMode === "function"
+  ? readStoredMode().then(updateActionBadge)
+  : Promise.resolve());
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") return;
@@ -135,7 +161,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.kind === "set-mode") {
     const mode = message.mode === "real" ? "real" : "demo";
-    void setStoredMode(mode).then(() => sendResponse({ ok: true, mode }));
+    const apply =
+      typeof setStoredMode === "function"
+        ? () => setStoredMode(mode)
+        : () =>
+            chrome.storage.local.set({
+              gogExecutionMode: mode,
+              gogExteriorDryRun: mode === "demo",
+              gogPragmaticDryRun: mode === "demo",
+            });
+    void apply().then(() => {
+      if (typeof updateActionBadge === "function") updateActionBadge(mode);
+      sendResponse({ ok: true, mode });
+    });
     return true;
   }
 
@@ -145,19 +183,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "set-autopilot") {
-    void SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
-      SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
+    if (!globalThis.SinglestakeSignalRunner?.setAutopilotEnabled) {
+      sendResponse({ enabled: false, status: { running: false, reason: "Autopilot indisponível" } });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
+      globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
     );
     return true;
   }
 
   if (message.kind === "get-autopilot") {
-    void SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
+    if (!globalThis.SinglestakeSignalRunner?.getAutopilotStatus) {
+      sendResponse({ enabled: false, status: { running: false } });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
     return true;
   }
 
   if (message.kind === "reset-autopilot-stats") {
-    void SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
+    if (!globalThis.SinglestakeSignalRunner?.resetAutopilotStats) {
+      sendResponse({ ok: false });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
     return true;
   }
 
@@ -311,8 +361,22 @@ async function buildStatus() {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
   const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
-  const autopilot = await SinglestakeSignalRunner.getAutopilotStatus();
-  const dgaConfig = await SinglestakeSignalRunner.getDgaConfigForPopup();
+  const autopilot =
+    globalThis.SinglestakeSignalRunner?.getAutopilotStatus != null
+      ? await globalThis.SinglestakeSignalRunner.getAutopilotStatus()
+      : {
+          enabled: false,
+          status: {
+            running: false,
+            reason:
+              __EXT_LOAD_ERRORS[0] ??
+              "signal-runner não carregou — recarregue a extensão em chrome://extensions",
+          },
+        };
+  const dgaConfig =
+    globalThis.SinglestakeSignalRunner?.getDgaConfigForPopup != null
+      ? await globalThis.SinglestakeSignalRunner.getDgaConfigForPopup()
+      : null;
   const bridgePrefs = await readBridgePrefs();
   const bridgeEnabled = await readBridgeEnabled();
   return {
@@ -334,11 +398,69 @@ async function buildStatus() {
 }
 
 async function handleBridgePayload(payload, sourceTabId) {
+  const run = () => handleBridgePayloadInner(payload, sourceTabId);
+  const ticket = bridgePlanChain.then(run, run);
+  bridgePlanChain = ticket.catch(() => {});
+  return ticket;
+}
+
+async function handleBridgePayloadInner(payload, sourceTabId) {
   const ctx = payload.context ?? {};
   const signalId =
     typeof ctx.signalId === "string" && ctx.signalId.trim() ? ctx.signalId.trim() : null;
   const recovery = recoveryFromContext(ctx);
   const tableId = ctx.currentTableId ?? null;
+  const isBetPayload =
+    !ctx.lobbyWait &&
+    Array.isArray(payload.actions) &&
+    payload.actions.some((a) => a?.kind === "click" && (a.target === "factor-1" || a.target === "factor-2"));
+  const cooldownUntil =
+    typeof ctx.lobbyCooldownUntilMs === "number" && Number.isFinite(ctx.lobbyCooldownUntilMs)
+      ? ctx.lobbyCooldownUntilMs
+      : 0;
+  const postResultHoldUntil =
+    typeof ctx.postResultHoldUntilMs === "number" && Number.isFinite(ctx.postResultHoldUntilMs)
+      ? ctx.postResultHoldUntilMs
+      : 0;
+  const isLobbyPayload = ctx.lobbyWait === true;
+
+  if (isLobbyPayload && postResultHoldUntil > Date.now()) {
+    const waitSec = Math.ceil((postResultHoldUntil - Date.now()) / 1000);
+    return {
+      ok: true,
+      results: [
+        {
+          target: "bridge",
+          ok: true,
+          skipped: true,
+          detail: `Resultado — aguardar ${waitSec}s antes do lobby`,
+        },
+      ],
+      mode: await resolveExecutionMode(payload.context),
+    };
+  }
+
+  if (isBetPayload && (cooldownUntil > Date.now() || postResultHoldUntil > Date.now())) {
+    const until = Math.max(cooldownUntil, postResultHoldUntil);
+    const waitSec = Math.ceil((until - Date.now()) / 1000);
+    return {
+      ok: true,
+      results: [
+        {
+          target: "bridge",
+          ok: true,
+          skipped: true,
+          detail: `Cooldown pós-lobby — aguardar ${waitSec}s antes de nova indicação`,
+        },
+      ],
+      mode: await resolveExecutionMode(payload.context),
+    };
+  }
+
+  if (isBetPayload) {
+    const navWaitMs = mesaNavLockUntil - Date.now();
+    if (navWaitMs > 0) await sleep(navWaitMs);
+  }
 
   if (
     recovery > (lastBridgeRecovery ?? 0) ||
@@ -352,9 +474,11 @@ async function handleBridgePayload(payload, sourceTabId) {
   lastBridgeTableId = tableId;
 
   const dedupeKey =
-    signalId != null ? `${signalId}:r${recovery}` : payload.fingerprint
-      ? `${payload.fingerprint}:r${recovery}`
-      : null;
+    signalId != null
+      ? `${signalId}:r${recovery}${ctx.betAttemptKey ? `:${ctx.betAttemptKey}` : ""}`
+      : payload.fingerprint
+        ? `${payload.fingerprint}:r${recovery}`
+        : null;
 
   if (dedupeKey && (bridgeInFlightKey === dedupeKey || lastBridgeDedupeKey === dedupeKey)) {
     return {
@@ -401,9 +525,10 @@ async function runBridgePlan(payload, sourceTabId) {
     ? clicks.filter((a) => a.target === "factor-1" || a.target === "prepare-open")
     : clicks;
   const results = [];
+  const staggerMs = clickStaggerMsForRecovery(recoveryFromContext(payload.context), payload.context);
 
   for (let i = 0; i < filtered.length; i++) {
-    if (i > 0) await sleep(CLICK_STAGGER_MS);
+    if (i > 0) await sleep(staggerMs);
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
     results.push(result);
@@ -427,7 +552,13 @@ async function dispatchClickAction(action, context, sourceTabId) {
     if (!url) {
       return { target: action.target, ok: false, detail: "Sem URL da mesa no sinal" };
     }
+    const isLobbyNav = context?.lobbyWait === true;
     const tabId = await ensureMesaTab(context, sourceTabId);
+    if (isLobbyNav && tabId != null) {
+      mesaNavLockUntil = Date.now() + LOBBY_NAV_SETTLE_MS;
+    } else if (!isLobbyNav && tabId != null) {
+      mesaNavLockUntil = 0;
+    }
     return {
       target: action.target,
       ok: tabId != null,
@@ -435,6 +566,9 @@ async function dispatchClickAction(action, context, sourceTabId) {
       tabId,
     };
   }
+
+  const navWaitMs = mesaNavLockUntil - Date.now();
+  if (navWaitMs > 0) await sleep(navWaitMs);
 
   const targetTabId = await ensureMesaTab(context, sourceTabId);
   if (targetTabId == null) {
@@ -620,7 +754,7 @@ async function releaseCdpSession() {
 }
 
 /** Clique real na viewport — fallback quando o clique no iframe falha. */
-async function cdpViewportClick(tabId, x, y, keepSession = false) {
+async function cdpViewportClick(tabId, x, y, keepSession = false, speedMultiplier = 1) {
   const attach = await ensureCdpAttached(tabId);
   if (!attach.ok) {
     return {
@@ -628,6 +762,10 @@ async function cdpViewportClick(tabId, x, y, keepSession = false) {
       detail: `Debugger: ${attach.detail} (feche DevTools nessa aba)`,
     };
   }
+
+  const mult = speedMultiplier > 1 ? speedMultiplier : 1;
+  const pressDelayMs = Math.max(15, Math.round(40 / mult));
+  const releaseDelayMs = Math.max(25, Math.round(90 / mult));
 
   const target = { tabId };
   try {
@@ -641,12 +779,12 @@ async function cdpViewportClick(tabId, x, y, keepSession = false) {
       x: px,
       y: py,
     });
-    await sleep(40);
+    await sleep(pressDelayMs);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mousePressed",
       ...base,
     });
-    await sleep(90);
+    await sleep(releaseDelayMs);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mouseReleased",
       x: px,
@@ -714,7 +852,17 @@ async function realClickSavedCoord(tabId, savedCoord, label, kind, options = {})
 
   if (!keepSession) await focusMesaTab(tabId);
 
-  const cdpResult = await cdpViewportClick(tabId, pixels.x, pixels.y, keepSession);
+  const speedMultiplier =
+    typeof options.speedMultiplier === "number" && options.speedMultiplier > 1
+      ? options.speedMultiplier
+      : 1;
+  const cdpResult = await cdpViewportClick(
+    tabId,
+    pixels.x,
+    pixels.y,
+    keepSession,
+    speedMultiplier,
+  );
   if (!cdpResult.ok) {
     return { ok: false, detail: `Clique real falhou: ${cdpResult.detail}` };
   }
@@ -836,7 +984,10 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
     detail: "Ficha já seleccionada (não clica)",
   };
 
-  const cdpOpts = { keepSession: !dryRun };
+  const recovery = recoveryFromContext(context ?? {});
+  const staggerMs = clickStaggerMsForRecovery(recovery, context);
+  const speedMultiplier = clickSpeedMultiplierForRecovery(recovery, context);
+  const cdpOpts = { keepSession: !dryRun, speedMultiplier };
 
   try {
     if (!dryRun) {
@@ -850,22 +1001,22 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
         };
       }
       // Barra «A depurar» reduz o viewport — calcular coords só depois dela aparecer.
-      await sleep(CDP_BAR_SETTLE_MS);
+      await sleep(scaledClickDelayMs(CDP_BAR_SETTLE_MS, recovery, context));
     }
 
     if (await shouldClickChipBeforeBet()) {
       chipResult = await selectChipOnTab(tabId, dryRun, cdpOpts);
       if (!dryRun && chipResult.ok && !chipResult.skipped) {
-        await sleep(CLICK_STAGGER_MS);
+        await sleep(staggerMs);
       }
     }
 
     const chip = await getSavedChipForTab(tabId);
-    const { stakeAmount, chipValue, units, recovery } = stakeUnitsForContext(context ?? {}, chip);
+    const { stakeAmount, chipValue, units } = stakeUnitsForContext(context ?? {}, chip);
 
     let clickResult = { ok: false, detail: "Aposta não executada" };
     for (let u = 0; u < units; u++) {
-      if (u > 0) await sleep(CLICK_STAGGER_MS);
+      if (u > 0) await sleep(staggerMs);
       clickResult = await executeExteriorBetOnTab(tabId, betKey, label, dryRun, cdpOpts);
       if (!clickResult.ok) break;
     }
@@ -948,6 +1099,9 @@ async function resolveMesaTabId(context, preferredTabId) {
 }
 
 function mesaUrlFromContext(context) {
+  if (context?.lobbyWait === true && typeof context?.mesaEmbedUrl === "string") {
+    return context.mesaEmbedUrl.trim();
+  }
   const tableId = context?.currentTableId;
   if (tableId != null && Array.isArray(context?.mesaCatalog)) {
     const entry = context.mesaCatalog.find((e) => e && e.tableId === tableId && e.url);
@@ -1051,6 +1205,13 @@ function rankFrameResult(result) {
 }
 
 async function openMesaTabAndWait(url) {
+  const tabs = await chrome.tabs.query({});
+  const reuseId = pickCasinoTabForNavigation(tabs, url);
+  if (reuseId != null) {
+    await chrome.tabs.update(reuseId, { url, active: true });
+    await sleep(LOBBY_NAV_SETTLE_MS);
+    return reuseId;
+  }
   const tab = await chrome.tabs.create({ url, active: true });
   await sleep(5500);
   return tab.id ?? null;
@@ -1481,4 +1642,4 @@ async function armCalibration(betKey, label, chipValue) {
   };
 }
 
-SinglestakeSignalRunner.initSignalRunner(handleBridgePayload);
+SinglestakeSignalRunner?.initSignalRunner?.(handleBridgePayload);

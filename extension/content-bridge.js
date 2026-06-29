@@ -6,7 +6,28 @@ const GOG = {
   ACK_TYPE: "game-odds-glow/rotating-room-extension-ack",
   STATS_TYPE: "game-odds-glow/rotating-room-extension-stats",
   VERSION: 1,
+  STORAGE_BRIDGE_ENABLED: "gogBridgeEnabled",
+  STORAGE_MODE: "gogExecutionMode",
 };
+
+/** Mesmas chaves que `rotatingRoomExtensionPrefs.ts` na app. */
+const APP_EXTENSION_ENABLED_KEY = "roulette.rotatingRoom.extensionEnabled";
+const APP_EXTENSION_REAL_KEY = "roulette.rotatingRoom.extensionRealMode";
+const APP_PREFS_EVENT = "singlestake-extension-prefs";
+
+function syncAppLocalPrefsFromExtension(patch) {
+  try {
+    if (typeof patch.bridgeEnabled === "boolean") {
+      localStorage.setItem(APP_EXTENSION_ENABLED_KEY, patch.bridgeEnabled ? "1" : "0");
+    }
+    if (patch.executionMode === "real" || patch.executionMode === "demo") {
+      localStorage.setItem(APP_EXTENSION_REAL_KEY, patch.executionMode === "real" ? "1" : "0");
+    }
+    window.dispatchEvent(new CustomEvent(APP_PREFS_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
 
 if (globalThis.__singlestakeContentBridgeLoaded) {
   /* já injectado — evita listeners duplicados */
@@ -57,13 +78,33 @@ function requestBridgePrefs() {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ kind: "get-bridge-prefs" }, (prefs) => {
       if (chrome.runtime.lastError) {
-        resolve({ maxRecovery: 5, wins: 0, losses: 0 });
+        resolve({ maxRecovery: 5, wins: 0, losses: 0, bridgeEnabled: true, executionMode: "demo" });
         return;
       }
-      resolve(prefs ?? { maxRecovery: 5, wins: 0, losses: 0 });
+      const out = prefs ?? { maxRecovery: 5, wins: 0, losses: 0, bridgeEnabled: true, executionMode: "demo" };
+      syncAppLocalPrefsFromExtension({
+        bridgeEnabled: out.bridgeEnabled !== false,
+        executionMode: out.executionMode === "real" ? "real" : "demo",
+      });
+      resolve(out);
     });
   });
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  const patch = {};
+  if (changes[GOG.STORAGE_BRIDGE_ENABLED]) {
+    patch.bridgeEnabled = changes[GOG.STORAGE_BRIDGE_ENABLED].newValue !== false;
+  }
+  if (changes[GOG.STORAGE_MODE]) {
+    const mode = changes[GOG.STORAGE_MODE].newValue;
+    if (mode === "real" || mode === "demo") patch.executionMode = mode;
+  }
+  if (Object.keys(patch).length === 0) return;
+  syncAppLocalPrefsFromExtension(patch);
+  void requestBridgePrefs().then((prefs) => postPong(prefs));
+});
 
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
@@ -112,11 +153,37 @@ window.__singlestakeExtension = {
       });
     });
   },
-  setBridgeEnabled(enabled) {
+  getExecutionMode() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, (out) =>
-        resolve(out),
-      );
+      chrome.runtime.sendMessage({ kind: "get-bridge-prefs" }, (prefs) => {
+        if (chrome.runtime.lastError) {
+          resolve("demo");
+          return;
+        }
+        resolve(prefs?.executionMode === "real" ? "real" : "demo");
+      });
+    });
+  },
+  setExecutionMode(mode) {
+    const next = mode === "real" ? "real" : "demo";
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "set-mode", mode: next }, (out) => {
+        if (!chrome.runtime.lastError) {
+          syncAppLocalPrefsFromExtension({ executionMode: next });
+        }
+        resolve(out);
+      });
+    });
+  },
+  setBridgeEnabled(enabled) {
+    const on = enabled === true;
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: on }, (out) => {
+        if (!chrome.runtime.lastError) {
+          syncAppLocalPrefsFromExtension({ bridgeEnabled: on });
+        }
+        resolve(out);
+      });
     });
   },
   sendSignal(signal) {
@@ -135,8 +202,7 @@ window.__singlestakeExtension = {
   },
 };
 
-/** Anuncia presença assim que o script carrega (antes do primeiro ping da página). */
-postPong();
+/** Anuncia presença com prefs completas (incl. bridgeEnabled persistido). */
 void requestBridgePrefs().then((prefs) => postPong(prefs));
 try {
   chrome.runtime.sendMessage({ kind: "ping" });
