@@ -63,8 +63,8 @@ export function buildUmFatorTriggerTierGate(
 
   return (tier) => {
     if (!isAdminEnabled(tier)) return false;
+    if (tier === "two") return false;
     if (ctx.recovery > 0 && locked != null) return tier === locked;
-    if (ctx.recovery === 0 && ctx.autoPreferredTier != null) return tier === ctx.autoPreferredTier;
     return true;
   };
 }
@@ -86,17 +86,13 @@ export function applyUmFatorSequenceEnd(
   return { ...fields, sequenceLockedTier: null };
 }
 
-/** Após perda parcial — se entrou em gale 4+, alterna preferência para o outro gatilho. */
 export function applyUmFatorTriggerSwitchAfterPartialLoss(
   fields: UmFatorTriggerAutoSelectFields,
-  recoveryBefore: number,
-  matchTier: UmFatorTriggerMatchTier | null,
-  nextRecovery: number,
+  _recoveryBefore: number,
+  _matchTier: UmFatorTriggerMatchTier | null,
+  _nextRecovery: number,
 ): UmFatorTriggerAutoSelectFields {
-  if (matchTier == null || nextRecovery < UM_FATOR_TRIGGER_GALE_SWITCH_AT) return fields;
-  const alternate = alternateUmFatorTriggerTier(matchTier);
-  if (!isUmFatorTriggerTierEnabled(alternate)) return fields;
-  return { ...fields, autoPreferredTier: alternate };
+  return fields;
 }
 
 export function umFatorTriggerAutoSelectLabel(
@@ -105,12 +101,7 @@ export function umFatorTriggerAutoSelectLabel(
 ): string | null {
   const locked = fields.sequenceLockedTier;
   if (recovery > 0 && locked != null) {
-    return locked === "three" ? "3 factores (sequência)" : "2 factores (sequência)";
-  }
-  if (fields.autoPreferredTier != null) {
-    return fields.autoPreferredTier === "three"
-      ? "3 factores (auto)"
-      : "2 factores (auto)";
+    return locked === "three" ? "3 factores (sequência)" : null;
   }
   return null;
 }

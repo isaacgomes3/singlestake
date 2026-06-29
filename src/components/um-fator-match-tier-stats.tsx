@@ -72,13 +72,7 @@ export function UmFatorMatchTierStats({ stats, compact = false, className }: Pro
       >
         Acerto por gatilho
       </p>
-      <div className={cn("grid grid-cols-2 gap-2", compact && "gap-1.5")}>
-        <TierCell
-          label="2 factores iguais"
-          wins={tier.twoEqualFactors.wins}
-          losses={tier.twoEqualFactors.losses}
-          compact={compact}
-        />
+      <div className={cn("grid grid-cols-1 gap-2", compact && "gap-1.5")}>
         <TierCell
           label="3 factores iguais"
           wins={tier.threeEqualFactors.wins}

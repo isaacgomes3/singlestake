@@ -13,14 +13,6 @@ import type { GlobalAutomationConfigDto } from "@/lib/back-office/automation-con
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/rouletteAutomationSim";
 import { useFormat } from "@/lib/i18n/use-format";
 
-function parseOptionalMoney(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const n = Number(trimmed.replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n);
-}
-
 export function BackOfficeAutomationConfigPanel() {
   const { money } = useFormat();
   const [loading, setLoading] = useState(true);
@@ -29,8 +21,6 @@ export function BackOfficeAutomationConfigPanel() {
   const [config, setConfig] = useState<GlobalAutomationConfigDto | null>(null);
   const [paused, setPaused] = useState(false);
   const [baseStake, setBaseStake] = useState(String(ROULETTE_AUTOMATION_BASE_STAKE));
-  const [stopWin, setStopWin] = useState("");
-  const [stopLoss, setStopLoss] = useState("");
 
   const [yieldPct, setYieldPct] = useState("1");
   const [savingYield, setSavingYield] = useState(false);
@@ -48,8 +38,6 @@ export function BackOfficeAutomationConfigPanel() {
         setConfig(row);
         setPaused(row.paused);
         setBaseStake(String(row.baseStake));
-        setStopWin(row.stopWin != null ? String(row.stopWin) : "");
-        setStopLoss(row.stopLoss != null ? String(row.stopLoss) : "");
       }
       if (yieldRes?.ok && yieldRes.pct != null) {
         setYieldPct(String(yieldRes.pct));
@@ -69,8 +57,8 @@ export function BackOfficeAutomationConfigPanel() {
     const result = await saveAutomationConfig({
       paused,
       baseStake: Math.round(stake),
-      stopWin: parseOptionalMoney(stopWin),
-      stopLoss: parseOptionalMoney(stopLoss),
+      stopWin: null,
+      stopLoss: null,
     });
     setSaving(false);
     if (!result.ok || !result.config) {
@@ -174,34 +162,6 @@ export function BackOfficeAutomationConfigPanel() {
           <p className="text-[11px] text-text-secondary">
             Base do martingale: stake × 2^gale (máx. gale 5). Deve coincidir com a ficha da extensão (R$ 50).
           </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text-secondary" htmlFor="auto-stop-win">
-            Stop win (R$ de lucro vs capital)
-          </label>
-          <Input
-            id="auto-stop-win"
-            type="text"
-            inputMode="decimal"
-            placeholder="Desligado"
-            value={stopWin}
-            onChange={(e) => setStopWin(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text-secondary" htmlFor="auto-stop-loss">
-            Stop loss (R$ de prejuízo vs capital)
-          </label>
-          <Input
-            id="auto-stop-loss"
-            type="text"
-            inputMode="decimal"
-            placeholder="Desligado"
-            value={stopLoss}
-            onChange={(e) => setStopLoss(e.target.value)}
-          />
         </div>
 
         <div className="space-y-1.5">

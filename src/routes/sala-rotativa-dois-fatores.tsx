@@ -39,7 +39,7 @@ export const Route = createFileRoute("/sala-rotativa-dois-fatores")({
       {
         name: "description",
         content:
-          "Sala rotativa 2 Fatores — cruzamento ausente ≥14 giros com empate, vitória e derrota.",
+          "Sala rotativa 2 Fatores — cruzamento ausente ≥18 giros com empate, vitória e derrota.",
       },
     ],
   }),

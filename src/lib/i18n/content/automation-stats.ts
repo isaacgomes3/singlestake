@@ -24,7 +24,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 factores iguais",
       threeFactors: "3 factores iguais",
-      crossingAbsence: "2 Fatores · cruzamento (≥14 giros)",
+      crossingAbsence: "2 Fatores · cruzamento (≥18 giros)",
     },
   },
   en: {
@@ -52,7 +52,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 equal factors",
       threeFactors: "3 equal factors",
-      crossingAbsence: "2 Factors · crossing (≥14 spins)",
+      crossingAbsence: "2 Factors · crossing (≥18 spins)",
     },
   },
   es: {
@@ -80,7 +80,7 @@ export const automationStatsContent = {
     triggers: {
       twoFactors: "2 factores iguales",
       threeFactors: "3 factores iguales",
-      crossingAbsence: "2 Factores · cruce (≥14 giros)",
+      crossingAbsence: "2 Factores · cruce (≥18 giros)",
     },
   },
 } as const;

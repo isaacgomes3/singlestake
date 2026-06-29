@@ -63,18 +63,8 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     typeof rawStake === "number" && Number.isFinite(rawStake) && rawStake >= 1
       ? Math.round(rawStake)
       : DEFAULT_GLOBAL_AUTOMATION_CONFIG.baseStake;
-  const stopWin =
-    o.stopWin === null || o.stopWin === undefined
-      ? null
-      : typeof o.stopWin === "number" && Number.isFinite(o.stopWin) && o.stopWin > 0
-        ? Math.round(o.stopWin)
-        : null;
-  const stopLoss =
-    o.stopLoss === null || o.stopLoss === undefined
-      ? null
-      : typeof o.stopLoss === "number" && Number.isFinite(o.stopLoss) && o.stopLoss > 0
-        ? Math.round(o.stopLoss)
-        : null;
+  const stopWin = null;
+  const stopLoss = null;
   const paused = o.paused === true;
   let pauseReason = normalizePauseReason(o.pauseReason);
   let pausedAt =
@@ -104,16 +94,9 @@ export function automationProfitVsCapital(balance: number): number {
 }
 
 export function evaluateAutomationAutoPause(
-  config: GlobalAutomationConfig,
-  balance: number,
+  _config: GlobalAutomationConfig,
+  _balance: number,
 ): { paused: boolean; reason: "stop-win" | "stop-loss" | null } {
-  const profit = automationProfitVsCapital(balance);
-  if (config.stopWin != null && profit >= config.stopWin) {
-    return { paused: true, reason: "stop-win" };
-  }
-  if (config.stopLoss != null && profit <= -config.stopLoss) {
-    return { paused: true, reason: "stop-loss" };
-  }
   return { paused: false, reason: null };
 }
 

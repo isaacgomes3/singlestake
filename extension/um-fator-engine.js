@@ -275,12 +275,12 @@ var SinglestakeUmFator = (() => {
 
   // src/lib/roulette/umFatorTriggerEnable.ts
   var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
-    two: true,
+    two: false,
     three: true
   };
   var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
     ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-    crossing: true
+    crossing: false
   };
   var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
   function isUmFatorTriggerTierEnabled(tier) {
@@ -455,7 +455,7 @@ var SinglestakeUmFator = (() => {
     if (history.length === 0) return "0";
     return `${history.length}:${history[0]}`;
   }
-  var ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 14;
+  var ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 18;
   var ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
   var ROTATING_ROOM_CROSSING_AXES = ["cor-altura", "altura-paridade"];
   function factorsFromBucket(def) {
@@ -1241,15 +1241,11 @@ var SinglestakeUmFator = (() => {
   }
 
   // src/lib/roulette/umFatorTriggerAutoSelect.ts
-  var UM_FATOR_TRIGGER_GALE_SWITCH_AT = 4;
   function defaultUmFatorTriggerAutoSelectFields() {
     return {
       autoPreferredTier: null,
       sequenceLockedTier: null
     };
-  }
-  function alternateUmFatorTriggerTier(tier) {
-    return tier === "three" ? "two" : "three";
   }
   function resolveUmFatorSequenceLockedTier(ctx) {
     if (ctx.sequenceLockedTier != null) return ctx.sequenceLockedTier;
@@ -1260,8 +1256,8 @@ var SinglestakeUmFator = (() => {
     const locked = resolveUmFatorSequenceLockedTier(ctx);
     return (tier) => {
       if (!isAdminEnabled(tier)) return false;
+      if (tier === "two") return false;
       if (ctx.recovery > 0 && locked != null) return tier === locked;
-      if (ctx.recovery === 0 && ctx.autoPreferredTier != null) return tier === ctx.autoPreferredTier;
       return true;
     };
   }
@@ -1274,11 +1270,8 @@ var SinglestakeUmFator = (() => {
     if (fields.sequenceLockedTier == null) return fields;
     return { ...fields, sequenceLockedTier: null };
   }
-  function applyUmFatorTriggerSwitchAfterPartialLoss(fields, recoveryBefore, matchTier, nextRecovery) {
-    if (matchTier == null || nextRecovery < UM_FATOR_TRIGGER_GALE_SWITCH_AT) return fields;
-    const alternate = alternateUmFatorTriggerTier(matchTier);
-    if (!isUmFatorTriggerTierEnabled(alternate)) return fields;
-    return { ...fields, autoPreferredTier: alternate };
+  function applyUmFatorTriggerSwitchAfterPartialLoss(fields, _recoveryBefore, _matchTier, _nextRecovery) {
+    return fields;
   }
 
   // src/lib/roulette/rotatingRoomLobbySignal.ts

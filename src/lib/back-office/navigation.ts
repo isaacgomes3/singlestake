@@ -241,7 +241,7 @@ const MODULE_META: Record<
   "automacao-config": {
     label: "Automação global",
     icon: Zap,
-    description: "Stop win/loss, stake inicial e pausa da automação financeira.",
+    description: "Stake inicial, pausa manual e rendimento diário dos pacotes.",
   },
   "automacao-estatisticas": {
     label: "Estatísticas automação",

@@ -1,7 +1,7 @@
 /**
  * Sala rotativa — cruzamentos cor/altura ou paridade/altura.
  * - Detecta cruzamentos **ausentes** (giros desde a última saída de qualquer número do bucket)
- * - Com **14+** giros de ausência → **POSICIONAR** (1 rodada) → **JOGANDO** no cruzamento ausente
+ * - Com **18+** giros de ausência → **POSICIONAR** (1 rodada) → **JOGANDO** no cruzamento ausente
  * - **POSICIONAR:** vitória no giro não conta e **não** entra em JOGANDO; L/continue → JOGANDO
  * - Com recuperação activa, vitória em POSICIONAR posiciona noutra roleta (recuperação mantém-se)
  * - Placar (JOGANDO): vitória só com **ambos** os fatores; um factor certo → continua; ambos errados → recuperação
@@ -51,7 +51,7 @@ function spinHeadFromHistory(history: readonly number[]): string {
 
 
 /** Sequência mínima sem repetição consecutiva do cruzamento → começa a indicar. */
-export const ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 14;
+export const ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 18;
 
 /** @deprecated Use {@link ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS}. */
 export const ROTATING_ROOM_CROSSING_ALERT_OPPOSITE_HITS = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS;

@@ -53,7 +53,7 @@ export function BackOfficeAutomationStatsPanel() {
   }, [reload]);
 
   async function handleToggleTrigger(
-    id: "two" | "three" | "crossing",
+    id: "three" | "crossing",
     enabled: boolean,
   ) {
     setTogglingId(id);
@@ -142,7 +142,7 @@ export function BackOfficeAutomationStatsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.triggers ?? []).map((row) => (
+                {(data?.triggers ?? []).filter((row) => row.id !== "two").map((row) => (
                   <tr
                     key={row.id}
                     className={cn(
@@ -177,7 +177,7 @@ export function BackOfficeAutomationStatsPanel() {
                         aria-label={triggerLabel(messages, row.labelKey)}
                         onCheckedChange={(checked) =>
                           void handleToggleTrigger(
-                            row.id as "two" | "three" | "crossing",
+                            row.id as "three" | "crossing",
                             checked,
                           )
                         }

@@ -82,7 +82,7 @@ export function MobileStrategyListPage() {
     {
       id: "sala2fatores",
       title: "2 Fatores",
-      subtitle: "Cruzamento ausente ≥14 giros",
+      subtitle: "Cruzamento ausente ≥18 giros",
       to: automationWorkspaceHref("/sala-rotativa-dois-fatores"),
       external: true,
     },

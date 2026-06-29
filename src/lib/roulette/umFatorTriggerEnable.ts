@@ -11,7 +11,7 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
 };
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
-  two: true,
+  two: false,
   three: true,
 };
 
@@ -35,6 +35,7 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   for (const def of UM_FATOR_TRIGGER_TIER_DEFINITIONS) {
     if (typeof o[def.id] === "boolean") base[def.id] = o[def.id]!;
   }
+  base.two = false;
   if (typeof o.crossing === "boolean") base.crossing = o.crossing;
   return base;
 }

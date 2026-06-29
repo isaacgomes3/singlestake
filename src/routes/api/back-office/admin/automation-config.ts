@@ -67,8 +67,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           ...current,
           paused: nextPaused,
           baseStake: body?.baseStake ?? current.baseStake,
-          stopWin: body?.stopWin !== undefined ? body.stopWin : current.stopWin,
-          stopLoss: body?.stopLoss !== undefined ? body.stopLoss : current.stopLoss,
+          stopWin: null,
+          stopLoss: null,
           ...pausePatch,
         };
         await saveAutomationConfig(next);

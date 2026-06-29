@@ -20,11 +20,10 @@ export type UmFatorTriggerTierDefinition = {
  * Catálogo de gatilhos 1 Fator. Novos gatilhos: alargar o tipo, as estatísticas e acrescentar aqui.
  */
 export const UM_FATOR_TRIGGER_TIER_DEFINITIONS: readonly UmFatorTriggerTierDefinition[] = [
-  { id: "two", statsKey: "twoEqualFactors", labelKey: "twoFactors" },
   { id: "three", statsKey: "threeEqualFactors", labelKey: "threeFactors" },
 ] as const;
 
-/** Gatilho 2 Fatores · cruzamento ausente (≥14 giros) — placar com empate/vitória/derrota. */
+/** Gatilho 2 Fatores · cruzamento ausente (≥18 giros) — placar com empate/vitória/derrota. */
 export const ROTATING_ROOM_CROSSING_GATILHO_ID = "crossing" as const;
 
 export type UmFatorTriggerTierReportRow = {
