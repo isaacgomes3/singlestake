@@ -18,6 +18,11 @@ set -e
 
 if [ "$DEPLOY_RC" -eq 0 ]; then
   echo "=== deploy.sh concluído com sucesso ==="
+  COMMIT_MSG="$(git log -1 --pretty=%s 2>/dev/null || true)"
+  if [[ "${REPROCESS_BONUSES:-0}" == "1" ]] || [[ "$COMMIT_MSG" == *"[reprocess-bonuses]"* ]]; then
+    echo "=== A reprocessar bónus na BD de produção ==="
+    bash deploy/reprocess-bonuses-on-vps.sh
+  fi
   exit 0
 fi
 
