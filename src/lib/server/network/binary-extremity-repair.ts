@@ -167,7 +167,15 @@ function planLegRebuild(
   if (members.length === 0) return [];
 
   const memberIds = new Set(members.map((m) => m.userId));
-  let virtualNodes = nodes.filter((n) => !memberIds.has(n.userId));
+  const userById = new Map(allUsers.map((u) => [u.id, u]));
+  // Remove membros desta perna e nós «estrangeiros» que bloqueiam a extremidade.
+  let virtualNodes = nodes.filter((n) => {
+    if (memberIds.has(n.userId)) return false;
+    const user = userById.get(n.userId);
+    if (!user || user.id === sponsorId) return true;
+    const intended = resolveIntendedLeg(user, sponsorId, nodes, qualLegByUserId);
+    return intended == null || intended === legSide;
+  });
   const moves: Array<{ userId: string; parentId: string; side: LegSide }> = [];
 
   for (const member of members) {
@@ -210,33 +218,31 @@ async function replayPointsForUser(userId: string): Promise<void> {
 export async function ensureBinaryLegExtremity(sponsorId: string): Promise<number> {
   const db = getDb();
   const qualLegByUserId = await loadQualificatorLegByUserId();
-  const [nodes, allUsers] = await Promise.all([
-    db.query.binaryTreeNodes.findMany(),
-    db.query.users.findMany(),
-  ]);
-
-  const allMoves: Array<{ userId: string; parentId: string; side: LegSide }> = [];
-
-  for (const legSide of ["left", "right"] as const) {
-    if (!legNeedsRebuild(sponsorId, legSide, nodes, allUsers, qualLegByUserId)) continue;
-    allMoves.push(...planLegRebuild(sponsorId, legSide, nodes, allUsers, qualLegByUserId));
-  }
-
-  if (allMoves.length === 0) return 0;
+  const allUsers = await db.query.users.findMany();
 
   let moved = 0;
-  for (const move of allMoves) {
-    await db
-      .update(binaryTreeNodes)
-      .set({
-        parentId: move.parentId,
-        side: move.side,
-        placedAt: new Date(),
-      })
-      .where(eq(binaryTreeNodes.userId, move.userId));
-    await replayPointsForUser(move.userId);
-    moved++;
+
+  // Esquerda antes da direita — liberta slots bloqueados por quals na perna oposta.
+  for (const legSide of ["left", "right"] as const) {
+    const currentNodes = await db.query.binaryTreeNodes.findMany();
+    if (!legNeedsRebuild(sponsorId, legSide, currentNodes, allUsers, qualLegByUserId)) continue;
+
+    const moves = planLegRebuild(sponsorId, legSide, currentNodes, allUsers, qualLegByUserId);
+    for (const move of moves) {
+      await db
+        .update(binaryTreeNodes)
+        .set({
+          parentId: move.parentId,
+          side: move.side,
+          placedAt: new Date(),
+        })
+        .where(eq(binaryTreeNodes.userId, move.userId));
+      await replayPointsForUser(move.userId);
+      moved++;
+    }
   }
+
+  if (moved === 0) return 0;
 
   if (moved > 0) {
     console.info(`[binary-extremity] ${moved} nó(s) reorganizado(s) para patrocinador ${sponsorId.slice(0, 8)}`);
