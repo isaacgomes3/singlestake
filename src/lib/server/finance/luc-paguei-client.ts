@@ -89,22 +89,6 @@ export async function lucPagueiLogin(
   return { ok: true, token };
 }
 
-function stripDataUrlPrefix(value: string): string {
-  return value.replace(/^data:image\/\w+;base64,/, "").trim();
-}
-
-function isLikelyQrImageBase64(value: string): boolean {
-  const raw = stripDataUrlPrefix(value);
-  if (!/^[A-Za-z0-9+/=]+$/.test(raw) || raw.length < 64) return false;
-  if (raw.startsWith("iVBORw0KGgo") || raw.startsWith("/9j/")) return true;
-  try {
-    const head = Buffer.from(raw.slice(0, 16), "base64");
-    return head[0] === 0x89 && head[1] === 0x50; /* PNG */
-  } catch {
-    return false;
-  }
-}
-
 function pickPixEmvFromCandidates(candidates: unknown[]): string | null {
   for (const c of candidates) {
     if (typeof c !== "string" || !c.trim()) continue;
@@ -129,56 +113,28 @@ function extractPixCode(body: Record<string, unknown>): string | null {
     qrNode?.pixCopiaCola,
     qrNode?.pixCopiaECola,
     qrNode?.brCode,
+    qrNode?.brcode,
     qrNode?.emv,
     payloadNode?.data,
     payloadNode?.emv,
     payloadNode?.pixCode,
+    payloadNode?.pixCopiaCola,
+    payloadNode?.brCode,
     qrCodeObj?.emv,
     body.pixCode,
     body.pix_code,
     body.copiaecola,
     body.copia_e_cola,
+    body.pixCopiaCola,
+    body.brCode,
+    body.brcode,
+    body.copyPaste,
+    body.copy_paste,
     body.emv,
     /* qrcode por último — gateways costumam enviar imagem neste campo */
     qrNode?.qrcode,
     body.qrcode,
   ]);
-}
-
-function extractQrImageBase64(body: Record<string, unknown>): string | null {
-  const qrNode = (body.qrCodeResponse ?? body.qr_code_response) as Record<string, unknown> | undefined;
-  const payloadNode = (body.payload ?? body.pix) as Record<string, unknown> | undefined;
-  const qrCodeObj = (body.qrCode ?? qrNode?.qrCode) as Record<string, unknown> | undefined;
-
-  const candidates = [
-    qrNode?.image,
-    qrNode?.qrCodeImage,
-    qrNode?.qrcode_image,
-    payloadNode?.image,
-    qrCodeObj?.image,
-    body.qrCodeImage,
-    body.qrcode_image,
-    body.qrcode,
-    qrNode?.qrcode,
-  ];
-
-  for (const c of candidates) {
-    if (typeof c !== "string" || !c.trim()) continue;
-    const trimmed = c.trim();
-    if (isPixEmvPayload(trimmed)) continue;
-    if (trimmed.startsWith("data:image")) return stripDataUrlPrefix(trimmed);
-    if (isLikelyQrImageBase64(trimmed)) return stripDataUrlPrefix(trimmed);
-  }
-
-  const pixCodeBase64 =
-    (typeof body.pixCodeBase64 === "string" && body.pixCodeBase64) ||
-    (typeof qrNode?.pixCodeBase64 === "string" && qrNode.pixCodeBase64) ||
-    null;
-  if (pixCodeBase64 && isLikelyQrImageBase64(pixCodeBase64) && !decodePixEmvFromBase64(pixCodeBase64)) {
-    return stripDataUrlPrefix(pixCodeBase64);
-  }
-
-  return null;
 }
 
 function extractTransactionId(body: Record<string, unknown>, fallback: string): string {
@@ -241,18 +197,16 @@ export async function lucPagueiCreatePixDeposit(input: {
     return {
       ok: false,
       error:
-        "Gateway não devolveu código PIX válido (copia e cola EMV). Verifique a resposta do Luc Paguei.",
+        "Gateway não devolveu código PIX válido (copia e cola EMV com CRC). Verifique a resposta do Luc Paguei.",
     };
   }
-
-  const qrCodeBase64 = extractQrImageBase64(body);
 
   return {
     ok: true,
     charge: {
       pixCode,
       transactionId: extractTransactionId(body, input.externalId),
-      qrCodeBase64,
+      qrCodeBase64: null,
     },
   };
 }

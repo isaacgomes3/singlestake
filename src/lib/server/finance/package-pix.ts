@@ -21,7 +21,7 @@ import {
   getPaymentGatewaySettings,
   isLucPagueiGatewayReady,
 } from "@/lib/server/finance/payment-gateway-settings";
-import { generatePixQrBase64, isPixEmvPayload, normalizePixEmvPayload, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
+import { buildPixQrArtifactsFromEmv, isPixEmvPayload, normalizePixEmvPayload, parsePixPayloadAmount } from "@/lib/server/finance/pix-qr";
 import {
   isStaticPixConfigured,
   listConfiguredStaticPixAmounts,
@@ -121,7 +121,7 @@ async function refreshPackagePixOrderArtifacts(
   const emv = normalizePixEmvPayload(payload);
   let qrCodeBase64: string;
   try {
-    qrCodeBase64 = await generatePixQrBase64(emv);
+    ({ qrCodeBase64 } = await buildPixQrArtifactsFromEmv(emv));
   } catch {
     return null;
   }
@@ -246,19 +246,19 @@ export async function createPackagePixOrder(input: {
       return chargeResult;
     }
 
-    const pixEmv = normalizePixEmvPayload(chargeResult.charge.pixCode);
+    let pixEmv = normalizePixEmvPayload(chargeResult.charge.pixCode);
     if (!isPixEmvPayload(pixEmv)) {
       await db.delete(packagePixOrders).where(eq(packagePixOrders.id, orderId));
-      return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
+      return { ok: false, error: "Gateway devolveu código PIX inválido (CRC). Tente novamente." };
     }
 
-    let qrCodeBase64 = chargeResult.charge.qrCodeBase64;
-    if (!qrCodeBase64) {
-      try {
-        qrCodeBase64 = await generatePixQrBase64(pixEmv);
-      } catch {
-        qrCodeBase64 = null;
-      }
+    let qrCodeBase64: string;
+    try {
+      ({ emv: pixEmv, qrCodeBase64 } = await buildPixQrArtifactsFromEmv(pixEmv));
+    } catch (error) {
+      await db.delete(packagePixOrders).where(eq(packagePixOrders.id, orderId));
+      const msg = error instanceof Error ? error.message : "Erro ao gerar QR Code PIX.";
+      return { ok: false, error: msg };
     }
 
     await db
@@ -276,14 +276,14 @@ export async function createPackagePixOrder(input: {
   }
 
   if (staticPayload) {
-    const pixEmv = normalizePixEmvPayload(staticPayload);
+    let pixEmv = normalizePixEmvPayload(staticPayload);
     if (!isPixEmvPayload(pixEmv)) {
       return { ok: false, error: "PIX estático mal configurado no servidor (payload EMV inválido)." };
     }
     const pixFixedAmount = parsePixPayloadAmount(pixEmv);
     let qrCodeBase64: string;
     try {
-      qrCodeBase64 = await generatePixQrBase64(pixEmv);
+      ({ emv: pixEmv, qrCodeBase64 } = await buildPixQrArtifactsFromEmv(pixEmv));
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro ao gerar QR Code.";
       return { ok: false, error: msg };

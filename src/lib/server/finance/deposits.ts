@@ -13,7 +13,7 @@ import {
   buildPaymentExternalId,
   lucPagueiCreatePixDeposit,
 } from "@/lib/server/finance/luc-paguei-client";
-import { generatePixQrBase64, isPixEmvPayload, normalizePixEmvPayload } from "@/lib/server/finance/pix-qr";
+import { buildPixQrArtifactsFromEmv, isPixEmvPayload, normalizePixEmvPayload } from "@/lib/server/finance/pix-qr";
 import {
   getPaymentGatewaySettings,
   isLucPagueiGatewayReady,
@@ -308,19 +308,19 @@ export async function createDepositPix(input: {
     return charge;
   }
 
-  const pixEmv = normalizePixEmvPayload(charge.charge.pixCode);
+  let pixEmv = normalizePixEmvPayload(charge.charge.pixCode);
   if (!isPixEmvPayload(pixEmv)) {
     await db.delete(deposits).where(eq(deposits.id, id));
-    return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
+    return { ok: false, error: "Gateway devolveu código PIX inválido (CRC). Tente novamente." };
   }
 
-  let qrCodeBase64 = charge.charge.qrCodeBase64;
-  if (!qrCodeBase64) {
-    try {
-      qrCodeBase64 = await generatePixQrBase64(pixEmv);
-    } catch {
-      qrCodeBase64 = null;
-    }
+  let qrCodeBase64: string;
+  try {
+    ({ emv: pixEmv, qrCodeBase64 } = await buildPixQrArtifactsFromEmv(pixEmv));
+  } catch (error) {
+    await db.delete(deposits).where(eq(deposits.id, id));
+    const msg = error instanceof Error ? error.message : "Erro ao gerar QR Code PIX.";
+    return { ok: false, error: msg };
   }
 
   await db
