@@ -30,13 +30,12 @@ function isRotatingRoomBridgePath(pathname: string): boolean {
   );
 }
 
-/** Envia sinais da sala rotativa (1 Fator + cruzamento 2F) à extensão Chrome. */
-export function RotatingRoomExtensionBridgeGlobal() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
+type BridgeInnerProps = {
+  bridgeActive: boolean;
+};
 
-  const autoBridge = isRotatingRoomBridgePath(pathname);
-
+/** Só monta com extensão presente — evita motores de placar duplicados na visão geral. */
+function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const [configTick, setConfigTick] = useState(0);
 
   useEffect(() => {
@@ -56,7 +55,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
   const { state: globalAutomation } = useRouletteAutomationSim();
   const session = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
-    observeOnly: false,
+    observeOnly: true,
   });
 
   const mesaEmbedUrl = useMemo(() => {
@@ -67,12 +66,6 @@ export function RotatingRoomExtensionBridgeGlobal() {
     return catalog.find((e) => e.tableId === focusId)?.url ?? getCasinoEmbedUrlForTable(focusId);
   }, [session]);
 
-  const extensionBridgeOn =
-    extensionPresent &&
-    (extensionPrefs?.bridgeEnabled === undefined || extensionPrefs.bridgeEnabled !== false);
-
-  const bridgeActive = autoBridge && extensionPresent && extensionBridgeOn;
-
   useRotatingRoomClickBotLearning({
     session,
     enabled: bridgeActive,
@@ -82,4 +75,20 @@ export function RotatingRoomExtensionBridgeGlobal() {
   });
 
   return null;
+}
+
+/** Envia sinais da sala rotativa (1 Fator + cruzamento 2F) à extensão Chrome. */
+export function RotatingRoomExtensionBridgeGlobal() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
+
+  const autoBridge = isRotatingRoomBridgePath(pathname);
+  const extensionBridgeOn =
+    extensionPresent &&
+    (extensionPrefs?.bridgeEnabled === undefined || extensionPrefs.bridgeEnabled !== false);
+  const bridgeActive = autoBridge && extensionPresent && extensionBridgeOn;
+
+  if (!autoBridge || !extensionPresent) return null;
+
+  return <RotatingRoomExtensionBridgeInner bridgeActive={bridgeActive} />;
 }

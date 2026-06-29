@@ -48,22 +48,10 @@ export function buildUmFatorTriggerTierReport(
 
 export function buildRotatingRoomGatilhoTriggerReport(
   umStats: RotatingRoomSessionStats | undefined,
-  crossingStats: RotatingRoomSessionStats | undefined,
+  _crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing", boolean>>,
 ): UmFatorTriggerTierReportRow[] {
-  const rows = buildUmFatorTriggerTierReport(umStats, enabledTriggers);
-  const crossWins = Math.max(0, crossingStats?.wins ?? 0);
-  const crossLosses = Math.max(0, crossingStats?.losses ?? 0);
-  rows.push({
-    id: ROTATING_ROOM_CROSSING_GATILHO_ID,
-    labelKey: "crossingAbsence",
-    wins: crossWins,
-    losses: crossLosses,
-    total: crossWins + crossLosses,
-    accuracyPct: umFatorMatchTierAproveitamentoPct({ wins: crossWins, losses: crossLosses }),
-    enabled: enabledTriggers?.crossing !== false,
-  });
-  return rows;
+  return buildUmFatorTriggerTierReport(umStats, enabledTriggers);
 }
 
 function rowFromBucket(

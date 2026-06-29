@@ -57,6 +57,7 @@ export function BackOfficeLayout() {
   }, []);
 
   useLayoutEffect(() => {
+    window.__singlestakeHydrated = true;
     const cached = getSession();
     setSessionState(cached);
     setBooted(true);
@@ -79,7 +80,7 @@ export function BackOfficeLayout() {
       }
       setSessionError(t("common.sessionExpired"));
     });
-  }, [pathname, t]);
+  }, [pathname]);
 
   const toggleSidebarLayout = () => {
     setSidebarBoxed((prev) => {

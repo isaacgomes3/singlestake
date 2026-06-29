@@ -45,7 +45,7 @@ pm2 start deploy/ecosystem.config.cjs
 pm2 save
 
 sleep 4
-CSS="$(curl -sf http://127.0.0.1:3000/entrar | grep -oE '/assets/styles-[A-Za-z0-9_-]+\.css' | head -1 || true)"
+CSS="$(extract_asset_href "$(fetch_local_page_html /entrar)" '/assets/styles-[A-Za-z0-9_-]+\.css')"
 if [[ -n "$CSS" ]]; then
   CODE="$(curl -sf -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000${CSS}" || echo "000")"
   echo "Node ${CSS} → HTTP ${CODE}"

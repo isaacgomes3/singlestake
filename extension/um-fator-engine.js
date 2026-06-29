@@ -276,18 +276,18 @@ var SinglestakeUmFator = (() => {
   // src/lib/roulette/umFatorTriggerEnable.ts
   var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
     two: false,
-    three: false
+    three: true
   };
   var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
     ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-    crossing: true
+    crossing: false
   };
   var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
   function isUmFatorTriggerTierEnabled(tier) {
     return runtimeEnabled[tier] !== false;
   }
   function isCrossingGatilhoEnabled() {
-    return runtimeEnabled.crossing !== false;
+    return false;
   }
 
   // src/lib/roulette/liveTableColdStats.ts

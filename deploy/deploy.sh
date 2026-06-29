@@ -96,8 +96,8 @@ fi
 
 echo "→ verificar assets estáticos"
 sleep 3
-HTML="$(curl -sf --max-time 30 http://127.0.0.1:3000/entrar || true)"
-CSS="$(echo "$HTML" | grep -oE '/assets/styles-[A-Za-z0-9_-]+\.css' | head -1 || true)"
+HTML="$(fetch_local_page_html /entrar)"
+CSS="$(extract_asset_href "$HTML" '/assets/styles-[A-Za-z0-9_-]+\.css')"
 if [[ -z "$CSS" ]]; then
   echo "⚠ HTML sem link CSS — ver pm2 logs singlestake"
 elif [[ ! -f ".output/public${CSS}" ]]; then

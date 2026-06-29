@@ -241,7 +241,7 @@ export function useRotatingRoomCrossingSession(
   });
 
   useEffect(() => {
-    if (!enabled || globalActive || tableIds.length === 0) return;
+    if (!enabled || globalActive || observeOnly || tableIds.length === 0) return;
 
     const tickGen = placarResetGenRef.current;
     const placar = drainPlacarSteps(

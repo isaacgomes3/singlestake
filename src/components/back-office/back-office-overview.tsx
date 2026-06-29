@@ -3,6 +3,7 @@ import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
+import { DeferredMount } from "@/components/deferred-mount";
 import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { apiFetchOverview } from "@/lib/auth/api";
 import { MOCK_BACK_OFFICE_OVERVIEW } from "@/lib/back-office/mock-data";
@@ -113,7 +114,9 @@ export function BackOfficeOverviewPage() {
         </Link>
       </section>
 
-      <AutomationOverviewSections />
+      <DeferredMount delayMs={50}>
+        <AutomationOverviewSections />
+      </DeferredMount>
 
       <section>
         <Link

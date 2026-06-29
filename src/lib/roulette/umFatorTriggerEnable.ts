@@ -1,7 +1,7 @@
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
-/** Gatilhos activos na sala rotativa (1 Fator + cruzamento 2F). */
+/** Gatilhos activos na sala rotativa (1 Fator). Cruzamento 2F retirado. */
 export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing";
 
 export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
@@ -12,12 +12,12 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
   two: false,
-  three: false,
+  three: true,
 };
 
 export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap = {
   ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-  crossing: true,
+  crossing: false,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
@@ -36,7 +36,7 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
     if (typeof o[def.id] === "boolean") base[def.id] = o[def.id]!;
   }
   base.two = false;
-  if (typeof o.crossing === "boolean") base.crossing = o.crossing;
+  base.crossing = false;
   return base;
 }
 
@@ -62,5 +62,5 @@ export function isUmFatorTriggerTierEnabled(tier: UmFatorTriggerMatchTier): bool
 }
 
 export function isCrossingGatilhoEnabled(): boolean {
-  return runtimeEnabled.crossing !== false;
+  return false;
 }

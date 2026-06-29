@@ -16,6 +16,7 @@ import { LiveRouletteSseBridge } from "@/components/live-roulette-sse-bridge";
 import { RouletteAutomationSimSseBridge } from "@/components/roulette-automation-sim-sse-bridge";
 import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
 import { RotatingRoomExtensionBridgeGlobal } from "@/components/rotating-room-extension-bridge-global";
+import { DeferredMount } from "@/components/deferred-mount";
 import { RouteSoundGate } from "@/components/route-sound-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { useAppProfile } from "@/hooks/useAppProfile";
@@ -140,6 +141,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+/** Se o React não hidratar (cache/JS bloqueado), mostra instruções em vez de ficar preso. */
+const HYDRATION_WATCHDOG_SCRIPT = `(function(){setTimeout(function(){if(window.__singlestakeHydrated)return;var el=document.querySelector(".app-back-office-bg");if(!el||!/carregar/i.test(el.textContent||""))return;el.innerHTML='<div style="max-width:28rem;margin:4rem auto;padding:1.5rem;font-family:system-ui,sans-serif;text-align:center;color:#334155"><p style="font-weight:600;margin:0 0 0.5rem">A página não iniciou</p><p style="font-size:0.875rem;color:#64748b;margin:0 0 1rem;line-height:1.5">Limpe a cache (Ctrl+Shift+R), tente janela anónima ou verifique erros na consola (F12 → Consola).</p><a href="/entrar" style="display:inline-block;padding:0.5rem 1rem;background:#2563eb;color:#fff;border-radius:0.5rem;text-decoration:none;font-size:0.875rem">Ir para entrar</a> <button type="button" onclick="location.reload()" style="display:inline-block;margin-left:0.5rem;padding:0.5rem 1rem;border:1px solid #cbd5e1;border-radius:0.5rem;background:#fff;cursor:pointer;font-size:0.875rem">Recarregar</button></div>';},12000);})();`;
+
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt" suppressHydrationWarning>
@@ -149,6 +153,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
+        <script dangerouslySetInnerHTML={{ __html: HYDRATION_WATCHDOG_SCRIPT }} />
         <Scripts />
       </body>
     </html>
@@ -185,6 +190,25 @@ function RootComponent() {
     (!isAutomation && workspacePath);
 
   const outlet = <Outlet />;
+  const automationBridges = needsGlobalAutomation ? (
+    <DeferredMount delayMs={backOfficeAutomationView ? 50 : 0}>
+      <StrategyGlobalSseBridge />
+      <RouletteAutomationSimSseBridge />
+    </DeferredMount>
+  ) : null;
+  const extensionBridge = needsExtensionBridge ? (
+    <DeferredMount delayMs={backOfficeAutomationView ? 100 : 0}>
+      <RotatingRoomExtensionBridgeGlobal />
+    </DeferredMount>
+  ) : null;
+  const casinoStreams = needsCasinoStreams ? (
+    <>
+      <RouteSoundGate />
+      <LiveRouletteSseBridge />
+      <Live24dSpinSseBridge />
+      <LiveFootballBlitzSseBridge />
+    </>
+  ) : null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -194,22 +218,10 @@ function RootComponent() {
           {liveCasinoShell ? (
             <div className="app-back-office-bg">
               <RouletteLiveApiProvider>
-                {needsGlobalAutomation ? (
-                  <>
-                    <StrategyGlobalSseBridge />
-                    <RouletteAutomationSimSseBridge />
-                  </>
-                ) : null}
-                {needsExtensionBridge ? <RotatingRoomExtensionBridgeGlobal /> : null}
-                {needsCasinoStreams ? (
-                  <>
-                    <RouteSoundGate />
-                    <LiveRouletteSseBridge />
-                    <Live24dSpinSseBridge />
-                    <LiveFootballBlitzSseBridge />
-                  </>
-                ) : null}
                 {outlet}
+                {automationBridges}
+                {extensionBridge}
+                {casinoStreams}
               </RouletteLiveApiProvider>
             </div>
           ) : (
