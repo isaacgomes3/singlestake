@@ -34,9 +34,13 @@ let bridgePlanChain = Promise.resolve();
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 chrome.runtime.onInstalled.addListener(() => {
-  void setStoredMode(GOG.DEFAULT_MODE);
-  void chrome.storage.local.get([STORAGE_BRIDGE_ENABLED], (data) => {
+  void chrome.storage.local.get([GOG.STORAGE_MODE, STORAGE_BRIDGE_ENABLED], (data) => {
     const patch = { gogAutopilotEnabled: false };
+    if (data[GOG.STORAGE_MODE] === undefined) {
+      void setStoredMode(GOG.DEFAULT_MODE);
+    } else if (data[GOG.STORAGE_MODE] === "real" || data[GOG.STORAGE_MODE] === "demo") {
+      void updateActionBadge(data[GOG.STORAGE_MODE]);
+    }
     if (data[STORAGE_BRIDGE_ENABLED] === undefined) {
       patch[STORAGE_BRIDGE_ENABLED] = true;
     }

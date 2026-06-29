@@ -153,10 +153,11 @@ function resetDgaConfigForm() {
 loadDgaConfigForm();
 loadBridgePrefsForm();
 
-/** Estado «Ligar» logo ao abrir o popup (antes do service worker responder). */
-chrome.storage.local.get([STORAGE_BRIDGE_ENABLED], (data) => {
+/** Estado «Ligar» e modo Demo/Real logo ao abrir o popup. */
+chrome.storage.local.get([STORAGE_BRIDGE_ENABLED, STORAGE_MODE], (data) => {
   if (chrome.runtime.lastError) return;
   setBridgeUi(data[STORAGE_BRIDGE_ENABLED] !== false);
+  setModeUi(data[STORAGE_MODE] === "real" ? "real" : "demo");
 });
 
 dgaSaveBtn?.addEventListener("click", saveDgaConfigForm);

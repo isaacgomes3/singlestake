@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 type ExtensionApi = {
   setBridgeEnabled?: (enabled: boolean) => Promise<unknown>;
   getBridgeEnabled?: () => Promise<boolean>;
+  getExecutionMode?: () => Promise<"demo" | "real">;
+  setExecutionMode?: (mode: "demo" | "real") => Promise<unknown>;
 };
 
 function extensionApi(): ExtensionApi | null {
@@ -80,7 +82,9 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
       setEnabled(extensionPongPrefs.bridgeEnabled);
     }
     if (extensionPongPrefs.executionMode === "real" || extensionPongPrefs.executionMode === "demo") {
-      writeRotatingRoomExtensionRealMode(extensionPongPrefs.executionMode === "real");
+      const isReal = extensionPongPrefs.executionMode === "real";
+      writeRotatingRoomExtensionRealMode(isReal);
+      setRealMode(isReal);
     }
     setExtensionPrefs({
       maxRecovery: extensionPongPrefs.maxRecovery ?? readEffectiveUmFatorMaxRecovery(),
@@ -92,11 +96,17 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
   useEffect(() => {
     if (!extensionPresent) return;
     const api = extensionApi();
-    if (!api?.setBridgeEnabled) return;
+    if (!api?.getBridgeEnabled && !api?.getExecutionMode) return;
     void api.getBridgeEnabled?.().then((bridgeOn) => {
       if (typeof bridgeOn !== "boolean") return;
       writeRotatingRoomExtensionEnabled(bridgeOn);
       setEnabled(bridgeOn);
+    });
+    void api.getExecutionMode?.().then((mode) => {
+      if (mode !== "real" && mode !== "demo") return;
+      const isReal = mode === "real";
+      writeRotatingRoomExtensionRealMode(isReal);
+      setRealMode(isReal);
     });
   }, [extensionPresent]);
 
@@ -112,14 +122,14 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
   }, []);
 
   const toggleReal = () => {
-    setRealMode((prev) => {
-      const next = !prev;
-      if (next && !window.confirm("Activar entradas REAIS na mesa (martingale)? Confirma.")) {
-        return prev;
-      }
-      writeRotatingRoomExtensionRealMode(next);
-      return next;
-    });
+    if (!extensionPresent) return;
+    const next = !realMode;
+    if (next && !window.confirm("Activar entradas REAIS na mesa (martingale)? Confirma.")) {
+      return;
+    }
+    writeRotatingRoomExtensionRealMode(next);
+    setRealMode(next);
+    void extensionApi()?.setExecutionMode?.(next ? "real" : "demo");
   };
 
   const toggle = () => {

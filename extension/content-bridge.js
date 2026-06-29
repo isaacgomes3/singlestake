@@ -153,6 +153,28 @@ window.__singlestakeExtension = {
       });
     });
   },
+  getExecutionMode() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "get-bridge-prefs" }, (prefs) => {
+        if (chrome.runtime.lastError) {
+          resolve("demo");
+          return;
+        }
+        resolve(prefs?.executionMode === "real" ? "real" : "demo");
+      });
+    });
+  },
+  setExecutionMode(mode) {
+    const next = mode === "real" ? "real" : "demo";
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ kind: "set-mode", mode: next }, (out) => {
+        if (!chrome.runtime.lastError) {
+          syncAppLocalPrefsFromExtension({ executionMode: next });
+        }
+        resolve(out);
+      });
+    });
+  },
   setBridgeEnabled(enabled) {
     const on = enabled === true;
     return new Promise((resolve) => {
