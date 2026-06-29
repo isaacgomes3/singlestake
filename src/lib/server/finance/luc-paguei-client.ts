@@ -4,8 +4,7 @@ import type { PaymentGatewaySettings } from "@/lib/server/finance/payment-gatewa
 import { normalizeCpf } from "@/lib/server/finance/cpf";
 import {
   decodePixEmvFromBase64,
-  isPixEmvPayload,
-  normalizePixEmvPayload,
+  normalizePixEmvFromGateway,
 } from "@/lib/server/finance/pix-qr";
 
 export type LucPixChargeResult = {
@@ -93,11 +92,28 @@ function pickPixEmvFromCandidates(candidates: unknown[]): string | null {
   for (const c of candidates) {
     if (typeof c !== "string" || !c.trim()) continue;
     const trimmed = c.trim();
-    if (isPixEmvPayload(trimmed)) return normalizePixEmvPayload(trimmed);
+    const fromGateway = normalizePixEmvFromGateway(trimmed);
+    if (fromGateway) return fromGateway;
     const fromB64 = decodePixEmvFromBase64(trimmed);
     if (fromB64) return fromB64;
   }
   return null;
+}
+
+function collectStringCandidates(value: unknown, out: string[]): void {
+  if (typeof value === "string" && value.trim()) {
+    out.push(value.trim());
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectStringCandidates(item, out);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const nested of Object.values(value as Record<string, unknown>)) {
+      collectStringCandidates(nested, out);
+    }
+  }
 }
 
 function extractPixCode(body: Record<string, unknown>): string | null {
@@ -105,36 +121,41 @@ function extractPixCode(body: Record<string, unknown>): string | null {
   const payloadNode = (body.payload ?? body.pix) as Record<string, unknown> | undefined;
   const qrCodeObj = (body.qrCode ?? qrNode?.qrCode) as Record<string, unknown> | undefined;
 
-  return pickPixEmvFromCandidates([
-    qrNode?.pixCode,
-    qrNode?.pix_code,
-    qrNode?.copiaecola,
-    qrNode?.copia_e_cola,
-    qrNode?.pixCopiaCola,
-    qrNode?.pixCopiaECola,
+  const ordered = pickPixEmvFromCandidates([
+    qrNode?.emv,
     qrNode?.brCode,
     qrNode?.brcode,
-    qrNode?.emv,
-    payloadNode?.data,
+    qrNode?.pixCopiaCola,
+    qrNode?.pixCopiaECola,
+    qrNode?.copiaecola,
+    qrNode?.copia_e_cola,
+    qrNode?.pixCode,
+    qrNode?.pix_code,
+    qrNode?.qrcode,
     payloadNode?.emv,
-    payloadNode?.pixCode,
-    payloadNode?.pixCopiaCola,
     payloadNode?.brCode,
+    payloadNode?.pixCopiaCola,
+    payloadNode?.pixCode,
+    payloadNode?.data,
     qrCodeObj?.emv,
-    body.pixCode,
-    body.pix_code,
-    body.copiaecola,
-    body.copia_e_cola,
-    body.pixCopiaCola,
+    body.emv,
     body.brCode,
     body.brcode,
+    body.pixCopiaCola,
+    body.pixCopiaECola,
+    body.copiaecola,
+    body.copia_e_cola,
+    body.pixCode,
+    body.pix_code,
     body.copyPaste,
     body.copy_paste,
-    body.emv,
-    /* qrcode por último — gateways costumam enviar imagem neste campo */
-    qrNode?.qrcode,
     body.qrcode,
   ]);
+  if (ordered) return ordered;
+
+  const fallback: string[] = [];
+  collectStringCandidates(body, fallback);
+  return pickPixEmvFromCandidates(fallback);
 }
 
 function extractTransactionId(body: Record<string, unknown>, fallback: string): string {
@@ -197,7 +218,7 @@ export async function lucPagueiCreatePixDeposit(input: {
     return {
       ok: false,
       error:
-        "Gateway não devolveu código PIX válido (copia e cola EMV com CRC). Verifique a resposta do Luc Paguei.",
+        "Gateway não devolveu código PIX válido (copia e cola EMV). Verifique a resposta do Luc Paguei.",
     };
   }
 

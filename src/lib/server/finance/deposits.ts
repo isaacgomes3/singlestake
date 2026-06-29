@@ -311,7 +311,7 @@ export async function createDepositPix(input: {
   let pixEmv = normalizePixEmvPayload(charge.charge.pixCode);
   if (!isPixEmvPayload(pixEmv)) {
     await db.delete(deposits).where(eq(deposits.id, id));
-    return { ok: false, error: "Gateway devolveu código PIX inválido (CRC). Tente novamente." };
+    return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
   }
 
   let qrCodeBase64: string;

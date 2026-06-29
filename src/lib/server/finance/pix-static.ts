@@ -1,5 +1,6 @@
 import {
   isPixEmvPayload,
+  isPixEmvPayloadStrict,
   normalizePixEmvPayload,
   parsePixPayloadAmount,
 } from "@/lib/server/finance/pix-qr";
@@ -14,7 +15,7 @@ function readEnvPixPayload(key: string): string | null {
   const raw = process.env[key]?.trim();
   if (!raw) return null;
   const normalized = normalizePixEmvPayload(raw);
-  return isPixEmvPayload(normalized) ? normalized : null;
+  return isPixEmvPayloadStrict(normalized) ? normalized : isPixEmvPayload(normalized) ? normalized : null;
 }
 
 /** Pix copia e cola fixo (Bradesco, Poupex, etc.) — legado, um único código. */

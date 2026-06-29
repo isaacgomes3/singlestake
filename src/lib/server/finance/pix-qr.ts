@@ -30,7 +30,7 @@ export function hasPixEmvShape(raw: string): boolean {
   return /6304[0-9A-Fa-f]{4}$/.test(s);
 }
 
-/** Valida checksum CRC do payload (campo 63). */
+/** Valida checksum CRC do payload (campo 63) — informativo; gateways podem usar variantes aceites pelos bancos. */
 export function validatePixEmvCrc(emv: string): boolean {
   const s = normalizePixEmvPayload(emv);
   const crcTag = s.lastIndexOf("6304");
@@ -41,14 +41,32 @@ export function validatePixEmvCrc(emv: string): boolean {
   return computePixEmvCrc16(payloadForCrc) === crcGiven.toUpperCase();
 }
 
-/** Payload EMV válido (copia e cola) — bancos rejeitam URL solta, base64 de imagem, etc. */
+/**
+ * Payload EMV utilizável (copia e cola).
+ * Não exige CRC local — o Luc Paguei devolve EMV válido para o banco mesmo quando o CRC
+ * calculado aqui difere (variante EMVCo). Rejeitar só formatos claramente inválidos.
+ */
 export function isPixEmvPayload(raw: string): boolean {
+  return hasPixEmvShape(raw);
+}
+
+/** Validação estrita com CRC — útil para PIX estático configurado manualmente no .env. */
+export function isPixEmvPayloadStrict(raw: string): boolean {
   if (!hasPixEmvShape(raw)) return false;
   if (!validatePixEmvCrc(raw)) {
-    console.warn("[pix-qr] payload EMV com CRC inválido — possível código expirado ou corrompido");
+    console.warn("[pix-qr] payload EMV com CRC que não confere com CCITT-FALSE local");
     return false;
   }
   return true;
+}
+
+export function normalizePixEmvFromGateway(raw: string): string | null {
+  const s = normalizePixEmvPayload(raw);
+  if (!isPixEmvPayload(s)) return null;
+  if (!validatePixEmvCrc(s)) {
+    console.info("[pix-qr] EMV do gateway aceite (formato válido; CRC local difere)");
+  }
+  return s;
 }
 
 /** Se o gateway devolver o EMV em base64 (campo pixCodeBase64), decodifica. */
@@ -69,7 +87,7 @@ export function decodePixEmvFromBase64(raw: string): string | null {
 export async function generatePixQrBase64(payload: string): Promise<string> {
   const emv = normalizePixEmvPayload(payload);
   if (!isPixEmvPayload(emv)) {
-    throw new Error("Payload PIX inválido — código copia e cola EMV com CRC válido esperado.");
+    throw new Error("Payload PIX inválido — código copia e cola EMV esperado.");
   }
   const dataUrl = await QRCode.toDataURL(emv, {
     errorCorrectionLevel: "M",
@@ -86,7 +104,7 @@ export async function buildPixQrArtifactsFromEmv(
 ): Promise<{ emv: string; qrCodeBase64: string }> {
   const emv = normalizePixEmvPayload(emvRaw);
   if (!isPixEmvPayload(emv)) {
-    throw new Error("Payload PIX inválido — código copia e cola EMV com CRC válido esperado.");
+    throw new Error("Payload PIX inválido — código copia e cola EMV esperado.");
   }
   const qrCodeBase64 = await generatePixQrBase64(emv);
   return { emv, qrCodeBase64 };

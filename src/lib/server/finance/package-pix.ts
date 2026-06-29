@@ -249,7 +249,7 @@ export async function createPackagePixOrder(input: {
     let pixEmv = normalizePixEmvPayload(chargeResult.charge.pixCode);
     if (!isPixEmvPayload(pixEmv)) {
       await db.delete(packagePixOrders).where(eq(packagePixOrders.id, orderId));
-      return { ok: false, error: "Gateway devolveu código PIX inválido (CRC). Tente novamente." };
+      return { ok: false, error: "Gateway devolveu código PIX inválido. Tente novamente." };
     }
 
     let qrCodeBase64: string;
