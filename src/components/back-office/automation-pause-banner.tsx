@@ -22,7 +22,7 @@ type Props = {
 
 export function AutomationPauseBanner({ config, className }: Props) {
   const { t } = useI18n();
-  const [, tick] = useState(0);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!config?.resumeAt) return;
