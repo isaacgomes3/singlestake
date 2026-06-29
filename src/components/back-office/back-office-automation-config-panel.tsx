@@ -32,16 +32,27 @@ export function BackOfficeAutomationConfigPanel() {
   const [stopWin, setStopWin] = useState("");
   const [stopLoss, setStopLoss] = useState("");
 
+  const [yieldPct, setYieldPct] = useState("1");
+  const [savingYield, setSavingYield] = useState(false);
+
   useEffect(() => {
     void (async () => {
       setLoading(true);
-      const row = await fetchAutomationConfig();
+      const [row, yieldRes] = await Promise.all([
+        fetchAutomationConfig(),
+        fetch("/api/back-office/admin/automation-yield-pct", { credentials: "include" }).then((r) =>
+          r.json(),
+        ),
+      ]);
       if (row) {
         setConfig(row);
         setPaused(row.paused);
         setBaseStake(String(row.baseStake));
         setStopWin(row.stopWin != null ? String(row.stopWin) : "");
         setStopLoss(row.stopLoss != null ? String(row.stopLoss) : "");
+      }
+      if (yieldRes?.ok && yieldRes.pct != null) {
+        setYieldPct(String(yieldRes.pct));
       }
       setLoading(false);
     })();
@@ -193,9 +204,59 @@ export function BackOfficeAutomationConfigPanel() {
           />
         </div>
 
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-text-secondary" htmlFor="auto-daily-yield">
+            Rendimento diário pacotes automação (%)
+          </label>
+          <Input
+            id="auto-daily-yield"
+            type="number"
+            min={0.01}
+            max={100}
+            step={0.01}
+            value={yieldPct}
+            onChange={(e) => setYieldPct(e.target.value)}
+          />
+          <p className="text-[11px] text-text-secondary">
+            Percentual pago às 00h sobre o valor de cada cota de automação (base 1%). Não confundir com o
+            saldo operacional da sala rotativa.
+          </p>
+        </div>
+
         <div className="sm:col-span-2 flex flex-wrap gap-2">
-          <Button type="submit" disabled={saving || resetting}>
+          <Button type="submit" disabled={saving || resetting || savingYield}>
             {saving ? "A guardar…" : "Guardar configuração"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving || resetting || savingYield}
+            onClick={() => {
+              void (async () => {
+                const pct = Number(yieldPct);
+                if (!Number.isFinite(pct) || pct <= 0) {
+                  toast.error("Percentual de rendimento inválido.");
+                  return;
+                }
+                setSavingYield(true);
+                const res = await fetch("/api/back-office/admin/automation-yield-pct", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pct }),
+                });
+                const data = await res.json();
+                setSavingYield(false);
+                if (!data?.ok) {
+                  toast.error(data?.error ?? "Não foi possível guardar o rendimento.");
+                  return;
+                }
+                setYieldPct(String(data.pct));
+                toast.success(`Rendimento diário: ${data.pct}%`);
+              })();
+            }}
+          >
+            {savingYield ? "A guardar…" : "Guardar rendimento diário"}
           </Button>
           <Button
             type="button"

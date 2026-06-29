@@ -5,6 +5,7 @@ import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-wor
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
+import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
 import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import {
@@ -26,9 +27,10 @@ import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomVie
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-um-fator")({
-  beforeLoad: ({ search }) => {
+  beforeLoad: async ({ search }) => {
     guardAutomationWorkspaceRoute("/sala-rotativa-um-fator", search);
     requireAuth("/sala-rotativa-um-fator");
+    await requireActiveSubscription();
   },
   validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {
     const raw = search.iframe;

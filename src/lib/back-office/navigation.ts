@@ -130,7 +130,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/relatorios",
     icon: ClipboardList,
     description: "Rede e central de qualificação.",
-    moduleIds: ["relatorios-rede", "central-qualificacao"],
+    moduleIds: ["relatorios-rede"],
   },
   {
     id: "administracao",

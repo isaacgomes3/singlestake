@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
 import { AUTOMATION_MAX_DAILY_YIELD_PCT } from "@/lib/back-office/product-constants";
-import type { StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
 import { getDb } from "@/lib/server/db/client";
 import { userPackages } from "@/lib/server/db/schema";
+import { getAutomationDailyYieldPct } from "@/lib/server/finance/automation-yield-settings";
 import {
   isAffiliateServicesActive,
   recordMissedCredit,
@@ -14,16 +14,9 @@ import { creditWallet } from "@/lib/server/finance/wallet";
 
 import { setLastAutomationYieldYmd } from "@/lib/server/finance/automation-scheduler-state";
 
-export function computeGlobalAutomationDailyYieldPct(snapshot: StrategyGlobalSnapshot): number {
-  const stats = snapshot.um1fator.sessionStats;
-  const wins = stats.wins ?? 0;
-  const losses = stats.losses ?? 0;
-  const total = wins + losses;
-  if (total < 5) return 0.5;
-
-  const winRate = wins / total;
-  const pct = winRate * AUTOMATION_MAX_DAILY_YIELD_PCT;
-  return Math.min(AUTOMATION_MAX_DAILY_YIELD_PCT, Math.max(0.1, Math.round(pct * 100) / 100));
+/** @deprecated Rendimento diário usa percentual admin (base 1%/dia). */
+export function computeGlobalAutomationDailyYieldPct(): number {
+  return AUTOMATION_MAX_DAILY_YIELD_PCT;
 }
 
 export type AutomationYieldResult = {
@@ -38,18 +31,7 @@ export type AutomationYieldResult = {
 export async function runDailyAutomationYield(
   yieldPct?: number,
 ): Promise<AutomationYieldResult> {
-  let pct = yieldPct;
-  if (pct == null) {
-    try {
-      const { getStrategyGlobalState } = await import("@/lib/server/strategyGlobal/persistence");
-      const { buildStrategyGlobalSnapshot } = await import("@/lib/server/strategyGlobal/engine");
-      const state = getStrategyGlobalState();
-      const snapshot = buildStrategyGlobalSnapshot(state);
-      pct = computeGlobalAutomationDailyYieldPct(snapshot);
-    } catch {
-      pct = 0.5;
-    }
-  }
+  const pct = yieldPct ?? (await getAutomationDailyYieldPct());
 
   const db = getDb();
   const now = new Date();
@@ -94,7 +76,7 @@ export async function runDailyAutomationYield(
     if (payout <= 0) continue;
 
     const active = await isAffiliateServicesActive(pkg.userId);
-    const description = `Automação global — ${pct}% sobre base R$ ${pkg.automationBase.toFixed(2)}`;
+    const description = `Rendimento automação — ${pct}% sobre R$ ${pkg.automationBase.toFixed(2)}`;
 
     if (active) {
       await creditWallet({

@@ -6,9 +6,16 @@ import {
   type BackOfficeGroupId,
   type BackOfficeModuleId,
 } from "@/lib/back-office/navigation";
+import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
+
+const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([
+  "operacoes",
+  "casino-ao-vivo",
+  "automacao-global",
+]);
 
 export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
-  beforeLoad: ({ params }) => {
+  beforeLoad: async ({ params }) => {
     if (params.moduleId === "residual") {
       throw redirect({ to: "/back-office/rede/bonus-equipe" });
     }
@@ -16,6 +23,9 @@ export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
     if (!group) throw notFound();
     if (!group.moduleIds.includes(params.moduleId as BackOfficeModuleId)) {
       throw notFound();
+    }
+    if (SUBSCRIPTION_GATED_MODULES.has(params.moduleId as BackOfficeModuleId)) {
+      await requireActiveSubscription();
     }
   },
   head: ({ params }) => {

@@ -8,6 +8,13 @@ import {
   isAutomationSchedulerEnabled,
   shouldRunAutomationYieldNow,
 } from "@/lib/server/finance/automation-scheduler-state";
+import {
+  getBinaryResetSchedule,
+  getBinaryResetTimezone,
+  getLastBinaryResetYmd,
+  resetBinaryPointsDaily,
+  setLastBinaryResetYmd,
+} from "@/lib/server/network/binary-daily-reset";
 import { refreshExpiredSubscriptions } from "@/lib/server/finance/subscription-access";
 
 let started = false;
@@ -34,6 +41,21 @@ async function schedulerTick(): Promise<void> {
       `[Financeiro] rendimento diário automático (${clock.ymd} ${tz}):`,
       `${result.yieldPct}% · creditado R$ ${result.credited.toFixed(2)} · perdido R$ ${result.missed.toFixed(2)}`,
     );
+
+    const binaryTz = getBinaryResetTimezone();
+    const binaryClock = getClockInTimezone(binaryTz);
+    const binarySchedule = getBinaryResetSchedule();
+    if (shouldRunAutomationYieldNow(binaryClock, binarySchedule)) {
+      const lastBinary = await getLastBinaryResetYmd();
+      if (lastBinary !== binaryClock.ymd) {
+        const reset = await resetBinaryPointsDaily();
+        await setLastBinaryResetYmd(binaryClock.ymd);
+        console.log(
+          `[Financeiro] reset binário (${binaryClock.ymd} ${binaryTz}):`,
+          `${reset.usersReset} utilizadores · ${reset.rowsCleared} linhas`,
+        );
+      }
+    }
   } catch (err) {
     console.error("[Financeiro] scheduler rendimento diário:", err);
   } finally {

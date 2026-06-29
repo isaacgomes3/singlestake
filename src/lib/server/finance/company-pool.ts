@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 
+import type { WalletBucket } from "@/lib/back-office/finance-constants";
 import { getDb } from "@/lib/server/db/client";
-import { users } from "@/lib/server/db/schema";
-import { creditWallet, getWalletBalance } from "@/lib/server/finance/wallet";
+import { users, walletAccounts } from "@/lib/server/db/schema";
+import { creditWallet, debitWallet, getWalletBalance } from "@/lib/server/finance/wallet";
 
 const COMPANY_USER_KEY = "company_user_id";
+
+const COMPANY_BUCKETS: WalletBucket[] = ["empresa", "afiliados", "automacao"];
 
 export async function resolveCompanyUserId(): Promise<string> {
   const db = getDb();
@@ -27,36 +30,69 @@ export async function resolveCompanyUserId(): Promise<string> {
   return admin.id;
 }
 
+async function ensureCompanyWallet(companyUserId: string, bucket: WalletBucket): Promise<void> {
+  const wallet = await getWalletBalance(companyUserId, bucket);
+  if (wallet) return;
+  const db = getDb();
+  const { randomUUID } = await import("node:crypto");
+  await db.insert(walletAccounts).values({
+    id: randomUUID(),
+    userId: companyUserId,
+    bucket,
+    availableBalance: 0,
+    blockedBalance: 0,
+    updatedAt: new Date(),
+  });
+}
+
+export async function creditCompanyBucket(input: {
+  bucket: Extract<WalletBucket, "empresa" | "afiliados" | "automacao">;
+  amount: number;
+  description: string;
+  referenceType: string;
+  referenceId: string;
+}): Promise<void> {
+  if (input.amount <= 0) return;
+  const companyUserId = await resolveCompanyUserId();
+  await ensureCompanyWallet(companyUserId, input.bucket);
+  await creditWallet({
+    userId: companyUserId,
+    bucket: input.bucket,
+    amount: input.amount,
+    description: input.description,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+  });
+}
+
+/** Saques de afiliados debitam o caixa afiliados da empresa. */
+export async function debitCompanyAffiliatePool(input: {
+  amount: number;
+  description: string;
+  referenceType: string;
+  referenceId: string;
+}): Promise<void> {
+  if (input.amount <= 0) return;
+  const companyUserId = await resolveCompanyUserId();
+  await ensureCompanyWallet(companyUserId, "afiliados");
+  await debitWallet({
+    userId: companyUserId,
+    bucket: "afiliados",
+    amount: input.amount,
+    description: input.description,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+  });
+}
+
+/** @deprecated Use creditCompanyBucket({ bucket: "empresa", ... }) */
 export async function creditCompanyPool(input: {
   amount: number;
   description: string;
   referenceType: string;
   referenceId: string;
 }): Promise<void> {
-  const companyUserId = await resolveCompanyUserId();
-  let wallet = await getWalletBalance(companyUserId, "empresa");
-  if (!wallet) {
-    const db = getDb();
-    const { randomUUID } = await import("node:crypto");
-    const { walletAccounts } = await import("@/lib/server/db/schema");
-    await db.insert(walletAccounts).values({
-      id: randomUUID(),
-      userId: companyUserId,
-      bucket: "empresa",
-      availableBalance: 0,
-      blockedBalance: 0,
-      updatedAt: new Date(),
-    });
-  }
-
-  await creditWallet({
-    userId: companyUserId,
-    bucket: "empresa",
-    amount: input.amount,
-    description: input.description,
-    referenceType: input.referenceType,
-    referenceId: input.referenceId,
-  });
+  await creditCompanyBucket({ bucket: "empresa", ...input });
 }
 
 export async function setCompanyUserId(userId: string): Promise<void> {
@@ -77,4 +113,19 @@ export async function setCompanyUserId(userId: string): Promise<void> {
         updatedAt: new Date(),
       },
     });
+}
+
+export async function getCompanyBucketBalances(): Promise<
+  Record<(typeof COMPANY_BUCKETS)[number], number>
+> {
+  const companyUserId = await resolveCompanyUserId();
+  const out = { empresa: 0, afiliados: 0, automacao: 0 } as Record<
+    (typeof COMPANY_BUCKETS)[number],
+    number
+  >;
+  for (const bucket of COMPANY_BUCKETS) {
+    const w = await getWalletBalance(companyUserId, bucket);
+    out[bucket] = w?.availableBalance ?? 0;
+  }
+  return out;
 }

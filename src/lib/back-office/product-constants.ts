@@ -1,41 +1,51 @@
-/** Regras de produto: splits de pacotes, automação e mensalidade. */
+/** Regras de produto: splits administrativos (carteiras da empresa) e mensalidade. */
 
-export const PACKAGE_SPLIT_AUTOMATION = {
+/** Divisão interna da empresa ao registar pagamento de automação (carteiras admin). */
+export const COMPANY_AUTOMATION_PAYMENT_SPLIT = {
   afiliados: 0.3,
   automacao: 0.2,
   empresa: 0.5,
 } as const;
 
+/** Start R$ 50 e mensalidade: metade empresa, metade pool de rede (carteira afiliados admin). */
+export const START_SUBSCRIPTION_COMPANY_EMPRESA = 25;
+export const START_SUBSCRIPTION_COMPANY_AFILIADOS_POOL = 25;
+
+export const SUBSCRIPTION_NETWORK_SHARE = 0.5;
+export const SUBSCRIPTION_COMPANY_SHARE = 0.5;
+
+export const AUTOMATION_MAX_DAILY_YIELD_PCT = 1;
+export const AUTOMATION_YIELD_SETTING_KEY = "automation_daily_yield_pct";
+export const MAX_PROFIT_MULTIPLIER = 2;
+/** Duração máxima de cada cota de automação (12 meses). */
+export const PACKAGE_TERM_MONTHS = 12;
+export const ADHESION_DAYS = PACKAGE_TERM_MONTHS * 30;
+export const SUBSCRIPTION_GRACE_DAYS = 30;
+export const DEFAULT_SUBSCRIPTION_AMOUNT = 49.9;
+
+export const START_PACKAGE_AMOUNT = 50;
+export const START_PACKAGE_ID = "start";
+
+/** Depósitos de automação — múltiplos de R$ 250. */
+export const AUTOMATION_DEPOSIT_STEP = 250;
+export const AUTOMATION_DEPOSIT_MIN = 250;
+export const AUTOMATION_DEPOSIT_MAX = 50_000;
+
+/** @deprecated */
+export const AUTOMATION_PIX_PACKAGE_ID = "auto-250";
+
+export const CATALOG_EXCLUDED_PACKAGE_IDS = new Set<string>([START_PACKAGE_ID]);
+
+/** @deprecated Use COMPANY_AUTOMATION_PAYMENT_SPLIT */
+export const PACKAGE_SPLIT_AUTOMATION = COMPANY_AUTOMATION_PAYMENT_SPLIT;
+
+/** @deprecated Start usa valores fixos R$ 25 + R$ 25 */
 export const PACKAGE_SPLIT_START = {
   afiliados: 0.5,
   automacao: 0,
   empresa: 0.5,
 } as const;
 
-export const SUBSCRIPTION_NETWORK_SHARE = 0.5;
-export const SUBSCRIPTION_COMPANY_SHARE = 0.5;
-
-export const AUTOMATION_MAX_DAILY_YIELD_PCT = 1;
-export const MAX_PROFIT_MULTIPLIER = 2;
-export const ADHESION_DAYS = 365;
-export const SUBSCRIPTION_GRACE_DAYS = 30;
-export const DEFAULT_SUBSCRIPTION_AMOUNT = 49.9;
-
-/** Depósitos de automação dentro do Pack Start — múltiplos deste valor. */
-export const AUTOMATION_DEPOSIT_STEP = 250;
-export const AUTOMATION_DEPOSIT_MIN = 250;
-export const AUTOMATION_DEPOSIT_MAX = 50_000;
-
-export const START_PACKAGE_AMOUNT = 50;
-export const START_PACKAGE_ID = "start";
-
-/** @deprecated Identificador histórico do pacote fixo R$ 250 — PIX agora disponível em todos os pacotes de automação. */
-export const AUTOMATION_PIX_PACKAGE_ID = "auto-250";
-
-/** Pacotes ocultos do catálogo (Start é pago no cadastro). */
-export const CATALOG_EXCLUDED_PACKAGE_IDS = new Set<string>([START_PACKAGE_ID]);
-
-/** Valida valor de depósito em automação. Devolve mensagem de erro ou null se válido. */
 export function validateAutomationDepositAmount(amount: number): string | null {
   if (!Number.isFinite(amount) || amount <= 0) {
     return "Informe um valor válido para automação.";
@@ -126,6 +136,25 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
 ];
 
+export function calculateCompanyAutomationPaymentSplit(amount: number) {
+  const round = (v: number) => Math.round(v * 100) / 100;
+  return {
+    empresaAmount: round(amount * COMPANY_AUTOMATION_PAYMENT_SPLIT.empresa),
+    afiliadosPoolAmount: round(amount * COMPANY_AUTOMATION_PAYMENT_SPLIT.afiliados),
+    automacaoAmount: round(amount * COMPANY_AUTOMATION_PAYMENT_SPLIT.automacao),
+  };
+}
+
+export function calculateStartSubscriptionCompanySplit(amount: number) {
+  const round = (v: number) => Math.round(v * 100) / 100;
+  const half = round(amount / 2);
+  return {
+    empresaAmount: half,
+    afiliadosPoolAmount: round(amount - half),
+  };
+}
+
+/** @deprecated */
 export function getPackageSplit(kind: PackageKind) {
   return kind === "start" ? PACKAGE_SPLIT_START : PACKAGE_SPLIT_AUTOMATION;
 }

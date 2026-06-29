@@ -6,6 +6,11 @@ import {
   UM_FATOR_MAX_RECOVERY,
   type UmFatorPlacarFlash,
 } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
+import {
+  ROTATING_ROOM_CROSSING_MAX_RECOVERY,
+  sanitizeRotatingRoomCrossingMachineForTableIds,
+  type RotatingRoomCrossingMachineState,
+} from "@/lib/roulette/rotatingRoomCrossingStrategy";
 
 const EXTENSION_TTL_MS = Number.isFinite(Number(process.env.EXTENSION_SYNC_TTL_MS))
   ? Math.max(5_000, Number(process.env.EXTENSION_SYNC_TTL_MS))
@@ -117,7 +122,8 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
             typeof s.dedupeKey === "string" && s.dedupeKey.trim()
               ? s.dedupeKey.trim()
               : `${f.tableId}:${f.resultNumber}:${f.kind}:${recoveryBefore}`;
-          return { recoveryBefore, flash: f, stake, dedupeKey };
+          const trigger = s.trigger === "crossing" ? "dois2fatores" : "um1fator";
+          return { recoveryBefore, flash: f, stake, dedupeKey, trigger };
         })
         .filter((x): x is NonNullable<typeof x> => x != null)
     : [];
@@ -132,6 +138,14 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
     histories,
     machine: o.machine as ExtensionSyncPayload["machine"],
     stats: parseRotatingRoomSessionStats(o.stats, maxRecovery),
+    crossingMachine:
+      o.crossingMachine && typeof o.crossingMachine === "object"
+        ? (o.crossingMachine as RotatingRoomCrossingMachineState)
+        : null,
+    crossingStats:
+      o.crossingStats && typeof o.crossingStats === "object"
+        ? parseRotatingRoomSessionStats(o.crossingStats, ROTATING_ROOM_CROSSING_MAX_RECOVERY)
+        : null,
     maxRecovery,
     settlements,
   };

@@ -1,4 +1,13 @@
-importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js");
+const __EXT_LOAD_ERRORS = [];
+for (const __extFile of ["shared.js", "um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js"]) {
+  try {
+    importScripts(__extFile);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    __EXT_LOAD_ERRORS.push(`${__extFile}: ${msg}`);
+    console.error("[Singlestake] importScripts falhou:", __extFile, e);
+  }
+}
 
 const DEFAULT_CHIP_VALUE = 50;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
@@ -98,7 +107,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-void readStoredMode().then(updateActionBadge);
+void (typeof readStoredMode === "function"
+  ? readStoredMode().then(updateActionBadge)
+  : Promise.resolve());
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") return;
@@ -140,7 +151,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.kind === "set-mode") {
     const mode = message.mode === "real" ? "real" : "demo";
-    void setStoredMode(mode).then(() => sendResponse({ ok: true, mode }));
+    const apply =
+      typeof setStoredMode === "function"
+        ? () => setStoredMode(mode)
+        : () =>
+            chrome.storage.local.set({
+              gogExecutionMode: mode,
+              gogExteriorDryRun: mode === "demo",
+              gogPragmaticDryRun: mode === "demo",
+            });
+    void apply().then(() => {
+      if (typeof updateActionBadge === "function") updateActionBadge(mode);
+      sendResponse({ ok: true, mode });
+    });
     return true;
   }
 
@@ -150,19 +173,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "set-autopilot") {
-    void SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
-      SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
+    if (!globalThis.SinglestakeSignalRunner?.setAutopilotEnabled) {
+      sendResponse({ enabled: false, status: { running: false, reason: "Autopilot indisponível" } });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
+      globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
     );
     return true;
   }
 
   if (message.kind === "get-autopilot") {
-    void SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
+    if (!globalThis.SinglestakeSignalRunner?.getAutopilotStatus) {
+      sendResponse({ enabled: false, status: { running: false } });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
     return true;
   }
 
   if (message.kind === "reset-autopilot-stats") {
-    void SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
+    if (!globalThis.SinglestakeSignalRunner?.resetAutopilotStats) {
+      sendResponse({ ok: false });
+      return;
+    }
+    void globalThis.SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
     return true;
   }
 
@@ -316,8 +351,22 @@ async function buildStatus() {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
   const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
-  const autopilot = await SinglestakeSignalRunner.getAutopilotStatus();
-  const dgaConfig = await SinglestakeSignalRunner.getDgaConfigForPopup();
+  const autopilot =
+    globalThis.SinglestakeSignalRunner?.getAutopilotStatus != null
+      ? await globalThis.SinglestakeSignalRunner.getAutopilotStatus()
+      : {
+          enabled: false,
+          status: {
+            running: false,
+            reason:
+              __EXT_LOAD_ERRORS[0] ??
+              "signal-runner não carregou — recarregue a extensão em chrome://extensions",
+          },
+        };
+  const dgaConfig =
+    globalThis.SinglestakeSignalRunner?.getDgaConfigForPopup != null
+      ? await globalThis.SinglestakeSignalRunner.getDgaConfigForPopup()
+      : null;
   const bridgePrefs = await readBridgePrefs();
   const bridgeEnabled = await readBridgeEnabled();
   return {
@@ -415,9 +464,11 @@ async function handleBridgePayloadInner(payload, sourceTabId) {
   lastBridgeTableId = tableId;
 
   const dedupeKey =
-    signalId != null ? `${signalId}:r${recovery}` : payload.fingerprint
-      ? `${payload.fingerprint}:r${recovery}`
-      : null;
+    signalId != null
+      ? `${signalId}:r${recovery}${ctx.betAttemptKey ? `:${ctx.betAttemptKey}` : ""}`
+      : payload.fingerprint
+        ? `${payload.fingerprint}:r${recovery}`
+        : null;
 
   if (dedupeKey && (bridgeInFlightKey === dedupeKey || lastBridgeDedupeKey === dedupeKey)) {
     return {
@@ -464,7 +515,7 @@ async function runBridgePlan(payload, sourceTabId) {
     ? clicks.filter((a) => a.target === "factor-1" || a.target === "prepare-open")
     : clicks;
   const results = [];
-  const staggerMs = clickStaggerMsForRecovery(recoveryFromContext(payload.context));
+  const staggerMs = clickStaggerMsForRecovery(recoveryFromContext(payload.context), payload.context);
 
   for (let i = 0; i < filtered.length; i++) {
     if (i > 0) await sleep(staggerMs);
@@ -924,8 +975,8 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
   };
 
   const recovery = recoveryFromContext(context ?? {});
-  const staggerMs = clickStaggerMsForRecovery(recovery);
-  const speedMultiplier = clickSpeedMultiplierForRecovery(recovery);
+  const staggerMs = clickStaggerMsForRecovery(recovery, context);
+  const speedMultiplier = clickSpeedMultiplierForRecovery(recovery, context);
   const cdpOpts = { keepSession: !dryRun, speedMultiplier };
 
   try {
@@ -940,7 +991,7 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
         };
       }
       // Barra «A depurar» reduz o viewport — calcular coords só depois dela aparecer.
-      await sleep(scaledClickDelayMs(CDP_BAR_SETTLE_MS, recovery));
+      await sleep(scaledClickDelayMs(CDP_BAR_SETTLE_MS, recovery, context));
     }
 
     if (await shouldClickChipBeforeBet()) {
@@ -1581,4 +1632,4 @@ async function armCalibration(betKey, label, chipValue) {
   };
 }
 
-SinglestakeSignalRunner.initSignalRunner(handleBridgePayload);
+SinglestakeSignalRunner?.initSignalRunner?.(handleBridgePayload);

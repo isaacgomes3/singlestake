@@ -8,6 +8,7 @@ import {
   type WalletBucket,
 } from "@/lib/server/finance/constants";
 import { isAffiliateServicesActive } from "@/lib/server/finance/subscription-access";
+import { debitCompanyAffiliatePool, creditCompanyBucket } from "@/lib/server/finance/company-pool";
 import { debitWallet, getWalletBalance, creditWallet } from "@/lib/server/finance/wallet";
 import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
 import { isValidCpf, normalizeCpf } from "@/lib/server/finance/cpf";
@@ -85,6 +86,27 @@ async function creditWalletRollback(row: typeof withdrawals.$inferSelect & { use
     referenceType: "withdrawal-rollback",
     referenceId: row.id,
   });
+  if (row.bucket === "afiliados") {
+    await creditCompanyBucket({
+      bucket: "afiliados",
+      amount: row.amount,
+      description: `Estorno pool afiliados — saque ${row.id}`,
+      referenceType: "withdrawal-rollback",
+      referenceId: row.id,
+    });
+  }
+}
+
+async function debitAffiliateWithdrawalFromCompanyPool(
+  row: typeof withdrawals.$inferSelect,
+): Promise<void> {
+  if (row.bucket !== "afiliados") return;
+  await debitCompanyAffiliatePool({
+    amount: row.amount,
+    description: `Saque afiliados — ${row.id}`,
+    referenceType: "withdrawal",
+    referenceId: row.id,
+  });
 }
 
 /** Webhook confirma PIX enviado ao cliente. */
@@ -114,6 +136,7 @@ export async function confirmWithdrawalPaidFromGateway(
         referenceType: "withdrawal",
         referenceId: row.id,
       });
+      await debitAffiliateWithdrawalFromCompanyPool(row);
     } catch {
       return { ok: false, error: "Saldo insuficiente para confirmar saque." };
     }
@@ -254,6 +277,7 @@ export async function processWithdrawal(input: {
         referenceType: "withdrawal",
         referenceId: row.id,
       });
+      await debitAffiliateWithdrawalFromCompanyPool(row);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
       if (message === "INSUFFICIENT_BALANCE") {

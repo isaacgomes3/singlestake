@@ -7,6 +7,7 @@ import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingS
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
+import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
 import {
   correctRotatingRoomCrossingLastLossAsWin,
   resetRotatingRoomCrossingSession,
@@ -21,9 +22,10 @@ import { prepareRotatingRoomIframeSession } from "@/lib/roulette/rotatingRoomVie
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sala-rotativa-dois-fatores")({
-  beforeLoad: ({ search }) => {
+  beforeLoad: async ({ search }) => {
     guardAutomationWorkspaceRoute("/sala-rotativa-dois-fatores", search);
     requireAuth("/sala-rotativa-dois-fatores");
+    await requireActiveSubscription();
   },
   validateSearch: (search: Record<string, unknown>): { iframe?: boolean } => {
     const raw = search.iframe;

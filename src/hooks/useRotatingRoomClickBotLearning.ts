@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
@@ -42,7 +43,7 @@ const CLICK_STAGGER_MS = 450;
 const EXTENSION_ACK_TIMEOUT_MS = 6000;
 
 type Options = {
-  session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
+  session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession | RotatingRoomRotativaSession;
   enabled: boolean;
   mode: ClickBotLearningMode;
   /** URL do operador em uso (iframe / guardada) — tem prioridade sobre defaults Pragmatic. */
@@ -54,16 +55,32 @@ type Options = {
 function sessionToSlice(
   session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession,
 ) {
-  const singleFactorMode = "singleFactorMode" in session && session.singleFactorMode === true;
+  const rotativaTrigger =
+    "rotativaTrigger" in session && session.rotativaTrigger === "crossing"
+      ? "crossing"
+      : "umFator";
+  const singleFactorMode =
+    rotativaTrigger === "umFator" &&
+    ("singleFactorMode" in session ? session.singleFactorMode === true : true);
   const umActive = "umActive" in session ? session.umActive : null;
   let activeCrossing = session.activeCrossing;
   if (!activeCrossing && singleFactorMode && umActive) {
     activeCrossing = umFatorToTapeteActive(umActive);
   }
-  const signalId =
-    singleFactorMode && umActive
-      ? `${session.currentTableId}:${umActive.resultNumber}:${umActive.alertFactor.kind}:${session.currentRecovery}`
-      : null;
+
+  let signalId: string | null = null;
+  let betAttemptKey: string | null = null;
+  if (singleFactorMode && umActive && session.currentTableId != null) {
+    signalId = `${session.currentTableId}:${umActive.resultNumber}:${umActive.alertFactor.kind}:${session.currentRecovery}`;
+    betAttemptKey = signalId;
+  } else if (activeCrossing && session.currentTableId != null) {
+    const head =
+      "lastEvaluatedHead" in session && session.lastEvaluatedHead
+        ? session.lastEvaluatedHead
+        : `s${"cycleSpinsWithoutWin" in session ? session.cycleSpinsWithoutWin ?? 0 : 0}`;
+    betAttemptKey = `${session.currentTableId}:${activeCrossing.pairKind}:${session.currentRecovery}:${head}`;
+    signalId = betAttemptKey;
+  }
 
   return {
     sessionMode: session.sessionMode,
@@ -73,6 +90,8 @@ function sessionToSlice(
     activeCrossing,
     singleFactorMode,
     signalId,
+    betAttemptKey,
+    rotativaTrigger,
     currentRecovery: session.currentRecovery,
     lobbyWait:
       !isRotatingRoomPostResultHoldActive(
@@ -127,13 +146,13 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
     }
     const rising = !prevShowTapeteRef.current;
     prevShowTapeteRef.current = true;
-    const emitKey = `${sessionSlice.signalId ?? ""}|${sessionSlice.currentRecovery ?? 0}`;
+    const emitKey = `${sessionSlice.betAttemptKey ?? sessionSlice.signalId ?? ""}|${sessionSlice.currentRecovery ?? 0}`;
     if (rising || prevEmitKeyRef.current !== emitKey) {
       clearExtensionLastEmitKey();
       lastFingerprintRef.current = null;
       prevEmitKeyRef.current = emitKey;
     }
-  }, [sessionSlice.showTapeteSignal, sessionSlice.signalId, sessionSlice.currentRecovery]);
+  }, [sessionSlice.showTapeteSignal, sessionSlice.signalId, sessionSlice.betAttemptKey, sessionSlice.currentRecovery]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -151,7 +170,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
 
     const emitKey = sessionSlice.lobbyWait
       ? "lobby-wait-poker"
-      : `${sessionSlice.signalId ?? fingerprint}|r${sessionSlice.currentRecovery ?? 0}`;
+      : `${sessionSlice.betAttemptKey ?? sessionSlice.signalId ?? fingerprint}|r${sessionSlice.currentRecovery ?? 0}`;
     if (mode === "extension" && clicks.length > 0) {
       if (readExtensionLastEmitKey() === emitKey) return;
       writeExtensionLastEmitKey(emitKey);

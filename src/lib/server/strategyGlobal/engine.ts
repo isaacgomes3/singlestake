@@ -413,11 +413,25 @@ export async function ingestStrategyGlobalExtensionSync(
     payload.stats,
   );
 
+  if (payload.crossingMachine && payload.crossingStats) {
+    state.dois2fatores.stats = payload.crossingStats;
+    state.dois2fatores.machine = sanitizeRotatingRoomCrossingMachineForTableIds(
+      payload.crossingMachine,
+      state.rotatingRoomTableIds,
+    );
+  }
+
   const histories = historiesRecord(state);
-  const crossing = driveCrossing(state, histories);
-  const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
+  let crossingFlash: RotatingRoomCrossingPlacarFlash = null;
+  const crossingLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  if (!payload.crossingMachine) {
+    const crossing = driveCrossing(state, histories);
+    crossingFlash = crossing.flash;
+    crossingLedgerEntries.push(...appendCrossingLedgerIfNeeded(state, crossing));
+  }
 
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  const crossLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
   let umFlash: UmFatorPlacarFlash = null;
   for (const settlement of payload.settlements ?? []) {
     if (!rememberExtensionSettlementKey(settlement.dedupeKey)) continue;
@@ -426,13 +440,24 @@ export async function ingestStrategyGlobalExtensionSync(
       settlement.recoveryBefore,
       settlement.stake,
     );
-    appendLedger(state, "um1fator", ledgerEntry, maxRecovery);
-    umLedgerEntries.push(ledgerEntry);
-    umFlash = settlement.flash;
+    const kind = settlement.trigger === "dois2fatores" ? "dois2fatores" : "um1fator";
+    const maxR = kind === "dois2fatores" ? ROTATING_ROOM_CROSSING_MAX_RECOVERY : maxRecovery;
+    appendLedger(state, kind, ledgerEntry, maxR);
+    if (kind === "dois2fatores") {
+      crossLedgerFromExtension.push(ledgerEntry);
+      crossingFlash = settlement.flash;
+    } else {
+      umLedgerEntries.push(ledgerEntry);
+      umFlash = settlement.flash;
+    }
   }
 
-  const snapshot = bumpAndBroadcast(state, crossing.flash, umFlash);
-  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries];
+  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash);
+  const automationEntries = [
+    ...crossingLedgerEntries,
+    ...crossLedgerFromExtension,
+    ...umLedgerEntries,
+  ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
   }

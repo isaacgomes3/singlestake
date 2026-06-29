@@ -6,7 +6,6 @@ import type { WalletBucket } from "@/lib/server/finance/constants";
 import { WITHDRAWABLE_BUCKETS } from "@/lib/server/finance/constants";
 import { getDb } from "@/lib/server/db/client";
 import { buildAffiliatesData } from "@/lib/server/network/affiliates";
-import { buildQualificationProgress } from "@/lib/server/network/qualification";
 import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
 import {
   deposits,
@@ -99,9 +98,6 @@ export async function buildBackOfficeOverview(
     where: eq(subscriptions.userId, userId),
   });
 
-  const userRow = await db.query.users.findFirst({ where: eq(users.id, userId) });
-  const qualification = userRow?.qualification ?? "bronze";
-
   const activePackages = await db.query.userPackages.findMany({
     where: and(eq(userPackages.userId, userId), eq(userPackages.status, "active")),
   });
@@ -121,10 +117,7 @@ export async function buildBackOfficeOverview(
     hasStartPack,
   };
 
-  const [affiliates, qualificationProgress] = await Promise.all([
-    buildAffiliatesData(userId, referralCode, origin),
-    buildQualificationProgress(userId, qualification),
-  ]);
+  const [affiliates] = await Promise.all([buildAffiliatesData(userId, referralCode, origin)]);
 
   const referralLink = affiliates.referralLink;
 
@@ -146,14 +139,7 @@ export async function buildBackOfficeOverview(
     subscriptionStatus: subscription?.status ?? "pending",
     affiliateCount: affiliates.totals.directCount,
     networkVolume: affiliates.totals.networkVolume,
-    nextQualifications: qualificationProgress.nextRank
-      ? [
-          {
-            rank: qualificationProgress.nextRank,
-            missing: qualificationProgress.missingForNext.join("; ") || "Requisitos em análise",
-          },
-        ]
-      : [],
+    nextQualifications: [],
     earningsBalance,
     directReferrals: affiliates.totals.directCount,
     activePlanValue: activePackage?.amount ?? 0,

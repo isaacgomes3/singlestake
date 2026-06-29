@@ -64,6 +64,10 @@ export type RotatingRoomExtensionContext = {
   maxRecovery: number;
   /** demo | real — prioridade sobre o modo do popup da extensão. */
   executionMode: "demo" | "real";
+  rotativaTrigger?: "umFator" | "crossing";
+  strategy?: "um1fator" | "dois2fatores";
+  /** Por rodada — re-aposta após empate (2F). */
+  betAttemptKey?: string | null;
   /** Aguarde no Lobby — navegar para poker em vez de mesa de roleta. */
   lobbyWait?: boolean;
   /** Timestamp até ao qual novas apostas ficam bloqueadas (pós-ciclo). */
@@ -155,7 +159,10 @@ export function buildRotatingRoomExtensionContext(
         ? pragmaticExteriorBetKeyFromFactor(crossing.factor2)
         : null,
     singleFactorMode: session.singleFactorMode === true,
+    rotativaTrigger: session.rotativaTrigger ?? (session.singleFactorMode ? "umFator" : "crossing"),
+    strategy: session.singleFactorMode ? "um1fator" : "dois2fatores",
     signalId: session.signalId ?? null,
+    betAttemptKey: session.betAttemptKey ?? session.signalId ?? null,
     automationBalance: balance,
     stakeAmount: stakeForRecovery(recovery),
     currentRecovery: recovery,

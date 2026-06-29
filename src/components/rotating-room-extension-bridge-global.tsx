@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
+import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
-import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
@@ -32,10 +33,11 @@ function isRotatingRoomBridgePath(pathname: string): boolean {
   );
 }
 
-/** Envia sinais Um Fator à extensão Chrome em todas as páginas da sala rotativa. */
+/** Envia sinais da sala rotativa (1F + 2F) à extensão Chrome. */
 export function RotatingRoomExtensionBridgeGlobal() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [extensionEnabled, setExtensionEnabled] = useState(readRotatingRoomExtensionEnabled);
+  const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();
 
   const autoBridge = isRotatingRoomBridgePath(pathname);
 
@@ -56,7 +58,7 @@ export function RotatingRoomExtensionBridgeGlobal() {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation } = useRouletteAutomationSim();
-  const session = useRotatingRoomUmFatorSession(tableIds, histories, {
+  const session = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
   });
 
@@ -81,8 +83,15 @@ export function RotatingRoomExtensionBridgeGlobal() {
     };
   }, []);
 
+  const extensionBridgeOn =
+    extensionPresent &&
+    (extensionPrefs?.bridgeEnabled === undefined || extensionPrefs.bridgeEnabled !== false);
+
   const bridgeActive =
-    autoBridge && (extensionEnabled || readRotatingRoomExtensionEnabled());
+    autoBridge &&
+    (extensionEnabled ||
+      readRotatingRoomExtensionEnabled() ||
+      extensionBridgeOn);
 
   useRotatingRoomClickBotLearning({
     session,

@@ -11,10 +11,10 @@ export function getAutomationYieldTimezone(): string {
 
 export function getAutomationYieldSchedule(): { hour: number; minute: number } {
   const hour = Number(process.env.AUTOMATION_YIELD_HOUR ?? "0");
-  const minute = Number(process.env.AUTOMATION_YIELD_MINUTE ?? "5");
+  const minute = Number(process.env.AUTOMATION_YIELD_MINUTE ?? "0");
   return {
     hour: Number.isFinite(hour) ? Math.min(23, Math.max(0, hour)) : 0,
-    minute: Number.isFinite(minute) ? Math.min(59, Math.max(0, minute)) : 5,
+    minute: Number.isFinite(minute) ? Math.min(59, Math.max(0, minute)) : 0,
   };
 }
 

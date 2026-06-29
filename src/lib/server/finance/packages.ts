@@ -212,7 +212,7 @@ export async function activatePackageAfterPayment(
     packageId: pkg.id,
     amount,
     affiliateAmount: split.affiliateAmount,
-    automationBase: split.automationBase,
+    automationBase: kind === "automation" ? amount : 0,
     companyAmount: split.companyAmount,
     totalEarned: 0,
     maxProfit: amount * MAX_PROFIT_MULTIPLIER,
@@ -228,6 +228,7 @@ export async function activatePackageAfterPayment(
     userPackageId,
     amounts: split,
     packageName: pkg.name,
+    packageKind: kind,
   });
 
   const isStartPackage = input.packageId === START_PACKAGE_ID;

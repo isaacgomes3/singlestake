@@ -199,10 +199,15 @@ async function tryMatchLevel(
   usersMap: Map<string, typeof users.$inferSelect>,
   startUsers: Set<string>,
 ): Promise<{ matched: number; paid: number }> {
+  /** Binário opera só no nível 1 (pernas esquerda/direita directas qualificadas). */
+  if (level !== 1) return { matched: 0, paid: 0 };
+
   if (!isBinaryGloballyActive(primaryUserId, childIndex, usersMap, startUsers)) {
     return { matched: 0, paid: 0 };
   }
-  if (!isLevelQualified(primaryUserId, level, childIndex, usersMap, startUsers)) {
+
+  const subscriptionActive = await isAffiliateServicesActive(primaryUserId);
+  if (!subscriptionActive) {
     return { matched: 0, paid: 0 };
   }
 
@@ -309,9 +314,8 @@ async function propagatePointsUpTree(buyerUserId: string, points: number): Promi
   if (!buyerNode?.side) return;
 
   let currentId: string | null = buyerUserId;
-  let level = 1;
 
-  while (currentId && level <= BINARY_MAX_LEVELS) {
+  while (currentId) {
     const node = nodeByUser.get(currentId);
     if (!node?.parentId || !node.side) break;
 
@@ -321,16 +325,15 @@ async function propagatePointsUpTree(buyerUserId: string, points: number): Promi
 
     const primaryId = resolvePrimaryUserId(parent);
     const skipQualifier =
-      level === 1 && isLevelOneQualifierChild(primaryId, buyerUserId, childIndex);
+      isLevelOneQualifierChild(primaryId, buyerUserId, childIndex);
 
     if (!skipQualifier) {
       const legSide =
         getBinaryPositionRelativeTo(primaryId, buyerUserId, nodes)?.legSide ??
         (node.side as Side);
-      await addLegPoints(primaryId, level, legSide, points);
+      await addLegPoints(primaryId, 1, legSide, points);
     }
     currentId = parentId;
-    level++;
   }
 }
 
@@ -345,9 +348,8 @@ async function settleBinaryMatchesForPurchase(buyerUserId: string): Promise<void
   const nodeByUser = new Map(nodes.map((n) => [n.userId, n]));
 
   let currentId: string | null = buyerUserId;
-  let level = 1;
 
-  while (currentId && level <= BINARY_MAX_LEVELS) {
+  while (currentId) {
     const node = nodeByUser.get(currentId);
     if (!node?.parentId || !node.side) break;
 
@@ -356,10 +358,9 @@ async function settleBinaryMatchesForPurchase(buyerUserId: string): Promise<void
     if (!parent) break;
 
     const primaryId = resolvePrimaryUserId(parent);
-    await tryMatchLevel(primaryId, level, childIndex, usersMap, startUsers);
+    await tryMatchLevel(primaryId, 1, childIndex, usersMap, startUsers);
 
     currentId = parentId;
-    level++;
   }
 }
 
@@ -420,11 +421,9 @@ export async function settleAllPendingBinaryMatches(): Promise<{ levelsProcessed
   }
 
   let levelsProcessed = 0;
-  for (const [userId, levels] of userLevels) {
-    for (const level of [...levels].sort((a, b) => a - b)) {
-      await tryMatchLevel(userId, level, childIndex, usersMap, startUsers);
-      levelsProcessed++;
-    }
+  for (const [userId] of userLevels) {
+    await tryMatchLevel(userId, 1, childIndex, usersMap, startUsers);
+    levelsProcessed++;
   }
 
   return { levelsProcessed };
@@ -443,6 +442,13 @@ export type BinaryPointsDashboard = {
   globallyActive: boolean;
   payoutPercent: number;
   pointsPerReal: number;
+  /** Pontos disponíveis para match (qualificado + mensalidade activa). */
+  availableLeft: number;
+  availableRight: number;
+  /** Pontos visíveis mas aguardando qualificação binária. */
+  pendingLeft: number;
+  pendingRight: number;
+  potentialPayout: number;
   levels: BinaryLevelPoints[];
   profitCap: {
     invested: number;
@@ -475,20 +481,18 @@ export async function buildBinaryPointsDashboard(
   ]);
 
   const byLevel = new Map<number, BinaryLevelPoints>();
-  for (let level = 1; level <= BINARY_MAX_LEVELS; level++) {
-    byLevel.set(level, {
-      level,
-      left: { total: 0, matched: 0, available: 0 },
-      right: { total: 0, matched: 0, available: 0 },
-      qualified: isLevelQualified(primaryId, level, childIndex, usersMap, startUsers),
-      canMatch: false,
-      potentialPayout: 0,
-    });
-  }
+  byLevel.set(1, {
+    level: 1,
+    left: { total: 0, matched: 0, available: 0 },
+    right: { total: 0, matched: 0, available: 0 },
+    qualified: globallyActive,
+    canMatch: false,
+    potentialPayout: 0,
+  });
 
   for (const row of rows) {
-    const entry = byLevel.get(row.level);
-    if (!entry) continue;
+    if (row.level !== 1) continue;
+    const entry = byLevel.get(1)!;
     const side = row.side as Side;
     const bucket = side === "left" ? entry.left : entry.right;
     bucket.total = row.totalPoints;
@@ -496,25 +500,26 @@ export async function buildBinaryPointsDashboard(
     bucket.available = row.totalPoints - row.matchedPoints;
   }
 
-  for (const entry of byLevel.values()) {
-    const matchable = Math.min(entry.left.available, entry.right.available);
-    entry.canMatch = globallyActive && entry.qualified && matchable > 0;
-    entry.potentialPayout = roundMoney((matchable * BINARY_MATCH_PAYOUT_PERCENT) / 100);
-  }
+  const level1 = byLevel.get(1)!;
+  const matchable = Math.min(level1.left.available, level1.right.available);
+  level1.canMatch = globallyActive && matchable > 0;
+  level1.potentialPayout = roundMoney((matchable * BINARY_MATCH_PAYOUT_PERCENT) / 100);
 
-  const levels = [...byLevel.values()].filter(
-    (l) =>
-      l.left.total > 0 ||
-      l.right.total > 0 ||
-      l.qualified ||
-      l.level <= 3,
-  );
+  const pendingLeft = globallyActive ? 0 : level1.left.available;
+  const pendingRight = globallyActive ? 0 : level1.right.available;
+  const availableLeft = globallyActive ? level1.left.available : 0;
+  const availableRight = globallyActive ? level1.right.available : 0;
 
   return {
     globallyActive,
     payoutPercent: BINARY_MATCH_PAYOUT_PERCENT,
     pointsPerReal: POINTS_PER_REAL,
-    levels,
+    availableLeft,
+    availableRight,
+    pendingLeft,
+    pendingRight,
+    potentialPayout: level1.potentialPayout,
+    levels: [level1],
     profitCap,
   };
 }

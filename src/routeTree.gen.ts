@@ -95,6 +95,7 @@ import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/b
 import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
 import { Route as ApiBackOfficeAdminPaymentGatewayRouteImport } from './routes/api/back-office/admin/payment-gateway'
 import { Route as ApiBackOfficeAdminNotificationsRouteImport } from './routes/api/back-office/admin/notifications'
+import { Route as ApiBackOfficeAdminAutomationYieldPctRouteImport } from './routes/api/back-office/admin/automation-yield-pct'
 import { Route as ApiBackOfficeAdminAutomationStatsRouteImport } from './routes/api/back-office/admin/automation-stats'
 import { Route as ApiBackOfficeAdminAutomationResetCycleRouteImport } from './routes/api/back-office/admin/automation-reset-cycle'
 import { Route as ApiBackOfficeAdminAutomationRebuildHistoryRouteImport } from './routes/api/back-office/admin/automation-rebuild-history'
@@ -575,6 +576,12 @@ const ApiBackOfficeAdminNotificationsRoute =
     path: '/api/back-office/admin/notifications',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminAutomationYieldPctRoute =
+  ApiBackOfficeAdminAutomationYieldPctRouteImport.update({
+    id: '/api/back-office/admin/automation-yield-pct',
+    path: '/api/back-office/admin/automation-yield-pct',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeAdminAutomationStatsRoute =
   ApiBackOfficeAdminAutomationStatsRouteImport.update({
     id: '/api/back-office/admin/automation-stats',
@@ -746,6 +753,7 @@ export interface FileRoutesByFullPath {
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
+  '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -848,6 +856,7 @@ export interface FileRoutesByTo {
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
+  '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -954,6 +963,7 @@ export interface FileRoutesById {
   '/api/back-office/admin/automation-rebuild-history': typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
+  '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -1061,6 +1071,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
+    | '/api/back-office/admin/automation-yield-pct'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1163,6 +1174,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
+    | '/api/back-office/admin/automation-yield-pct'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1268,6 +1280,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-rebuild-history'
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
+    | '/api/back-office/admin/automation-yield-pct'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1365,6 +1378,7 @@ export interface RootRouteChildren {
   ApiBackOfficeAdminAutomationRebuildHistoryRoute: typeof ApiBackOfficeAdminAutomationRebuildHistoryRoute
   ApiBackOfficeAdminAutomationResetCycleRoute: typeof ApiBackOfficeAdminAutomationResetCycleRoute
   ApiBackOfficeAdminAutomationStatsRoute: typeof ApiBackOfficeAdminAutomationStatsRoute
+  ApiBackOfficeAdminAutomationYieldPctRoute: typeof ApiBackOfficeAdminAutomationYieldPctRoute
   ApiBackOfficeAdminNotificationsRoute: typeof ApiBackOfficeAdminNotificationsRoute
   ApiBackOfficeAdminPaymentGatewayRoute: typeof ApiBackOfficeAdminPaymentGatewayRoute
   ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -1988,6 +2002,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/automation-yield-pct': {
+      id: '/api/back-office/admin/automation-yield-pct'
+      path: '/api/back-office/admin/automation-yield-pct'
+      fullPath: '/api/back-office/admin/automation-yield-pct'
+      preLoaderRoute: typeof ApiBackOfficeAdminAutomationYieldPctRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/admin/automation-stats': {
       id: '/api/back-office/admin/automation-stats'
       path: '/api/back-office/admin/automation-stats'
@@ -2382,6 +2403,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeAdminAutomationResetCycleRoute,
   ApiBackOfficeAdminAutomationStatsRoute:
     ApiBackOfficeAdminAutomationStatsRoute,
+  ApiBackOfficeAdminAutomationYieldPctRoute:
+    ApiBackOfficeAdminAutomationYieldPctRoute,
   ApiBackOfficeAdminNotificationsRoute: ApiBackOfficeAdminNotificationsRoute,
   ApiBackOfficeAdminPaymentGatewayRoute: ApiBackOfficeAdminPaymentGatewayRoute,
   ApiBackOfficeAdminPendingActivationsRoute:

@@ -30,6 +30,9 @@ export type RotatingRoomClickBotSessionSlice = {
   activeCrossing: DoisFatoresActive | null;
   /** Sala rotativa 1 Fator — só aposta no factor de alerta (factor-1). */
   singleFactorMode?: boolean;
+  /** Chave por rodada — permite re-aposta após empate (2F). */
+  betAttemptKey?: string | null;
+  rotativaTrigger?: "umFator" | "crossing";
   /** Evita repetir aposta no mesmo sinal (extensão). */
   signalId?: string | null;
   /** Nível de recuperação (gale) — define valor da ficha na extensão. */
@@ -142,6 +145,8 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.prepareTableId ?? "",
     session.currentTableId ?? "",
     session.signalId ?? "",
+    session.betAttemptKey ?? "",
+    session.rotativaTrigger ?? "",
     session.currentRecovery ?? 0,
     session.singleFactorMode ? 1 : 0,
     session.lobbyWait ? 1 : 0,

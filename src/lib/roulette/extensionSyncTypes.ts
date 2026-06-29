@@ -1,18 +1,22 @@
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
+import type {
+  RotatingRoomCrossingMachineState,
+  RotatingRoomCrossingPlacarFlash,
+} from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import type { UmFatorMachineState, UmFatorPlacarFlash } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
 
 export const EXTENSION_SYNC_VERSION = 1 as const;
 
 export type ExtensionSyncSettlement = {
   recoveryBefore: number;
-  flash: NonNullable<UmFatorPlacarFlash>;
-  /** Stake apostado na extensão (ex. R$ 0,50 × 2^gale). */
+  flash: NonNullable<UmFatorPlacarFlash | RotatingRoomCrossingPlacarFlash>;
   stake: number;
-  /** Chave estável para dedupe servidor (ex. mesa:resultado:kind:recovery). */
   dedupeKey: string;
+  /** um1fator | dois2fatores — por defeito um1fator */
+  trigger?: "um1fator" | "dois2fatores";
 };
 
-/** Payload enviado pela extensão Chrome — motor Um Fator como fonte de verdade. */
+/** Payload enviado pela extensão Chrome — motor da sala rotativa como fonte de verdade. */
 export type ExtensionSyncPayload = {
   version: typeof EXTENSION_SYNC_VERSION;
   secret: string;
@@ -23,6 +27,8 @@ export type ExtensionSyncPayload = {
   histories: Record<string, number[]>;
   machine: UmFatorMachineState;
   stats: RotatingRoomSessionStats;
+  crossingMachine?: RotatingRoomCrossingMachineState | null;
+  crossingStats?: RotatingRoomSessionStats | null;
   maxRecovery?: number;
   settlements?: ExtensionSyncSettlement[];
 };

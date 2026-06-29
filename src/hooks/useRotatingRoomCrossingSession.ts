@@ -309,5 +309,7 @@ export function useRotatingRoomCrossingSession(
     sessionMode: liveView.mode,
     prepareCategory: liveView.preparePick?.category ?? null,
     crossingScan: liveView.crossingScan,
+    cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
+    lastEvaluatedHead: machine.lastEvaluatedHead,
   };
 }

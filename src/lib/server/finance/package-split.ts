@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 
+import { REFERRAL_LEVELS, RESIDUAL_LEVELS } from "@/lib/back-office/constants";
 import type { PackageKind } from "@/lib/back-office/product-constants";
 import {
-  getPackageSplit,
-  SUBSCRIPTION_COMPANY_SHARE,
-  SUBSCRIPTION_NETWORK_SHARE,
+  calculateCompanyAutomationPaymentSplit,
+  calculateStartSubscriptionCompanySplit,
 } from "@/lib/back-office/product-constants";
-import { REFERRAL_LEVELS } from "@/lib/back-office/constants";
-import { creditCompanyPool } from "@/lib/server/finance/company-pool";
+import {
+  creditCompanyBucket,
+  debitCompanyAffiliatePool,
+} from "@/lib/server/finance/company-pool";
 import {
   getSponsorChain,
   isAffiliateServicesActive,
@@ -16,19 +18,13 @@ import {
 import { creditWallet } from "@/lib/server/finance/wallet";
 
 export type PackageSplitAmounts = {
+  /** Pool de indicação (carteira afiliados admin) */
   affiliateAmount: number;
-  automationBase: number;
+  /** Carteira automação admin (só pacotes automação) */
+  automacaoAmount: number;
+  /** Carteira empresa admin */
   companyAmount: number;
 };
-
-export function calculatePackageSplit(amount: number, kind: PackageKind): PackageSplitAmounts {
-  const split = getPackageSplit(kind);
-  return {
-    affiliateAmount: roundMoney(amount * split.afiliados),
-    automationBase: roundMoney(amount * split.automacao),
-    companyAmount: roundMoney(amount * split.empresa),
-  };
-}
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
@@ -36,7 +32,61 @@ function roundMoney(value: number): number {
 
 const REFERRAL_WEIGHT = REFERRAL_LEVELS.reduce((sum, l) => sum + l.percent, 0);
 
-export async function distributeAffiliatePool(input: {
+export function calculatePackageSplit(amount: number, kind: PackageKind): PackageSplitAmounts {
+  if (kind === "start") {
+    const split = calculateStartSubscriptionCompanySplit(amount);
+    return {
+      affiliateAmount: split.afiliadosPoolAmount,
+      automacaoAmount: 0,
+      companyAmount: split.empresaAmount,
+    };
+  }
+  const split = calculateCompanyAutomationPaymentSplit(amount);
+  return {
+    affiliateAmount: split.afiliadosPoolAmount,
+    automacaoAmount: split.automacaoAmount,
+    companyAmount: split.empresaAmount,
+  };
+}
+
+async function paySponsorFromAffiliatePool(input: {
+  sponsorId: string;
+  amount: number;
+  description: string;
+  referenceType: string;
+  referenceId: string;
+}): Promise<void> {
+  if (input.amount <= 0) return;
+
+  const active = await isAffiliateServicesActive(input.sponsorId);
+  if (active) {
+    await creditWallet({
+      userId: input.sponsorId,
+      bucket: "afiliados",
+      amount: input.amount,
+      description: input.description,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+    });
+    await debitCompanyAffiliatePool({
+      amount: input.amount,
+      description: `Saída pool afiliados — ${input.description}`,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+    });
+  } else {
+    await recordMissedCredit({
+      userId: input.sponsorId,
+      amount: input.amount,
+      reason: input.description,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+    });
+  }
+}
+
+/** Indicação pacote Start / automação — 5 níveis (10%, 5%, 3%, 1%, 1% do pool). */
+export async function distributeReferralPool(input: {
   buyerUserId: string;
   poolAmount: number;
   referenceType: string;
@@ -55,27 +105,41 @@ export async function distributeAffiliatePool(input: {
     const share = roundMoney((input.poolAmount * level.percent) / REFERRAL_WEIGHT);
     if (share <= 0) continue;
 
-    const active = await isAffiliateServicesActive(sponsorId);
-    const description = `${input.descriptionPrefix} — nível ${level.level}`;
+    await paySponsorFromAffiliatePool({
+      sponsorId,
+      amount: share,
+      description: `${input.descriptionPrefix} — nível ${level.level}`,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+    });
+  }
+}
 
-    if (active) {
-      await creditWallet({
-        userId: sponsorId,
-        bucket: "afiliados",
-        amount: share,
-        description,
-        referenceType: input.referenceType,
-        referenceId: input.referenceId,
-      });
-    } else {
-      await recordMissedCredit({
-        userId: sponsorId,
-        amount: share,
-        reason: description,
-        referenceType: input.referenceType,
-        referenceId: input.referenceId,
-      });
-    }
+/** Residual mensalidade — 10 níveis (% directo sobre parte rede). */
+export async function distributeResidualPool(input: {
+  payerUserId: string;
+  poolAmount: number;
+  referenceId: string;
+}): Promise<void> {
+  if (input.poolAmount <= 0) return;
+
+  const sponsors = await getSponsorChain(input.payerUserId, RESIDUAL_LEVELS.length);
+
+  for (let i = 0; i < RESIDUAL_LEVELS.length; i++) {
+    const level = RESIDUAL_LEVELS[i]!;
+    const sponsorId = sponsors[i];
+    if (!sponsorId) continue;
+
+    const share = roundMoney((input.poolAmount * level.percent) / 100);
+    if (share <= 0) continue;
+
+    await paySponsorFromAffiliatePool({
+      sponsorId,
+      amount: share,
+      description: `Mensalidade — residual nível ${level.level}`,
+      referenceType: "subscription_residual",
+      referenceId: input.referenceId,
+    });
   }
 }
 
@@ -84,22 +148,28 @@ export async function distributeSubscriptionPayment(input: {
   amount: number;
   referenceId: string;
 }): Promise<void> {
-  const networkPool = roundMoney(input.amount * SUBSCRIPTION_NETWORK_SHARE);
-  const companyAmount = roundMoney(input.amount * SUBSCRIPTION_COMPANY_SHARE);
+  const split = calculateStartSubscriptionCompanySplit(input.amount);
 
-  await creditCompanyPool({
-    amount: companyAmount,
-    description: "Mensalidade — carteira empresa (50%)",
+  await creditCompanyBucket({
+    bucket: "empresa",
+    amount: split.empresaAmount,
+    description: "Mensalidade — carteira empresa",
     referenceType: "subscription",
     referenceId: input.referenceId,
   });
 
-  await distributeAffiliatePool({
-    buyerUserId: input.payerUserId,
-    poolAmount: networkPool,
+  await creditCompanyBucket({
+    bucket: "afiliados",
+    amount: split.afiliadosPoolAmount,
+    description: "Mensalidade — pool rede (residual)",
     referenceType: "subscription",
     referenceId: input.referenceId,
-    descriptionPrefix: "Mensalidade — bónus rede",
+  });
+
+  await distributeResidualPool({
+    payerUserId: input.payerUserId,
+    poolAmount: split.afiliadosPoolAmount,
+    referenceId: input.referenceId,
   });
 }
 
@@ -108,19 +178,48 @@ export async function applyPackagePurchaseSplit(input: {
   userPackageId: string;
   amounts: PackageSplitAmounts;
   packageName: string;
+  packageKind: PackageKind;
 }): Promise<void> {
-  await creditCompanyPool({
-    amount: input.amounts.companyAmount,
-    description: `Pacote ${input.packageName} — empresa (50%)`,
-    referenceType: "package",
-    referenceId: input.userPackageId,
-  });
+  const refId = input.userPackageId;
 
-  await distributeAffiliatePool({
-    buyerUserId: input.buyerUserId,
-    poolAmount: input.amounts.affiliateAmount,
-    referenceType: "package",
-    referenceId: input.userPackageId,
-    descriptionPrefix: `Pacote ${input.packageName} — afiliados`,
-  });
+  if (input.amounts.companyAmount > 0) {
+    await creditCompanyBucket({
+      bucket: "empresa",
+      amount: input.amounts.companyAmount,
+      description: `Pacote ${input.packageName} — carteira empresa`,
+      referenceType: "package",
+      referenceId: refId,
+    });
+  }
+
+  if (input.amounts.automacaoAmount > 0) {
+    await creditCompanyBucket({
+      bucket: "automacao",
+      amount: input.amounts.automacaoAmount,
+      description: `Pacote ${input.packageName} — carteira automação (admin)`,
+      referenceType: "package",
+      referenceId: refId,
+    });
+  }
+
+  if (input.amounts.affiliateAmount > 0) {
+    await creditCompanyBucket({
+      bucket: "afiliados",
+      amount: input.amounts.affiliateAmount,
+      description: `Pacote ${input.packageName} — pool indicação`,
+      referenceType: "package",
+      referenceId: refId,
+    });
+
+    await distributeReferralPool({
+      buyerUserId: input.buyerUserId,
+      poolAmount: input.amounts.affiliateAmount,
+      referenceType: "package",
+      referenceId: refId,
+      descriptionPrefix: `Pacote ${input.packageName} — indicação`,
+    });
+  }
 }
+
+/** @deprecated alias */
+export const distributeAffiliatePool = distributeReferralPool;

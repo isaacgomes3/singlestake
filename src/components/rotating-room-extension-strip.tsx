@@ -65,6 +65,12 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
     if (extensionPongPrefs.maxRecovery != null) {
       writeRotatingRoomExtensionMaxRecovery(extensionPongPrefs.maxRecovery);
     }
+    if (typeof extensionPongPrefs.bridgeEnabled === "boolean") {
+      writeRotatingRoomExtensionEnabled(extensionPongPrefs.bridgeEnabled);
+    }
+    if (extensionPongPrefs.executionMode === "real" || extensionPongPrefs.executionMode === "demo") {
+      writeRotatingRoomExtensionRealMode(extensionPongPrefs.executionMode === "real");
+    }
     setExtensionPrefs({
       maxRecovery: extensionPongPrefs.maxRecovery ?? readEffectiveUmFatorMaxRecovery(),
       wins: extensionPongPrefs.wins ?? 0,
