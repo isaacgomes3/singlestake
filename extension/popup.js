@@ -153,6 +153,12 @@ function resetDgaConfigForm() {
 loadDgaConfigForm();
 loadBridgePrefsForm();
 
+/** Estado «Ligar» logo ao abrir o popup (antes do service worker responder). */
+chrome.storage.local.get([STORAGE_BRIDGE_ENABLED], (data) => {
+  if (chrome.runtime.lastError) return;
+  setBridgeUi(data[STORAGE_BRIDGE_ENABLED] !== false);
+});
+
 dgaSaveBtn?.addEventListener("click", saveDgaConfigForm);
 dgaResetBtn?.addEventListener("click", resetDgaConfigForm);
 

@@ -35,7 +35,13 @@ const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 chrome.runtime.onInstalled.addListener(() => {
   void setStoredMode(GOG.DEFAULT_MODE);
-  void chrome.storage.local.set({ gogAutopilotEnabled: false });
+  void chrome.storage.local.get([STORAGE_BRIDGE_ENABLED], (data) => {
+    const patch = { gogAutopilotEnabled: false };
+    if (data[STORAGE_BRIDGE_ENABLED] === undefined) {
+      patch[STORAGE_BRIDGE_ENABLED] = true;
+    }
+    void chrome.storage.local.set(patch);
+  });
   void ensureContentBridgeOnAppTabs();
 });
 

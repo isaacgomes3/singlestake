@@ -129,12 +129,15 @@ export function clearExtensionLastEmitKey(): void {
   }
 }
 
+/** Default ligado — igual à extensão (`gogBridgeEnabled !== false`). */
 export function readRotatingRoomExtensionEnabled(): boolean {
-  if (typeof localStorage === "undefined") return false;
+  if (typeof localStorage === "undefined") return true;
   try {
-    return localStorage.getItem(ROTATING_ROOM_EXTENSION_ENABLED_KEY) === "1";
+    const raw = localStorage.getItem(ROTATING_ROOM_EXTENSION_ENABLED_KEY);
+    if (raw == null) return true;
+    return raw === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 

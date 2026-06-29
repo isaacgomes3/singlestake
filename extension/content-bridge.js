@@ -154,10 +154,14 @@ window.__singlestakeExtension = {
     });
   },
   setBridgeEnabled(enabled) {
+    const on = enabled === true;
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, (out) =>
-        resolve(out),
-      );
+      chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: on }, (out) => {
+        if (!chrome.runtime.lastError) {
+          syncAppLocalPrefsFromExtension({ bridgeEnabled: on });
+        }
+        resolve(out);
+      });
     });
   },
   sendSignal(signal) {
@@ -176,8 +180,7 @@ window.__singlestakeExtension = {
   },
 };
 
-/** Anuncia presença assim que o script carrega (antes do primeiro ping da página). */
-postPong();
+/** Anuncia presença com prefs completas (incl. bridgeEnabled persistido). */
 void requestBridgePrefs().then((prefs) => postPong(prefs));
 try {
   chrome.runtime.sendMessage({ kind: "ping" });

@@ -19,6 +19,16 @@ import {
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
 import { cn } from "@/lib/utils";
 
+type ExtensionApi = {
+  setBridgeEnabled?: (enabled: boolean) => Promise<unknown>;
+  getBridgeEnabled?: () => Promise<boolean>;
+};
+
+function extensionApi(): ExtensionApi | null {
+  if (typeof window === "undefined") return null;
+  return (window as Window & { __singlestakeExtension?: ExtensionApi }).__singlestakeExtension ?? null;
+}
+
 type Props = {
   session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
   mesaEmbedUrl?: string | null;
@@ -67,6 +77,7 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
     }
     if (typeof extensionPongPrefs.bridgeEnabled === "boolean") {
       writeRotatingRoomExtensionEnabled(extensionPongPrefs.bridgeEnabled);
+      setEnabled(extensionPongPrefs.bridgeEnabled);
     }
     if (extensionPongPrefs.executionMode === "real" || extensionPongPrefs.executionMode === "demo") {
       writeRotatingRoomExtensionRealMode(extensionPongPrefs.executionMode === "real");
@@ -77,6 +88,17 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
       losses: extensionPongPrefs.losses ?? 0,
     });
   }, [extensionPongPrefs]);
+
+  useEffect(() => {
+    if (!extensionPresent) return;
+    const api = extensionApi();
+    if (!api?.setBridgeEnabled) return;
+    void api.getBridgeEnabled?.().then((bridgeOn) => {
+      if (typeof bridgeOn !== "boolean") return;
+      writeRotatingRoomExtensionEnabled(bridgeOn);
+      setEnabled(bridgeOn);
+    });
+  }, [extensionPresent]);
 
   useEffect(() => {
     const onPrefs = () => {
@@ -101,11 +123,11 @@ export function RotatingRoomExtensionStrip({ session, className }: Props) {
   };
 
   const toggle = () => {
-    setEnabled((prev) => {
-      const next = !prev;
-      writeRotatingRoomExtensionEnabled(next);
-      return next;
-    });
+    if (!extensionPresent) return;
+    const next = !enabled;
+    writeRotatingRoomExtensionEnabled(next);
+    setEnabled(next);
+    void extensionApi()?.setBridgeEnabled?.(next);
   };
 
   const signalsLinked = enabled && extensionPresent;
