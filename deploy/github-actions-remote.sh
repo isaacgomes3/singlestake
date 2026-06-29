@@ -23,11 +23,23 @@ fi
 
 echo "=== deploy.sh falhou (${DEPLOY_RC}) — quick-fix e verificação ==="
 bash deploy/quick-fix-site.sh || true
-sleep 10
+
 PUB="${PUBLIC_APP_URL:-https://stake37.com.br}"
-PUB_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 25 "${PUB}/entrar" 2>/dev/null || echo 000)"
-LOCAL_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:3000/entrar 2>/dev/null || echo 000)"
-echo "=== Pós quick-fix: local=${LOCAL_CODE} público=${PUB_CODE} ==="
+LOCAL_CODE="000"
+PUB_CODE="000"
+
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  sleep 10
+  PUB_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 25 "${PUB}/entrar" 2>/dev/null || echo 000)"
+  LOCAL_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:3000/entrar 2>/dev/null || echo 000)"
+  echo "=== Tentativa ${i}/12: local=${LOCAL_CODE} público=${PUB_CODE} ==="
+  if [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ]; then
+    break
+  fi
+  if [ "$PUB_CODE" = "200" ] || [ "$PUB_CODE" = "302" ]; then
+    break
+  fi
+done
 
 if [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ]; then
   bash deploy/patch-apache-static.sh || true
