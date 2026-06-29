@@ -7,7 +7,7 @@ import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extensio
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
 import { AUTOMATION_CHART_THEME } from "@/hooks/useChartTheme";
 import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
-import { useRotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
+import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import {
   finalizeAutomationSimState,
@@ -35,7 +35,7 @@ export function RouletteAutomationSimulatorPanel({
   const chart = AUTOMATION_CHART_THEME;
   const { state, openBet, config } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
-  const rotatingRoomSession = useRotatingRoomUmFatorSession(tableIds, histories, {
+  const rotatingRoomSession = useRotatingRoomRotativaSession(tableIds, histories, {
     observeOnly: true,
   });
   const displayState = useMemo(() => {

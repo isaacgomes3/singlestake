@@ -8,7 +8,12 @@ import { pragmaticExteriorBetKeyFromFactor } from "@/lib/roulette/pragmaticExter
 import type { RouletteBetKind } from "@/lib/roulette/rouletteBetSettlement";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
+import {
+  resolveRotativaTriggerFromSnapshot,
+  rotativaTriggerKindLabel,
+} from "@/lib/roulette/rotatingRoomRotativaMerge";
 import type { StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
+import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import { umFatorAlertLabel } from "@/lib/roulette/umFatorStrategy";
 
 export function exteriorBetKeyToRouletteBetKind(
@@ -30,11 +35,11 @@ export function exteriorBetKeyToRouletteBetKind(
   }
 }
 
-export function buildRotatingRoomSimulatorIndication(
+function buildFromUmFator(
   snapshot: StrategyGlobalSnapshot,
+  um: StrategyGlobalSnapshot["um1fator"],
   automationBalance?: number,
 ): RotatingRoomSimulatorIndication {
-  const um = snapshot.um1fator;
   const tableId = um.showTapeteSignal ? um.currentTableId : null;
   const umActive = um.umActive;
   const tableLabel = tableId != null ? lobbyTableDisplayName(tableId) : null;
@@ -62,6 +67,7 @@ export function buildRotatingRoomSimulatorIndication(
     revision: snapshot.revision,
     updatedAt: snapshot.updatedAt,
     strategy: "um1fator",
+    rotativaTrigger: "umFator",
     phase: um.phase,
     lobbyMessage,
     hasSignal: um.showTapeteSignal,
@@ -72,12 +78,79 @@ export function buildRotatingRoomSimulatorIndication(
     wins: um.sessionStats.wins,
     losses: um.sessionStats.losses,
     recovery: um.currentRecovery,
-    suggestedStake: stakeForRecovery(um.currentRecovery),
+    suggestedStake: stakeForRecovery(um.currentRecovery, automationBalance),
     alertLabel: umActive ? umFatorAlertLabel(umActive) : null,
     betExteriorKey,
     signalId,
     action: um.showTapeteSignal && umActive && betExteriorKey ? "bet" : "wait",
   };
+}
+
+function buildFromCrossing(
+  snapshot: StrategyGlobalSnapshot,
+  cross: StrategyGlobalSnapshot["dois2fatores"],
+  automationBalance?: number,
+): RotatingRoomSimulatorIndication {
+  const tableId = cross.showTapeteSignal ? cross.currentTableId : null;
+  const active = cross.activeCrossing;
+  const tableLabel = tableId != null ? lobbyTableDisplayName(tableId) : null;
+
+  let lobbyMessage = "Aguarde no Lobby";
+  if (tableLabel && active) {
+    const factors = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
+    lobbyMessage = cross.showTapeteSignal
+      ? `${tableLabel} · ${factors}`
+      : tableLabel;
+  } else if (cross.prepareTableId != null && cross.sessionMode === "prepare") {
+    lobbyMessage = `${lobbyTableDisplayName(cross.prepareTableId)} · ${rotativaTriggerKindLabel("crossing")}`;
+  }
+
+  const betExteriorKey =
+    cross.showTapeteSignal && active
+      ? pragmaticExteriorBetKeyFromFactor(active.factor1)
+      : null;
+
+  const signalId =
+    cross.showTapeteSignal && active && tableId != null
+      ? `${tableId}:${active.referenceNumber}:${active.pairKind}:${cross.currentRecovery}`
+      : null;
+
+  return {
+    revision: snapshot.revision,
+    updatedAt: snapshot.updatedAt,
+    strategy: "dois2fatores",
+    rotativaTrigger: "crossing",
+    phase: cross.phase,
+    lobbyMessage,
+    hasSignal: cross.showTapeteSignal,
+    showTapeteSignal: cross.showTapeteSignal,
+    tableId,
+    tableLabel,
+    aproveitamentoPct: rotatingRoomSessionAproveitamentoPct(cross.sessionStats),
+    wins: cross.sessionStats.wins,
+    losses: cross.sessionStats.losses,
+    recovery: cross.currentRecovery,
+    suggestedStake: stakeForRecovery(cross.currentRecovery, automationBalance),
+    alertLabel: active
+      ? `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`
+      : null,
+    betExteriorKey,
+    signalId,
+    action: cross.showTapeteSignal && active && tableId != null ? "bet" : "wait",
+  };
+}
+
+export function buildRotatingRoomSimulatorIndication(
+  snapshot: StrategyGlobalSnapshot,
+  automationBalance?: number,
+  options?: { crossingEnabled?: boolean },
+): RotatingRoomSimulatorIndication {
+  const crossingEnabled = options?.crossingEnabled !== false;
+  const trigger = resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled);
+  if (trigger === "crossing") {
+    return buildFromCrossing(snapshot, snapshot.dois2fatores, automationBalance);
+  }
+  return buildFromUmFator(snapshot, snapshot.um1fator, automationBalance);
 }
 
 export const ROTATING_ROOM_SIMULATOR_BASE_STAKE = ROULETTE_AUTOMATION_BASE_STAKE;

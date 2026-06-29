@@ -87,6 +87,23 @@ function syncRotatingTableIds(state: StrategyGlobalPersistedState, liveTableIds:
   state.um1fator.machine = sanitizeUmFatorMachineForTableIds(state.um1fator.machine, next);
 }
 
+function appendCrossingLedgerIfNeeded(
+  state: StrategyGlobalPersistedState,
+  crossing: { flash: RotatingRoomCrossingPlacarFlash; recoveryBefore: number },
+): StrategyGlobalLedgerEntry[] {
+  if (
+    !crossing.flash ||
+    (crossing.flash.kind !== "win" &&
+      crossing.flash.kind !== "loss" &&
+      crossing.flash.kind !== "recovery")
+  ) {
+    return [];
+  }
+  const ledgerEntry = ledgerFromFlash(crossing.flash, crossing.recoveryBefore);
+  appendLedger(state, "dois2fatores", ledgerEntry, ROTATING_ROOM_CROSSING_MAX_RECOVERY);
+  return [ledgerEntry];
+}
+
 function ledgerFromFlash(
   flash: NonNullable<RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash>,
   recovery: number,
@@ -338,17 +355,14 @@ export function ingestStrategyGlobalSpin(
   const histories = historiesRecord(state);
 
   const crossing = driveCrossing(state, histories);
-  if (crossing.flash && (crossing.flash.kind === "win" || crossing.flash.kind === "loss")) {
-    appendLedger(
-      state,
-      "dois2fatores",
-      ledgerFromFlash(crossing.flash, crossing.recoveryBefore),
-      ROTATING_ROOM_CROSSING_MAX_RECOVERY,
-    );
-  }
+  const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
 
   if (extensionActive) {
-    return bumpAndBroadcast(state, crossing.flash, null);
+    const snapshot = bumpAndBroadcast(state, crossing.flash, null);
+    if (crossingLedgerEntries.length > 0) {
+      void pushAutomationSimSettlements(crossingLedgerEntries, snapshot);
+    }
+    return snapshot;
   }
 
   const um = driveUmFator(state, histories);
@@ -359,13 +373,12 @@ export function ingestStrategyGlobalSpin(
     umLedgerEntries.push(ledgerEntry);
   }
 
-  if (umLedgerEntries.length > 0) {
-    const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
-    void pushAutomationSimSettlements(umLedgerEntries, snapshot);
-    return snapshot;
+  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
+  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries];
+  if (automationEntries.length > 0) {
+    void pushAutomationSimSettlements(automationEntries, snapshot);
   }
-
-  return bumpAndBroadcast(state, crossing.flash, um.flash);
+  return snapshot;
 }
 
 /** Aplica estado do motor da extensão Chrome — visor, extrato e automação seguem a mesma fonte. */
@@ -402,14 +415,7 @@ export async function ingestStrategyGlobalExtensionSync(
 
   const histories = historiesRecord(state);
   const crossing = driveCrossing(state, histories);
-  if (crossing.flash && (crossing.flash.kind === "win" || crossing.flash.kind === "loss")) {
-    appendLedger(
-      state,
-      "dois2fatores",
-      ledgerFromFlash(crossing.flash, crossing.recoveryBefore),
-      ROTATING_ROOM_CROSSING_MAX_RECOVERY,
-    );
-  }
+  const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
 
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   let umFlash: UmFatorPlacarFlash = null;
@@ -425,13 +431,12 @@ export async function ingestStrategyGlobalExtensionSync(
     umFlash = settlement.flash;
   }
 
-  if (umLedgerEntries.length > 0) {
-    const snapshot = bumpAndBroadcast(state, crossing.flash, umFlash);
-    void pushAutomationSimSettlements(umLedgerEntries, snapshot);
-    return snapshot;
+  const snapshot = bumpAndBroadcast(state, crossing.flash, umFlash);
+  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries];
+  if (automationEntries.length > 0) {
+    void pushAutomationSimSettlements(automationEntries, snapshot);
   }
-
-  return bumpAndBroadcast(state, crossing.flash, umFlash);
+  return snapshot;
 }
 
 /** Sem dedupe — usado para snapshot `last20Results` ao ligar o WS. */

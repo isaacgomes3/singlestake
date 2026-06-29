@@ -25,12 +25,14 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
           "@/lib/server/strategyGlobal/engine"
         );
         const { ensureAutomationSimEngine } = await import("@/lib/server/automationSim/engine");
+        const { getAutomationConfig } = await import("@/lib/server/automationSim/config");
         const { getAutomationSimState } = await import("@/lib/server/automationSim/persistence");
         const { subscribeStrategyGlobalHub } = await import("@/lib/server/strategyGlobal/broadcast");
         const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
         await ensureAutomationSimEngine();
+        const crossingEnabled = getAutomationConfig().enabledTriggers.crossing !== false;
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
@@ -39,7 +41,9 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
             controller.enqueue(
               sseData({
                 type: "sync",
-                indication: buildRotatingRoomSimulatorIndication(snapshot, balance),
+                indication: buildRotatingRoomSimulatorIndication(snapshot, balance, {
+                  crossingEnabled,
+                }),
               }),
             );
 
@@ -58,7 +62,9 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
                   sseData({
                     type: "update",
                     revision: msg.snapshot.revision,
-                    indication: buildRotatingRoomSimulatorIndication(msg.snapshot, automationBalance),
+                    indication: buildRotatingRoomSimulatorIndication(msg.snapshot, automationBalance, {
+                      crossingEnabled,
+                    }),
                   }),
                 );
               }

@@ -2,7 +2,16 @@ import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossin
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
 import type { RotatingRoomCrossingTableScan } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import {
+  isRotatingRoomLobbyCooldownActive,
+  isRotatingRoomPostResultHoldActive,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
+import type {
+  StrategyGlobalCrossingClientView,
+  StrategyGlobalSnapshot,
+  StrategyGlobalUmFatorClientView,
+} from "@/lib/roulette/strategyGlobalTypes";
 
 export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing";
 
@@ -126,4 +135,56 @@ export function mergeRotatingRoomRotativaSession(
 export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind): string {
   if (kind === "crossing") return "2 Fatores · cruzamento";
   return "1 Fator";
+}
+
+function umFatorInCycleFromView(um: StrategyGlobalUmFatorClientView): boolean {
+  return (
+    um.showTapeteSignal ||
+    um.currentRecovery > 0 ||
+    isRotatingRoomLobbyCooldownActive(um.lobbyCooldownUntilMs) ||
+    isRotatingRoomPostResultHoldActive(um.postResultHoldUntilMs)
+  );
+}
+
+function crossingInCycleFromView(cross: StrategyGlobalCrossingClientView): boolean {
+  return (
+    cross.showTapeteSignal ||
+    cross.currentRecovery > 0 ||
+    cross.sessionMode === "prepare"
+  );
+}
+
+function crossingHasQualifyingGapFromView(cross: StrategyGlobalCrossingClientView): boolean {
+  return cross.crossingScan.some(
+    (row) => (row.bucketGap ?? 0) >= ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+  );
+}
+
+/** Mesma prioridade do merge na sala rotativa — para automação global e simulador. */
+export function resolveRotativaTriggerFromSnapshot(
+  snapshot: StrategyGlobalSnapshot,
+  crossingEnabled: boolean,
+): RotatingRoomRotativaTriggerKind {
+  if (!crossingEnabled) return "umFator";
+
+  const um = snapshot.um1fator;
+  const crossing = snapshot.dois2fatores;
+  const umBusy = umFatorInCycleFromView(um);
+  const crossBusy = crossingInCycleFromView(crossing);
+
+  if (umBusy && !crossBusy) return "umFator";
+  if (crossBusy && !umBusy) return "crossing";
+
+  if (crossBusy && umBusy) {
+    if (crossing.showTapeteSignal || crossing.sessionMode === "prepare") return "crossing";
+    if (um.showTapeteSignal) return "umFator";
+    if (crossing.currentRecovery >= um.currentRecovery) return "crossing";
+    return "umFator";
+  }
+
+  if (crossingHasQualifyingGapFromView(crossing) && crossing.prepareTableId != null) {
+    return "crossing";
+  }
+
+  return "umFator";
 }

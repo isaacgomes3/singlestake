@@ -1,11 +1,12 @@
 import type { PragmaticExteriorBetKey } from "@/lib/roulette/pragmaticExteriorBetMap";
 import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 
-/** Estado da sala rotativa 1 Fator exposto ao simulador. */
+/** Estado da sala rotativa exposto ao simulador / automação global. */
 export type RotatingRoomSimulatorIndication = {
   revision: number;
   updatedAt: number;
-  strategy: "um1fator";
+  strategy: "um1fator" | "dois2fatores";
+  rotativaTrigger: "umFator" | "crossing";
   phase: RotatingRoomPhase;
   /** Texto principal (ex.: «Aguarde no Lobby» ou «Macao · Vermelho»). */
   lobbyMessage: string;

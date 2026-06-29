@@ -7,6 +7,8 @@ import {
   tableAcceptableForRotatingRoomEntry,
 } from "@/lib/roulette/liveTableBettingWindow";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
+import { doisFatoresFactorLabel, evaluateDoisFatoresRound, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
+import { resolveRotativaTriggerFromSnapshot } from "@/lib/roulette/rotatingRoomRotativaMerge";
 import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
@@ -47,7 +49,9 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
+  strategy?: "um1fator" | "dois2fatores";
   umActive?: UmFatorActive;
+  activeCrossing?: DoisFatoresActive;
 };
 
 /** Aposta aberta — entrada em jogo à espera do giro. */
@@ -197,15 +201,63 @@ export function pendingSignalFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
-  options?: { baseStake?: number; blockNewEntries?: boolean },
+  options?: { baseStake?: number; blockNewEntries?: boolean; crossingEnabled?: boolean },
 ): AutomationPendingSignal | null {
   if (options?.blockNewEntries) return null;
+
+  const crossingEnabled = options?.crossingEnabled !== false;
+  const trigger = resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled);
+  if (trigger === "crossing") {
+    return pendingSignalFromCrossingSession(
+      snapshot.dois2fatores,
+      balance,
+      histories,
+      options?.baseStake,
+    );
+  }
+
   return pendingSignalFromUmFatorSession(
     snapshot.um1fator,
     balance,
     histories,
     options?.baseStake,
   );
+}
+
+/** Sinal activo do cruzamento 2 Fatores (empate mantém a mesma roleta). */
+export function pendingSignalFromCrossingSession(
+  session: Pick<
+    StrategyGlobalSnapshot["dois2fatores"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeCrossing"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.activeCrossing) {
+    return null;
+  }
+
+  const tableId = session.currentTableId;
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
+    return null;
+  }
+
+  const active = session.activeCrossing;
+  const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
+  const recovery = session.currentRecovery;
+
+  return {
+    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}`,
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel,
+    recovery,
+    stake: stakeForRecovery(recovery, balance, baseStake),
+    strategy: "dois2fatores",
+    activeCrossing: active,
+  };
 }
 
 /** Mesma lógica do cartão da sala rotativa — só com janela de apostas aberta (início do gatilho). */
@@ -239,6 +291,7 @@ export function pendingSignalFromUmFatorSession(
     alertLabel,
     recovery,
     stake: stakeForRecovery(recovery, balance, baseStake),
+    strategy: "um1fator",
     umActive: session.umActive,
   };
 }
@@ -686,7 +739,7 @@ export function trySettleOpenBetFromSpin(
   ledger: readonly StrategyGlobalLedgerEntry[] = [],
 ): RouletteAutomationSimState {
   const bet = state.openBet;
-  if (!bet?.umActive) return state;
+  if (!bet?.umActive && !bet?.activeCrossing) return state;
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;
@@ -705,7 +758,18 @@ export function trySettleOpenBetFromSpin(
     return next;
   }
 
-  const outcome = evaluateUmFatorRound(resultNumber, bet.umActive);
+  if (bet.activeCrossing) {
+    const outcome = evaluateDoisFatoresRound(resultNumber, bet.activeCrossing);
+    if (outcome === "continue") return state;
+    const won = outcome === "W";
+    localProcessed.add(key);
+    const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
+    const next = settleOpenBetEntry(state, entry, bet.tableLabel);
+    if (next !== state) onSettled?.(entry);
+    return next;
+  }
+
+  const outcome = evaluateUmFatorRound(resultNumber, bet.umActive!);
   const won = outcome === "W";
   localProcessed.add(key);
 

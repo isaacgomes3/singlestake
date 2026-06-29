@@ -11,13 +11,17 @@ export const Route = createFileRoute("/api/roulette/rotating-room")({
           "@/lib/server/strategyGlobal/engine"
         );
         const { ensureAutomationSimEngine } = await import("@/lib/server/automationSim/engine");
+        const { getAutomationConfig } = await import("@/lib/server/automationSim/config");
         const { getAutomationSimState } = await import("@/lib/server/automationSim/persistence");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
         await ensureAutomationSimEngine();
         const snapshot = getStrategyGlobalSnapshotOrThrow();
         const balance = getAutomationSimState().balance;
-        return Response.json(buildRotatingRoomSimulatorIndication(snapshot, balance));
+        const crossingEnabled = getAutomationConfig().enabledTriggers.crossing !== false;
+        return Response.json(
+          buildRotatingRoomSimulatorIndication(snapshot, balance, { crossingEnabled }),
+        );
       },
     },
   },

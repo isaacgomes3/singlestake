@@ -44,6 +44,12 @@ let initPromise: Promise<void> | null = null;
 let replayedLedger = false;
 let capitalReady = false;
 
+function combinedStrategyLedger(
+  ledger: Pick<StrategyGlobalPersistedState["ledger"], "um1fator" | "dois2fatores">,
+): StrategyGlobalLedgerEntry[] {
+  return [...ledger.um1fator, ...ledger.dois2fatores].sort((a, b) => a.ts - b.ts);
+}
+
 async function ensureCapitalAndSyncBalance(): Promise<void> {
   const { registeredAt, balance } = await ensureGlobalAutomationCapitalRegistered();
   capitalReady = true;
@@ -123,7 +129,11 @@ function buildSnapshotBody(
       strategySnapshot,
       state.balance,
       strategySnapshot.tableHistories,
-      { baseStake: resolved.baseStake, blockNewEntries },
+      {
+        baseStake: resolved.baseStake,
+        blockNewEntries,
+        crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+      },
     ),
     config: resolved,
   };
@@ -131,7 +141,7 @@ function buildSnapshotBody(
 
 async function reconcileAutomationSimPendingLedger(): Promise<boolean> {
   const { getStrategyGlobalState } = await import("@/lib/server/strategyGlobal/persistence");
-  const ledger = getStrategyGlobalState().ledger.um1fator;
+  const ledger = combinedStrategyLedger(getStrategyGlobalState().ledger);
   let state = getAutomationSimState();
   const floorTs = globalAutomationLedgerFloorTs(state);
   let changed = false;
@@ -204,13 +214,14 @@ export async function ensureAutomationSimEngine(): Promise<void> {
         const { buildStrategyGlobalSnapshot } = await import("@/lib/server/strategyGlobal/engine");
         const sim = getAutomationSimState();
         const globalState = getStrategyGlobalState();
-        const hasLedger = globalState.ledger.um1fator.length > 0;
+        const hasLedger =
+          globalState.ledger.um1fator.length > 0 || globalState.ledger.dois2fatores.length > 0;
         const hasSimHistory = sim.rounds.length > 0 || sim.processedKeys.length > 0;
         if (hasLedger && hasSimHistory) {
           const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
           await rebuildAutomationSimHistoryFromLedger(strategySnapshot, {
             broadcast: false,
-            fullLedger: globalState.ledger.um1fator,
+            fullLedger: combinedStrategyLedger(globalState.ledger),
           });
         }
       }
@@ -299,7 +310,11 @@ export async function syncAutomationSimWithStrategy(
     strategySnapshot,
     state.balance,
     strategySnapshot.tableHistories,
-    { baseStake: configDto.baseStake, blockNewEntries },
+    {
+      baseStake: configDto.baseStake,
+      blockNewEntries,
+      crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+    },
   );
   const openedHead =
     pending?.tableId != null
@@ -362,8 +377,9 @@ export async function rebuildAutomationSimHistoryFromLedger(
   const current = getAutomationSimState();
   const ledger =
     options?.fullLedger ??
-    (await import("@/lib/server/strategyGlobal/persistence")).getStrategyGlobalState().ledger
-      .um1fator;
+    combinedStrategyLedger(
+      (await import("@/lib/server/strategyGlobal/persistence")).getStrategyGlobalState().ledger,
+    );
 
   const floorTs = globalAutomationLedgerFloorTs(current);
   const openingBalance = globalAutomationOpeningBalance(current);
@@ -431,6 +447,7 @@ export async function replayAutomationSimFromLedger(
     {
       baseStake: getAutomationConfig().baseStake,
       blockNewEntries: configDtoForBalance(getAutomationSimState().balance).blocksNewEntries,
+      crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
     },
   );
   const openedHead =
