@@ -16,6 +16,7 @@ import {
   autoPlacePendingDirectsWithPreferredSide,
 } from "@/lib/server/network/direct-placement";
 import type { BinarySide } from "@/lib/server/network/direct-placement";
+import { ensureBinaryLegExtremity } from "@/lib/server/network/binary-extremity-repair";
 import { legSpilloverSlotAvailable } from "@/lib/server/network/placement";
 
 type NodeRow = typeof binaryTreeNodes.$inferSelect;
@@ -210,6 +211,7 @@ export async function buildBinaryNetworkData(
   rootName: string,
 ): Promise<BinaryNetworkData> {
   await autoPlacePendingDirectsWithPreferredSide(userId);
+  await ensureBinaryLegExtremity(userId);
 
   const db = getDb();
 
