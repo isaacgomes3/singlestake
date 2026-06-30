@@ -24,6 +24,8 @@ export const navDescriptionsContent = {
       "relatorios-rede": "Rede direta, indireta e volume.",
       "central-qualificacao": "Acompanhamento de graduação do afiliado.",
       admin: "Utilizadores, gateway PIX, notificações e activações.",
+      "painel-financeiro":
+        "Carteiras empresa, afiliados e automação — retiradas e movimentações.",
       "automacao-config": "Stake inicial, pausa manual e rendimento diário dos pacotes.",
       "automacao-estatisticas": "Acerto por gatilho 2 Fatores (3 padrões) e 1 Fator.",
       auditoria: "Registro de bônus, alterações e logins.",
@@ -58,6 +60,8 @@ export const navDescriptionsContent = {
       "relatorios-rede": "Direct, indirect network and volume.",
       "central-qualificacao": "Affiliate rank progression tracking.",
       admin: "Users, gateway, notifications and activations.",
+      "painel-financeiro":
+        "Company, affiliate and automation wallets — withdrawals and movements.",
       "automacao-config": "Base stake, manual pause and package daily yield.",
       "automacao-estatisticas": "Hit rate per 2 Factors (3 patterns) and 1 Factor trigger.",
       auditoria: "Bonus, change and login records.",
@@ -92,6 +96,8 @@ export const navDescriptionsContent = {
       "relatorios-rede": "Red directa, indirecta y volumen.",
       "central-qualificacao": "Seguimiento de graduación del afiliado.",
       admin: "Usuarios, gateway, notificaciones y activaciones.",
+      "painel-financeiro":
+        "Carteras empresa, afiliados y automatización — retiros y movimientos.",
       "automacao-config": "Stake inicial, pausa manual y rendimiento diario de paquetes.",
       "automacao-estatisticas": "Acierto por gatillo 2 Factores (3 patrones) y 1 Factor.",
       auditoria: "Registro de bonos, cambios e inicios de sesión.",

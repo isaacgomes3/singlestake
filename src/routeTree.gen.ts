@@ -96,6 +96,7 @@ import { Route as ApiBackOfficeAutomationDailyRouteImport } from './routes/api/b
 import { Route as ApiBackOfficeAdminPendingActivationsRouteImport } from './routes/api/back-office/admin/pending-activations'
 import { Route as ApiBackOfficeAdminPaymentGatewayRouteImport } from './routes/api/back-office/admin/payment-gateway'
 import { Route as ApiBackOfficeAdminNotificationsRouteImport } from './routes/api/back-office/admin/notifications'
+import { Route as ApiBackOfficeAdminCompanyFinancialPanelRouteImport } from './routes/api/back-office/admin/company-financial-panel'
 import { Route as ApiBackOfficeAdminAutomationYieldPctRouteImport } from './routes/api/back-office/admin/automation-yield-pct'
 import { Route as ApiBackOfficeAdminAutomationStatsRouteImport } from './routes/api/back-office/admin/automation-stats'
 import { Route as ApiBackOfficeAdminAutomationResetCycleRouteImport } from './routes/api/back-office/admin/automation-reset-cycle'
@@ -582,6 +583,12 @@ const ApiBackOfficeAdminNotificationsRoute =
     path: '/api/back-office/admin/notifications',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminCompanyFinancialPanelRoute =
+  ApiBackOfficeAdminCompanyFinancialPanelRouteImport.update({
+    id: '/api/back-office/admin/company-financial-panel',
+    path: '/api/back-office/admin/company-financial-panel',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeAdminAutomationYieldPctRoute =
   ApiBackOfficeAdminAutomationYieldPctRouteImport.update({
     id: '/api/back-office/admin/automation-yield-pct',
@@ -761,6 +768,7 @@ export interface FileRoutesByFullPath {
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
+  '/api/back-office/admin/company-financial-panel': typeof ApiBackOfficeAdminCompanyFinancialPanelRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -865,6 +873,7 @@ export interface FileRoutesByTo {
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
+  '/api/back-office/admin/company-financial-panel': typeof ApiBackOfficeAdminCompanyFinancialPanelRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -973,6 +982,7 @@ export interface FileRoutesById {
   '/api/back-office/admin/automation-reset-cycle': typeof ApiBackOfficeAdminAutomationResetCycleRoute
   '/api/back-office/admin/automation-stats': typeof ApiBackOfficeAdminAutomationStatsRoute
   '/api/back-office/admin/automation-yield-pct': typeof ApiBackOfficeAdminAutomationYieldPctRoute
+  '/api/back-office/admin/company-financial-panel': typeof ApiBackOfficeAdminCompanyFinancialPanelRoute
   '/api/back-office/admin/notifications': typeof ApiBackOfficeAdminNotificationsRoute
   '/api/back-office/admin/payment-gateway': typeof ApiBackOfficeAdminPaymentGatewayRoute
   '/api/back-office/admin/pending-activations': typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -1082,6 +1092,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/automation-yield-pct'
+    | '/api/back-office/admin/company-financial-panel'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1186,6 +1197,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/automation-yield-pct'
+    | '/api/back-office/admin/company-financial-panel'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1293,6 +1305,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/automation-reset-cycle'
     | '/api/back-office/admin/automation-stats'
     | '/api/back-office/admin/automation-yield-pct'
+    | '/api/back-office/admin/company-financial-panel'
     | '/api/back-office/admin/notifications'
     | '/api/back-office/admin/payment-gateway'
     | '/api/back-office/admin/pending-activations'
@@ -1392,6 +1405,7 @@ export interface RootRouteChildren {
   ApiBackOfficeAdminAutomationResetCycleRoute: typeof ApiBackOfficeAdminAutomationResetCycleRoute
   ApiBackOfficeAdminAutomationStatsRoute: typeof ApiBackOfficeAdminAutomationStatsRoute
   ApiBackOfficeAdminAutomationYieldPctRoute: typeof ApiBackOfficeAdminAutomationYieldPctRoute
+  ApiBackOfficeAdminCompanyFinancialPanelRoute: typeof ApiBackOfficeAdminCompanyFinancialPanelRoute
   ApiBackOfficeAdminNotificationsRoute: typeof ApiBackOfficeAdminNotificationsRoute
   ApiBackOfficeAdminPaymentGatewayRoute: typeof ApiBackOfficeAdminPaymentGatewayRoute
   ApiBackOfficeAdminPendingActivationsRoute: typeof ApiBackOfficeAdminPendingActivationsRouteWithChildren
@@ -2022,6 +2036,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/company-financial-panel': {
+      id: '/api/back-office/admin/company-financial-panel'
+      path: '/api/back-office/admin/company-financial-panel'
+      fullPath: '/api/back-office/admin/company-financial-panel'
+      preLoaderRoute: typeof ApiBackOfficeAdminCompanyFinancialPanelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/admin/automation-yield-pct': {
       id: '/api/back-office/admin/automation-yield-pct'
       path: '/api/back-office/admin/automation-yield-pct'
@@ -2426,6 +2447,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeAdminAutomationStatsRoute,
   ApiBackOfficeAdminAutomationYieldPctRoute:
     ApiBackOfficeAdminAutomationYieldPctRoute,
+  ApiBackOfficeAdminCompanyFinancialPanelRoute:
+    ApiBackOfficeAdminCompanyFinancialPanelRoute,
   ApiBackOfficeAdminNotificationsRoute: ApiBackOfficeAdminNotificationsRoute,
   ApiBackOfficeAdminPaymentGatewayRoute: ApiBackOfficeAdminPaymentGatewayRoute,
   ApiBackOfficeAdminPendingActivationsRoute:

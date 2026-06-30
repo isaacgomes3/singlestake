@@ -5,6 +5,7 @@ export const BACK_OFFICE_ADMIN_GROUP_ID: BackOfficeGroupId = "administracao";
 export const BACK_OFFICE_ADMIN_ONLY_MODULE_IDS = new Set<BackOfficeModuleId>([
   "automacao-config",
   "automacao-estatisticas",
+  "painel-financeiro",
   "admin",
   "auditoria",
 ]);

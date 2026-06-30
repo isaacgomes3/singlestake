@@ -72,12 +72,29 @@ export async function debitCompanyAffiliatePool(input: {
   referenceType: string;
   referenceId: string;
 }): Promise<void> {
+  await debitCompanyBucket({
+    bucket: "afiliados",
+    amount: input.amount,
+    description: input.description,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+  });
+}
+
+/** Retirada manual das carteiras empresa ou automação (admin). */
+export async function debitCompanyBucket(input: {
+  bucket: Extract<WalletBucket, "empresa" | "afiliados" | "automacao">;
+  amount: number;
+  description: string;
+  referenceType: string;
+  referenceId: string;
+}): Promise<void> {
   if (input.amount <= 0) return;
   const companyUserId = await resolveCompanyUserId();
-  await ensureCompanyWallet(companyUserId, "afiliados");
+  await ensureCompanyWallet(companyUserId, input.bucket);
   await debitWallet({
     userId: companyUserId,
-    bucket: "afiliados",
+    bucket: input.bucket,
     amount: input.amount,
     description: input.description,
     referenceType: input.referenceType,

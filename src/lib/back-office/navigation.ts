@@ -39,6 +39,7 @@ export type BackOfficeModuleId =
   | "relatorios-rede"
   | "central-qualificacao"
   | "admin"
+  | "painel-financeiro"
   | "automacao-config"
   | "automacao-estatisticas"
   | "auditoria"
@@ -129,7 +130,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/administracao",
     icon: Shield,
     description: "Automação global, painel admin e auditoria.",
-    moduleIds: ["automacao-config", "automacao-estatisticas", "admin", "auditoria"],
+    moduleIds: ["automacao-config", "automacao-estatisticas", "painel-financeiro", "admin", "auditoria"],
   },
 ];
 
@@ -142,7 +143,7 @@ export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   },
   {
     key: "gestao",
-    moduleIds: ["admin", "auditoria"],
+    moduleIds: ["painel-financeiro", "admin", "auditoria"],
   },
 ];
 
@@ -234,6 +235,11 @@ const MODULE_META: Record<
     label: "Painel administrativo",
     icon: UserCog,
     description: "Utilizadores, gateway PIX, notificações e activações.",
+  },
+  "painel-financeiro": {
+    label: "Painel financeiro",
+    icon: Wallet,
+    description: "Carteiras empresa, afiliados e automação com retiradas e movimentações.",
   },
   auditoria: {
     label: "Auditoria e logs",

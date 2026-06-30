@@ -2,6 +2,7 @@ import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navigation";
 import { isAdminUser, isBackOfficeAdminModule } from "@/lib/back-office/admin-access";
 import { getSession } from "@/lib/auth/session";
+import { BackOfficeCompanyFinancialPanel } from "@/components/back-office/back-office-company-financial-panel";
 import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
 import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-office-automation-config-panel";
 import { BackOfficeAutomationStatsPanel } from "@/components/back-office/back-office-automation-stats-panel";
@@ -131,6 +132,9 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "automacao-estatisticas":
       return <BackOfficeAutomationStatsPanel />;
+
+    case "painel-financeiro":
+      return <BackOfficeCompanyFinancialPanel />;
 
     case "admin":
       return (

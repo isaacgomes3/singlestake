@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
+
 import { REFERRAL_LEVELS, RESIDUAL_LEVELS, RESIDUAL_WEIGHT } from "@/lib/back-office/constants";
 import type { PackageKind } from "@/lib/back-office/product-constants";
 import {
@@ -17,6 +19,8 @@ import {
   isAffiliateServicesActive,
   recordMissedCredit,
 } from "@/lib/server/finance/subscription-access";
+import { getDb } from "@/lib/server/db/client";
+import { users } from "@/lib/server/db/schema";
 import { creditWallet } from "@/lib/server/finance/wallet";
 
 export type PackageSplitAmounts = {
@@ -59,6 +63,12 @@ async function paySponsorFromAffiliatePool(input: {
   referenceId: string;
 }): Promise<void> {
   if (input.amount <= 0) return;
+
+  const db = getDb();
+  const sponsor = await db.query.users.findFirst({
+    where: eq(users.id, input.sponsorId),
+  });
+  if (sponsor?.role === "admin") return;
 
   const capped = await capPayoutAmount(input.sponsorId, input.amount);
   if (capped <= 0) return;

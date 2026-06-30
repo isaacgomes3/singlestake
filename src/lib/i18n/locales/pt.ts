@@ -70,6 +70,7 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       "relatorios-rede": "Relatórios de rede",
       "central-qualificacao": "Central qualificação",
       admin: "Painel administrativo",
+      "painel-financeiro": "Painel financeiro",
       "automacao-config": "Automação global",
       "automacao-estatisticas": "Estatísticas automação",
       auditoria: "Auditoria e logs",
