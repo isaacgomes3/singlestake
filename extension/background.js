@@ -1735,6 +1735,11 @@ async function disarmCalibration(tabId) {
   const appTab = await findSinglestakeAppTab();
   if (appTab?.id != null) {
     try {
+      await postCalibrationToAppPageMainWorld(appTab.id, "disarm", "", "");
+    } catch {
+      /* ignore */
+    }
+    try {
       await chrome.tabs.sendMessage(appTab.id, { kind: "disarm-calibration-overlay" });
     } catch {
       /* ignore */
@@ -1786,7 +1791,42 @@ async function waitForTabComplete(tabId, timeoutMs = 20000) {
 
 async function findSinglestakeAppTab() {
   const tabs = await chrome.tabs.query({});
+  const activeInWindow = tabs.find(
+    (t) => t.active && t.id != null && isSinglestakeAppUrl(t.url),
+  );
+  if (activeInWindow?.id) return activeInWindow;
   return tabs.find((t) => t.id != null && isSinglestakeAppUrl(t.url)) ?? null;
+}
+
+const APP_CALIB_ARM_TYPE = "singlestake-arm-calibration";
+const APP_CALIB_DISARM_TYPE = "singlestake-disarm-calibration";
+
+/** Envia calibração ao React da app (mundo MAIN — postMessage do content script não chega à página). */
+async function postCalibrationToAppPageMainWorld(tabId, action, betKey, label) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    world: "MAIN",
+    func: (armType, disarmType, act, bk, lb) => {
+      if (act === "disarm") {
+        try {
+          delete document.documentElement.dataset.singlestakeArmCalibration;
+        } catch {
+          /* ignore */
+        }
+        window.postMessage({ type: disarmType }, window.location.origin);
+        return;
+      }
+      const detail = { betKey: bk, label: lb };
+      try {
+        document.documentElement.dataset.singlestakeArmCalibration = JSON.stringify(detail);
+      } catch {
+        /* ignore */
+      }
+      window.postMessage({ type: armType, ...detail }, window.location.origin);
+      window.dispatchEvent(new CustomEvent(armType, { detail }));
+    },
+    args: [APP_CALIB_ARM_TYPE, APP_CALIB_DISARM_TYPE, action, betKey, label],
+  });
 }
 
 async function armCalibrationOnAppOverlay(betKey, label) {
@@ -1794,17 +1834,24 @@ async function armCalibrationOnAppOverlay(betKey, label) {
   if (!appTab?.id) return null;
   await ensureContentBridgeOnTab(appTab.id);
   await chrome.tabs.update(appTab.id, { active: true });
-  try {
-    const resp = await chrome.tabs.sendMessage(appTab.id, {
-      kind: "arm-calibration-overlay",
-      betKey,
-      label,
-    });
-    if (resp?.ok) {
+  await waitForTabComplete(appTab.id, 12000);
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label);
+      try {
+        await chrome.tabs.sendMessage(appTab.id, {
+          kind: "arm-calibration-overlay",
+          betKey,
+          label,
+        });
+      } catch {
+        /* content-bridge opcional */
+      }
       return { tabId: appTab.id, via: "app-overlay" };
+    } catch {
+      if (attempt < 3) await sleep(250);
     }
-  } catch {
-    /* fallback para separador do operador */
   }
   return null;
 }

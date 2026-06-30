@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -19,9 +19,28 @@ type CalibSession = CalibrationArmDetail & { requestId?: string };
  */
 export function CasinoCalibrationOverlay() {
   const [session, setSession] = useState<CalibSession | null>(null);
+  const sessionRef = useRef<CalibSession | null>(null);
   const [banner, setBanner] = useState<{ text: string; ok: boolean } | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const armSession = useCallback((detail: CalibrationArmDetail) => {
+    setSaving(false);
+    setBanner(null);
+    setSession({
+      betKey: detail.betKey,
+      label: detail.label || detail.betKey,
+    });
+    try {
+      delete document.documentElement.dataset.singlestakeArmCalibration;
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const updateRect = useCallback(() => {
     setRect(findCasinoEmbedRect());
@@ -52,15 +71,29 @@ export function CasinoCalibrationOverlay() {
   }, [session]);
 
   useEffect(() => {
+    const readPendingArm = () => {
+      try {
+        const raw = document.documentElement.dataset.singlestakeArmCalibration;
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as CalibrationArmDetail;
+        if (parsed?.betKey) armSession(parsed);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const onArmEvent = (event: Event) => {
+      const detail = (event as CustomEvent<CalibrationArmDetail>).detail;
+      if (detail?.betKey) armSession(detail);
+    };
+
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       const data = event.data;
       if (!data || typeof data !== "object") return;
 
       if (data.type === EXT_ARM_CALIBRATION && data.betKey) {
-        setSaving(false);
-        setBanner(null);
-        setSession({
+        armSession({
           betKey: String(data.betKey),
           label: String(data.label || data.betKey),
         });
@@ -74,11 +107,12 @@ export function CasinoCalibrationOverlay() {
         return;
       }
 
-      if (data.type === EXT_CALIBRATION_RESULT && session) {
+      const active = sessionRef.current;
+      if (data.type === EXT_CALIBRATION_RESULT && active) {
         const ok = data.result?.ok === true;
         setBanner({
           text: ok
-            ? `✓ ${session.label} gravado`
+            ? `✓ ${active.label} gravado`
             : `⚠ ${data.result?.detail || "Erro ao gravar"}`,
           ok,
         });
@@ -92,13 +126,13 @@ export function CasinoCalibrationOverlay() {
 
       if (
         data.type === EXT_CALIBRATION_CLICK_RESPONSE &&
-        session?.requestId &&
-        data.requestId === session.requestId
+        active?.requestId &&
+        data.requestId === active.requestId
       ) {
         const ok = data.response?.ok === true;
         setBanner({
           text: ok
-            ? `✓ ${session.label} gravado`
+            ? `✓ ${active.label} gravado`
             : `⚠ ${data.response?.detail || "Erro ao gravar"}`,
           ok,
         });
@@ -110,9 +144,14 @@ export function CasinoCalibrationOverlay() {
       }
     };
 
+    readPendingArm();
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [session]);
+    window.addEventListener(EXT_ARM_CALIBRATION, onArmEvent);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener(EXT_ARM_CALIBRATION, onArmEvent);
+    };
+  }, [armSession]);
 
   if (!session) return null;
 
