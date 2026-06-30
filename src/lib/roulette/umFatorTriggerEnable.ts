@@ -47,8 +47,43 @@ export function setUmFatorEnabledTriggers(map: UmFatorTriggerEnableMap): void {
   setRotatingRoomGatilhoEnabled({ ...runtimeEnabled, ...normalizeUmFatorTriggerEnable(map) });
 }
 
+export const ROTATING_ROOM_GATILHO_CHANGED_EVENT = "rotating-room-gatilho-changed";
+
+const FIBONACCI_GATILHO_LOCAL_KEY = "roulette.rotatingRoom.fibonacciGatilhoEnabled";
+
+export function readFibonacciGatilhoLocalEnabled(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  try {
+    const raw = localStorage.getItem(FIBONACCI_GATILHO_LOCAL_KEY);
+    if (raw == null) return true;
+    return raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+export function writeFibonacciGatilhoLocalEnabled(enabled: boolean): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(FIBONACCI_GATILHO_LOCAL_KEY, enabled ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+  setRotatingRoomGatilhoEnabled({ ...runtimeEnabled, fibonacci: enabled });
+}
+
+export function initFibonacciGatilhoFromLocalStorage(): void {
+  if (typeof window === "undefined") return;
+  const enabled = readFibonacciGatilhoLocalEnabled();
+  runtimeEnabled = { ...runtimeEnabled, fibonacci: enabled };
+}
+
 export function setRotatingRoomGatilhoEnabled(map: RotatingRoomGatilhoEnableMap): void {
   runtimeEnabled = normalizeRotatingRoomGatilhoEnable(map);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(ROTATING_ROOM_GATILHO_CHANGED_EVENT));
+  }
 }
 
 export function getUmFatorEnabledTriggers(): UmFatorTriggerEnableMap {

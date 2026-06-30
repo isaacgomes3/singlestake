@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
+import { useFibonacciGatilhoEnabled } from "@/hooks/useFibonacciGatilhoEnabled";
 import { useRotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/sala-rotativa-fibonacci")({
       {
         name: "description",
         content:
-          "Sala rotativa Fibonacci — posiciona na mesa com ausência ≥8; indica com ausência ≥9; recuperação 1-1-2-3-5-8-13-21 (2:1).",
+          "Sala rotativa Fibonacci — dúzia e coluna com ausência ≥18; mesma roleta até vitória; recuperação 1-1-2-3-5-8-13-21 (2:1).",
       },
     ],
   }),
@@ -73,7 +74,10 @@ function SalaRotativaFibonacciPage() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const session = useRotatingRoomFibonacciSession(tableIds, histories);
+  const { enabled: fibonacciGatilhoOn } = useFibonacciGatilhoEnabled();
+  const session = useRotatingRoomFibonacciSession(tableIds, histories, {
+    enabled: fibonacciGatilhoOn,
+  });
 
   return (
     <div

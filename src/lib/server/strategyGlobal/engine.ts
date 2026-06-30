@@ -238,7 +238,10 @@ function driveFibonacci(
 ): { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number } {
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.fibonacci.machine.recovery;
-  const allowNewArming = !automationBlocksNewEntries(getAutomationConfig(), 0);
+  const config = getAutomationConfig();
+  const fibonacciTriggerOn = config.enabledTriggers.fibonacci !== false;
+  const allowNewArming =
+    fibonacciTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
   const result = drainPlacarSteps(
     state.fibonacci.machine,
     state.fibonacci.stats,

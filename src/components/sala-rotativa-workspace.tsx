@@ -8,6 +8,7 @@ import { CasinoEmbedViewportControls } from "@/components/casino-embed-viewport-
 import { CasinoGameEmbedFrame } from "@/components/casino-game-embed-frame";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import { useFibonacciGatilhoEnabled } from "@/hooks/useFibonacciGatilhoEnabled";
 import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
@@ -59,6 +60,8 @@ export function SalaRotativaWorkspace({
   onCorrectLastLoss,
 }: Props) {
   const isMobile = useIsMobile();
+  const isFibonacciSession = "fibonacciMode" in session && session.fibonacciMode === true;
+  const { enabled: fibonacciGatilhoOn, toggle: toggleFibonacciGatilho } = useFibonacciGatilhoEnabled();
   const [signalOnlyPref, setSignalOnlyPref] = useState<boolean | null>(() =>
     readRotatingRoomSignalOnlyMode(),
   );
@@ -231,6 +234,20 @@ export function SalaRotativaWorkspace({
             <Smartphone className="h-3.5 w-3.5" aria-hidden />
             {signalOnlyMode ? "Modo sinal" : "Modo completo"}
           </button>
+          {isFibonacciSession ? (
+            <button
+              type="button"
+              onClick={toggleFibonacciGatilho}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+                fibonacciGatilhoOn
+                  ? "border-violet-500/60 bg-violet-500/15 text-violet-100"
+                  : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
+              )}
+            >
+              {fibonacciGatilhoOn ? "Gatilho Fibonacci ON" : "Gatilho Fibonacci OFF"}
+            </button>
+          ) : null}
           {!signalOnlyMode ? (
             <button
               type="button"

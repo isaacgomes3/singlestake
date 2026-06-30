@@ -862,7 +862,7 @@ function RotatingRoomStage({
           </p>
         ) : fibonacciSession && hasAnyHistory ? (
           <p className="mt-2 text-xs text-slate-500">
-            Escolhe a zona (dúzia ou coluna) com maior ausência ≥ {minAbsenceSpins}
+            Escolhe a zona (dúzia ou coluna) com maior ausência · mesa precisa dúzia e coluna ≥ {minAbsenceSpins}
           </p>
         ) : null}
       </div>
@@ -921,7 +921,7 @@ function RotatingRoomStage({
           ) : fibonacciSession ? (
             <p className="mt-2 text-sm text-slate-500">
               Posição na mesa com ausência ≥ {ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS} · sinal
-              com ≥ {ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS}
+              com ≥ {ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS} (dúzia e coluna na mesma mesa)
             </p>
           ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
             <p className="mt-2 text-sm tabular-nums text-slate-500">
