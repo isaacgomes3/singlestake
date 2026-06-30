@@ -12,6 +12,7 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
 import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
+import { ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciSession";
 import { ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS } from "@/lib/roulette/doisFatoresPatternCrossing";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { doisFatoresFactorButtonClass, doisFatoresFactorLabel, type DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
@@ -806,11 +807,17 @@ function RotatingRoomStage({
 
   const lobbyWaitIdle = isRotatingRoomLobbyWait(session) && !isAwaitingNextTable;
 
+  const minAbsenceSpins = fibonacciSession
+    ? ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS
+    : ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS;
+
   const waitingTitle = isAwaitingNextTable || isCrossingAwaitingNewTable
     ? "Aguarde próxima mesa"
-    : hasAnyHistory
-      ? "Aguardando próxima entrada"
-      : "Sem giros ao vivo";
+    : fibonacciSession && hasAnyHistory
+      ? "A analisar dúzias e colunas…"
+      : hasAnyHistory
+        ? "Aguardando próxima entrada"
+        : "Sem giros ao vivo";
 
   if (signalOnly) {
     if (indicationOnly) {
@@ -847,9 +854,15 @@ function RotatingRoomStage({
           <p className="mt-1.5 text-sm font-bold tabular-nums text-amber-300/90">
             Recuperação {session.currentRecovery}
           </p>
-        ) : !hasAnyHistory ? null : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
+        ) : !hasAnyHistory ? null : maxBucketGap > 0 && maxBucketGap < minAbsenceSpins ? (
           <p className="mt-2 text-xs tabular-nums text-slate-500">
-            Ausência máx.: {maxBucketGap} giros
+            {fibonacciSession
+              ? `Maior ausência: ${maxBucketGap} giros · sinal com ${minAbsenceSpins}+`
+              : `Ausência máx.: ${maxBucketGap} giros`}
+          </p>
+        ) : fibonacciSession && hasAnyHistory ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Escolhe a zona (dúzia ou coluna) com maior ausência ≥ {minAbsenceSpins}
           </p>
         ) : null}
       </div>
@@ -896,10 +909,20 @@ function RotatingRoomStage({
             {hasAnyHistory
               ? singleFactor
                 ? "A analisar gatilhos…"
-                : "A analisar cruzamentos…"
+                : fibonacciSession
+                  ? "A analisar dúzias e colunas…"
+                  : "A analisar cruzamentos…"
               : "Sem giros ao vivo"}
           </p>
-          {!hasAnyHistory ? null : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
+          {!hasAnyHistory ? null : maxBucketGap > 0 && maxBucketGap < minAbsenceSpins ? (
+            <p className="mt-2 text-sm tabular-nums text-slate-500">
+              Maior ausência: {maxBucketGap} giros · sinal com {minAbsenceSpins}+
+            </p>
+          ) : fibonacciSession ? (
+            <p className="mt-2 text-sm text-slate-500">
+              Escolhe a zona (dúzia ou coluna) com maior ausência ≥ {minAbsenceSpins}
+            </p>
+          ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
             <p className="mt-2 text-sm tabular-nums text-slate-500">
               Maior ausência: {maxBucketGap} giros · sinal com{" "}
               {ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS}+
