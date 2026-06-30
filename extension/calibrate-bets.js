@@ -2,11 +2,11 @@
  * Calibração — overlay em ecrã completo no frame principal; 1 clique grava coordenadas.
  */
 (function () {
-  const root = document.documentElement;
+  const docEl = document.documentElement;
   const betKey =
-    root?.dataset?.gogCalBetKey || window.__gogCalBetKey || "";
+    docEl?.dataset?.gogCalBetKey || window.__gogCalBetKey || "";
   const label =
-    root?.dataset?.gogCalLabel || window.__gogCalLabel || betKey;
+    docEl?.dataset?.gogCalLabel || window.__gogCalLabel || betKey;
   if (!betKey) return;
 
   const findSurface =
@@ -30,6 +30,8 @@
 
   function cleanup() {
     document.getElementById(ROOT_ID)?.remove();
+    document.getElementById("gog-ext-cal-banner")?.remove();
+    document.getElementById("gog-ext-cal-cancel")?.remove();
     window.__gogCalibrationActive = false;
     window.__gogStopCalibration = null;
   }
@@ -130,6 +132,7 @@
         : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">PARES ou ÍMPARES · ESC cancela</span>`;
 
   const cancel = document.createElement("button");
+  cancel.id = "gog-ext-cal-cancel";
   cancel.type = "button";
   cancel.textContent = "Cancelar";
   cancel.style.cssText =

@@ -1829,12 +1829,68 @@ async function postCalibrationToAppPageMainWorld(tabId, action, betKey, label) {
   });
 }
 
+async function injectStake37SurfaceHelper(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [0] },
+      func: () => {
+        window.__gogFindGameSurface = function stake37FindEmbed() {
+          const shell = document.querySelector(".rotating-room-iframe-shell");
+          const iframe =
+            shell?.querySelector("iframe") ||
+            [...document.querySelectorAll("iframe")].find((el) => {
+              const hint = `${el.title || ""} ${el.getAttribute("aria-label") || ""} ${el.src || ""}`;
+              return /casino|roleta|game|pragmatic|playtech/i.test(hint);
+            });
+          if (!iframe) return null;
+          const r = iframe.getBoundingClientRect();
+          if (r.width < 60 || r.height < 40) return null;
+          return { el: iframe, kind: "embed-iframe" };
+        };
+      },
+    });
+  } catch {
+    /* opcional */
+  }
+}
+
+async function verifyCalibrationOverlayActive(tabId) {
+  try {
+    const rows = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () =>
+        Boolean(
+          window.__gogCalibrationActive ||
+            document.getElementById("gog-ext-cal-root"),
+        ),
+    });
+    return rows.some((row) => row.result === true);
+  } catch {
+    return false;
+  }
+}
+
 async function armCalibrationOnAppOverlay(betKey, label) {
   const appTab = await findSinglestakeAppTab();
   if (!appTab?.id) return null;
   await ensureContentBridgeOnTab(appTab.id);
   await chrome.tabs.update(appTab.id, { active: true });
   await waitForTabComplete(appTab.id, 12000);
+
+  let injected = 0;
+  try {
+    injected = await injectOperatorCalibration(appTab.id, betKey, label);
+    if (injected >= 1) {
+      await injectStake37SurfaceHelper(appTab.id);
+    }
+  } catch {
+    injected = 0;
+  }
+
+  if (injected >= 1 && (await verifyCalibrationOverlayActive(appTab.id))) {
+    await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label).catch(() => {});
+    return { tabId: appTab.id, via: "app-extension-overlay" };
+  }
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
@@ -1848,7 +1904,7 @@ async function armCalibrationOnAppOverlay(betKey, label) {
       } catch {
         /* content-bridge opcional */
       }
-      return { tabId: appTab.id, via: "app-overlay" };
+      return { tabId: appTab.id, via: "app-react-overlay" };
     } catch {
       if (attempt < 3) await sleep(250);
     }

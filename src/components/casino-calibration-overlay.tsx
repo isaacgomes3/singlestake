@@ -145,9 +145,17 @@ export function CasinoCalibrationOverlay() {
     };
 
     readPendingArm();
+    const onDatasetChange = () => readPendingArm();
+    const datasetObserver = new MutationObserver(onDatasetChange);
+    datasetObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-singlestake-arm-calibration"],
+    });
+
     window.addEventListener("message", onMessage);
     window.addEventListener(EXT_ARM_CALIBRATION, onArmEvent);
     return () => {
+      datasetObserver.disconnect();
       window.removeEventListener("message", onMessage);
       window.removeEventListener(EXT_ARM_CALIBRATION, onArmEvent);
     };
