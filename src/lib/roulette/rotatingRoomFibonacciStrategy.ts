@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Fibonacci em dúzias/colunas.
- * - Gatilho: mesa com ausência ≥12 em dúzia E coluna na mesma mesa
+ * - Gatilho: mesa com ausência ≥N numa dúzia ou numa coluna
  * - Persiste na mesma roleta até vitória (sequência 1-1-2-3-5-8-13-21)
  * - Após vitória: nova oportunidade; sem oportunidade → lobby
  */
@@ -17,9 +17,9 @@ import {
 
 export const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21] as const;
 
-/** Posiciona iframe na mesa quando a mesa qualifica (ausência ≥12 em dúzia e coluna). */
+/** Posiciona iframe na mesa quando alguma dúzia ou coluna tem ausência ≥N. */
 export const ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS = 12;
-/** Indicação / entrada com ausência ≥12 em dúzia e coluna na mesma mesa. */
+/** Indicação / entrada com ausência ≥N numa dúzia ou coluna. */
 export const ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS = 12;
 
 /** @deprecated Use {@link ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS}. */
@@ -164,19 +164,15 @@ function allZones(): FibonacciZone[] {
   return zones;
 }
 
-/** Mesa qualifica só com ausência mínima em pelo menos uma dúzia E uma coluna. */
+/** Mesa qualifica com ausência mínima numa dúzia ou numa coluna. */
 export function tableQualifiesForFibonacci(
   historyNewestFirst: readonly number[],
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
 ): boolean {
-  let hasDozen = false;
-  let hasColumn = false;
   for (const zone of allZones()) {
-    const gap = consecutiveZoneAbsence(historyNewestFirst, zone);
-    if (gap < minAbsenceSpins) continue;
-    if (zone.kind === "dozen") hasDozen = true;
-    else hasColumn = true;
-    if (hasDozen && hasColumn) return true;
+    if (consecutiveZoneAbsence(historyNewestFirst, zone) >= minAbsenceSpins) {
+      return true;
+    }
   }
   return false;
 }
@@ -185,11 +181,8 @@ export function bestPickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
-  qualifyAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  _qualifyAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
 ): RotatingRoomFibonacciPick | null {
-  if (!tableQualifiesForFibonacci(historyNewestFirst, qualifyAbsenceSpins)) {
-    return null;
-  }
   let best: RotatingRoomFibonacciPick | null = null;
   for (const zone of allZones()) {
     const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
@@ -206,11 +199,8 @@ function pickForTableZone(
   historyNewestFirst: readonly number[],
   zone: FibonacciZone,
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
-  qualifyAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  _qualifyAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
 ): RotatingRoomFibonacciPick | null {
-  if (!tableQualifiesForFibonacci(historyNewestFirst, qualifyAbsenceSpins)) {
-    return null;
-  }
   const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
   if (absenceGap < minAbsenceSpins) return null;
   return { tableId, zone, absenceGap };

@@ -34,7 +34,7 @@ export const automationStatsContent = {
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
-      "Gatilho e giros de ausência mínimos (dúzia e coluna na mesma mesa). Confirme após alterar os giros.",
+      "Gatilho e giros de ausência mínimos (dúzia ou coluna na mesa). Confirme após alterar os giros.",
     fibonacciAbsenceLabel: "Giros ausentes",
     fibonacciAbsenceConfirm: "Confirmar ausências",
     fibonacciAbsenceSaved: "Giros de ausência actualizados.",
