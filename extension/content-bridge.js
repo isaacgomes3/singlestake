@@ -10,6 +10,12 @@ const GOG = {
   STORAGE_MODE: "gogExecutionMode",
 };
 
+const EXT_CALIBRATION_CLICK = "gog-ext/calibration-click";
+const EXT_CALIBRATION_CLICK_RESPONSE = "gog-ext/calibration-click-response";
+const EXT_ARM_CALIBRATION = "singlestake-arm-calibration";
+const EXT_DISARM_CALIBRATION = "singlestake-disarm-calibration";
+const EXT_CALIBRATION_RESULT = "singlestake-calibration-result";
+
 /** Mesmas chaves que `rotatingRoomExtensionPrefs.ts` na app. */
 const APP_EXTENSION_ENABLED_KEY = "roulette.rotatingRoom.extensionEnabled";
 const APP_EXTENSION_REAL_KEY = "roulette.rotatingRoom.extensionRealMode";
@@ -125,6 +131,51 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (data?.type === EXT_CALIBRATION_CLICK && data.betKey) {
+    chrome.runtime.sendMessage(
+      {
+        kind: "calibration-click",
+        betKey: String(data.betKey),
+        label: String(data.label || data.betKey),
+        coord: data.coord,
+        frameHref: data.frameHref || location.href,
+        isTop: data.isTop === true,
+        requestId: data.requestId,
+      },
+      (resp) => {
+        if (chrome.runtime.lastError) {
+          window.postMessage(
+            {
+              type: EXT_CALIBRATION_CLICK_RESPONSE,
+              requestId: data.requestId,
+              response: { ok: false, detail: chrome.runtime.lastError.message },
+            },
+            window.location.origin,
+          );
+          return;
+        }
+        window.postMessage(
+          {
+            type: EXT_CALIBRATION_CLICK_RESPONSE,
+            requestId: data.requestId,
+            response: resp,
+          },
+          window.location.origin,
+        );
+        if (resp?.ok) {
+          window.postMessage(
+            {
+              type: EXT_CALIBRATION_RESULT,
+              result: resp,
+            },
+            window.location.origin,
+          );
+        }
+      },
+    );
+    return;
+  }
+
   if (!isBridgePayload(data)) return;
   forwardToBackground(data);
 });
@@ -212,6 +263,29 @@ try {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.kind === "bridge-ping") {
+    sendResponse({ ok: true });
+    return true;
+  }
+  if (message?.kind === "arm-calibration-overlay") {
+    const betKey = String(message.betKey || "");
+    const label = String(message.label || betKey);
+    if (!betKey) {
+      sendResponse({ ok: false, detail: "Chave de aposta em falta" });
+      return true;
+    }
+    window.postMessage(
+      {
+        type: EXT_ARM_CALIBRATION,
+        betKey,
+        label,
+      },
+      window.location.origin,
+    );
+    sendResponse({ ok: true, detail: `Overlay activo — clique em ${label}` });
+    return true;
+  }
+  if (message?.kind === "disarm-calibration-overlay") {
+    window.postMessage({ type: EXT_DISARM_CALIBRATION }, window.location.origin);
     sendResponse({ ok: true });
     return true;
   }

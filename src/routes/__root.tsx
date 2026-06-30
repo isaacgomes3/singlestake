@@ -15,6 +15,7 @@ import { LiveFootballBlitzSseBridge } from "@/components/live-football-blitz-sse
 import { LiveRouletteSseBridge } from "@/components/live-roulette-sse-bridge";
 import { RouletteAutomationSimSseBridge } from "@/components/roulette-automation-sim-sse-bridge";
 import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
+import { CasinoCalibrationOverlay } from "@/components/casino-calibration-overlay";
 import { RotatingRoomExtensionBridgeGlobal } from "@/components/rotating-room-extension-bridge-global";
 import { DeferredMount } from "@/components/deferred-mount";
 import { RouteSoundGate } from "@/components/route-sound-gate";
@@ -215,6 +216,7 @@ function RootComponent() {
       <I18nProvider>
         <ThemeProvider>
           <Toaster richColors position="top-center" />
+          <CasinoCalibrationOverlay />
           {liveCasinoShell ? (
             <div className="app-back-office-bg">
               <RouletteLiveApiProvider>

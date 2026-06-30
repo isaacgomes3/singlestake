@@ -192,19 +192,32 @@ const BET_GROUP_LABELS = {
   paridade: "Paridade",
   cor: "Cor",
   altura: "Altura",
+  duzias: "Dúzias",
+  colunas: "Colunas",
 };
 
-const BET_GROUP_ORDER = ["paridade", "cor", "altura"];
+const BET_GROUP_ORDER = ["paridade", "cor", "altura", "duzias", "colunas"];
+
+function calibrationGroupForKey(key) {
+  if (key === "odd" || key === "even") return "paridade";
+  if (key === "red" || key === "black") return "cor";
+  if (key === "low" || key === "high") return "altura";
+  if (key.startsWith("doz:")) return "duzias";
+  if (key.startsWith("col:")) return "colunas";
+  return "other";
+}
 
 function groupCalibrationBets(bets) {
   const grouped = {
     paridade: [],
     cor: [],
     altura: [],
+    duzias: [],
+    colunas: [],
     other: [],
   };
   for (const [key, info] of Object.entries(bets ?? {})) {
-    const group = info?.group ?? (key === "odd" || key === "even" ? "paridade" : key === "red" || key === "black" ? "cor" : key === "low" || key === "high" ? "altura" : "other");
+    const group = info?.group ?? calibrationGroupForKey(key);
     if (grouped[group]) grouped[group].push({ key, info });
     else grouped.other.push({ key, info });
   }
@@ -567,9 +580,16 @@ function setBridgeEnabled(enabled) {
       return;
     }
     setBridgeUi(enabled);
-    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, () =>
-      loadStatus(),
-    );
+    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, (resp) => {
+      if (chrome.runtime.lastError) {
+        if (out) out.textContent = chrome.runtime.lastError.message;
+        return;
+      }
+      if (enabled && resp?.navigated === false && resp?.detail && out) {
+        out.textContent = `⚠ Ligação activa mas navegação falhou: ${resp.detail}`;
+      }
+      loadStatus();
+    });
   });
 }
 

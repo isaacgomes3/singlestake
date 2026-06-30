@@ -2,9 +2,20 @@
  * Calibração — overlay em ecrã completo no frame principal; 1 clique grava coordenadas.
  */
 (function () {
-  const betKey = window.__gogCalBetKey || "";
-  const label = window.__gogCalLabel || betKey;
+  const root = document.documentElement;
+  const betKey =
+    root?.dataset?.gogCalBetKey || window.__gogCalBetKey || "";
+  const label =
+    root?.dataset?.gogCalLabel || window.__gogCalLabel || betKey;
   if (!betKey) return;
+
+  const findSurface =
+    typeof window.__gogFindGameSurface === "function"
+      ? window.__gogFindGameSurface
+      : null;
+  const surface = findSurface ? findSurface() : null;
+  const isTop = window === window.top;
+  if (!isTop && !surface?.el) return;
 
   if (typeof window.__gogStopCalibration === "function") {
     try {
@@ -114,7 +125,9 @@
   banner.innerHTML =
     betKey === "chip"
       ? `📍 Clique exactamente na ficha <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">Ficha base · ESC cancela</span>`
-      : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">PARES ou ÍMPARES · ESC cancela</span>`;
+      : betKey.startsWith("doz:") || betKey.startsWith("col:")
+        ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">Dúzia/Coluna · Fibonacci · ESC cancela</span>`
+        : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">PARES ou ÍMPARES · ESC cancela</span>`;
 
   const cancel = document.createElement("button");
   cancel.type = "button";

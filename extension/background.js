@@ -199,7 +199,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     void chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled }).then(async () => {
       await ensureContentBridgeOnAppTabs();
       if (enabled) {
-        await navigateBridgeToLobbyWait();
+        const nav = await navigateBridgeToLobbyWait();
+        sendResponse({
+          ok: true,
+          enabled,
+          navigated: nav?.results?.[0]?.ok === true,
+          detail: nav?.results?.[0]?.detail ?? null,
+        });
+        return;
       }
       sendResponse({ ok: true, enabled });
     });
@@ -1513,6 +1520,8 @@ function betGroupFromKey(betKey) {
   if (betKey === "odd" || betKey === "even") return "paridade";
   if (betKey === "red" || betKey === "black") return "cor";
   if (betKey === "low" || betKey === "high") return "altura";
+  if (betKey.startsWith("doz:")) return "duzias";
+  if (betKey.startsWith("col:")) return "colunas";
   return null;
 }
 
@@ -1678,7 +1687,17 @@ async function saveCalibrationClick(message, tabId) {
       at: new Date().toISOString(),
     };
     const groupLabel =
-      group === "cor" ? "cor" : group === "altura" ? "altura" : group === "paridade" ? "paridade" : "";
+      group === "cor"
+        ? "cor"
+        : group === "altura"
+          ? "altura"
+          : group === "paridade"
+            ? "paridade"
+            : group === "duzias"
+              ? "dúzia"
+              : group === "colunas"
+                ? "coluna"
+                : "";
     detail = `${message.label || betKey} gravado${groupLabel ? ` (${groupLabel})` : ""} (${Math.round(coord.x * 100)}%, ${Math.round(coord.y * 100)}%)`;
   }
   store.sites[siteKey].updatedAt = new Date().toISOString();
@@ -1713,6 +1732,14 @@ async function clearCalibration(siteKey) {
 
 async function disarmCalibration(tabId) {
   if (tabId == null) return;
+  const appTab = await findSinglestakeAppTab();
+  if (appTab?.id != null) {
+    try {
+      await chrome.tabs.sendMessage(appTab.id, { kind: "disarm-calibration-overlay" });
+    } catch {
+      /* ignore */
+    }
+  }
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -1720,12 +1747,157 @@ async function disarmCalibration(tabId) {
         if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
       },
     });
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => {
+        if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
+        delete document.documentElement.dataset.gogCalBetKey;
+        delete document.documentElement.dataset.gogCalLabel;
+      },
+    });
   } catch {
     /* tab closed */
   }
 }
 
+async function waitForTabComplete(tabId, timeoutMs = 20000) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status === "complete") return true;
+  } catch {
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve(false);
+    }, timeoutMs);
+    function listener(id, info) {
+      if (id === tabId && info.status === "complete") {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve(true);
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function findSinglestakeAppTab() {
+  const tabs = await chrome.tabs.query({});
+  return tabs.find((t) => t.id != null && isSinglestakeAppUrl(t.url)) ?? null;
+}
+
+async function armCalibrationOnAppOverlay(betKey, label) {
+  const appTab = await findSinglestakeAppTab();
+  if (!appTab?.id) return null;
+  await ensureContentBridgeOnTab(appTab.id);
+  await chrome.tabs.update(appTab.id, { active: true });
+  try {
+    const resp = await chrome.tabs.sendMessage(appTab.id, {
+      kind: "arm-calibration-overlay",
+      betKey,
+      label,
+    });
+    if (resp?.ok) {
+      return { tabId: appTab.id, via: "app-overlay" };
+    }
+  } catch {
+    /* fallback para separador do operador */
+  }
+  return null;
+}
+
+function stampCalibrationDataset(tabId, frameIds, betKey, label) {
+  const target =
+    frameIds != null && frameIds.length > 0
+      ? { tabId, frameIds }
+      : { tabId, allFrames: true };
+  return chrome.scripting.executeScript({
+    target,
+    func: (bk, lb) => {
+      const root = document.documentElement;
+      root.dataset.gogCalBetKey = bk;
+      root.dataset.gogCalLabel = lb;
+      window.__gogCalBetKey = bk;
+      window.__gogCalLabel = lb;
+      const findSurface =
+        typeof window.__gogFindGameSurface === "function"
+          ? window.__gogFindGameSurface
+          : null;
+      const surface = findSurface ? findSurface() : null;
+      const isTop = window === window.top;
+      return {
+        armed: isTop || Boolean(surface?.el),
+        href: location.href,
+        isTop,
+      };
+    },
+    args: [betKey, label],
+  });
+}
+
+async function injectOperatorCalibration(tabId, betKey, label) {
+  await waitForTabComplete(tabId);
+  await disarmCalibration(tabId);
+
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    func: () => window.__gogClearVisualArtifacts?.(),
+  });
+
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: ["exterior-bets.js"],
+  });
+
+  const stamped = await stampCalibrationDataset(tabId, null, betKey, label);
+  const frameIds = stamped
+    .filter((row) => row.result?.armed && row.frameId != null)
+    .map((row) => row.frameId);
+
+  const injectTargets =
+    frameIds.length > 0
+      ? frameIds
+      : (() => {
+          const topRow = stamped.find((row) => row.result?.isTop);
+          return topRow ? [topRow.frameId ?? 0] : [0];
+        })();
+
+  for (const frameId of injectTargets) {
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [frameId] },
+      files: ["calibrate-bets.js"],
+    });
+  }
+
+  return injectTargets.length;
+}
+
 async function armCalibration(betKey, label, chipValue) {
+  const resolvedLabel =
+    label ?? (betKey === "chip" ? `Ficha R$ ${Number(chipValue) || DEFAULT_CHIP_VALUE}` : betKey);
+
+  const appOverlay = await armCalibrationOnAppOverlay(betKey, resolvedLabel);
+  if (appOverlay) {
+    await chrome.storage.local.set({
+      gogCalibrationArmed: {
+        betKey,
+        label: resolvedLabel,
+        tabId: appOverlay.tabId,
+        chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
+        at: new Date().toISOString(),
+        via: appOverlay.via,
+      },
+    });
+    return {
+      ok: true,
+      detail: `Overlay azul no app — clique em ${resolvedLabel} sobre o casino`,
+      tabId: appOverlay.tabId,
+    };
+  }
+
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const preferredId = activeTabs[0]?.id ?? null;
   const { tabId, navigated } = await findRouletteTabForAction(preferredId);
@@ -1733,42 +1905,21 @@ async function armCalibration(betKey, label, chipValue) {
   if (tabId == null) {
     return {
       ok: false,
-      detail: "Abra a roleta Pragmatic (ex.: roulette-macao) num separador.",
+      detail: "Abra stake37.com.br com o casino ou a roleta Pragmatic num separador.",
     };
   }
-
-  const resolvedChipValue = betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null;
-  const resolvedLabel =
-    label ??
-    (betKey === "chip" ? `Ficha R$ ${resolvedChipValue}` : betKey);
 
   await chrome.tabs.update(tabId, { active: true });
   await disarmCalibration(tabId);
 
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () => window.__gogClearVisualArtifacts?.(),
-    });
-
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["exterior-bets.js"],
-    });
-
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: (bk, lb) => {
-        window.__gogCalBetKey = bk;
-        window.__gogCalLabel = lb;
-      },
-      args: [betKey, resolvedLabel],
-    });
-
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["calibrate-bets.js"],
-    });
+    const injected = await injectOperatorCalibration(tabId, betKey, resolvedLabel);
+    if (injected < 1) {
+      return {
+        ok: false,
+        detail: "Não foi possível injectar o overlay — recarregue a mesa e tente de novo",
+      };
+    }
   } catch (e) {
     return {
       ok: false,
@@ -1781,8 +1932,9 @@ async function armCalibration(betKey, label, chipValue) {
       betKey,
       label: resolvedLabel,
       tabId,
-      chipValue: resolvedChipValue,
+      chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
       at: new Date().toISOString(),
+      via: "operator",
     },
   });
 

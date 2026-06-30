@@ -7,6 +7,8 @@ import {
   pragmaticExteriorBetKeyFromFactor,
   type PragmaticExteriorBetKey,
 } from "@/lib/roulette/pragmaticExteriorBetMap";
+import { pragmaticFibonacciBetKeyFromZone } from "@/lib/roulette/pragmaticFibonacciBetMap";
+import type { PragmaticFibonacciBetKey } from "@/lib/roulette/pragmaticFibonacciBetMap";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 import {
   lobbyTableDisplayName,
@@ -54,7 +56,7 @@ export type RotatingRoomExtensionContext = {
   mesaProvider: CasinoEmbedProvider;
   factor1Label: string | null;
   factor2Label: string | null;
-  factor1BetKey: PragmaticExteriorBetKey | null;
+  factor1BetKey: PragmaticExteriorBetKey | PragmaticFibonacciBetKey | null;
   factor2BetKey: PragmaticExteriorBetKey | null;
   singleFactorMode: boolean;
   signalId: string | null;
@@ -68,8 +70,8 @@ export type RotatingRoomExtensionContext = {
   maxRecovery: number;
   /** demo | real — prioridade sobre o modo do popup da extensão. */
   executionMode: "demo" | "real";
-  rotativaTrigger?: "umFator" | "crossing";
-  strategy?: "um1fator" | "dois2fatores";
+  rotativaTrigger?: "umFator" | "crossing" | "fibonacci";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci";
   /** Por rodada — re-aposta após empate (2F). */
   betAttemptKey?: string | null;
   /** Aguarde no Lobby — navegar para poker em vez de mesa de roleta. */
@@ -266,6 +268,66 @@ export function buildExtensionBridgeFromAutomationBet(
   automationBalance?: number | null,
 ): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
   if (bet.tableId == null || !bet.signalId?.trim()) return null;
+
+  if (bet.strategy === "fibonacci") {
+    const parts = bet.signalId.split(":");
+    const zoneKind = parts[1];
+    const zoneId = Number(parts[2]);
+    if (
+      (zoneKind !== "dozen" && zoneKind !== "column") ||
+      !Number.isFinite(zoneId) ||
+      zoneId < 1 ||
+      zoneId > 3
+    ) {
+      return null;
+    }
+    const betKey = pragmaticFibonacciBetKeyFromZone({
+      kind: zoneKind,
+      id: zoneId as 1 | 2 | 3,
+    });
+    const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
+    const context = buildRotatingRoomExtensionContext(
+      {
+        sessionMode: "active",
+        showTapeteSignal: true,
+        prepareTableId: null,
+        currentTableId: bet.tableId,
+        activeCrossing: null,
+        singleFactorMode: true,
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+        rotativaTrigger: "fibonacci",
+        currentRecovery: bet.recovery,
+        lobbyWait: false,
+      },
+      mesaEmbedUrl,
+      automationBalance,
+    );
+    return {
+      fingerprint: `${bet.signalId}|r${bet.recovery}`,
+      actions: [
+        {
+          kind: "click",
+          target: "prepare-open",
+          label: bet.tableLabel ?? lobbyTableDisplayName(bet.tableId),
+          reason: `Abrir ${bet.tableLabel ?? "mesa"} no operador`,
+        },
+        {
+          kind: "click",
+          target: "factor-1",
+          label: bet.alertLabel ?? betKey,
+          reason: `Fibonacci · ${bet.alertLabel ?? betKey} · gale ${bet.recovery}`,
+        },
+      ],
+      context: {
+        ...context,
+        factor1Label: bet.alertLabel,
+        factor1BetKey: betKey,
+        rotativaTrigger: "fibonacci",
+        strategy: "fibonacci",
+      },
+    };
+  }
 
   const activeCrossing = activeCrossingFromAutomationBet(bet);
   if (!activeCrossing) return null;
