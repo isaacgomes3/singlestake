@@ -11,6 +11,7 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
 import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
+import { ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS } from "@/lib/roulette/doisFatoresPatternCrossing";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { doisFatoresFactorButtonClass, doisFatoresFactorLabel, type DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
 import {
@@ -48,6 +49,32 @@ export type RotatingRoomPanelSession =
 
 function isSingleFactorSession(session: RotatingRoomPanelSession): boolean {
   return "singleFactorMode" in session && session.singleFactorMode === true;
+}
+
+function isCrossingTableAnchored(session: RotatingRoomPanelSession): boolean {
+  return "tableAnchored" in session && session.tableAnchored === true;
+}
+
+function crossingPrepareHeading(
+  session: RotatingRoomPanelSession,
+  hasPreparePattern: boolean,
+): string {
+  if (isSingleFactorSession(session)) return "Posicione-se";
+  if (isCrossingTableAnchored(session)) {
+    return hasPreparePattern ? "Gatilho na mesa fixa" : "Mesa fixa — aguardando gatilho";
+  }
+  return "Posicione-se";
+}
+
+function crossingPrepareHint(session: RotatingRoomPanelSession, hasPreparePattern: boolean): string {
+  if (isSingleFactorSession(session)) return "Toque na roleta para abrir a mesa indicada";
+  if (isCrossingTableAnchored(session)) {
+    if (hasPreparePattern) {
+      return "Posicione-se nesta roleta — recuperações também ficam aqui";
+    }
+    return `Só troca de roleta com zero ou ${ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS} rodadas sem novo gatilho`;
+  }
+  return "Toque na roleta para abrir a mesa indicada";
 }
 
 type PanelProps = {
@@ -466,6 +493,13 @@ function RotatingRoomStage({
       ? session.crossingScan.reduce((best, row) => Math.max(best, row.bucketGap ?? 0), 0)
       : 0;
   const singleFactor = isSingleFactorSession(session);
+  const hasPreparePattern = !singleFactor && Boolean(session.prepareCategory);
+  const prepareHeading = crossingPrepareHeading(session, hasPreparePattern);
+  const prepareHint = crossingPrepareHint(session, hasPreparePattern);
+  const isCrossingAwaitingNewTable =
+    !singleFactor &&
+    session.sessionMode === "awaiting_queue" &&
+    session.currentRecovery > 0;
 
   if (signalOnly && isPrepare && focusTableId != null && focusLabel) {
     if (indicationOnly) {
@@ -482,7 +516,7 @@ function RotatingRoomStage({
     return (
       <div className="overflow-hidden rounded-2xl border border-amber-500/45 bg-bg-card px-4 py-5 text-center">
         <ChevronUp className="mx-auto h-5 w-5 text-amber-400/80 motion-safe:animate-bounce" aria-hidden />
-        <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-amber-300/90">Posicione-se</p>
+        <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-amber-300/90">{prepareHeading}</p>
         <button
           type="button"
           onClick={() => onOpenTable?.(focusTableId)}
@@ -502,8 +536,13 @@ function RotatingRoomStage({
           compact ? "rounded-2xl" : "",
         )}
       >
-        <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300/90">Posicione-se</p>
-        <p className="mt-1 text-xs text-amber-200/70">Toque na roleta para abrir a mesa indicada</p>
+        <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300/90">{prepareHeading}</p>
+        <p className="mt-1 text-xs text-amber-200/70">{prepareHint}</p>
+        {session.currentRecovery > 0 ? (
+          <p className="mt-1 text-xs font-bold tabular-nums text-amber-300/80">
+            Recuperação {session.currentRecovery}
+          </p>
+        ) : null}
 
         <div className="mt-4">
           <PrepareTableCard tableId={focusTableId} primary onOpenTable={onOpenTable} />
@@ -652,7 +691,7 @@ function RotatingRoomStage({
 
   const lobbyWaitIdle = isRotatingRoomLobbyWait(session) && !isAwaitingNextTable;
 
-  const waitingTitle = isAwaitingNextTable
+  const waitingTitle = isAwaitingNextTable || isCrossingAwaitingNewTable
     ? "Aguarde próxima mesa"
     : hasAnyHistory
       ? "Aguardando próxima entrada"
@@ -689,7 +728,7 @@ function RotatingRoomStage({
           aria-hidden
         />
         <p className="mt-3 text-base font-semibold tracking-wide text-text-primary">{waitingTitle}</p>
-        {isAwaitingNextTable ? (
+        {isAwaitingNextTable || isCrossingAwaitingNewTable ? (
           <p className="mt-1.5 text-sm font-bold tabular-nums text-amber-300/90">
             Recuperação {session.currentRecovery}
           </p>
@@ -722,7 +761,7 @@ function RotatingRoomStage({
         compact ? "rounded-2xl py-10" : "mx-auto max-w-lg",
       )}
     >
-      {isAwaitingNextTable ? (
+      {isAwaitingNextTable || isCrossingAwaitingNewTable ? (
         <>
           <p className="text-lg font-semibold tracking-wide text-amber-300/90 sm:text-xl">
             Aguarde próxima mesa
@@ -730,6 +769,11 @@ function RotatingRoomStage({
           <p className="mt-2 text-sm font-bold tabular-nums text-amber-200/80">
             Recuperação {session.currentRecovery}
           </p>
+          {!singleFactor ? (
+            <p className="mt-2 text-xs text-amber-200/60">
+              Procurando roleta com novo padrão (zero ou {ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS} giros sem gatilho)
+            </p>
+          ) : null}
         </>
       ) : (
         <>

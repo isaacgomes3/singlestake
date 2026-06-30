@@ -16,10 +16,11 @@ import {
   writeRotatingRoomCrossingSessionStats,
 } from "@/lib/roulette/rotatingRoomCrossingSession";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
-import type {
-  RotatingRoomCrossingMachineState,
-  RotatingRoomCrossingTableScan,
-  RotatingRoomSessionMode,
+import {
+  isRotatingRoomCrossingTableAnchored,
+  type RotatingRoomCrossingMachineState,
+  type RotatingRoomCrossingTableScan,
+  type RotatingRoomSessionMode,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import type { RotatingRoomPhase, RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
@@ -70,6 +71,8 @@ export type RotatingRoomCrossingSession = {
   crossingScan: RotatingRoomCrossingTableScan[];
   cycleSpinsWithoutWin: number;
   lastEvaluatedHead: string | null;
+  /** 2 Fatores: permanece na mesma roleta até zero ou 2 giros sem gatilho. */
+  tableAnchored: boolean;
 };
 
 export function useRotatingRoomCrossingSession(
@@ -293,12 +296,15 @@ export function useRotatingRoomCrossingSession(
       ? machine.prepareTableId
       : null;
 
+  const tableAnchored = isRotatingRoomCrossingTableAnchored(machine);
+
   if (globalActive && globalView) {
     return {
       ...globalView,
       roundFlash,
       cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
       lastEvaluatedHead: machine.lastEvaluatedHead,
+      tableAnchored: globalView.tableAnchored ?? tableAnchored,
     };
   }
 
@@ -318,5 +324,6 @@ export function useRotatingRoomCrossingSession(
     crossingScan: liveView.crossingScan,
     cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
     lastEvaluatedHead: machine.lastEvaluatedHead,
+    tableAnchored,
   };
 }

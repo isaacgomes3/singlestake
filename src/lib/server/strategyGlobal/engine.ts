@@ -3,6 +3,7 @@ import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableCon
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
   ROTATING_ROOM_CROSSING_MAX_RECOVERY,
+  isRotatingRoomCrossingTableAnchored,
   sanitizeRotatingRoomCrossingMachineForTableIds,
   seedRotatingRoomCrossingMachineAfterPlacarReset,
   type RotatingRoomCrossingPlacarFlash,
@@ -225,6 +226,7 @@ function buildCrossingClientView(
     prepareCategory: liveView.preparePick?.category ?? null,
     crossingScan: liveView.crossingScan,
     activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
+    tableAnchored: isRotatingRoomCrossingTableAnchored(machine),
   };
 }
 

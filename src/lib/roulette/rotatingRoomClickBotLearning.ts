@@ -57,12 +57,15 @@ export function planRotatingRoomClickBotActions(
 
   if (isPrepare && session.prepareTableId != null) {
     const mesa = lobbyTableDisplayName(session.prepareTableId);
+    const anchored = "tableAnchored" in session && session.tableAnchored === true;
     return [
       {
         kind: "click",
         target: "prepare-open",
         label: mesa,
-        reason: "Fase POSICIONAR — abrir a mesa indicada",
+        reason: anchored
+          ? "Mesa fixa — aguardar gatilho ou posicionar nesta roleta"
+          : "Fase POSICIONAR — abrir a mesa indicada",
       },
     ];
   }

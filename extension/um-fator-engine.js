@@ -346,6 +346,7 @@ var SinglestakeUmFator = (() => {
 
   // src/lib/roulette/doisFatoresPatternCrossing.ts
   var ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS = 12;
+  var ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS = 2;
   var ROTATING_ROOM_CROSSING_PATTERN_AXES = [
     "cor-altura",
     "altura-paridade",
@@ -612,6 +613,13 @@ var SinglestakeUmFator = (() => {
   function crossingFingerprint(tableId, axis, category) {
     return `${tableId}:${axis}:${category}`;
   }
+  var ANCHOR_FINGERPRINT_PREFIX = "anchor:";
+  function anchorFingerprint(tableId) {
+    return `${ANCHOR_FINGERPRINT_PREFIX}${tableId}`;
+  }
+  function isAnchoredFingerprint(fp) {
+    return fp != null && fp.startsWith(ANCHOR_FINGERPRINT_PREFIX);
+  }
   function buildCrossingActiveFromPick(pick) {
     return {
       pairKind: pairKindFromAxis(pick.axis),
@@ -692,9 +700,6 @@ var SinglestakeUmFator = (() => {
     if (!isCrossingGatilhoEnabled()) return null;
     return listAllAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins)[0] ?? null;
   }
-  function pickGlobalCrossingAlertWithFallback(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    return pickGlobalCrossingAlert(tableIds, histories, excludeTableIds, minAbsenceSpins);
-  }
   function armCycleFromPick(machine, pick, histories, recovery) {
     const active = buildCrossingActiveFromPick(pick);
     if (!active) return machine;
@@ -734,9 +739,6 @@ var SinglestakeUmFator = (() => {
       lastEvaluatedHead: null
     };
   }
-  function refreshCycleActiveFromLive(machine, _histories) {
-    return machine;
-  }
   function tablesExcludedFromRotation(machine) {
     const excluded = /* @__PURE__ */ new Set();
     for (const [key, count] of Object.entries(machine.tablePlacarLosses)) {
@@ -765,20 +767,32 @@ var SinglestakeUmFator = (() => {
   function enterCrossingFromAlert(machine, alert, histories, recovery = machine.recovery) {
     return armCycleFromPick(clearPrepareState(machine), alert, histories, recovery);
   }
-  function suspendAndPrepareNextTable(machine, lostTableId, recovery, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const marked = markTableSessionLoss(machine, lostTableId);
-    const cleared = { ...clearCycle(marked), recovery };
-    const excluded = new Set(tablesExcludedFromRotation(cleared));
-    excluded.add(lostTableId);
-    const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
-    if (!alert || alert.tableId === lostTableId) {
-      return { ...cleared, awaitSwitchNoTable: true };
+  function reanchorOnTable(machine, tableId, histories, recovery) {
+    const head = spinHeadFromHistory(histories[tableId] ?? []);
+    return {
+      ...clearCycle(machine),
+      recovery,
+      prepareTableId: tableId,
+      prepareFingerprint: anchorFingerprint(tableId),
+      prepareSpinsWithoutPattern: 0,
+      prepareActive: null,
+      pendingQueueEntry: null,
+      lastEvaluatedHead: head,
+      awaitSwitchNoTable: false
+    };
+  }
+  function rotateAnchoredToNewTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
+    const excluded = /* @__PURE__ */ new Set([fromTableId]);
+    const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
+    const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
+    if (!alert) {
+      return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
     }
-    return enterCrossingFromAlert(cleared, alert, histories);
+    return enterCrossingFromAlert(base, alert, histories, machine.recovery);
   }
   function finishCycle(machine) {
     return {
-      ...clearCycle(machine),
+      ...clearPrepareState(clearCycle(machine)),
       recovery: 0,
       tablePlacarLosses: {},
       lastLostTableId: null,
@@ -827,7 +841,13 @@ var SinglestakeUmFator = (() => {
     }
     const displayPick = activePick ?? globalPick;
     let preparePick = null;
-    if (machine.prepareTableId != null && machine.prepareFingerprint && !machine.cycleActive) {
+    if (machine.prepareTableId != null && isAnchoredFingerprint(machine.prepareFingerprint) && !machine.cycleActive) {
+      preparePick = bestPickForTable(
+        machine.prepareTableId,
+        histories[machine.prepareTableId] ?? [],
+        minAbsenceSpins
+      );
+    } else if (machine.prepareTableId != null && machine.prepareFingerprint && !machine.cycleActive) {
       const entry = machine.pendingQueueEntry;
       if (entry && entry.tableId === machine.prepareTableId) {
         preparePick = pickForTableByCategory(
@@ -931,25 +951,52 @@ var SinglestakeUmFator = (() => {
     let nextStats = stats;
     let statsChanged = false;
     let flash = null;
-    if (!nextMachine.cycleActive && nextMachine.prepareFingerprint && nextMachine.prepareTableId != null) {
+    if (!nextMachine.cycleActive && nextMachine.prepareTableId != null && isAnchoredFingerprint(nextMachine.prepareFingerprint)) {
       const pt = nextMachine.prepareTableId;
       const hist = histories[pt] ?? [];
-      const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
-      if (freshPick) {
-        return {
-          nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
-          stats: nextStats,
-          statsChanged,
-          flash
-        };
+      const head2 = spinHeadFromHistory(hist);
+      if (head2 !== nextMachine.lastEvaluatedHead) {
+        nextMachine = { ...nextMachine, lastEvaluatedHead: head2 };
+        const resultNumber2 = hist[0];
+        if (resultNumber2 === 0 && tableIds.length > 1) {
+          return {
+            nextMachine: rotateAnchoredToNewTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+        const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+        if (freshPick) {
+          return {
+            nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+        const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
+        if (spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS && tableIds.length > 1) {
+          return {
+            nextMachine: rotateAnchoredToNewTable(
+              { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
+              pt,
+              tableIds,
+              histories,
+              minAbsenceSpins
+            ),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+        nextMachine = { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout };
       }
-      nextMachine = clearPrepareState(nextMachine);
+      return { nextMachine, stats: nextStats, statsChanged, flash };
     }
     if (!nextMachine.cycleActive) {
       if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
-        nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
-        const excluded2 = tablesExcludedFromRotation(nextMachine);
-        const retry = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded2, minAbsenceSpins);
+        const retry = pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins);
         if (retry) {
           return {
             nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
@@ -960,8 +1007,7 @@ var SinglestakeUmFator = (() => {
         }
         return { nextMachine, stats: nextStats, statsChanged, flash };
       }
-      const excluded = nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : void 0;
-      const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
+      const alert = pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins);
       if (alert && !nextMachine.prepareFingerprint) {
         nextMachine = enterCrossingFromAlert(nextMachine, alert, histories);
         return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -986,7 +1032,20 @@ var SinglestakeUmFator = (() => {
       nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
       statsChanged = true;
       flash = { resultNumber, won: true, tableId, kind: "win", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
-      nextMachine = finishCycle(nextMachine);
+      nextMachine = reanchorOnTable(
+        {
+          ...nextMachine,
+          tablePlacarLosses: {},
+          lastLostTableId: null,
+          signalQueue: [],
+          awaitingQueueTableId: null,
+          awaitingQueueHead: null,
+          awaitSwitchNoTable: false
+        },
+        tableId,
+        histories,
+        0
+      );
     } else if (outcome === "L") {
       const recoveryBefore = nextMachine.recovery;
       const recovery = recoveryBefore + 1;
@@ -999,29 +1058,28 @@ var SinglestakeUmFator = (() => {
       } else {
         nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recoveryBefore, maxRecovery);
         statsChanged = true;
+        const switchedOnZero = resultNumber === 0 && canRotateTables;
         flash = {
           resultNumber,
           won: false,
           tableId,
           kind: "recovery",
-          switchedTable: canRotateTables
+          switchedTable: switchedOnZero
         };
-        if (canRotateTables) {
-          nextMachine = suspendAndPrepareNextTable(
-            nextMachine,
+        if (switchedOnZero) {
+          nextMachine = rotateAnchoredToNewTable(
+            { ...nextMachine, recovery },
             tableId,
-            recovery,
             tableIds,
             histories,
             minAbsenceSpins
           );
         } else {
-          nextMachine = { ...nextMachine, recovery };
-          nextMachine = refreshCycleActiveFromLive(nextMachine, histories);
+          nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery);
         }
       }
     } else {
-      nextMachine = clearCycle(nextMachine);
+      nextMachine = reanchorOnTable(nextMachine, tableId, histories, nextMachine.recovery);
     }
     return { nextMachine, stats: nextStats, statsChanged, flash };
   }

@@ -45,6 +45,7 @@ export type StrategyGlobalCrossingClientView = {
   prepareCategory: string | null;
   crossingScan: RotatingRoomCrossingTableScan[];
   activeCrossing: DoisFatoresActive | null;
+  tableAnchored: boolean;
 };
 
 export type StrategyGlobalUmFatorClientView = {

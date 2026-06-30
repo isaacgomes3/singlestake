@@ -6,7 +6,9 @@
  * - Placar: vitória só com ambos os fatores; derrota se ambos falharem (zero = derrota)
  * - Empate (um factor certo): não conta derrota — encerra a indicação
  * - Indicação vigente apenas **uma rodada** após o gatilho (sem gales no empate)
- * - 5 recuperações antes de L final; troca de mesa após zero ou 2 giros sem padrão
+ * - **Mesa fixa:** posiciona numa roleta com padrão e só sai se sair **zero** ou **2 giros sem novo gatilho**
+ * - Recuperações na **mesma mesa** quando o gatilho voltar a aparecer
+ * - 5 recuperações antes de L final
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
 
@@ -177,7 +179,7 @@ export type RotatingRoomCrossingMachineState = {
   /** Cruzamento alvo do ciclo activo. */
   cycleMetricCategory: string | null;
 
-  /** Giros em POSICIONAR sem novo padrão válido (troca de mesa aos 2). */
+  /** Giros na mesa fixa sem novo gatilho (troca de mesa aos 2). */
   prepareSpinsWithoutPattern: number;
 
 };
@@ -311,6 +313,23 @@ export function crossingFingerprint(tableId: number, axis: CrossingAxisKind, cat
 /** Mesa + eixo na fase POSICIONAR (categoria muda com o último número). */
 function crossingPrepareKey(tableId: number, axis: CrossingAxisKind): string {
   return `${tableId}:${axis}`;
+}
+
+const ANCHOR_FINGERPRINT_PREFIX = "anchor:";
+
+function anchorFingerprint(tableId: number): string {
+  return `${ANCHOR_FINGERPRINT_PREFIX}${tableId}`;
+}
+
+function isAnchoredFingerprint(fp: string | null | undefined): boolean {
+  return fp != null && fp.startsWith(ANCHOR_FINGERPRINT_PREFIX);
+}
+
+/** Mesa fixa: à espera de novo gatilho na mesma roleta (não alterna sem zero ou 2 giros sem padrão). */
+export function isRotatingRoomCrossingTableAnchored(
+  machine: Pick<RotatingRoomCrossingMachineState, "prepareFingerprint">,
+): boolean {
+  return isAnchoredFingerprint(machine.prepareFingerprint);
 }
 
 function parseCrossingPrepareKey(key: string): { tableId: number; axis: CrossingAxisKind } | null {
@@ -699,6 +718,42 @@ function beginPrepareOnAlert(
   };
 }
 
+function reanchorOnTable(
+  machine: RotatingRoomCrossingMachineState,
+  tableId: number,
+  histories: Record<number, readonly number[]>,
+  recovery: number,
+): RotatingRoomCrossingMachineState {
+  const head = spinHeadFromHistory(histories[tableId] ?? []);
+  return {
+    ...clearCycle(machine),
+    recovery,
+    prepareTableId: tableId,
+    prepareFingerprint: anchorFingerprint(tableId),
+    prepareSpinsWithoutPattern: 0,
+    prepareActive: null,
+    pendingQueueEntry: null,
+    lastEvaluatedHead: head,
+    awaitSwitchNoTable: false,
+  };
+}
+
+function rotateAnchoredToNewTable(
+  machine: RotatingRoomCrossingMachineState,
+  fromTableId: number,
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+): RotatingRoomCrossingMachineState {
+  const excluded = new Set<number>([fromTableId]);
+  const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
+  const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
+  if (!alert) {
+    return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
+  }
+  return enterCrossingFromAlert(base, alert, histories, machine.recovery);
+}
+
 function rotatePrepareToNextTable(
   machine: RotatingRoomCrossingMachineState,
   fromTableId: number,
@@ -706,34 +761,19 @@ function rotatePrepareToNextTable(
   histories: Record<number, readonly number[]>,
   minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingMachineState {
-  const excluded = new Set(tablesExcludedFromRotation(machine));
-  excluded.add(fromTableId);
-  const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
-  const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
-  if (!alert) {
-    return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
-  }
-  return enterCrossingFromAlert(base, alert, histories);
+  return rotateAnchoredToNewTable(machine, fromTableId, tableIds, histories, minAbsenceSpins);
 }
 
-/** Suspende ciclo na mesa derrotada e arma gatilho noutra roleta (recuperação mantém-se). */
+/** @deprecated Recuperação mantém-se na mesma mesa — usar {@link reanchorOnTable}. */
 function suspendAndPrepareNextTable(
   machine: RotatingRoomCrossingMachineState,
   lostTableId: number,
   recovery: number,
-  tableIds: readonly number[],
+  _tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
-  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+  _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingMachineState {
-  const marked = markTableSessionLoss(machine, lostTableId);
-  const cleared = { ...clearCycle(marked), recovery };
-  const excluded = new Set(tablesExcludedFromRotation(cleared));
-  excluded.add(lostTableId);
-  const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
-  if (!alert || alert.tableId === lostTableId) {
-    return { ...cleared, awaitSwitchNoTable: true };
-  }
-  return enterCrossingFromAlert(cleared, alert, histories);
+  return reanchorOnTable(machine, lostTableId, histories, recovery);
 }
 
 /** Vitória em POSICIONAR com recuperação — troca de mesa sem contar W nem zerar recuperação. */
@@ -762,7 +802,7 @@ function rotatePrepareAfterWinDuringPrepare(
 function finishCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCrossingMachineState {
 
   return {
-    ...clearCycle(machine),
+    ...clearPrepareState(clearCycle(machine)),
     recovery: 0,
     tablePlacarLosses: {},
     lastLostTableId: null,
@@ -886,7 +926,17 @@ export function buildRotatingRoomCrossingLiveView(
 
   let preparePick: RotatingRoomCrossingPick | null = null;
 
-  if (machine.prepareTableId != null && machine.prepareFingerprint && !machine.cycleActive) {
+  if (
+    machine.prepareTableId != null &&
+    isAnchoredFingerprint(machine.prepareFingerprint) &&
+    !machine.cycleActive
+  ) {
+    preparePick = bestPickForTable(
+      machine.prepareTableId,
+      histories[machine.prepareTableId] ?? [],
+      minAbsenceSpins,
+    );
+  } else if (machine.prepareTableId != null && machine.prepareFingerprint && !machine.cycleActive) {
     const entry = machine.pendingQueueEntry;
     if (entry && entry.tableId === machine.prepareTableId) {
       preparePick = pickForTableByCategory(
@@ -1101,19 +1151,61 @@ export function tickRotatingRoomCrossingPlacar(
 
 
 
-  if (!nextMachine.cycleActive && nextMachine.prepareFingerprint && nextMachine.prepareTableId != null) {
+  if (
+    !nextMachine.cycleActive &&
+    nextMachine.prepareTableId != null &&
+    isAnchoredFingerprint(nextMachine.prepareFingerprint)
+  ) {
     const pt = nextMachine.prepareTableId;
     const hist = histories[pt] ?? [];
-    const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
-    if (freshPick) {
-      return {
-        nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
-        stats: nextStats,
-        statsChanged,
-        flash,
-      };
+    const head = spinHeadFromHistory(hist);
+
+    if (head !== nextMachine.lastEvaluatedHead) {
+      nextMachine = { ...nextMachine, lastEvaluatedHead: head };
+      const resultNumber = hist[0];
+
+      if (resultNumber === 0 && tableIds.length > 1) {
+        return {
+          nextMachine: rotateAnchoredToNewTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
+
+      const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+      if (freshPick) {
+        return {
+          nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
+
+      const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
+      if (
+        spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS &&
+        tableIds.length > 1
+      ) {
+        return {
+          nextMachine: rotateAnchoredToNewTable(
+            { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
+            pt,
+            tableIds,
+            histories,
+            minAbsenceSpins,
+          ),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
+
+      nextMachine = { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout };
     }
-    nextMachine = clearPrepareState(nextMachine);
+
+    return { nextMachine, stats: nextStats, statsChanged, flash };
   }
 
 
@@ -1121,9 +1213,7 @@ export function tickRotatingRoomCrossingPlacar(
   if (!nextMachine.cycleActive) {
 
     if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
-      nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
-      const excluded = tablesExcludedFromRotation(nextMachine);
-      const retry = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
+      const retry = pickGlobalCrossingAlert(tableIds, histories, undefined, minAbsenceSpins);
       if (retry) {
         return {
           nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
@@ -1135,9 +1225,7 @@ export function tickRotatingRoomCrossingPlacar(
       return { nextMachine, stats: nextStats, statsChanged, flash };
     }
 
-    const excluded =
-      nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : undefined;
-    const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
+    const alert = pickGlobalCrossingAlert(tableIds, histories, undefined, minAbsenceSpins);
 
     if (alert && !nextMachine.prepareFingerprint) {
       nextMachine = enterCrossingFromAlert(nextMachine, alert, histories);
@@ -1193,7 +1281,20 @@ export function tickRotatingRoomCrossingPlacar(
 
     flash = { resultNumber, won: true, tableId, kind: "win", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
 
-    nextMachine = finishCycle(nextMachine);
+    nextMachine = reanchorOnTable(
+      {
+        ...nextMachine,
+        tablePlacarLosses: {},
+        lastLostTableId: null,
+        signalQueue: [],
+        awaitingQueueTableId: null,
+        awaitingQueueHead: null,
+        awaitSwitchNoTable: false,
+      },
+      tableId,
+      histories,
+      0,
+    );
 
   } else if (outcome === "L") {
 
@@ -1217,33 +1318,33 @@ export function tickRotatingRoomCrossingPlacar(
 
       statsChanged = true;
 
+      const switchedOnZero = resultNumber === 0 && canRotateTables;
+
       flash = {
         resultNumber,
         won: false,
         tableId,
         kind: "recovery",
-        switchedTable: canRotateTables,
+        switchedTable: switchedOnZero,
       };
 
-      if (canRotateTables) {
-        nextMachine = suspendAndPrepareNextTable(
-          nextMachine,
+      if (switchedOnZero) {
+        nextMachine = rotateAnchoredToNewTable(
+          { ...nextMachine, recovery },
           tableId,
-          recovery,
           tableIds,
           histories,
           minAbsenceSpins,
         );
       } else {
-        nextMachine = { ...nextMachine, recovery };
-        nextMachine = refreshCycleActiveFromLive(nextMachine, histories);
+        nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery);
       }
 
     }
 
   } else {
-    /** Empate (um factor certo): encerra a indicação sem derrota nem gale. */
-    nextMachine = clearCycle(nextMachine);
+    /** Empate (um factor certo): encerra a indicação; permanece na mesma mesa à espera do próximo gatilho. */
+    nextMachine = reanchorOnTable(nextMachine, tableId, histories, nextMachine.recovery);
   }
 
 
