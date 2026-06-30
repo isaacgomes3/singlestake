@@ -19,7 +19,10 @@ import {
   type CasinoEmbedProvider,
 } from "@/lib/roulette/casinoEmbedProviderHint";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
-import { ROTATING_ROOM_LOBBY_WAIT_EMBED_URL } from "@/lib/roulette/rotatingRoomLobbySignal";
+import {
+  ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS,
+  ROTATING_ROOM_LOBBY_WAIT_EMBED_URL,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import {
@@ -81,6 +84,8 @@ export type RotatingRoomExtensionContext = {
   /** Mantém mesa em foco após resultado antes do lobby (sincronia extensão). */
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
+  /** Fibonacci em gale — não apostar antes deste timestamp (ms). */
+  betDelayUntilMs?: number | null;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -286,6 +291,7 @@ export function buildExtensionBridgeFromAutomationBet(
       id: zoneId as 1 | 2 | 3,
     });
     const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
+    const recovery = Math.max(0, Math.floor(bet.recovery));
     const context = buildRotatingRoomExtensionContext(
       {
         sessionMode: "active",
@@ -297,14 +303,14 @@ export function buildExtensionBridgeFromAutomationBet(
         signalId: bet.signalId,
         betAttemptKey: bet.signalId,
         rotativaTrigger: "fibonacci",
-        currentRecovery: bet.recovery,
+        currentRecovery: recovery,
         lobbyWait: false,
       },
       mesaEmbedUrl,
       automationBalance,
     );
     return {
-      fingerprint: `${bet.signalId}|r${bet.recovery}`,
+      fingerprint: `${bet.signalId}|r${recovery}`,
       actions: [
         {
           kind: "click",
@@ -316,7 +322,7 @@ export function buildExtensionBridgeFromAutomationBet(
           kind: "click",
           target: "factor-1",
           label: bet.alertLabel ?? betKey,
-          reason: `Fibonacci · ${bet.alertLabel ?? betKey} · gale ${bet.recovery}`,
+          reason: `Fibonacci · ${bet.alertLabel ?? betKey} · gale ${recovery}`,
         },
       ],
       context: {
@@ -325,6 +331,8 @@ export function buildExtensionBridgeFromAutomationBet(
         factor1BetKey: betKey,
         rotativaTrigger: "fibonacci",
         strategy: "fibonacci",
+        betDelayUntilMs:
+          recovery > 0 ? Date.now() + ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS : null,
       },
     };
   }

@@ -10,6 +10,8 @@ const GOG = {
   STORAGE_MODE: "gogExecutionMode",
   STORAGE_BRIDGE_PREFS: "gogBridgePrefs",
   DEFAULT_MODE: "demo",
+  /** Após resultado na mesma mesa — aguardar UI da roleta antes de nova ficha (Fibonacci). */
+  FIBONACCI_RECOVERY_SETTLE_MS: 5000,
 };
 
 /** Hostnames da app em produção (content-bridge + painel). */

@@ -2,6 +2,7 @@ importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js
 
 const CLICK_STAGGER_MS = 450;
 const DEFAULT_CHIP_VALUE = 0.5;
+const FIBONACCI_RECOVERY_SETTLE_MS = GOG.FIBONACCI_RECOVERY_SETTLE_MS ?? 5000;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
 
@@ -421,6 +422,20 @@ async function runBridgePlan(payload, sourceTabId) {
   return results;
 }
 
+async function waitForFibonacciRecoverySettle(context) {
+  if (context?.strategy !== "fibonacci") return;
+  const recovery = recoveryFromContext(context);
+  if (recovery <= 0) return;
+  const until =
+    typeof context.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
+      ? context.betDelayUntilMs
+      : Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+  const waitMs = Math.max(0, until - Date.now());
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+}
+
 async function dispatchClickAction(action, context, sourceTabId) {
   if (action.target === "prepare-open") {
     const url = mesaUrlFromContext(context);
@@ -499,6 +514,8 @@ async function dispatchClickAction(action, context, sourceTabId) {
       mode: dryRun ? "demo" : "real",
     };
   }
+
+  await waitForFibonacciRecoverySettle(context);
 
   const clickResult = await executeBetWithChip(
     targetTabId,

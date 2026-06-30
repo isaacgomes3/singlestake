@@ -34,6 +34,9 @@ export const ROTATING_ROOM_LOBBY_COOLDOWN_MS = 3000;
 /** Tempo que a extensão aguarda após navegar para poker/roleta (background.js). */
 export const ROTATING_ROOM_LOBBY_NAV_SETTLE_MS = 6500;
 
+/** Fibonacci em recuperação na mesma mesa — aguardar após o giro antes de nova ficha. */
+export const ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS = 5000;
+
 /** Timestamp até ao qual novas entradas ficam bloqueadas após ciclo concluído. */
 export function rotatingRoomLobbyCooldownUntilMs(fromMs: number = Date.now()): number {
   return (
