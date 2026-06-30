@@ -10,7 +10,7 @@ import type { StrategyGlobalKind } from "@/lib/roulette/strategyGlobalTypes";
 import { cn } from "@/lib/utils";
 
 type StrategyItem = {
-  id: StrategyGlobalKind | "sala2fatores";
+  id: StrategyGlobalKind | "sala2fatores" | "fibonacci";
   title: string;
   subtitle: string;
   to: string;
@@ -86,6 +86,13 @@ export function MobileStrategyListPage() {
       to: automationWorkspaceHref("/sala-rotativa-dois-fatores"),
       external: true,
     },
+    {
+      id: "fibonacci",
+      title: "Fibonacci",
+      subtitle: "Dúzias/colunas · ausência 14 giros",
+      to: automationWorkspaceHref("/sala-rotativa-fibonacci"),
+      external: true,
+    },
   ];
 
   return (
@@ -97,7 +104,7 @@ export function MobileStrategyListPage() {
       <ul className="space-y-3">
         {items.map((item) => {
           let pct: number | null = null;
-          if (globalOn && globalSnap && item.id !== "sala2fatores") {
+          if (globalOn && globalSnap && item.id !== "sala2fatores" && item.id !== "fibonacci") {
             const life = globalSnap.lifetime[item.id as StrategyGlobalKind];
             pct = mobileLifetimeAssertivenessPct(life.wins, life.losses);
           }

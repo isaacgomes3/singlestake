@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { RouletteStatCard, type RouletteStatCardSize } from "@/components/roulette-stat-card";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { rotativaTriggerKindLabel } from "@/lib/roulette/rotatingRoomRotativaMerge";
 import type { RotatingRoomPlusSession } from "@/hooks/useRotatingRoomPlusSession";
@@ -31,6 +32,7 @@ import {
   rotatingRoomCasinoMesaSearch,
   rotatingRoomTableOpenTarget,
 } from "@/lib/roulette/rotatingRoomTableOpen";
+import type { RotatingRoomFibonacciActive } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { colorOf } from "@/lib/roulette/streetStrategy";
 import { rotatingRoomSessionAproveitamentoPct } from "@/lib/roulette/rotatingRoomStrategy";
 import {
@@ -42,10 +44,15 @@ import { cn } from "@/lib/utils";
 
 export type RotatingRoomPanelSession =
   | RotatingRoomCrossingSession
+  | RotatingRoomFibonacciSession
   | RotatingRoomPlusSession
   | RotatingRoomUmFatorSession
   | RotatingRoomRotativaSession
   | UmFatorSession;
+
+function isFibonacciSession(session: RotatingRoomPanelSession): session is RotatingRoomFibonacciSession {
+  return "fibonacciMode" in session && session.fibonacciMode === true;
+}
 
 function isSingleFactorSession(session: RotatingRoomPanelSession): boolean {
   return "singleFactorMode" in session && session.singleFactorMode === true;
@@ -170,6 +177,90 @@ function FactorAscendButton({
     <button type="button" data-click-bot={botTarget} className="click-bot-target flex w-full flex-1">
       {shell}
     </button>
+  );
+}
+
+function FibonacciZoneButton({
+  active,
+  mesaUrl,
+  dense = false,
+}: {
+  active: RotatingRoomFibonacciActive;
+  mesaUrl: string | null;
+  dense?: boolean;
+}) {
+  const shell = (
+    <span
+      translate="no"
+      className={cn(
+        "notranslate flex w-full flex-1 flex-col items-center justify-center rounded-2xl border border-violet-400/55 bg-violet-950/50 px-3 py-6 text-center text-base font-black uppercase leading-tight tracking-normal text-violet-100",
+        dense
+          ? "min-h-[5.25rem] text-sm sm:min-h-[5.75rem] sm:text-base"
+          : "min-h-[7.5rem] sm:min-h-[9rem] sm:px-4 sm:text-xl",
+        "motion-safe:animate-[rotatingRoomFactorAscend_2.4s_ease-in-out_infinite]",
+      )}
+    >
+      <span className="whitespace-nowrap">{active.zoneLabel}</span>
+      <span className="mt-1 text-[10px] font-bold normal-case tracking-wide text-violet-200/80 sm:text-xs">
+        Aposta {active.stakeUnits}u · Ganho {active.profitUnits}u
+      </span>
+    </span>
+  );
+
+  if (mesaUrl) {
+    return (
+      <a
+        href={mesaUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-click-bot="fibonacci-zone"
+        className="click-bot-target flex w-full flex-1 outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-violet-400"
+      >
+        {shell}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" data-click-bot="fibonacci-zone" className="click-bot-target flex w-full flex-1">
+      {shell}
+    </button>
+  );
+}
+
+function IndicationFibonacciRow({
+  active,
+  mesaUrl,
+  dense = false,
+  roundFlash,
+  recovery,
+}: {
+  active?: RotatingRoomFibonacciActive;
+  mesaUrl: string | null;
+  dense?: boolean;
+  roundFlash?: RotatingRoomPanelSession["roundFlash"];
+  recovery: number;
+}) {
+  const slotShell = cn("relative flex w-full flex-1");
+
+  if (roundFlash) {
+    return (
+      <div className="flex w-full justify-center">
+        <div className={slotShell}>
+          <RoundFlashOverlay flash={roundFlash} recovery={recovery} dense={dense} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!active) return null;
+
+  return (
+    <div className="flex w-full justify-center">
+      <div className={slotShell}>
+        <FibonacciZoneButton active={active} mesaUrl={mesaUrl} dense={dense} />
+      </div>
+    </div>
   );
 }
 
@@ -463,7 +554,10 @@ function RotatingRoomStage({
     "postResultHoldActive" in session &&
     session.postResultHoldActive === true;
   const hasLiveIndication =
-    session.showTapeteSignal && session.activeCrossing != null;
+    (session.showTapeteSignal && session.activeCrossing != null) ||
+    (isFibonacciSession(session) && session.showTapeteSignal && session.activeFibonacci != null);
+  const fibonacciSession = isFibonacciSession(session);
+  const activeFibonacci = fibonacciSession && !hasRoundFlash ? session.activeFibonacci : null;
   const isActive =
     hasLiveIndication ||
     hasRoundFlash ||
@@ -491,7 +585,9 @@ function RotatingRoomStage({
   const maxBucketGap =
     "crossingScan" in session
       ? session.crossingScan.reduce((best, row) => Math.max(best, row.bucketGap ?? 0), 0)
-      : 0;
+      : "fibonacciScan" in session
+        ? session.fibonacciScan.reduce((best, row) => Math.max(best, row.absenceGap ?? 0), 0)
+        : 0;
   const singleFactor = isSingleFactorSession(session);
   const hasPreparePattern = !singleFactor && Boolean(session.prepareCategory);
   const prepareHeading = crossingPrepareHeading(session, hasPreparePattern);
@@ -554,9 +650,29 @@ function RotatingRoomStage({
   }
 
   if (isActive && (focusLabel || hasRoundFlash)) {
-    const crossing = session.activeCrossing;
-    const factor1 = hasRoundFlash ? undefined : crossing?.factor1;
-    const factor2 = hasRoundFlash ? undefined : crossing?.factor2;
+    const crossing = "activeCrossing" in session ? session.activeCrossing : null;
+    const factor1 = hasRoundFlash || fibonacciSession ? undefined : crossing?.factor1;
+    const factor2 = hasRoundFlash || fibonacciSession ? undefined : crossing?.factor2;
+
+    const indicationRow = fibonacciSession ? (
+      <IndicationFibonacciRow
+        active={activeFibonacci ?? undefined}
+        mesaUrl={mesaUrl}
+        dense={signalOnly}
+        roundFlash={session.roundFlash}
+        recovery={session.currentRecovery}
+      />
+    ) : (
+      <IndicationFactorRow
+        singleFactor={singleFactor}
+        factor1={factor1}
+        factor2={factor2}
+        mesaUrl={mesaUrl}
+        dense={signalOnly}
+        roundFlash={session.roundFlash}
+        recovery={session.currentRecovery}
+      />
+    );
 
     if (signalOnly) {
       if (indicationOnly) {
@@ -571,18 +687,12 @@ function RotatingRoomStage({
                   : session.roundFlash.kind === "recovery"
                     ? "border-amber-400/60"
                     : "border-rose-400/60"
-                : "border-emerald-400/55 street-indication-pulse-cyan",
+                : fibonacciSession
+                  ? "border-violet-400/55 street-indication-pulse-cyan"
+                  : "border-emerald-400/55 street-indication-pulse-cyan",
             )}
           >
-            <IndicationFactorRow
-              singleFactor={singleFactor}
-              factor1={factor1}
-              factor2={factor2}
-              mesaUrl={mesaUrl}
-              dense
-              roundFlash={session.roundFlash}
-              recovery={session.currentRecovery}
-            />
+            {indicationRow}
           </div>
         );
       }
@@ -596,7 +706,9 @@ function RotatingRoomStage({
                 : session.roundFlash.kind === "recovery"
                   ? "border-amber-400/60"
                   : "border-rose-400/60"
-              : "border-emerald-400/55 street-indication-pulse-cyan",
+              : fibonacciSession
+                ? "border-violet-400/55 street-indication-pulse-cyan"
+                : "border-emerald-400/55 street-indication-pulse-cyan",
           )}
         >
           {focusTableId != null ? (
@@ -608,15 +720,7 @@ function RotatingRoomStage({
               {focusLabel}
             </button>
           ) : null}
-          <IndicationFactorRow
-            singleFactor={singleFactor}
-            factor1={factor1}
-            factor2={factor2}
-            mesaUrl={mesaUrl}
-            dense
-            roundFlash={session.roundFlash}
-            recovery={session.currentRecovery}
-          />
+          {indicationRow}
         </div>
       );
     }
@@ -632,7 +736,9 @@ function RotatingRoomStage({
               : session.roundFlash.kind === "recovery"
                 ? "border-amber-400/60"
                 : "border-rose-400/60"
-            : "border-emerald-400/55 street-indication-pulse-cyan",
+            : fibonacciSession
+              ? "border-violet-400/55 street-indication-pulse-cyan"
+              : "border-emerald-400/55 street-indication-pulse-cyan",
         )}
       >
         {focusTableId != null ? (
@@ -676,14 +782,23 @@ function RotatingRoomStage({
         </div>
 
         <div className="mt-6">
-          <IndicationFactorRow
-            singleFactor={singleFactor}
-            factor1={factor1}
-            factor2={factor2}
-            mesaUrl={mesaUrl}
-            roundFlash={session.roundFlash}
-            recovery={session.currentRecovery}
-          />
+          {fibonacciSession ? (
+            <IndicationFibonacciRow
+              active={activeFibonacci ?? undefined}
+              mesaUrl={mesaUrl}
+              roundFlash={session.roundFlash}
+              recovery={session.currentRecovery}
+            />
+          ) : (
+            <IndicationFactorRow
+              singleFactor={singleFactor}
+              factor1={factor1}
+              factor2={factor2}
+              mesaUrl={mesaUrl}
+              roundFlash={session.roundFlash}
+              recovery={session.currentRecovery}
+            />
+          )}
         </div>
       </div>
     );
@@ -860,6 +975,10 @@ export function RotatingRoomPanel({
             {"rotativaTrigger" in session ? (
               <span className="rounded-full border border-cyan-500/40 bg-cyan-950/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-200/90">
                 {rotativaTriggerKindLabel(session.rotativaTrigger)}
+              </span>
+            ) : isFibonacciSession(session) ? (
+              <span className="rounded-full border border-violet-500/40 bg-violet-950/50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200/90">
+                Fibonacci · dúzias/colunas
               </span>
             ) : null}
           </div>

@@ -1,4 +1,5 @@
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
@@ -6,6 +7,7 @@ import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCro
 
 export type RotatingRoomLobbySession = (
   | RotatingRoomCrossingSession
+  | RotatingRoomFibonacciSession
   | RotatingRoomUmFatorSession
   | RotatingRoomRotativaSession
 ) & {

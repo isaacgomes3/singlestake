@@ -64,6 +64,12 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
               >
                 Sala · 2 Fatores
               </Link>
+              <Link
+                to="/sala-rotativa-fibonacci"
+                className="rounded-lg border border-violet-500/35 bg-violet-500/10 px-2.5 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400/50"
+              >
+                Sala · Fibonacci
+              </Link>
             </div>
           ) : null}
         </div>

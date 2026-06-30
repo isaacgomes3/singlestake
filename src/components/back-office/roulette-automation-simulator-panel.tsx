@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Wallet } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { AutomationCandlestickChart } from "@/components/back-office/automation-candlestick-chart";
 import { AutomationPauseBanner } from "@/components/back-office/automation-pause-banner";
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
@@ -12,8 +12,6 @@ import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import {
   finalizeAutomationSimState,
   ROULETTE_AUTOMATION_INITIAL_BANK,
-  automationChartYDomain,
-  formatAutomationChartYTick,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { alignRotatingRoomSessionWithAutomationBet } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { useI18n } from "@/lib/i18n/i18n-provider";
@@ -52,7 +50,6 @@ export function RouletteAutomationSimulatorPanel({
     return finalizeAutomationSimState(state, officialBalance);
   }, [state, officialBalance]);
   const chartData = displayState.chart;
-  const chartYDomain = useMemo(() => automationChartYDomain(chartData), [chartData]);
 
   const displayBalance = officialBalance ?? state.balance;
   const net = displayBalance - initialCapital;
@@ -141,51 +138,18 @@ export function RouletteAutomationSimulatorPanel({
             </h2>
           </div>
           <div className="h-[280px] w-full sm:h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="autoSimArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chart.accentFill} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={chart.accentFill} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke={chart.gridColor} vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: chart.textColor, fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  minTickGap={28}
-                />
-                <YAxis
-                  domain={chartYDomain}
-                  tick={{ fill: chart.textColor, fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={56}
-                  tickFormatter={(v: number) => formatAutomationChartYTick(v, chartYDomain)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: chart.tooltipBackground,
-                    border: `1px solid ${chart.tooltipBorder}`,
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: chart.tooltipText,
-                  }}
-                  labelStyle={{ color: chart.textColor }}
-                  formatter={(v: number) => [money(v), t("overview.automation.chartBank")]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="balance"
-                  stroke={chart.accentStroke}
-                  strokeWidth={2}
-                  fill="url(#autoSimArea)"
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <AutomationCandlestickChart
+              chartData={chartData}
+              chart={chart}
+              formatMoney={money}
+              emptyLabel={t("overview.automation.chartNoCandles")}
+              tooltipLabels={{
+                open: t("overview.automation.chartOpen"),
+                high: t("overview.automation.chartHigh"),
+                low: t("overview.automation.chartLow"),
+                close: t("overview.automation.chartClose"),
+              }}
+            />
           </div>
         </div>
 

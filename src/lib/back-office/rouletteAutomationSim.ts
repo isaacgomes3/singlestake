@@ -81,6 +81,16 @@ export type AutomationSimChartPoint = {
   balance: number;
 };
 
+/** Vela OHLC entre duas liquidações consecutivas (abertura = saldo anterior, fecho = saldo após). */
+export type AutomationCandlestickPoint = {
+  ts: number;
+  label: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+
 export type RouletteAutomationSimState = {
   startedAt: number;
   /** Banca no início do ciclo visual (gráfico / histórico). */
@@ -841,6 +851,43 @@ export function buildAutomationChartData(state: RouletteAutomationSimState): Aut
   }
 
   return trimChart(points);
+}
+
+/** Converte a série de saldo em velas (uma vela por liquidação). */
+export function chartPointsToCandlesticks(
+  points: readonly AutomationSimChartPoint[],
+): AutomationCandlestickPoint[] {
+  if (points.length < 2) return [];
+  const candles: AutomationCandlestickPoint[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1]!;
+    const curr = points[i]!;
+    const open = prev.balance;
+    const close = curr.balance;
+    candles.push({
+      ts: curr.ts,
+      label: curr.label,
+      open,
+      close,
+      high: Math.max(open, close),
+      low: Math.min(open, close),
+    });
+  }
+  return candles;
+}
+
+export function automationCandlestickYDomain(
+  candles: readonly AutomationCandlestickPoint[],
+): [number, number] {
+  if (candles.length === 0) {
+    return automationChartYDomain([]);
+  }
+  const vals = candles.flatMap((c) => [c.high, c.low]);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const span = max - min;
+  const pad = Math.max(span * 0.2, span === 0 ? 250 : 80);
+  return [min - pad, max + pad];
 }
 
 export function automationChartYDomain(
