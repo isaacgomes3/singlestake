@@ -51,6 +51,7 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           baseStake?: number;
           stopWin?: number | null;
           stopLoss?: number | null;
+          enabledTriggers?: Partial<import("@/lib/roulette/umFatorTriggerEnable").RotatingRoomGatilhoEnableMap>;
         }>(request);
 
         await initAutomationConfig();
@@ -69,6 +70,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           baseStake: body?.baseStake ?? current.baseStake,
           stopWin: null,
           stopLoss: null,
+          enabledTriggers: body?.enabledTriggers
+            ? { ...current.enabledTriggers, ...body.enabledTriggers }
+            : current.enabledTriggers,
           ...pausePatch,
         };
         await saveAutomationConfig(next);

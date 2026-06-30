@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Fibonacci em dúzias/colunas.
- * - Gatilho: ausência de 8 giros consecutivos numa dúzia ou coluna
+ * - Gatilho: posiciona na mesa com ausência ≥8; indica com ausência ≥9
  * - Indicação: uma rodada (sem persistência do sinal)
  * - Recuperação Fibonacci 1-1-2-3-5-8-13-21 após derrota (2:1)
  */
@@ -17,7 +17,13 @@ import {
 
 export const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21] as const;
 
-export const ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = 8;
+/** Posiciona iframe na mesa (ainda sem indicação). */
+export const ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS = 8;
+/** Indicação / entrada só com ausência ≥9 (padrão ainda ausente). */
+export const ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS = 9;
+
+/** @deprecated Use {@link ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS}. */
+export const ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS;
 
 export const ROTATING_ROOM_FIBONACCI_MAX_RECOVERY = FIBONACCI_LEVELS.length - 1;
 
@@ -46,7 +52,7 @@ export type RotatingRoomFibonacciActive = {
   armingDescription: string;
 };
 
-export type RotatingRoomFibonacciTableStatus = "idle" | "alert" | "active";
+export type RotatingRoomFibonacciTableStatus = "idle" | "prepare" | "alert" | "active";
 
 export type RotatingRoomFibonacciTableScan = {
   tableId: number;
@@ -120,6 +126,11 @@ export function stakeUnitsAtRecovery(recovery: number): number {
 /** Lucro líquido em 2:1 (paga 2× a aposta). */
 export function profitUnitsAtRecovery(recovery: number): number {
   return 2 * stakeUnitsAtRecovery(recovery);
+}
+
+/** Crédito/débito no extrato — vitória 2:1 devolve aposta + lucro (ex.: R$ 50 → +R$ 150). */
+export function fibonacciSettlementNet(won: boolean, stake: number): number {
+  return won ? stake * 3 : -stake;
 }
 
 function zoneHitOnSpin(spin: number, zone: FibonacciZone): boolean {
@@ -200,13 +211,30 @@ export function listAllFibonacciAlertPicks(
   return out;
 }
 
+export function pickGlobalFibonacciPrepare(
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  excludeTableIds?: ReadonlySet<number>,
+): RotatingRoomFibonacciPick | null {
+  return listAllFibonacciAlertPicks(
+    tableIds,
+    histories,
+    excludeTableIds,
+    ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  )[0] ?? null;
+}
+
 export function pickGlobalFibonacciAlert(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   excludeTableIds?: ReadonlySet<number>,
-  minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
 ): RotatingRoomFibonacciPick | null {
-  return listAllFibonacciAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins)[0] ?? null;
+  return listAllFibonacciAlertPicks(
+    tableIds,
+    histories,
+    excludeTableIds,
+    ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  )[0] ?? null;
 }
 
 export function buildFibonacciActiveFromPick(
@@ -372,11 +400,13 @@ export function scanRotatingRoomFibonacciTables(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   activePick: RotatingRoomFibonacciPick | null,
-  minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
 ): RotatingRoomFibonacciTableScan[] {
   return tableIds.map((tableId) => {
-    const pick = bestPickForTable(tableId, histories[tableId] ?? [], minAbsenceSpins);
-    if (!pick) {
+    const history = histories[tableId] ?? [];
+    const pickPrepare = bestPickForTable(tableId, history, prepareAbsenceSpins);
+    if (!pickPrepare) {
       return {
         tableId,
         zoneLabel: null,
@@ -387,18 +417,25 @@ export function scanRotatingRoomFibonacciTables(
       };
     }
 
+    const pickAlert = bestPickForTable(tableId, history, alertAbsenceSpins);
     const isActive =
       activePick != null &&
-      activePick.tableId === pick.tableId &&
-      activePick.zone.kind === pick.zone.kind &&
-      activePick.zone.id === pick.zone.id;
+      activePick.tableId === pickPrepare.tableId &&
+      activePick.zone.kind === pickPrepare.zone.kind &&
+      activePick.zone.id === pickPrepare.zone.id;
+
+    const status: RotatingRoomFibonacciTableStatus = isActive
+      ? "active"
+      : pickAlert
+        ? "alert"
+        : "prepare";
 
     return {
       tableId,
-      zoneLabel: fibonacciZoneLabel(pick.zone),
-      zoneKind: pick.zone.kind,
-      absenceGap: pick.absenceGap,
-      status: isActive ? "active" : "alert",
+      zoneLabel: fibonacciZoneLabel(pickPrepare.zone),
+      zoneKind: pickPrepare.zone.kind,
+      absenceGap: pickPrepare.absenceGap,
+      status,
       isAlertTable: isActive,
     };
   });
@@ -408,7 +445,8 @@ export function buildRotatingRoomFibonacciLiveView(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   machine: RotatingRoomFibonacciMachineState,
-  minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
 ): RotatingRoomFibonacciLiveView {
   let activePick: RotatingRoomFibonacciPick | null = null;
   if (machine.cycleZone && machine.cycleTableId != null) {
@@ -425,7 +463,7 @@ export function buildRotatingRoomFibonacciLiveView(
   const relaxed = relaxTableExclusionsIfAllBlocked(machine, tableIds);
   const excluded =
     relaxed.recovery > 0 ? tablesExcludedFromRotation(relaxed) : undefined;
-  const globalPick = pickGlobalFibonacciAlert(tableIds, histories, excluded, minAbsenceSpins);
+  const globalPick = pickGlobalFibonacciAlert(tableIds, histories, excluded);
 
   return {
     globalPick,
@@ -433,7 +471,8 @@ export function buildRotatingRoomFibonacciLiveView(
       tableIds,
       histories,
       activePick,
-      minAbsenceSpins,
+      prepareAbsenceSpins,
+      alertAbsenceSpins,
     ),
   };
 }
@@ -445,12 +484,11 @@ function tryRearmAfterPartialLoss(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   recovery: number,
-  minAbsenceSpins: number,
 ): RotatingRoomFibonacciMachineState {
   const marked = markTableSessionLoss(machine, lostTableId);
   const excluded = new Set(tablesExcludedFromRotation({ ...marked, recovery }));
   excluded.add(lostTableId);
-  const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded, minAbsenceSpins);
+  const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
   if (alert && alert.tableId !== lostTableId) {
     return armCycleFromPick({ ...marked, recovery }, alert, histories, recovery);
   }
@@ -464,7 +502,7 @@ export function tickRotatingRoomFibonacciPlacar(
   machine: RotatingRoomFibonacciMachineState,
   stats: RotatingRoomSessionStats,
   maxRecovery: number = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
-  minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  allowNewArming = true,
 ): {
   nextMachine: RotatingRoomFibonacciMachineState;
   stats: RotatingRoomSessionStats;
@@ -514,9 +552,11 @@ export function tickRotatingRoomFibonacciPlacar(
         profitUnits: active.profitUnits,
       };
       nextMachine = finishCycle(nextMachine);
-      const alert = pickGlobalFibonacciAlert(tableIds, histories, undefined, minAbsenceSpins);
-      if (alert) {
-        nextMachine = armCycleFromPick(nextMachine, alert, histories, 0);
+      if (allowNewArming) {
+        const alert = pickGlobalFibonacciAlert(tableIds, histories, undefined);
+        if (alert) {
+          nextMachine = armCycleFromPick(nextMachine, alert, histories, 0);
+        }
       }
     } else {
       const recoveryBefore = nextMachine.recovery;
@@ -558,7 +598,6 @@ export function tickRotatingRoomFibonacciPlacar(
           tableIds,
           histories,
           recovery,
-          minAbsenceSpins,
         );
       }
     }
@@ -568,9 +607,9 @@ export function tickRotatingRoomFibonacciPlacar(
 
   nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
 
-  if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
+  if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0 && allowNewArming) {
     const excluded = tablesExcludedFromRotation(nextMachine);
-    const retry = pickGlobalFibonacciAlert(tableIds, histories, excluded, minAbsenceSpins);
+    const retry = pickGlobalFibonacciAlert(tableIds, histories, excluded);
     if (retry) {
       return {
         nextMachine: armCycleFromPick(nextMachine, retry, histories),
@@ -582,16 +621,18 @@ export function tickRotatingRoomFibonacciPlacar(
     return { nextMachine, stats: nextStats, statsChanged, flash };
   }
 
-  const excluded =
-    nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : undefined;
-  const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded, minAbsenceSpins);
-  if (alert) {
-    return {
-      nextMachine: armCycleFromPick(nextMachine, alert, histories),
-      stats: nextStats,
-      statsChanged,
-      flash,
-    };
+  if (allowNewArming) {
+    const excluded =
+      nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : undefined;
+    const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
+    if (alert) {
+      return {
+        nextMachine: armCycleFromPick(nextMachine, alert, histories),
+        stats: nextStats,
+        statsChanged,
+        flash,
+      };
+    }
   }
 
   return { nextMachine, stats: nextStats, statsChanged, flash };

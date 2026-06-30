@@ -89,7 +89,7 @@ export function MobileStrategyListPage() {
     {
       id: "fibonacci",
       title: "Fibonacci",
-      subtitle: "Dúzias/colunas · ausência 8 giros",
+      subtitle: "Dúzias/colunas · posição ≥8 · sinal ≥9",
       to: automationWorkspaceHref("/sala-rotativa-fibonacci"),
       external: true,
     },

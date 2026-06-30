@@ -8,6 +8,7 @@ import {
   stakeForFibonacciRecovery,
   stakeForRecovery,
 } from "@/lib/back-office/automationStakes";
+import { fibonacciSettlementNet } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 const STAKE_EPS = 0.009;
 
@@ -109,7 +110,7 @@ export function reviewMartingaleSettlement(
     const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
     const recovery = Math.max(0, Math.floor(entry.recovery));
     const maxR = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY;
-    const net = entry.won ? stake : -stake;
+    const net = fibonacciSettlementNet(entry.won, stake);
 
     if (entry.won) {
       if (entry.kind !== "win") {

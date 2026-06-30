@@ -25,6 +25,7 @@ export function BackOfficeAutomationConfigPanel() {
   const [resetting, setResetting] = useState(false);
   const [config, setConfig] = useState<GlobalAutomationConfigDto | null>(null);
   const [paused, setPaused] = useState(false);
+  const [fibonacciEnabled, setFibonacciEnabled] = useState(true);
   const [baseStake, setBaseStake] = useState(String(ROULETTE_AUTOMATION_BASE_STAKE));
 
   const [yieldPct, setYieldPct] = useState("1");
@@ -46,6 +47,7 @@ export function BackOfficeAutomationConfigPanel() {
       if (row) {
         setConfig(row);
         setPaused(row.paused);
+        setFibonacciEnabled(row.enabledTriggers.fibonacci !== false);
         setBaseStake(String(row.baseStake));
       }
       if (yieldRes?.ok && yieldRes.pct != null) {
@@ -68,6 +70,12 @@ export function BackOfficeAutomationConfigPanel() {
       baseStake: Math.round(stake),
       stopWin: null,
       stopLoss: null,
+      enabledTriggers: {
+        two: false,
+        three: false,
+        crossing: false,
+        fibonacci: fibonacciEnabled,
+      },
     });
     setSaving(false);
     if (!result.ok || !result.config) {
@@ -149,6 +157,17 @@ export function BackOfficeAutomationConfigPanel() {
       ) : null}
 
       <form onSubmit={handleSave} className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={fibonacciEnabled}
+              onChange={(e) => setFibonacciEnabled(e.target.checked)}
+            />
+            Gatilho Fibonacci activo (2 Fatores e 1 Fator desactivados por defeito)
+          </label>
+        </div>
+
         <div className="space-y-1.5 sm:col-span-2">
           <label className="flex items-center gap-2 text-sm text-text-primary">
             <input

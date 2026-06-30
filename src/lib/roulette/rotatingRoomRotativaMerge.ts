@@ -179,30 +179,40 @@ function fibonacciHasQualifyingAlert(fib: StrategyGlobalFibonacciClientView): bo
   );
 }
 
-/** Mesma prioridade do merge na sala rotativa — para automação global e simulador. */
+function fibonacciHasPrepare(fib: StrategyGlobalFibonacciClientView): boolean {
+  return fib.prepareTableId != null || fib.fibonacciScan.some((row) => row.status === "prepare");
+}
+
+/** Mesma prioridade do merge na sala rotativa — Fibonacci primeiro quando activo. */
 export function resolveRotativaTriggerFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   crossingEnabled: boolean,
   fibonacciEnabled = true,
 ): RotatingRoomRotativaTriggerKind {
-  if (!crossingEnabled && !fibonacciEnabled) return "umFator";
-
   const um = snapshot.um1fator;
   const crossing = snapshot.dois2fatores;
   const fibonacci = snapshot.fibonacci;
+
+  if (fibonacciEnabled) {
+    const fibBusy = fibonacciInCycleFromView(fibonacci);
+    if (fibBusy) return "fibonacci";
+    if (fibonacciHasQualifyingAlert(fibonacci) && fibonacci.showTapeteSignal) return "fibonacci";
+    if (fibonacciHasPrepare(fibonacci)) return "fibonacci";
+    if (fibonacciHasQualifyingAlert(fibonacci)) return "fibonacci";
+  }
+
+  if (!crossingEnabled && !fibonacciEnabled) return "umFator";
+
   const umBusy = umFatorInCycleFromView(um);
   const crossBusy = crossingEnabled && crossingInCycleFromView(crossing);
-  const fibBusy = fibonacciEnabled && fibonacciInCycleFromView(fibonacci);
 
   const busy: RotatingRoomRotativaTriggerKind[] = [];
   if (umBusy) busy.push("umFator");
   if (crossBusy) busy.push("crossing");
-  if (fibBusy) busy.push("fibonacci");
 
   if (busy.length === 1) return busy[0]!;
 
   if (busy.length > 1) {
-    if (fibBusy && fibonacci.showTapeteSignal) return "fibonacci";
     if (crossBusy && (crossing.showTapeteSignal || crossing.sessionMode === "prepare")) {
       return "crossing";
     }
@@ -210,25 +220,12 @@ export function resolveRotativaTriggerFromSnapshot(
     const recoveries: Array<{ kind: RotatingRoomRotativaTriggerKind; r: number }> = [];
     if (umBusy) recoveries.push({ kind: "umFator", r: um.currentRecovery });
     if (crossBusy) recoveries.push({ kind: "crossing", r: crossing.currentRecovery });
-    if (fibBusy) recoveries.push({ kind: "fibonacci", r: fibonacci.currentRecovery });
     recoveries.sort((a, b) => b.r - a.r);
     return recoveries[0]!.kind;
   }
 
-  if (
-    fibonacciEnabled &&
-    fibonacciHasQualifyingAlert(fibonacci) &&
-    fibonacci.showTapeteSignal
-  ) {
-    return "fibonacci";
-  }
-
   if (crossingEnabled && crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
     return "crossing";
-  }
-
-  if (fibonacciEnabled && fibonacciHasQualifyingAlert(fibonacci)) {
-    return "fibonacci";
   }
 
   if (crossingEnabled) return "crossing";

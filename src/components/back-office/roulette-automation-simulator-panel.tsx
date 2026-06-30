@@ -6,8 +6,8 @@ import { AutomationPauseBanner } from "@/components/back-office/automation-pause
 import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
 import { AUTOMATION_CHART_THEME } from "@/hooks/useChartTheme";
+import { useRotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import { useRotatingRoomSetup } from "@/hooks/useRotatingRoomSetup";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import {
   finalizeAutomationSimState,
@@ -34,16 +34,16 @@ export function RouletteAutomationSimulatorPanel({
   const chart = AUTOMATION_CHART_THEME;
   const { state, openBet, pendingSignal, config } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
-  const rotatingRoomSession = useRotatingRoomRotativaSession(tableIds, histories, {
+  const fibonacciSession = useRotatingRoomFibonacciSession(tableIds, histories, {
     observeOnly: true,
   });
   const lobbySession = useMemo(
     () =>
       alignRotatingRoomSessionWithAutomationBet(
-        rotatingRoomSession,
+        fibonacciSession,
         openBet ?? pendingSignal,
       ),
-    [rotatingRoomSession, openBet, pendingSignal],
+    [fibonacciSession, openBet, pendingSignal],
   );
   const displayState = useMemo(() => {
     if (officialBalance == null) return state;
@@ -159,8 +159,8 @@ export function RouletteAutomationSimulatorPanel({
             embedded
             openInIframe
             session={lobbySession}
-            salaRoute="/sala-rotativa-um-fator"
-            salaLabel={t("casino.roomLabel")}
+            salaRoute="/sala-rotativa-fibonacci"
+            salaLabel="Sala · Fibonacci"
           />
         </div>
       </div>

@@ -81,9 +81,11 @@ export type StrategyGlobalFibonacciClientView = {
   fibonacciMode: true;
   currentRecovery: number;
   currentTableId: number | null;
+  prepareTableId: number | null;
   alertCategory: string | null;
   alertBucketGap: number;
-  sessionMode: "scanning" | "active";
+  sessionMode: "scanning" | "prepare" | "active";
+  prepareCategory: string | null;
   fibonacciScan: RotatingRoomFibonacciTableScan[];
   activeFibonacci: RotatingRoomFibonacciActive | null;
 };

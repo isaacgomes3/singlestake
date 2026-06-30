@@ -5,6 +5,8 @@
 import {
   ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
   ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
   buildRotatingRoomFibonacciLiveView,
   defaultRotatingRoomFibonacciMachineState,
   sanitizeRotatingRoomFibonacciMachineForTableIds,
@@ -23,6 +25,8 @@ import { isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
 
 export {
   ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
   ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
   sanitizeRotatingRoomFibonacciMachineForTableIds,
 };

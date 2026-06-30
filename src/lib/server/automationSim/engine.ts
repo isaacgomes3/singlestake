@@ -1,5 +1,6 @@
 import {
   AUTOMATION_STOP_PAUSE_MS,
+  automationBlocksNewEntries,
   buildAutomationConfigDto,
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
@@ -251,6 +252,10 @@ async function settleAutomationEntry(
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
 
+  if (automationBlocksNewEntries(getAutomationConfig(), state.balance)) {
+    return state;
+  }
+
   const baseStake = getAutomationConfig().baseStake;
   const review = reviewMartingaleSettlement(state, entry, baseStake);
   if (!review.accepted) {
@@ -259,6 +264,7 @@ async function settleAutomationEntry(
   }
 
   const stake = review.stake;
+  const settleAmount = Math.abs(review.net);
   const walletSettleKey = settleKey ?? key;
   const writeWallet = capitalReady && !isAutomationProfile();
 
@@ -266,7 +272,7 @@ async function settleAutomationEntry(
     const ledgerResult = await settleGlobalAutomationInLedger({
       settleKey: walletSettleKey,
       won: entry.won,
-      stake,
+      stake: settleAmount,
       tableLabel,
       recovery: entry.recovery,
       kind: entry.kind,
@@ -306,7 +312,11 @@ export async function syncAutomationSimWithStrategy(
   const configDto = configDtoForBalance(walletBalance);
   const blockNewEntries = configDto.blocksNewEntries;
   const openBet = state.openBet;
-  if (openBet?.tableId != null) {
+  if (blockNewEntries && openBet) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+  }
+  if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
     if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
       state = { ...state, openBet: null };

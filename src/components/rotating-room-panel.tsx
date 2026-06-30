@@ -12,7 +12,7 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
 import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
-import { ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciSession";
+import { ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS, ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciSession";
 import { ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS } from "@/lib/roulette/doisFatoresPatternCrossing";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { doisFatoresFactorButtonClass, doisFatoresFactorLabel, type DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
@@ -808,7 +808,7 @@ function RotatingRoomStage({
   const lobbyWaitIdle = isRotatingRoomLobbyWait(session) && !isAwaitingNextTable;
 
   const minAbsenceSpins = fibonacciSession
-    ? ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS
+    ? ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS
     : ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS;
 
   const waitingTitle = isAwaitingNextTable || isCrossingAwaitingNewTable
@@ -920,7 +920,8 @@ function RotatingRoomStage({
             </p>
           ) : fibonacciSession ? (
             <p className="mt-2 text-sm text-slate-500">
-              Escolhe a zona (dúzia ou coluna) com maior ausência ≥ {minAbsenceSpins}
+              Posição na mesa com ausência ≥ {ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS} · sinal
+              com ≥ {ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS}
             </p>
           ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
             <p className="mt-2 text-sm tabular-nums text-slate-500">

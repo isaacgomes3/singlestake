@@ -1,4 +1,5 @@
 import type { GlobalAutomationConfig, GlobalAutomationConfigDto } from "@/lib/back-office/automation-config";
+import type { RotatingRoomGatilhoEnableMap } from "@/lib/roulette/umFatorTriggerEnable";
 
 export type AutomationConfigApiResponse = {
   ok: boolean;
@@ -19,7 +20,7 @@ export async function fetchAutomationConfig(): Promise<AutomationConfigApiRespon
 
 export async function saveAutomationConfig(
   patch: Partial<
-    Pick<GlobalAutomationConfig, "paused" | "baseStake" | "stopWin" | "stopLoss">
+    Pick<GlobalAutomationConfig, "paused" | "baseStake" | "stopWin" | "stopLoss" | "enabledTriggers">
   >,
 ): Promise<AutomationConfigApiResponse> {
   try {

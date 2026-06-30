@@ -1,4 +1,5 @@
-import type { RouletteSpin } from "@/lib/server/rouletteSocket";
+import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
+import { getAutomationConfig } from "@/lib/server/automationSim/config";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
@@ -33,8 +34,10 @@ import {
   buildFibonacciActiveFromPick,
   consecutiveZoneAbsence,
   defaultRotatingRoomFibonacciMachineState,
+  pickGlobalFibonacciPrepare,
   sanitizeRotatingRoomFibonacciMachineForTableIds,
   seedRotatingRoomFibonacciMachineAfterPlacarReset,
+  tickRotatingRoomFibonacciPlacar,
   type RotatingRoomFibonacciPlacarFlash,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
@@ -128,6 +131,9 @@ function appendFibonacciLedgerIfNeeded(
   state: StrategyGlobalPersistedState,
   fibonacci: { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number },
 ): StrategyGlobalLedgerEntry[] {
+  if (automationBlocksNewEntries(getAutomationConfig(), 0)) {
+    return [];
+  }
   if (
     !fibonacci.flash ||
     (fibonacci.flash.kind !== "win" &&
@@ -232,11 +238,19 @@ function driveFibonacci(
 ): { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number } {
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.fibonacci.machine.recovery;
+  const allowNewArming = !automationBlocksNewEntries(getAutomationConfig(), 0);
   const result = drainPlacarSteps(
     state.fibonacci.machine,
     state.fibonacci.stats,
     (machine, stats) =>
-      tickRotatingRoomFibonacciSessionPlacar(tableIds, histories, machine, stats),
+      tickRotatingRoomFibonacciPlacar(
+        tableIds,
+        histories,
+        machine,
+        stats,
+        ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+        allowNewArming,
+      ),
     fibonacciMachinePlacarStepProgressed,
   );
   state.fibonacci.machine = sanitizeRotatingRoomFibonacciMachineForTableIds(
@@ -356,6 +370,12 @@ function buildFibonacciClientView(
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
   const alertPick = liveView.globalPick;
+  const preparePick =
+    !showTapeteSignal && machine.recovery === 0
+      ? pickGlobalFibonacciPrepare(tableIds, histories)
+      : null;
+  const prepareTableId = preparePick?.tableId ?? null;
+  const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   return {
     phase: showTapeteSignal ? "active" : "waiting",
     sessionStats: state.fibonacci.stats,
@@ -363,13 +383,19 @@ function buildFibonacciClientView(
     fibonacciMode: true,
     currentRecovery: machine.recovery,
     currentTableId: showTapeteSignal ? currentTableId : null,
+    prepareTableId,
     alertCategory: alertPick
       ? alertPick.zone.kind === "dozen"
         ? `Dúzia ${alertPick.zone.id}`
         : `Coluna ${alertPick.zone.id}`
       : null,
-    alertBucketGap: alertPick?.absenceGap ?? 0,
-    sessionMode: showTapeteSignal ? "active" : "scanning",
+    alertBucketGap: alertPick?.absenceGap ?? preparePick?.absenceGap ?? 0,
+    sessionMode,
+    prepareCategory: preparePick
+      ? preparePick.zone.kind === "dozen"
+        ? `Dúzia ${preparePick.zone.id}`
+        : `Coluna ${preparePick.zone.id}`
+      : null,
     fibonacciScan: liveView.fibonacciScan,
     activeFibonacci: showTapeteSignal ? activeFibonacci : null,
   };
