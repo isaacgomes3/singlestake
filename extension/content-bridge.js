@@ -35,12 +35,13 @@ function syncAppLocalPrefsFromExtension(patch) {
   }
 }
 
+document.documentElement.dataset.singlestakeExtension = "1";
+
 if (globalThis.__singlestakeContentBridgeLoaded) {
-  /* já injectado — evita listeners duplicados */
+  window.postMessage({ type: GOG.PING_TYPE, version: GOG.VERSION }, window.location.origin);
 } else {
   globalThis.__singlestakeContentBridgeLoaded = true;
 
-document.documentElement.dataset.singlestakeExtension = "1";
 function postAck(fingerprint, response) {
   window.postMessage(
     {

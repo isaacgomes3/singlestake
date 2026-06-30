@@ -149,7 +149,5 @@ export function RotatingRoomExtensionBridgeGlobal() {
       : localBridgeOn);
   const bridgeActive = autoBridge && extensionPresent && extensionBridgeOn;
 
-  if (!autoBridge || !extensionPresent) return null;
-
   return <RotatingRoomExtensionBridgeInner bridgeActive={bridgeActive} />;
 }

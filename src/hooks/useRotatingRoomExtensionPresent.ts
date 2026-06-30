@@ -38,7 +38,7 @@ export function useRotatingRoomExtensionPresent(): {
     };
 
     const onMessage = (event: MessageEvent) => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin) return;
       handlePong(event.data);
     };
 

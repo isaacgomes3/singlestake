@@ -261,7 +261,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
     if (!enabled || mode !== "extension") return;
 
     const onAck = (event: MessageEvent) => {
-      if (event.source !== window || event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin) return;
       const data = event.data as {
         type?: string;
         fingerprint?: string;

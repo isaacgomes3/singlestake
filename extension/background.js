@@ -119,6 +119,12 @@ function isSinglestakeAppUrl(url) {
 
 async function ensureContentBridgeOnTab(tabId) {
   try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        document.documentElement.dataset.singlestakeExtension = "1";
+      },
+    });
     const live = await chrome.tabs
       .sendMessage(tabId, { kind: "bridge-ping" })
       .then((r) => r?.ok === true)
@@ -172,7 +178,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const payload = normalizeBridgePayload(message.payload);
     if (!payload) {
       sendResponse({ ok: false, error: "Payload inválido" });
-      return;
+      return true;
+    }
+    if (sender.tab?.id != null) {
+      void ensureContentBridgeOnTab(sender.tab.id);
     }
     void readBridgeEnabled().then((on) => {
       if (!on) {
@@ -413,7 +422,8 @@ async function buildStatus() {
     "gogClickChipBeforeBet",
   ]);
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
+  const activeUrl = activeTabs[0]?.url ?? null;
+  const siteKey = await resolveCalibrationStatusSiteKey(activeUrl);
   const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
   const autopilot =
     globalThis.SinglestakeSignalRunner?.getAutopilotStatus != null
@@ -1245,7 +1255,17 @@ function pickCasinoTabForNavigation(tabs, mesaUrl) {
 async function ensureMesaTab(context, preferredTabId) {
   const url = mesaUrlFromContext(context);
 
-  let tabId = await resolveMesaTabId(context, preferredTabId);
+  let safePreferred = preferredTabId;
+  if (preferredTabId != null) {
+    try {
+      const prefTab = await chrome.tabs.get(preferredTabId);
+      if (prefTab.url && isSinglestakeAppUrl(prefTab.url)) safePreferred = null;
+    } catch {
+      safePreferred = null;
+    }
+  }
+
+  let tabId = await resolveMesaTabId(context, safePreferred);
 
   if (tabId != null && url) {
     try {
@@ -1605,6 +1625,48 @@ function siteKeyFromUrl(url) {
   }
 }
 
+async function resolveCalibrationSiteKey(tabUrl, message) {
+  const stored = await chrome.storage.local.get(["gogLastContext", "gogCalibrationArmed"]);
+  const embedUrl =
+    (typeof stored.gogLastContext?.mesaEmbedUrl === "string" && stored.gogLastContext.mesaEmbedUrl) ||
+    (typeof stored.gogCalibrationArmed?.operatorUrl === "string" && stored.gogCalibrationArmed.operatorUrl) ||
+    null;
+  if (embedUrl && /\/play\/(pragmatic|playtech)\//i.test(embedUrl)) {
+    return siteKeyFromUrl(embedUrl);
+  }
+
+  if (isSinglestakeAppUrl(tabUrl)) {
+    const { tabId } = await findRouletteTabForAction(null);
+    if (tabId != null) {
+      try {
+        const operatorTab = await chrome.tabs.get(tabId);
+        if (operatorTab.url) return siteKeyFromUrl(operatorTab.url);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (tabUrl && /\/play\/(pragmatic|playtech)\//i.test(tabUrl)) {
+    return siteKeyFromUrl(tabUrl);
+  }
+
+  return siteKeyFromUrl(tabUrl);
+}
+
+async function resolveCalibrationStatusSiteKey(activeUrl) {
+  const stored = await chrome.storage.local.get(["gogLastContext", "gogBetCalibration"]);
+  const embed = stored.gogLastContext?.mesaEmbedUrl;
+  if (typeof embed === "string" && /\/play\/(pragmatic|playtech)\//i.test(embed)) {
+    const key = siteKeyFromUrl(embed);
+    if (stored.gogBetCalibration?.sites?.[key]) return key;
+  }
+  const tabs = await chrome.tabs.query({});
+  const casino = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
+  if (casino?.url) return siteKeyFromUrl(casino.url);
+  return activeUrl ? siteKeyFromUrl(activeUrl) : null;
+}
+
 function frameHintFromHref(href) {
   try {
     return new URL(href).hostname;
@@ -1653,7 +1715,7 @@ async function saveCalibrationClick(message, tabId) {
     return { ok: false, detail: "Coordenadas inválidas" };
   }
 
-  const siteKey = siteKeyFromUrl(tab.url);
+  const siteKey = await resolveCalibrationSiteKey(tab.url, message);
   const store = await readCalibrationStore();
   if (!store.sites) store.sites = {};
   if (!store.sites[siteKey]) {
@@ -1870,6 +1932,39 @@ async function verifyCalibrationOverlayActive(tabId) {
   }
 }
 
+async function injectAppTabCalibrationOverlay(tabId, betKey, label) {
+  await waitForTabComplete(tabId);
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => {
+        if (typeof window.__gogStopCalibration === "function") {
+          try {
+            window.__gogStopCalibration();
+          } catch {
+            /* ignore */
+          }
+        }
+        delete document.documentElement.dataset.gogCalBetKey;
+        delete document.documentElement.dataset.gogCalLabel;
+        delete window.__gogCalBetKey;
+        delete window.__gogCalLabel;
+      },
+    });
+  } catch {
+    /* ignore */
+  }
+
+  await injectStake37SurfaceHelper(tabId);
+  await stampCalibrationDataset(tabId, [0], betKey, label);
+  await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [0] },
+    files: ["calibrate-bets.js"],
+  });
+  return 1;
+}
+
 async function armCalibrationOnAppOverlay(betKey, label) {
   const appTab = await findSinglestakeAppTab();
   if (!appTab?.id) return null;
@@ -1877,34 +1972,42 @@ async function armCalibrationOnAppOverlay(betKey, label) {
   await chrome.tabs.update(appTab.id, { active: true });
   await waitForTabComplete(appTab.id, 12000);
 
+  let operatorUrl = null;
+  try {
+    const stored = await chrome.storage.local.get("gogLastContext");
+    if (typeof stored.gogLastContext?.mesaEmbedUrl === "string") {
+      operatorUrl = stored.gogLastContext.mesaEmbedUrl;
+    }
+  } catch {
+    /* ignore */
+  }
+  if (!operatorUrl) {
+    const roulette = await findRouletteTabForAction(null);
+    if (roulette.tabId != null) {
+      try {
+        const t = await chrome.tabs.get(roulette.tabId);
+        operatorUrl = t.url ?? null;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   let injected = 0;
   try {
-    injected = await injectOperatorCalibration(appTab.id, betKey, label);
-    if (injected >= 1) {
-      await injectStake37SurfaceHelper(appTab.id);
-    }
+    injected = await injectAppTabCalibrationOverlay(appTab.id, betKey, label);
   } catch {
     injected = 0;
   }
 
   if (injected >= 1 && (await verifyCalibrationOverlayActive(appTab.id))) {
-    await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label).catch(() => {});
-    return { tabId: appTab.id, via: "app-extension-overlay" };
+    return { tabId: appTab.id, via: "app-extension-overlay", operatorUrl };
   }
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label);
-      try {
-        await chrome.tabs.sendMessage(appTab.id, {
-          kind: "arm-calibration-overlay",
-          betKey,
-          label,
-        });
-      } catch {
-        /* content-bridge opcional */
-      }
-      return { tabId: appTab.id, via: "app-react-overlay" };
+      return { tabId: appTab.id, via: "app-react-overlay", operatorUrl };
     } catch {
       if (attempt < 3) await sleep(250);
     }
@@ -1989,6 +2092,7 @@ async function armCalibration(betKey, label, chipValue) {
         betKey,
         label: resolvedLabel,
         tabId: appOverlay.tabId,
+        operatorUrl: appOverlay.operatorUrl ?? null,
         chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
         at: new Date().toISOString(),
         via: appOverlay.via,

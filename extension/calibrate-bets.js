@@ -156,8 +156,20 @@
     prevCleanup();
   };
 
-  document.body.appendChild(root);
-  document.body.appendChild(banner);
-  document.body.appendChild(cancel);
-  window.__gogCalibrationActive = true;
+  function mountOverlay() {
+    if (!document.body) {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", mountOverlay, { once: true });
+      } else {
+        window.setTimeout(mountOverlay, 50);
+      }
+      return;
+    }
+    document.body.appendChild(root);
+    document.body.appendChild(banner);
+    document.body.appendChild(cancel);
+    window.__gogCalibrationActive = true;
+  }
+
+  mountOverlay();
 })();

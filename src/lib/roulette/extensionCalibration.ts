@@ -38,10 +38,24 @@ export function postCalibrationClick(
 }
 
 export function findCasinoEmbedRect(): DOMRect | null {
+  const selectors = [
+    ".rotating-room-iframe-shell iframe",
+    "[data-casino-embed] iframe",
+    "iframe[src*='br4.bet']",
+    "iframe[src*='pragmatic']",
+    "iframe[src*='playtech']",
+  ];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width >= 60 && r.height >= 40) return r;
+    }
+  }
   const shell = document.querySelector(".rotating-room-iframe-shell");
   const iframe =
     shell?.querySelector("iframe") ??
-    [...document.querySelectorAll("iframe")].find((el) => /casino/i.test(el.title || ""));
+    [...document.querySelectorAll("iframe")].find((el) => /casino|roleta|game/i.test(el.title || ""));
   const el = iframe ?? shell;
   if (!el) return null;
   const r = el.getBoundingClientRect();
