@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
+import { formatGlobalAutomationSettleDescription } from "@/lib/back-office/automation-ledger-labels";
+import type { StrategyGlobalKind } from "@/lib/roulette/strategyGlobalTypes";
 import { getDb } from "@/lib/server/db/client";
 import { ledgerEntries, walletAccounts } from "@/lib/server/db/schema";
 import { resolveCompanyUserId } from "@/lib/server/finance/company-pool";
@@ -154,13 +156,6 @@ export async function isGlobalAutomationSettleRecorded(settleKey: string): Promi
   return row != null;
 }
 
-function formatLedgerStake(stake: number): string {
-  const abs = Math.abs(stake);
-  if (abs > 0 && abs < 1) return abs.toFixed(2).replace(".", ",");
-  if (abs % 1 !== 0) return abs.toFixed(2).replace(".", ",");
-  return abs.toFixed(0);
-}
-
 /** Liquida vitória/derrota no extrato — saldo oficial da automação global. */
 export async function settleGlobalAutomationInLedger(input: {
   settleKey: string;
@@ -169,6 +164,8 @@ export async function settleGlobalAutomationInLedger(input: {
   tableLabel: string;
   recovery: number;
   kind: "win" | "loss" | "recovery";
+  strategy?: StrategyGlobalKind;
+  resultNumber?: number;
 }): Promise<{ net: number; balanceAfter: number } | null> {
   if (input.stake <= 0) return null;
   if (await isGlobalAutomationSettleRecorded(input.settleKey)) return null;
@@ -176,16 +173,14 @@ export async function settleGlobalAutomationInLedger(input: {
   const companyUserId = await resolveCompanyUserId();
   await ensureGlobalAutomationWallet(companyUserId);
 
-  const recoveryNote =
-    input.recovery > 0 ? ` · gale ${input.recovery}` : "";
-  const baseDesc = `Automação global — ${input.tableLabel}${recoveryNote}`;
+  const description = formatGlobalAutomationSettleDescription(input);
 
   if (input.won) {
     await creditWallet({
       userId: companyUserId,
       bucket: GLOBAL_AUTOMATION_BUCKET,
       amount: input.stake,
-      description: `${baseDesc} · vitória (+R$ ${formatLedgerStake(input.stake)})`,
+      description,
       referenceType: GLOBAL_AUTOMATION_SETTLE_REF_TYPE,
       referenceId: input.settleKey,
     });
@@ -197,7 +192,7 @@ export async function settleGlobalAutomationInLedger(input: {
     userId: companyUserId,
     bucket: GLOBAL_AUTOMATION_BUCKET,
     amount: input.stake,
-    description: `${baseDesc} · ${input.kind === "loss" ? "derrota" : "recuperação"} (-R$ ${formatLedgerStake(input.stake)})`,
+    description,
     referenceType: GLOBAL_AUTOMATION_SETTLE_REF_TYPE,
     referenceId: input.settleKey,
   });

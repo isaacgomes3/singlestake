@@ -5,6 +5,7 @@ import type {
   AutomationOpenBet,
   AutomationSimRound,
 } from "@/lib/back-office/rouletteAutomationSim";
+import { formatAutomationRoundDescription } from "@/lib/back-office/automation-ledger-labels";
 import { recoveryLevelForRound } from "@/lib/back-office/rouletteAutomationSim";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -30,6 +31,10 @@ function formatRoundDescription(
   round: AutomationSimRound,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): string {
+  if (round.strategy === "fibonacci") {
+    return formatAutomationRoundDescription(round);
+  }
+
   const parts = [round.tableLabel];
   if (round.resultNumber != null) {
     parts.push(t("shared.rounds.spin", { n: round.resultNumber }));

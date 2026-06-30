@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Fibonacci em dúzias/colunas.
- * - Gatilho: ausência de 10 giros consecutivos numa dúzia ou coluna
+ * - Gatilho: ausência de 8 giros consecutivos numa dúzia ou coluna
  * - Indicação: uma rodada (sem persistência do sinal)
  * - Recuperação Fibonacci 1-1-2-3-5-8-13-21 após derrota (2:1)
  */
@@ -17,7 +17,7 @@ import {
 
 export const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21] as const;
 
-export const ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = 10;
+export const ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = 8;
 
 export const ROTATING_ROOM_FIBONACCI_MAX_RECOVERY = FIBONACCI_LEVELS.length - 1;
 

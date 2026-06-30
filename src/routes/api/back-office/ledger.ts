@@ -6,6 +6,7 @@ export const Route = createFileRoute("/api/back-office/ledger")({
       GET: async ({ request }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
         const {
+          isUserLedgerFilterBucket,
           listLedgerEntries,
           parseLedgerBucket,
           parseLedgerEntryType,
@@ -15,14 +16,17 @@ export const Route = createFileRoute("/api/back-office/ledger")({
         if (!user) return jsonResponse({ ok: false, error: "Não autenticado." }, { status: 401 });
 
         const url = new URL(request.url);
-        const bucket = parseLedgerBucket(url.searchParams.get("bucket"));
+        const bucketRaw = parseLedgerBucket(url.searchParams.get("bucket"));
+        const isAdmin = user.role === "admin";
+        const bucket =
+          isAdmin || !bucketRaw || isUserLedgerFilterBucket(bucketRaw) ? bucketRaw : undefined;
         const entryType = parseLedgerEntryType(url.searchParams.get("entryType"));
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw ? Number(limitRaw) : undefined;
 
         const entries = await listLedgerEntries({
           userId: user.id,
-          isAdmin: user.role === "admin",
+          isAdmin,
           bucket,
           entryType,
           limit: Number.isFinite(limit) ? limit : undefined,

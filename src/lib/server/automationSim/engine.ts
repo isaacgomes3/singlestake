@@ -270,6 +270,8 @@ async function settleAutomationEntry(
       tableLabel,
       recovery: entry.recovery,
       kind: entry.kind,
+      strategy: entry.strategy,
+      resultNumber: entry.resultNumber,
     });
     const alreadyRecorded = await isGlobalAutomationSettleRecorded(walletSettleKey);
     if (ledgerResult == null && !alreadyRecorded) return state;

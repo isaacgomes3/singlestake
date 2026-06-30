@@ -443,7 +443,7 @@ var SinglestakeUmFator = (() => {
 
   // src/lib/roulette/rotatingRoomFibonacciStrategy.ts
   var FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  var ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = 10;
+  var ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = 8;
   var ROTATING_ROOM_FIBONACCI_MAX_RECOVERY = FIBONACCI_LEVELS.length - 1;
   function spinHeadFromHistory(history) {
     if (history.length === 0) return "0";
@@ -681,7 +681,7 @@ var SinglestakeUmFator = (() => {
   }
   function tryRearmAfterPartialLoss(machine, lostTableId, _lostZone, tableIds, histories, recovery, minAbsenceSpins) {
     const marked = markTableSessionLoss(machine, lostTableId);
-    const excluded = tablesExcludedFromRotation({ ...marked, recovery });
+    const excluded = new Set(tablesExcludedFromRotation({ ...marked, recovery }));
     excluded.add(lostTableId);
     const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded, minAbsenceSpins);
     if (alert && alert.tableId !== lostTableId) {

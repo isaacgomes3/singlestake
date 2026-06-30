@@ -37,4 +37,15 @@ export const WALLET_BUCKET_LABELS: Record<WalletBucket, string> = {
 /** Buckets que o utilizador pode sacar. */
 export const WITHDRAWABLE_BUCKETS: WalletBucket[] = ["rendimentos", "afiliados", "automacao"];
 
+/** Pools internos da empresa — não expor no extrato do utilizador. */
+export const COMPANY_INTERNAL_BUCKETS: WalletBucket[] = ["empresa", "afiliados", "automacao"];
+
+/** Opções de filtro do extrato para utilizadores (sem pools internos). */
+export const USER_LEDGER_FILTER_BUCKETS = [
+  "rendimentos",
+  "binario",
+  "residual",
+  "operacoes",
+] as const satisfies readonly WalletBucket[];
+
 export const DEPOSIT_CREDIT_BUCKET: WalletBucket = "rendimentos";

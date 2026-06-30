@@ -1,4 +1,5 @@
 import type {
+  StrategyGlobalKind,
   StrategyGlobalLedgerEntry,
   StrategyGlobalSnapshot,
 } from "@/lib/roulette/strategyGlobalTypes";
@@ -75,6 +76,7 @@ export type AutomationSimRound = {
   net: number;
   balanceAfter: number;
   resultNumber?: number;
+  strategy?: StrategyGlobalKind;
 };
 
 export type AutomationSimChartPoint = {
@@ -591,6 +593,7 @@ export function settleOpenBetEntry(
     net,
     balanceAfter: balance,
     resultNumber: entry.resultNumber,
+    strategy: entry.strategy,
   };
 
   const processedKeys = [...state.processedKeys, key];

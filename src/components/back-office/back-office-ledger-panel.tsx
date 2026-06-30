@@ -5,7 +5,11 @@ import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { getSession } from "@/lib/auth/session";
 import { fetchLedger } from "@/lib/back-office/finance-api";
 import type { LedgerEntryRecord } from "@/lib/back-office/finance-types";
-import { WALLET_BUCKETS, type WalletBucket } from "@/lib/back-office/finance-constants";
+import {
+  USER_LEDGER_FILTER_BUCKETS,
+  WALLET_BUCKETS,
+  type WalletBucket,
+} from "@/lib/back-office/finance-constants";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -17,10 +21,21 @@ export function BackOfficeLedgerPanel() {
   const { t } = useI18n();
   const { money, dateTime } = useFormat();
   const isAdmin = getSession()?.user.role === "admin";
+  const filterBuckets = isAdmin ? WALLET_BUCKETS : USER_LEDGER_FILTER_BUCKETS;
   const [entries, setEntries] = useState<LedgerEntryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>("all");
   const [typeFilter, setTypeFilter] = useState<EntryTypeFilter>("all");
+
+  useEffect(() => {
+    if (
+      !isAdmin &&
+      bucketFilter !== "all" &&
+      !(USER_LEDGER_FILTER_BUCKETS as readonly WalletBucket[]).includes(bucketFilter)
+    ) {
+      setBucketFilter("all");
+    }
+  }, [isAdmin, bucketFilter]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -95,7 +110,7 @@ export function BackOfficeLedgerPanel() {
               aria-label={t("finance.ledger.filterBucketAria")}
             >
               <option value="all">{t("finance.ledger.filterAllBuckets")}</option>
-              {WALLET_BUCKETS.map((bucket) => (
+              {filterBuckets.map((bucket) => (
                 <option key={bucket} value={bucket}>
                   {t(`shared.buckets.${bucket}`)}
                 </option>
@@ -123,12 +138,14 @@ export function BackOfficeLedgerPanel() {
           <p className="mt-4 text-sm text-text-secondary">{t("finance.ledger.empty")}</p>
         ) : (
           <div className="mt-4 overflow-x-auto rounded-xl border border-border-color">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className={cn("w-full text-left text-sm", isAdmin ? "min-w-[720px]" : "min-w-[560px]")}>
               <thead>
                 <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
                   <th className="px-3 py-2.5">{t("shared.columns.date")}</th>
                   {isAdmin ? <th className="px-3 py-2.5">{t("shared.columns.user")}</th> : null}
-                  <th className="px-3 py-2.5">{t("finance.ledger.colWallet")}</th>
+                  {isAdmin ? (
+                    <th className="px-3 py-2.5">{t("finance.ledger.colWallet")}</th>
+                  ) : null}
                   <th className="px-3 py-2.5">{t("shared.columns.description")}</th>
                   <th className="px-3 py-2.5">{t("shared.columns.type")}</th>
                   <th className="px-3 py-2.5 text-right">{t("shared.columns.value")}</th>
@@ -146,9 +163,11 @@ export function BackOfficeLedgerPanel() {
                         <p className="text-xs text-text-secondary">{row.userEmail}</p>
                       </td>
                     ) : null}
-                    <td className="px-3 py-2.5 text-text-secondary">
-                      {t(`shared.buckets.${row.bucket}`)}
-                    </td>
+                    {isAdmin ? (
+                      <td className="px-3 py-2.5 text-text-secondary">
+                        {t(`shared.buckets.${row.bucket}`)}
+                      </td>
+                    ) : null}
                     <td className="max-w-[16rem] px-3 py-2.5 text-text-primary">
                       <p className="truncate">{row.description}</p>
                       {row.referenceType ? (
