@@ -2,25 +2,9 @@
  * Calibração — overlay em ecrã completo no frame principal; 1 clique grava coordenadas.
  */
 (function () {
-  const betKey =
-    window.__gogCalBetKey ||
-    document.documentElement?.dataset?.gogCalBetKey ||
-    "";
-  const label =
-    window.__gogCalLabel ||
-    document.documentElement?.dataset?.gogCalLabel ||
-    betKey;
+  const betKey = window.__gogCalBetKey || "";
+  const label = window.__gogCalLabel || betKey;
   if (!betKey) return;
-
-  const isTop = window === window.top;
-  if (!isTop) {
-    const findSurface =
-      typeof window.__gogFindGameSurface === "function"
-        ? window.__gogFindGameSurface
-        : null;
-    const surface = findSurface ? findSurface() : null;
-    if (!surface?.el) return;
-  }
 
   if (typeof window.__gogStopCalibration === "function") {
     try {
@@ -35,8 +19,6 @@
 
   function cleanup() {
     document.getElementById(ROOT_ID)?.remove();
-    document.getElementById("gog-ext-cal-banner")?.remove();
-    document.getElementById("gog-ext-cal-cancel")?.remove();
     window.__gogCalibrationActive = false;
     window.__gogStopCalibration = null;
   }
@@ -137,7 +119,6 @@
         : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">PARES ou ÍMPARES · ESC cancela</span>`;
 
   const cancel = document.createElement("button");
-  cancel.id = "gog-ext-cal-cancel";
   cancel.type = "button";
   cancel.textContent = "Cancelar";
   cancel.style.cssText =
@@ -161,21 +142,8 @@
     prevCleanup();
   };
 
-  function mountOverlay() {
-    if (!document.body) {
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", mountOverlay, { once: true });
-      } else {
-        window.setTimeout(mountOverlay, 50);
-      }
-      return;
-    }
-    if (document.getElementById(ROOT_ID)) return;
-    document.body.appendChild(root);
-    document.body.appendChild(banner);
-    document.body.appendChild(cancel);
-    window.__gogCalibrationActive = true;
-  }
-
-  mountOverlay();
+  document.body.appendChild(root);
+  document.body.appendChild(banner);
+  document.body.appendChild(cancel);
+  window.__gogCalibrationActive = true;
 })();

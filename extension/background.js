@@ -1,60 +1,9 @@
-const __EXT_LOAD_ERRORS = [];
-try {
-  importScripts("shared.js");
-} catch (e) {
-  const msg = e instanceof Error ? e.message : String(e);
-  __EXT_LOAD_ERRORS.push(`shared.js: ${msg}`);
-  console.error("[Singlestake] shared.js falhou:", e);
-  globalThis.GOG = {
-    BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
-    PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
-    VERSION: 1,
-    STORAGE_MODE: "gogExecutionMode",
-    STORAGE_BRIDGE_PREFS: "gogBridgePrefs",
-    DEFAULT_MODE: "demo",
-  };
-  globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  globalThis.readStoredMode = async () => "demo";
-  globalThis.isDryRun = async () => true;
-  globalThis.resolveExecutionMode = async () => "demo";
-  globalThis.recoveryFromContext = () => 0;
-  globalThis.clickStaggerMsForRecovery = () => 450;
-  globalThis.isAppProductionHostname = () => false;
-  globalThis.panelSignalToBridge = () => null;
-  globalThis.updateActionBadge = () => {};
-}
-for (const __extFile of ["um-fator-engine.js", "dga-hub.js", "server-sync.js", "signal-runner.js"]) {
-  try {
-    importScripts(__extFile);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    __EXT_LOAD_ERRORS.push(`${__extFile}: ${msg}`);
-    console.error("[Singlestake] importScripts falhou:", __extFile, e);
-  }
-}
-const GOG = globalThis.GOG;
-const readStoredMode = globalThis.readStoredMode;
-const setStoredMode = globalThis.setStoredMode;
-const isDryRun = globalThis.isDryRun;
-const resolveExecutionMode = globalThis.resolveExecutionMode;
-const recoveryFromContext = globalThis.recoveryFromContext;
-const clickStaggerMsForRecovery = globalThis.clickStaggerMsForRecovery;
-const clickSpeedMultiplierForRecovery = globalThis.clickSpeedMultiplierForRecovery;
-const scaledClickDelayMs = globalThis.scaledClickDelayMs;
-const panelSignalToBridge = globalThis.panelSignalToBridge;
-const isAppProductionHostname = globalThis.isAppProductionHostname;
-const sleep = globalThis.sleep;
-const updateActionBadge = globalThis.updateActionBadge;
+importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js");
 
-const DEFAULT_CHIP_VALUE = 50;
+const CLICK_STAGGER_MS = 450;
+const DEFAULT_CHIP_VALUE = 0.5;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
-/** Aguarda poker/roleta carregar após navegação (espelha ensureMesaTab). */
-const LOBBY_NAV_SETTLE_MS = 6500;
-/** URL do lobby poker — igual ao iframe «Aguarde no Lobby» do app. */
-const LOBBY_POKER_URL = "https://br4.bet.br/play/pragmatic/poker";
-/** Roleta por defeito para testes / calibração quando só o poker está aberto. */
-const DEFAULT_ROULETTE_MESA_URL = "https://br4.bet.br/play/pragmatic/roulette-macao";
 
 /** @type {{ fingerprint: string; at: string; actions: unknown[] } | null} */
 let lastBridge = null;
@@ -67,34 +16,17 @@ let bridgeInFlightKey = null;
 /** Último gale/mesa — permite nova aposta quando recovery sobe. */
 let lastBridgeRecovery = null;
 let lastBridgeTableId = null;
-/** Bloqueia abrir roleta enquanto poker do lobby ainda carrega. */
-let mesaNavLockUntil = 0;
-/** Serializa execuções da bridge — evita poker + roleta em paralelo. */
-let bridgePlanChain = Promise.resolve();
 
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 chrome.runtime.onInstalled.addListener(() => {
-  void chrome.storage.local.get([GOG.STORAGE_MODE, STORAGE_BRIDGE_ENABLED], (data) => {
-    const patch = { gogAutopilotEnabled: false };
-    if (data[GOG.STORAGE_MODE] === undefined) {
-      void setStoredMode(GOG.DEFAULT_MODE);
-    } else if (data[GOG.STORAGE_MODE] === "real" || data[GOG.STORAGE_MODE] === "demo") {
-      void updateActionBadge(data[GOG.STORAGE_MODE]);
-    }
-    if (data[STORAGE_BRIDGE_ENABLED] === undefined) {
-      patch[STORAGE_BRIDGE_ENABLED] = true;
-    }
-    void chrome.storage.local.set(patch);
-  });
+  void setStoredMode(GOG.DEFAULT_MODE);
+  void chrome.storage.local.set({ gogAutopilotEnabled: false });
   void ensureContentBridgeOnAppTabs();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureContentBridgeOnAppTabs();
-  void readBridgeEnabled().then((on) => {
-    if (on) return navigateBridgeToLobbyWait();
-  });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -119,12 +51,6 @@ function isSinglestakeAppUrl(url) {
 
 async function ensureContentBridgeOnTab(tabId) {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        document.documentElement.dataset.singlestakeExtension = "1";
-      },
-    });
     const live = await chrome.tabs
       .sendMessage(tabId, { kind: "bridge-ping" })
       .then((r) => r?.ok === true)
@@ -167,9 +93,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-void (typeof readStoredMode === "function"
-  ? readStoredMode().then(updateActionBadge)
-  : Promise.resolve());
+void readStoredMode().then(updateActionBadge);
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") return;
@@ -178,10 +102,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const payload = normalizeBridgePayload(message.payload);
     if (!payload) {
       sendResponse({ ok: false, error: "Payload inválido" });
-      return true;
-    }
-    if (sender.tab?.id != null) {
-      void ensureContentBridgeOnTab(sender.tab.id);
+      return;
     }
     void readBridgeEnabled().then((on) => {
       if (!on) {
@@ -207,16 +128,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const enabled = message.enabled === true;
     void chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled }).then(async () => {
       await ensureContentBridgeOnAppTabs();
-      if (enabled) {
-        const nav = await navigateBridgeToLobbyWait();
-        sendResponse({
-          ok: true,
-          enabled,
-          navigated: nav?.results?.[0]?.ok === true,
-          detail: nav?.results?.[0]?.detail ?? null,
-        });
-        return;
-      }
       sendResponse({ ok: true, enabled });
     });
     return true;
@@ -224,19 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.kind === "set-mode") {
     const mode = message.mode === "real" ? "real" : "demo";
-    const apply =
-      typeof setStoredMode === "function"
-        ? () => setStoredMode(mode)
-        : () =>
-            chrome.storage.local.set({
-              gogExecutionMode: mode,
-              gogExteriorDryRun: mode === "demo",
-              gogPragmaticDryRun: mode === "demo",
-            });
-    void apply().then(() => {
-      if (typeof updateActionBadge === "function") updateActionBadge(mode);
-      sendResponse({ ok: true, mode });
-    });
+    void setStoredMode(mode).then(() => sendResponse({ ok: true, mode }));
     return true;
   }
 
@@ -246,31 +145,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "set-autopilot") {
-    if (!globalThis.SinglestakeSignalRunner?.setAutopilotEnabled) {
-      sendResponse({ enabled: false, status: { running: false, reason: "Autopilot indisponível" } });
-      return;
-    }
-    void globalThis.SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
-      globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
+    void SinglestakeSignalRunner.setAutopilotEnabled(message.enabled === true).then(() =>
+      SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse),
     );
     return true;
   }
 
   if (message.kind === "get-autopilot") {
-    if (!globalThis.SinglestakeSignalRunner?.getAutopilotStatus) {
-      sendResponse({ enabled: false, status: { running: false } });
-      return;
-    }
-    void globalThis.SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
+    void SinglestakeSignalRunner.getAutopilotStatus().then(sendResponse);
     return true;
   }
 
   if (message.kind === "reset-autopilot-stats") {
-    if (!globalThis.SinglestakeSignalRunner?.resetAutopilotStats) {
-      sendResponse({ ok: false });
-      return;
-    }
-    void globalThis.SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
+    void SinglestakeSignalRunner.resetAutopilotStats().then(sendResponse);
     return true;
   }
 
@@ -422,25 +309,10 @@ async function buildStatus() {
     "gogClickChipBeforeBet",
   ]);
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const activeUrl = activeTabs[0]?.url ?? null;
-  const siteKey = await resolveCalibrationStatusSiteKey(activeUrl);
+  const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
   const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
-  const autopilot =
-    globalThis.SinglestakeSignalRunner?.getAutopilotStatus != null
-      ? await globalThis.SinglestakeSignalRunner.getAutopilotStatus()
-      : {
-          enabled: false,
-          status: {
-            running: false,
-            reason:
-              __EXT_LOAD_ERRORS[0] ??
-              "signal-runner não carregou — recarregue a extensão em chrome://extensions",
-          },
-        };
-  const dgaConfig =
-    globalThis.SinglestakeSignalRunner?.getDgaConfigForPopup != null
-      ? await globalThis.SinglestakeSignalRunner.getDgaConfigForPopup()
-      : null;
+  const autopilot = await SinglestakeSignalRunner.getAutopilotStatus();
+  const dgaConfig = await SinglestakeSignalRunner.getDgaConfigForPopup();
   const bridgePrefs = await readBridgePrefs();
   const bridgeEnabled = await readBridgeEnabled();
   return {
@@ -461,97 +333,12 @@ async function buildStatus() {
   };
 }
 
-async function navigateBridgeToLobbyWait() {
-  const context = {
-    lobbyWait: true,
-    mesaEmbedUrl: LOBBY_POKER_URL,
-    mesaCatalog: [],
-    currentTableId: null,
-    singleFactorMode: true,
-  };
-  const payload = {
-    fingerprint: `bridge-lobby-${Date.now()}`,
-    actions: [
-      {
-        kind: "click",
-        target: "prepare-open",
-        label: "Lobby — Poker",
-        reason: "Sala ligada — posicionar no lobby",
-      },
-    ],
-    context,
-    type: GOG.BRIDGE_TYPE,
-    version: GOG.VERSION,
-  };
-  lastBridgeDedupeKey = null;
-  lastExecutedSignalId = null;
-  return handleBridgePayload(payload, null);
-}
-
 async function handleBridgePayload(payload, sourceTabId) {
-  const run = () => handleBridgePayloadInner(payload, sourceTabId);
-  const ticket = bridgePlanChain.then(run, run);
-  bridgePlanChain = ticket.catch(() => {});
-  return ticket;
-}
-
-async function handleBridgePayloadInner(payload, sourceTabId) {
   const ctx = payload.context ?? {};
   const signalId =
     typeof ctx.signalId === "string" && ctx.signalId.trim() ? ctx.signalId.trim() : null;
   const recovery = recoveryFromContext(ctx);
   const tableId = ctx.currentTableId ?? null;
-  const isBetPayload =
-    !ctx.lobbyWait &&
-    Array.isArray(payload.actions) &&
-    payload.actions.some((a) => a?.kind === "click" && (a.target === "factor-1" || a.target === "factor-2"));
-  const cooldownUntil =
-    typeof ctx.lobbyCooldownUntilMs === "number" && Number.isFinite(ctx.lobbyCooldownUntilMs)
-      ? ctx.lobbyCooldownUntilMs
-      : 0;
-  const postResultHoldUntil =
-    typeof ctx.postResultHoldUntilMs === "number" && Number.isFinite(ctx.postResultHoldUntilMs)
-      ? ctx.postResultHoldUntilMs
-      : 0;
-  const isLobbyPayload = ctx.lobbyWait === true;
-
-  if (isLobbyPayload && postResultHoldUntil > Date.now()) {
-    const waitSec = Math.ceil((postResultHoldUntil - Date.now()) / 1000);
-    return {
-      ok: true,
-      results: [
-        {
-          target: "bridge",
-          ok: true,
-          skipped: true,
-          detail: `Resultado — aguardar ${waitSec}s antes do lobby`,
-        },
-      ],
-      mode: await resolveExecutionMode(payload.context),
-    };
-  }
-
-  if (isBetPayload && (cooldownUntil > Date.now() || postResultHoldUntil > Date.now())) {
-    const until = Math.max(cooldownUntil, postResultHoldUntil);
-    const waitSec = Math.ceil((until - Date.now()) / 1000);
-    return {
-      ok: true,
-      results: [
-        {
-          target: "bridge",
-          ok: true,
-          skipped: true,
-          detail: `Cooldown pós-lobby — aguardar ${waitSec}s antes de nova indicação`,
-        },
-      ],
-      mode: await resolveExecutionMode(payload.context),
-    };
-  }
-
-  if (isBetPayload) {
-    const navWaitMs = mesaNavLockUntil - Date.now();
-    if (navWaitMs > 0) await sleep(navWaitMs);
-  }
 
   if (
     recovery > (lastBridgeRecovery ?? 0) ||
@@ -565,11 +352,9 @@ async function handleBridgePayloadInner(payload, sourceTabId) {
   lastBridgeTableId = tableId;
 
   const dedupeKey =
-    signalId != null
-      ? `${signalId}:r${recovery}${ctx.betAttemptKey ? `:${ctx.betAttemptKey}` : ""}`
-      : payload.fingerprint
-        ? `${payload.fingerprint}:r${recovery}`
-        : null;
+    signalId != null ? `${signalId}:r${recovery}` : payload.fingerprint
+      ? `${payload.fingerprint}:r${recovery}`
+      : null;
 
   if (dedupeKey && (bridgeInFlightKey === dedupeKey || lastBridgeDedupeKey === dedupeKey)) {
     return {
@@ -616,10 +401,9 @@ async function runBridgePlan(payload, sourceTabId) {
     ? clicks.filter((a) => a.target === "factor-1" || a.target === "prepare-open")
     : clicks;
   const results = [];
-  const staggerMs = clickStaggerMsForRecovery(recoveryFromContext(payload.context), payload.context);
 
   for (let i = 0; i < filtered.length; i++) {
-    if (i > 0) await sleep(staggerMs);
+    if (i > 0) await sleep(CLICK_STAGGER_MS);
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
     results.push(result);
@@ -643,13 +427,7 @@ async function dispatchClickAction(action, context, sourceTabId) {
     if (!url) {
       return { target: action.target, ok: false, detail: "Sem URL da mesa no sinal" };
     }
-    const isLobbyNav = context?.lobbyWait === true;
     const tabId = await ensureMesaTab(context, sourceTabId);
-    if (isLobbyNav && tabId != null) {
-      mesaNavLockUntil = Date.now() + LOBBY_NAV_SETTLE_MS;
-    } else if (!isLobbyNav && tabId != null) {
-      mesaNavLockUntil = 0;
-    }
     return {
       target: action.target,
       ok: tabId != null,
@@ -657,9 +435,6 @@ async function dispatchClickAction(action, context, sourceTabId) {
       tabId,
     };
   }
-
-  const navWaitMs = mesaNavLockUntil - Date.now();
-  if (navWaitMs > 0) await sleep(navWaitMs);
 
   const targetTabId = await ensureMesaTab(context, sourceTabId);
   if (targetTabId == null) {
@@ -845,7 +620,7 @@ async function releaseCdpSession() {
 }
 
 /** Clique real na viewport — fallback quando o clique no iframe falha. */
-async function cdpViewportClick(tabId, x, y, keepSession = false, speedMultiplier = 1) {
+async function cdpViewportClick(tabId, x, y, keepSession = false) {
   const attach = await ensureCdpAttached(tabId);
   if (!attach.ok) {
     return {
@@ -853,10 +628,6 @@ async function cdpViewportClick(tabId, x, y, keepSession = false, speedMultiplie
       detail: `Debugger: ${attach.detail} (feche DevTools nessa aba)`,
     };
   }
-
-  const mult = speedMultiplier > 1 ? speedMultiplier : 1;
-  const pressDelayMs = Math.max(15, Math.round(40 / mult));
-  const releaseDelayMs = Math.max(25, Math.round(90 / mult));
 
   const target = { tabId };
   try {
@@ -870,12 +641,12 @@ async function cdpViewportClick(tabId, x, y, keepSession = false, speedMultiplie
       x: px,
       y: py,
     });
-    await sleep(pressDelayMs);
+    await sleep(40);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mousePressed",
       ...base,
     });
-    await sleep(releaseDelayMs);
+    await sleep(90);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mouseReleased",
       x: px,
@@ -943,17 +714,7 @@ async function realClickSavedCoord(tabId, savedCoord, label, kind, options = {})
 
   if (!keepSession) await focusMesaTab(tabId);
 
-  const speedMultiplier =
-    typeof options.speedMultiplier === "number" && options.speedMultiplier > 1
-      ? options.speedMultiplier
-      : 1;
-  const cdpResult = await cdpViewportClick(
-    tabId,
-    pixels.x,
-    pixels.y,
-    keepSession,
-    speedMultiplier,
-  );
+  const cdpResult = await cdpViewportClick(tabId, pixels.x, pixels.y, keepSession);
   if (!cdpResult.ok) {
     return { ok: false, detail: `Clique real falhou: ${cdpResult.detail}` };
   }
@@ -1086,10 +847,7 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
     detail: "Ficha já seleccionada (não clica)",
   };
 
-  const recovery = recoveryFromContext(context ?? {});
-  const staggerMs = clickStaggerMsForRecovery(recovery, context);
-  const speedMultiplier = clickSpeedMultiplierForRecovery(recovery, context);
-  const cdpOpts = { keepSession: !dryRun, speedMultiplier };
+  const cdpOpts = { keepSession: !dryRun };
 
   try {
     if (!dryRun) {
@@ -1103,22 +861,22 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
         };
       }
       // Barra «A depurar» reduz o viewport — calcular coords só depois dela aparecer.
-      await sleep(scaledClickDelayMs(CDP_BAR_SETTLE_MS, recovery, context));
+      await sleep(CDP_BAR_SETTLE_MS);
     }
 
     if (await shouldClickChipBeforeBet()) {
       chipResult = await selectChipOnTab(tabId, dryRun, cdpOpts);
       if (!dryRun && chipResult.ok && !chipResult.skipped) {
-        await sleep(staggerMs);
+        await sleep(CLICK_STAGGER_MS);
       }
     }
 
     const chip = await getSavedChipForTab(tabId);
-    const { stakeAmount, chipValue, units } = stakeUnitsForContext(context ?? {}, chip);
+    const { stakeAmount, chipValue, units, recovery } = stakeUnitsForContext(context ?? {}, chip);
 
     let clickResult = { ok: false, detail: "Aposta não executada" };
     for (let u = 0; u < units; u++) {
-      if (u > 0) await sleep(staggerMs);
+      if (u > 0) await sleep(CLICK_STAGGER_MS);
       clickResult = await executeExteriorBetOnTab(tabId, betKey, label, dryRun, cdpOpts);
       if (!clickResult.ok) break;
     }
@@ -1194,19 +952,13 @@ async function resolveMesaTabId(context, preferredTabId) {
     return active.id;
   }
 
-  const anyPlay = tabs.find((t) => t.url && isRouletteCasinoUrl(t.url));
+  const anyPlay = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
   if (anyPlay?.id != null) return anyPlay.id;
-
-  const anyCasino = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
-  if (anyCasino?.id != null) return anyCasino.id;
 
   return null;
 }
 
 function mesaUrlFromContext(context) {
-  if (context?.lobbyWait === true && typeof context?.mesaEmbedUrl === "string") {
-    return context.mesaEmbedUrl.trim();
-  }
   const tableId = context?.currentTableId;
   if (tableId != null && Array.isArray(context?.mesaCatalog)) {
     const entry = context.mesaCatalog.find((e) => e && e.tableId === tableId && e.url);
@@ -1255,17 +1007,7 @@ function pickCasinoTabForNavigation(tabs, mesaUrl) {
 async function ensureMesaTab(context, preferredTabId) {
   const url = mesaUrlFromContext(context);
 
-  let safePreferred = preferredTabId;
-  if (preferredTabId != null) {
-    try {
-      const prefTab = await chrome.tabs.get(preferredTabId);
-      if (prefTab.url && isSinglestakeAppUrl(prefTab.url)) safePreferred = null;
-    } catch {
-      safePreferred = null;
-    }
-  }
-
-  let tabId = await resolveMesaTabId(context, safePreferred);
+  let tabId = await resolveMesaTabId(context, preferredTabId);
 
   if (tabId != null && url) {
     try {
@@ -1305,68 +1047,6 @@ function isCasinoPlayUrl(url) {
   return /\/play\/(playtech|pragmatic)\//i.test(url);
 }
 
-function isPokerLobbyUrl(url) {
-  if (!url) return false;
-  try {
-    const path = new URL(url).pathname.toLowerCase();
-    return /\/play\/(playtech|pragmatic)\/poker\/?$/i.test(path);
-  } catch {
-    return /\/poker\/?$/i.test(String(url).toLowerCase());
-  }
-}
-
-function isRouletteCasinoUrl(url) {
-  return isCasinoPlayUrl(url) && !isPokerLobbyUrl(url);
-}
-
-/**
- * Encontra ou abre separador de roleta (não poker).
- * Testes e calibração precisam do iframe da roleta, não do lobby poker.
- */
-async function findRouletteTabForAction(preferredTabId, mesaUrl = DEFAULT_ROULETTE_MESA_URL) {
-  const tabs = await chrome.tabs.query({});
-  const targetUrl = mesaUrl || DEFAULT_ROULETTE_MESA_URL;
-
-  if (preferredTabId != null) {
-    const pref = tabs.find((t) => t.id === preferredTabId);
-    if (pref?.url && isRouletteCasinoUrl(pref.url)) {
-      return { tabId: preferredTabId, navigated: false };
-    }
-  }
-
-  if (targetUrl) {
-    const exact = tabs.find((t) => t.url && casinoPathsMatch(t.url, targetUrl));
-    if (exact?.id != null) return { tabId: exact.id, navigated: false };
-
-    let slug = null;
-    try {
-      slug = new URL(targetUrl).pathname.split("/").filter(Boolean).pop();
-    } catch {
-      slug = null;
-    }
-    if (slug) {
-      const bySlug = tabs.find(
-        (t) => t.url && t.url.toLowerCase().includes(slug.toLowerCase()) && isRouletteCasinoUrl(t.url),
-      );
-      if (bySlug?.id != null) return { tabId: bySlug.id, navigated: false };
-    }
-  }
-
-  const roulette = tabs.find((t) => t.url && isRouletteCasinoUrl(t.url));
-  if (roulette?.id != null) return { tabId: roulette.id, navigated: false };
-
-  const reuse = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
-  if (reuse?.id != null) {
-    await chrome.tabs.update(reuse.id, { url: targetUrl, active: true });
-    await sleep(LOBBY_NAV_SETTLE_MS);
-    return { tabId: reuse.id, navigated: true };
-  }
-
-  const tab = await chrome.tabs.create({ url: targetUrl, active: true });
-  await sleep(5500);
-  return { tabId: tab.id ?? null, navigated: true };
-}
-
 /** Prefer iframe Pragmatic/Playtech sobre a shell do operador (br4.bet). */
 function rankFrameResult(result) {
   const href = String(result?.href || result?.frame || "").toLowerCase();
@@ -1382,13 +1062,6 @@ function rankFrameResult(result) {
 }
 
 async function openMesaTabAndWait(url) {
-  const tabs = await chrome.tabs.query({});
-  const reuseId = pickCasinoTabForNavigation(tabs, url);
-  if (reuseId != null) {
-    await chrome.tabs.update(reuseId, { url, active: true });
-    await sleep(LOBBY_NAV_SETTLE_MS);
-    return reuseId;
-  }
   const tab = await chrome.tabs.create({ url, active: true });
   await sleep(5500);
   return tab.id ?? null;
@@ -1479,19 +1152,21 @@ async function testExteriorBet(tabId, betKey, label, modeOverride) {
   const dryRun =
     modeOverride === "real" ? false : modeOverride === "demo" ? true : await isDryRun(null);
 
-  const { tabId: id, navigated } = await findRouletteTabForAction(tabId ?? null);
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const preferredId = tabId ?? activeTabs[0]?.id ?? null;
+  let id = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, preferredId);
   if (id == null) {
+    const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeUrl = activeTabs[0]?.url ?? "";
     return {
       ok: false,
-      detail:
-        "Não foi possível abrir a roleta — abra br4.bet.br/play/pragmatic/roulette-macao num separador.",
+      detail: `Separador activo não é a mesa (${activeUrl.slice(0, 60)}…). Clique na aba da roleta e teste de novo.`,
       betKey,
       mode: dryRun ? "demo" : "real",
     };
   }
 
   const result = await executeBetWithChip(id, betKey, label ?? betKey, dryRun, {});
-  const navNote = navigated ? " · navegou do poker para a roleta" : "";
   await chrome.storage.local.set({
     gogLastTest: {
       at: new Date().toISOString(),
@@ -1501,21 +1176,13 @@ async function testExteriorBet(tabId, betKey, label, modeOverride) {
       ...result,
     },
   });
-  return {
-    ...result,
-    mode: dryRun ? "demo" : "real",
-    tabId: id,
-    detail: `${result.detail ?? ""}${navNote}`.trim(),
-  };
+  return { ...result, mode: dryRun ? "demo" : "real", tabId: id };
 }
 
 async function scanExteriorBets(tabId) {
-  const { tabId: id } = await findRouletteTabForAction(tabId ?? null);
+  const id = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, tabId);
   if (id == null) {
-    return {
-      ok: false,
-      detail: "Abra a roleta Pragmatic (ex.: roulette-macao) num separador antes da varredura",
-    };
+    return { ok: false, detail: "Abra a mesa Pragmatic/Playtech num separador antes da varredura" };
   }
 
   await chrome.scripting.executeScript({
@@ -1625,48 +1292,6 @@ function siteKeyFromUrl(url) {
   }
 }
 
-async function resolveCalibrationSiteKey(tabUrl, message) {
-  const stored = await chrome.storage.local.get(["gogLastContext", "gogCalibrationArmed"]);
-  const embedUrl =
-    (typeof stored.gogLastContext?.mesaEmbedUrl === "string" && stored.gogLastContext.mesaEmbedUrl) ||
-    (typeof stored.gogCalibrationArmed?.operatorUrl === "string" && stored.gogCalibrationArmed.operatorUrl) ||
-    null;
-  if (embedUrl && /\/play\/(pragmatic|playtech)\//i.test(embedUrl)) {
-    return siteKeyFromUrl(embedUrl);
-  }
-
-  if (isSinglestakeAppUrl(tabUrl)) {
-    const { tabId } = await findRouletteTabForAction(null);
-    if (tabId != null) {
-      try {
-        const operatorTab = await chrome.tabs.get(tabId);
-        if (operatorTab.url) return siteKeyFromUrl(operatorTab.url);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  if (tabUrl && /\/play\/(pragmatic|playtech)\//i.test(tabUrl)) {
-    return siteKeyFromUrl(tabUrl);
-  }
-
-  return siteKeyFromUrl(tabUrl);
-}
-
-async function resolveCalibrationStatusSiteKey(activeUrl) {
-  const stored = await chrome.storage.local.get(["gogLastContext", "gogBetCalibration"]);
-  const embed = stored.gogLastContext?.mesaEmbedUrl;
-  if (typeof embed === "string" && /\/play\/(pragmatic|playtech)\//i.test(embed)) {
-    const key = siteKeyFromUrl(embed);
-    if (stored.gogBetCalibration?.sites?.[key]) return key;
-  }
-  const tabs = await chrome.tabs.query({});
-  const casino = tabs.find((t) => t.url && isCasinoPlayUrl(t.url));
-  if (casino?.url) return siteKeyFromUrl(casino.url);
-  return activeUrl ? siteKeyFromUrl(activeUrl) : null;
-}
-
 function frameHintFromHref(href) {
   try {
     return new URL(href).hostname;
@@ -1715,7 +1340,7 @@ async function saveCalibrationClick(message, tabId) {
     return { ok: false, detail: "Coordenadas inválidas" };
   }
 
-  const siteKey = await resolveCalibrationSiteKey(tab.url, message);
+  const siteKey = siteKeyFromUrl(tab.url);
   const store = await readCalibrationStore();
   if (!store.sites) store.sites = {};
   if (!store.sites[siteKey]) {
@@ -1794,35 +1419,11 @@ async function clearCalibration(siteKey) {
 
 async function disarmCalibration(tabId) {
   if (tabId == null) return;
-  const appTab = await findSinglestakeAppTab();
-  if (appTab?.id != null) {
-    try {
-      await postCalibrationToAppPageMainWorld(appTab.id, "disarm", "", "");
-    } catch {
-      /* ignore */
-    }
-    try {
-      await chrome.tabs.sendMessage(appTab.id, { kind: "disarm-calibration-overlay" });
-    } catch {
-      /* ignore */
-    }
-  }
   try {
     await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
+      target: { tabId },
       func: () => {
-        if (typeof window.__gogStopCalibration === "function") {
-          try {
-            window.__gogStopCalibration();
-          } catch {
-            /* ignore */
-          }
-        }
-        delete document.documentElement.dataset.gogCalBetKey;
-        delete document.documentElement.dataset.gogCalLabel;
-        delete window.__gogCalBetKey;
-        delete window.__gogCalLabel;
-        delete window.__gogCalibrationActive;
+        if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
       },
     });
   } catch {
@@ -1830,360 +1431,77 @@ async function disarmCalibration(tabId) {
   }
 }
 
-async function waitForTabComplete(tabId, timeoutMs = 20000) {
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    if (tab.status === "complete") return true;
-  } catch {
-    return false;
-  }
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(listener);
-      resolve(false);
-    }, timeoutMs);
-    function listener(id, info) {
-      if (id === tabId && info.status === "complete") {
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve(true);
-      }
-    }
-    chrome.tabs.onUpdated.addListener(listener);
-  });
-}
-
-async function findSinglestakeAppTab() {
-  const tabs = await chrome.tabs.query({});
-  const activeInWindow = tabs.find(
-    (t) => t.active && t.id != null && isSinglestakeAppUrl(t.url),
-  );
-  if (activeInWindow?.id) return activeInWindow;
-  return tabs.find((t) => t.id != null && isSinglestakeAppUrl(t.url)) ?? null;
-}
-
-const APP_CALIB_ARM_TYPE = "singlestake-arm-calibration";
-const APP_CALIB_DISARM_TYPE = "singlestake-disarm-calibration";
-
-/** Envia calibração ao React da app (mundo MAIN — postMessage do content script não chega à página). */
-async function postCalibrationToAppPageMainWorld(tabId, action, betKey, label) {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    world: "MAIN",
-    func: (armType, disarmType, act, bk, lb) => {
-      if (act === "disarm") {
-        try {
-          delete document.documentElement.dataset.singlestakeArmCalibration;
-        } catch {
-          /* ignore */
-        }
-        window.postMessage({ type: disarmType }, window.location.origin);
-        return;
-      }
-      const detail = { betKey: bk, label: lb };
-      try {
-        document.documentElement.dataset.singlestakeArmCalibration = JSON.stringify(detail);
-      } catch {
-        /* ignore */
-      }
-      window.postMessage({ type: armType, ...detail }, window.location.origin);
-      window.dispatchEvent(new CustomEvent(armType, { detail }));
-    },
-    args: [APP_CALIB_ARM_TYPE, APP_CALIB_DISARM_TYPE, action, betKey, label],
-  });
-}
-
-async function injectStake37SurfaceHelper(tabId) {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId, frameIds: [0] },
-      func: () => {
-        window.__gogFindGameSurface = function stake37FindEmbed() {
-          const shell = document.querySelector(".rotating-room-iframe-shell");
-          const iframe =
-            shell?.querySelector("iframe") ||
-            [...document.querySelectorAll("iframe")].find((el) => {
-              const hint = `${el.title || ""} ${el.getAttribute("aria-label") || ""} ${el.src || ""}`;
-              return /casino|roleta|game|pragmatic|playtech/i.test(hint);
-            });
-          if (!iframe) return null;
-          const r = iframe.getBoundingClientRect();
-          if (r.width < 60 || r.height < 40) return null;
-          return { el: iframe, kind: "embed-iframe" };
-        };
-      },
-    });
-  } catch {
-    /* opcional */
-  }
-}
-
-async function verifyCalibrationOverlayActive(tabId) {
-  try {
-    const rows = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () =>
-        Boolean(
-          window.__gogCalibrationActive ||
-            document.getElementById("gog-ext-cal-root"),
-        ),
-    });
-    return rows.some((row) => row.result === true);
-  } catch {
-    return false;
-  }
-}
-
-async function injectAppTabCalibrationOverlay(tabId, betKey, label) {
-  await waitForTabComplete(tabId);
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () => {
-        if (typeof window.__gogStopCalibration === "function") {
-          try {
-            window.__gogStopCalibration();
-          } catch {
-            /* ignore */
-          }
-        }
-        delete document.documentElement.dataset.gogCalBetKey;
-        delete document.documentElement.dataset.gogCalLabel;
-        delete window.__gogCalBetKey;
-        delete window.__gogCalLabel;
-      },
-    });
-  } catch {
-    /* ignore */
-  }
-
-  await injectStake37SurfaceHelper(tabId);
-  await stampCalibrationDataset(tabId, [0], betKey, label);
-  await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [0] },
-    files: ["calibrate-bets.js"],
-  });
-  return 1;
-}
-
-async function armCalibrationOnAppOverlay(betKey, label) {
-  const appTab = await findSinglestakeAppTab();
-  if (!appTab?.id) return null;
-  await ensureContentBridgeOnTab(appTab.id);
-  await chrome.tabs.update(appTab.id, { active: true });
-  await waitForTabComplete(appTab.id, 12000);
-
-  let operatorUrl = null;
-  try {
-    const stored = await chrome.storage.local.get("gogLastContext");
-    if (typeof stored.gogLastContext?.mesaEmbedUrl === "string") {
-      operatorUrl = stored.gogLastContext.mesaEmbedUrl;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  let injected = 0;
-  try {
-    injected = await injectAppTabCalibrationOverlay(appTab.id, betKey, label);
-  } catch {
-    injected = 0;
-  }
-
-  if (injected >= 1 && (await verifyCalibrationOverlayActive(appTab.id))) {
-    return { tabId: appTab.id, via: "app-extension-overlay", operatorUrl };
-  }
-
-  try {
-    await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label);
-    await sleep(300);
-    const reactArmed =
-      (await chrome.scripting.executeScript({
-        target: { tabId: appTab.id },
-        world: "MAIN",
-        func: () => Boolean(document.documentElement.dataset.singlestakeArmCalibration),
-      }))?.[0]?.result === true;
-    if (reactArmed) {
-      return { tabId: appTab.id, via: "app-react-overlay", operatorUrl };
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-/** Inject clássico no separador do operador (br4) — overlay azul directo, como extensão ≤1.4.5. */
-async function injectOperatorCalibrationClassic(tabId, betKey, label) {
-  await waitForTabComplete(tabId);
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    func: () => window.__gogClearVisualArtifacts?.(),
-  });
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["exterior-bets.js"],
-  });
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    func: (bk, lb) => {
-      const root = document.documentElement;
-      root.dataset.gogCalBetKey = bk;
-      root.dataset.gogCalLabel = lb;
-      window.__gogCalBetKey = bk;
-      window.__gogCalLabel = lb;
-    },
-    args: [betKey, label],
-  });
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["calibrate-bets.js"],
-  });
-
-  return (await verifyCalibrationOverlayActive(tabId)) ? 1 : 0;
-}
-
-function stampCalibrationDataset(tabId, frameIds, betKey, label) {
-  const target =
-    frameIds != null && frameIds.length > 0
-      ? { tabId, frameIds }
-      : { tabId, allFrames: true };
-  return chrome.scripting.executeScript({
-    target,
-    func: (bk, lb) => {
-      const root = document.documentElement;
-      root.dataset.gogCalBetKey = bk;
-      root.dataset.gogCalLabel = lb;
-      window.__gogCalBetKey = bk;
-      window.__gogCalLabel = lb;
-      const findSurface =
-        typeof window.__gogFindGameSurface === "function"
-          ? window.__gogFindGameSurface
-          : null;
-      const surface = findSurface ? findSurface() : null;
-      const isTop = window === window.top;
-      return {
-        armed: isTop || Boolean(surface?.el),
-        href: location.href,
-        isTop,
-      };
-    },
-    args: [betKey, label],
-  });
-}
-
-async function injectOperatorCalibration(tabId, betKey, label) {
-  await waitForTabComplete(tabId);
-  await disarmCalibration(tabId);
-
-  await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    func: () => window.__gogClearVisualArtifacts?.(),
-  });
-
-  await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    files: ["exterior-bets.js"],
-  });
-
-  const stamped = await stampCalibrationDataset(tabId, null, betKey, label);
-  const frameIds = stamped
-    .filter((row) => row.result?.armed && row.frameId != null)
-    .map((row) => row.frameId);
-
-  const injectTargets =
-    frameIds.length > 0
-      ? frameIds
-      : (() => {
-          const topRow = stamped.find((row) => row.result?.isTop);
-          return topRow ? [topRow.frameId ?? 0] : [0];
-        })();
-
-  for (const frameId of injectTargets) {
-    await chrome.scripting.executeScript({
-      target: { tabId, frameIds: [frameId] },
-      files: ["calibrate-bets.js"],
-    });
-  }
-
-  return injectTargets.length;
-}
-
 async function armCalibration(betKey, label, chipValue) {
-  const resolvedLabel =
-    label ?? (betKey === "chip" ? `Ficha R$ ${Number(chipValue) || DEFAULT_CHIP_VALUE}` : betKey);
-
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const preferredId = activeTabs[0]?.id ?? null;
-  const { tabId, navigated } = await findRouletteTabForAction(preferredId);
+  let tabId = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, preferredId);
 
-  if (tabId != null) {
-    await chrome.tabs.update(tabId, { active: true });
-    await disarmCalibration(tabId);
-
-    try {
-      let injected = await injectOperatorCalibrationClassic(tabId, betKey, resolvedLabel);
-      if (injected < 1) {
-        injected = await injectOperatorCalibration(tabId, betKey, resolvedLabel);
-      }
-      if (injected >= 1 && (await verifyCalibrationOverlayActive(tabId))) {
-        await chrome.storage.local.set({
-          gogCalibrationArmed: {
-            betKey,
-            label: resolvedLabel,
-            tabId,
-            chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
-            at: new Date().toISOString(),
-            via: "operator",
-          },
-        });
-        return {
-          ok: true,
-          detail: `Overlay azul na mesa — clique em ${resolvedLabel}${navigated ? " (roleta aberta)" : ""}`,
-          tabId,
-        };
-      }
-    } catch {
-      /* fallback stake37 abaixo */
-    }
-  }
-
-  const appOverlay = await armCalibrationOnAppOverlay(betKey, resolvedLabel);
-  if (appOverlay) {
-    await chrome.storage.local.set({
-      gogCalibrationArmed: {
-        betKey,
-        label: resolvedLabel,
-        tabId: appOverlay.tabId,
-        operatorUrl: appOverlay.operatorUrl ?? null,
-        chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
-        at: new Date().toISOString(),
-        via: appOverlay.via,
-      },
-    });
-    return {
-      ok: true,
-      detail: `Overlay no app — clique em ${resolvedLabel} sobre o casino`,
-      tabId: appOverlay.tabId,
-    };
+  if (tabId == null) {
+    const anyPlay = (await chrome.tabs.query({})).find((t) => t.url && isCasinoPlayUrl(t.url));
+    tabId = anyPlay?.id ?? null;
   }
 
   if (tabId == null) {
     return {
       ok: false,
-      detail: "Abra br4.bet.br/play/pragmatic num separador ou stake37 com o casino.",
+      detail: "Abra a mesa Pragmatic num separador (br4.bet.br/play/pragmatic/…).",
     };
   }
 
+  const resolvedChipValue = betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null;
+  const resolvedLabel =
+    label ??
+    (betKey === "chip" ? `Ficha R$ ${resolvedChipValue}` : betKey);
+
+  await chrome.tabs.update(tabId, { active: true });
+  await disarmCalibration(tabId);
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => window.__gogClearVisualArtifacts?.(),
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["exterior-bets.js"],
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (bk, lb) => {
+        window.__gogCalBetKey = bk;
+        window.__gogCalLabel = lb;
+      },
+      args: [betKey, resolvedLabel],
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["calibrate-bets.js"],
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
+
+  await chrome.storage.local.set({
+    gogCalibrationArmed: {
+      betKey,
+      label: resolvedLabel,
+      tabId,
+      chipValue: resolvedChipValue,
+      at: new Date().toISOString(),
+    },
+  });
+
   return {
-    ok: false,
-    detail: "Não foi possível activar o overlay — recarregue a mesa e a extensão em chrome://extensions",
+    ok: true,
+    detail: `Overlay activo — clique em ${resolvedLabel} na mesa (aba ${tabId})`,
+    tabId,
   };
 }
 
-SinglestakeSignalRunner?.initSignalRunner?.(handleBridgePayload);
+SinglestakeSignalRunner.initSignalRunner(handleBridgePayload);

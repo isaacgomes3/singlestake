@@ -40,7 +40,7 @@ export const Route = createFileRoute("/sala-rotativa-fibonacci")({
       {
         name: "description",
         content:
-          "Sala rotativa Fibonacci — dúzia e coluna com ausência ≥18; mesma roleta até vitória; recuperação 1-1-2-3-5-8-13-21 (2:1).",
+          "Sala rotativa Fibonacci — dúzia e coluna com ausência ≥12; mesma roleta até vitória; recuperação 1-1-2-3-5-8-13-21 (2:1).",
       },
     ],
   }),

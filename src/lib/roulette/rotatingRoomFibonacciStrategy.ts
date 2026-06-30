@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Fibonacci em dúzias/colunas.
- * - Gatilho: mesa com ausência ≥17 (posição) e ≥18 (indicação) em dúzia E coluna
+ * - Gatilho: mesa com ausência ≥12 em dúzia E coluna na mesma mesa
  * - Persiste na mesma roleta até vitória (sequência 1-1-2-3-5-8-13-21)
  * - Após vitória: nova oportunidade; sem oportunidade → lobby
  */
@@ -17,10 +17,10 @@ import {
 
 export const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21] as const;
 
-/** Posiciona iframe na mesa quando a mesa qualifica (ausência ≥18 em dúzia e coluna). */
-export const ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS = 18;
-/** Indicação / entrada com ausência ≥18 em dúzia e coluna na mesma mesa. */
-export const ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS = 18;
+/** Posiciona iframe na mesa quando a mesa qualifica (ausência ≥12 em dúzia e coluna). */
+export const ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS = 12;
+/** Indicação / entrada com ausência ≥12 em dúzia e coluna na mesma mesa. */
+export const ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS = 12;
 
 /** @deprecated Use {@link ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS}. */
 export const ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS;
@@ -67,7 +67,7 @@ export type RotatingRoomFibonacciMachineState = {
   recovery: number;
   cycleTableId: number | null;
   cycleZone: FibonacciZone | null;
-  /** Mesa em preparação (ausência ≥18) — aguarda o próximo giro para indicar. */
+  /** Mesa em preparação (ausência ≥12) — aguarda o próximo giro para indicar. */
   prepareTableId: number | null;
   prepareZone: FibonacciZone | null;
   armedAtHead: string | null;

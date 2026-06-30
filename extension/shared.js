@@ -1,5 +1,4 @@
-/** Stake base — igual à automação global (R$ 50 → 100 → 200…). */
-const EXTENSION_REAL_BASE_STAKE = 50;
+/** Constantes partilhadas (importadas via importScripts no service worker). */
 const GOG = {
   BRIDGE_TYPE: "game-odds-glow/rotating-room-extension",
   PANEL_SIGNAL_TYPE: "singlestake/playtech-signal",
@@ -19,7 +18,6 @@ const APP_PRODUCTION_HOSTS = [
   "www.stake37.com.br",
   "singlestake.bet.br",
   "www.singlestake.bet.br",
-  "auto.stake37.com.br",
 ];
 
 function isAppProductionHostname(hostname) {
@@ -73,42 +71,6 @@ function recoveryFromContext(context) {
   return 0;
 }
 
-/** Intervalo base entre cliques de aposta (ms). */
-const CLICK_STAGGER_BASE_MS = 450;
-
-/**
- * Gales altos exigem 2^recovery cliques — acelera o ritmo para caber na janela de apostas.
- * Gale 4 (recovery 4): 2× · Gale 5 (recovery 5): 4×.
- * 2 Fatores em recuperação: +2× (dois campos com fichas).
- */
-function clickSpeedMultiplierForRecovery(recovery, context) {
-  const r =
-    typeof recovery === "number" && Number.isFinite(recovery)
-      ? Math.max(0, Math.floor(recovery))
-      : 0;
-  let mult = 1;
-  if (r >= 5) mult = 4;
-  else if (r >= 4) mult = 2;
-
-  const is2F =
-    context?.singleFactorMode === false ||
-    context?.rotativaTrigger === "crossing" ||
-    context?.strategy === "dois2fatores";
-  if (is2F && r > 0) mult *= 2;
-
-  return mult;
-}
-
-function clickStaggerMsForRecovery(recovery, context) {
-  const mult = clickSpeedMultiplierForRecovery(recovery, context);
-  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
-}
-
-function scaledClickDelayMs(baseMs, recovery, context) {
-  const mult = clickSpeedMultiplierForRecovery(recovery, context);
-  return Math.max(15, Math.round(baseMs / mult));
-}
-
 async function setStoredMode(mode) {
   await chrome.storage.local.set({
     [GOG.STORAGE_MODE]: mode,
@@ -122,20 +84,6 @@ function updateActionBadge(mode) {
   chrome.action.setBadgeText({ text: mode === "demo" ? "D" : "R" });
   chrome.action.setBadgeBackgroundColor({ color: mode === "demo" ? "#2563eb" : "#15803d" });
 }
-
-globalThis.GOG = GOG;
-globalThis.readStoredMode = readStoredMode;
-globalThis.setStoredMode = setStoredMode;
-globalThis.isDryRun = isDryRun;
-globalThis.resolveExecutionMode = resolveExecutionMode;
-globalThis.recoveryFromContext = recoveryFromContext;
-globalThis.clickStaggerMsForRecovery = clickStaggerMsForRecovery;
-globalThis.clickSpeedMultiplierForRecovery = clickSpeedMultiplierForRecovery;
-globalThis.scaledClickDelayMs = scaledClickDelayMs;
-globalThis.panelSignalToBridge = panelSignalToBridge;
-globalThis.isAppProductionHostname = isAppProductionHostname;
-globalThis.sleep = sleep;
-globalThis.updateActionBadge = updateActionBadge;
 
 /** Converte sinal simplificado do painel Playtech → payload bridge. */
 function panelSignalToBridge(data) {
@@ -184,12 +132,9 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount:
-        recovery > 0
-          ? EXTENSION_REAL_BASE_STAKE * 2 ** recovery
-          : EXTENSION_REAL_BASE_STAKE,
+      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
       currentRecovery: recovery,
-      baseStake: EXTENSION_REAL_BASE_STAKE,
+      baseStake: 0.5,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

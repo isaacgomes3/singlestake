@@ -25,7 +25,6 @@ var SinglestakeUmFator = (() => {
     EXTENSION_PRE_BET_WAIT_SEC: () => EXTENSION_PRE_BET_WAIT_SEC,
     ROTATING_ROOM_TABLE_IDS: () => ROTATING_ROOM_TABLE_IDS,
     clampExtensionMaxRecovery: () => clampExtensionMaxRecovery,
-    createRotativaEngine: () => createRotativaEngine,
     createUmFatorEngine: () => createUmFatorEngine,
     default: () => strategy_entry_default
   });
@@ -33,25 +32,6 @@ var SinglestakeUmFator = (() => {
   // src/lib/roulette/entryWinBreakdown.ts
   function emptyRecoveryLevelCounts(maxRecovery) {
     return Array.from({ length: maxRecovery + 1 }, () => 0);
-  }
-  function emptyCrossingPatternKindStats() {
-    return {
-      primary: { wins: 0, losses: 0 },
-      secondary: { wins: 0, losses: 0 },
-      tertiary: { wins: 0, losses: 0 }
-    };
-  }
-  function parseCrossingPatternKindStats(raw) {
-    const o = raw ?? {};
-    return {
-      primary: parseUmFatorMatchTierBucket(o.primary),
-      secondary: parseUmFatorMatchTierBucket(o.secondary),
-      tertiary: parseUmFatorMatchTierBucket(o.tertiary)
-    };
-  }
-  function normalizeCrossingPatternKindStats(stats) {
-    if (!stats) return emptyCrossingPatternKindStats();
-    return parseCrossingPatternKindStats(stats);
   }
   function emptyUmFatorMatchTierStats() {
     return {
@@ -94,14 +74,10 @@ var SinglestakeUmFator = (() => {
       winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
       lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery)
     };
-    const withUm = o.umFatorMatchTier != null ? { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) } : base;
-    if (o.crossingPatternKind != null) {
-      return {
-        ...withUm,
-        crossingPatternKind: parseCrossingPatternKindStats(o.crossingPatternKind)
-      };
+    if (o.umFatorMatchTier != null) {
+      return { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) };
     }
-    return withUm;
+    return base;
   }
   function emptyRotatingRoomSessionStats(maxRecovery = 5) {
     return {
@@ -157,37 +133,6 @@ var SinglestakeUmFator = (() => {
         [key]: {
           wins: umFatorMatchTier[key].wins,
           losses: umFatorMatchTier[key].losses + 1
-        }
-      }
-    };
-  }
-  function crossingPatternKindStatsKey(kind) {
-    return kind;
-  }
-  function recordCrossingPatternKindWin(stats, kind) {
-    const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
-    const key = crossingPatternKindStatsKey(kind);
-    return {
-      ...stats,
-      crossingPatternKind: {
-        ...crossingPatternKind,
-        [key]: {
-          wins: crossingPatternKind[key].wins + 1,
-          losses: crossingPatternKind[key].losses
-        }
-      }
-    };
-  }
-  function recordCrossingPatternKindLoss(stats, kind) {
-    const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
-    const key = crossingPatternKindStatsKey(kind);
-    return {
-      ...stats,
-      crossingPatternKind: {
-        ...crossingPatternKind,
-        [key]: {
-          wins: crossingPatternKind[key].wins,
-          losses: crossingPatternKind[key].losses + 1
         }
       }
     };
@@ -291,26 +236,6 @@ var SinglestakeUmFator = (() => {
   function doisFatoresFactorLabel(f) {
     return factorDisplayLabel(f);
   }
-  function factorWins(num, factor) {
-    switch (factor.kind) {
-      case "cor":
-        return colorOf(num) === factor.value;
-      case "paridade":
-        return parityOf(num) === factor.value;
-      case "altura":
-        return heightOf(num) === factor.value;
-    }
-  }
-  function evaluateDoisFatoresRound(num, active) {
-    if (num === 0) return "L";
-    const f1Win = factorWins(num, active.factor1);
-    const f2Win = factorWins(num, active.factor2);
-    const f1Lose = !f1Win;
-    const f2Lose = !f2Win;
-    if (f1Win && f2Win) return "W";
-    if (f1Lose && f2Lose) return "L";
-    return "continue";
-  }
   function doisFatoresExteriorCellKey(factor) {
     switch (factor.kind) {
       case "cor":
@@ -325,1420 +250,6 @@ var SinglestakeUmFator = (() => {
   // src/lib/roulette/pragmaticExteriorBetMap.ts
   function pragmaticExteriorBetKeyFromFactor(factor) {
     return doisFatoresExteriorCellKey(factor);
-  }
-
-  // src/lib/roulette/pragmaticFibonacciBetMap.ts
-  function pragmaticFibonacciBetKeyFromZone(zone) {
-    return zone.kind === "dozen" ? `doz:${zone.id}` : `col:${zone.id}`;
-  }
-
-  // src/lib/roulette/betSimulator.ts
-  var RED_NUMBERS = /* @__PURE__ */ new Set([
-    1,
-    3,
-    5,
-    7,
-    9,
-    12,
-    14,
-    16,
-    18,
-    19,
-    21,
-    23,
-    25,
-    27,
-    30,
-    32,
-    34,
-    36
-  ]);
-  function payoutMultiplier(key, spin) {
-    if (key.startsWith("n:")) {
-      const n = Number(key.slice(2));
-      return n === spin ? 36 : 0;
-    }
-    if (spin === 0) {
-      return 0;
-    }
-    if (key.startsWith("col:")) {
-      const c = Number(key.slice(4));
-      const col = (spin - 1) % 3 + 1;
-      return col === c ? 3 : 0;
-    }
-    if (key.startsWith("doz:")) {
-      const d = Number(key.slice(4));
-      const dz = spin <= 12 ? 1 : spin <= 24 ? 2 : 3;
-      return dz === d ? 3 : 0;
-    }
-    switch (key) {
-      case "low":
-        return spin >= 1 && spin <= 18 ? 2 : 0;
-      case "high":
-        return spin >= 19 && spin <= 36 ? 2 : 0;
-      case "even":
-        return spin % 2 === 0 ? 2 : 0;
-      case "odd":
-        return spin % 2 === 1 ? 2 : 0;
-      case "red":
-        return RED_NUMBERS.has(spin) ? 2 : 0;
-      case "black":
-        return !RED_NUMBERS.has(spin) ? 2 : 0;
-    }
-    return 0;
-  }
-
-  // src/lib/roulette/historyStorage.ts
-  function parseSpinTimesJson(raw) {
-    if (raw == null) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const out = [];
-      for (const x of parsed) {
-        if (x === null) {
-          out.push(null);
-          continue;
-        }
-        if (typeof x === "number" && Number.isFinite(x)) out.push(x);
-        else out.push(null);
-      }
-      return out;
-    } catch {
-      return [];
-    }
-  }
-  function liveTableSpinTimesStorageKey(tableId) {
-    return `roulette.liveTableSpinTimes.${tableId}`;
-  }
-  function readLiveTableSpinTimesAligned(tableId, historyLength) {
-    if (typeof window === "undefined" || historyLength <= 0) return [];
-    try {
-      const raw = parseSpinTimesJson(window.localStorage.getItem(liveTableSpinTimesStorageKey(tableId)));
-      if (raw.length >= historyLength) return raw.slice(0, historyLength);
-      return [...raw, ...Array.from({ length: historyLength - raw.length }, () => null)];
-    } catch {
-      return Array.from({ length: historyLength }, () => null);
-    }
-  }
-
-  // src/lib/roulette/liveTableBettingWindow.ts
-  var LIVE_TABLE_BETTING_WINDOW_SEC = 20;
-  var ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC = 11;
-  var EXTENSION_PRE_BET_WAIT_SEC = 11;
-  function liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs = Date.now(), bettingWindowSec = LIVE_TABLE_BETTING_WINDOW_SEC) {
-    if (historyNewestFirst.length === 0) return 0;
-    const times = readLiveTableSpinTimesAligned(tableId, historyNewestFirst.length);
-    const t0 = times[0] ?? null;
-    if (t0 == null) return bettingWindowSec;
-    const elapsedSec = Math.max(0, (nowMs - t0) / 1e3);
-    return Math.max(0, bettingWindowSec - elapsedSec);
-  }
-  function tableAcceptableForRotatingRoomEntry(tableId, historyNewestFirst, minRemainingSec = ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC, nowMs) {
-    return liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs) >= minRemainingSec;
-  }
-  function tableArmableForUmFatorFormation(tableId, historyNewestFirst, nowMs) {
-    return tableAcceptableForRotatingRoomEntry(tableId, historyNewestFirst, nowMs);
-  }
-
-  // src/lib/roulette/rotatingRoomFibonacciStrategy.ts
-  var FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  var ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS = 8;
-  var ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS = 9;
-  var ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS;
-  var ROTATING_ROOM_FIBONACCI_MAX_RECOVERY = FIBONACCI_LEVELS.length - 1;
-  function spinHeadFromHistory(history) {
-    if (history.length === 0) return "0";
-    return `${history.length}:${history[0]}`;
-  }
-  function dozenOf(n) {
-    if (n === 0) return null;
-    if (n <= 12) return 1;
-    if (n <= 24) return 2;
-    return 3;
-  }
-  function columnOf(n) {
-    if (n === 0) return null;
-    return (n - 1) % 3 + 1;
-  }
-  function zoneBetKey(zone) {
-    return zone.kind === "dozen" ? `doz:${zone.id}` : `col:${zone.id}`;
-  }
-  function fibonacciZoneLabel(zone) {
-    if (zone.kind === "dozen") {
-      return `${zone.id}.\xAA D\xFAzia`;
-    }
-    return `Coluna ${zone.id}`;
-  }
-  function stakeUnitsAtRecovery(recovery) {
-    const idx = Math.max(0, Math.min(recovery, FIBONACCI_LEVELS.length - 1));
-    return FIBONACCI_LEVELS[idx];
-  }
-  function profitUnitsAtRecovery(recovery) {
-    return 2 * stakeUnitsAtRecovery(recovery);
-  }
-  function zoneHitOnSpin(spin, zone) {
-    if (spin === 0) return false;
-    if (zone.kind === "dozen") return dozenOf(spin) === zone.id;
-    return columnOf(spin) === zone.id;
-  }
-  function consecutiveZoneAbsence(historyNewestFirst, zone) {
-    let count = 0;
-    for (const n of historyNewestFirst) {
-      if (zoneHitOnSpin(n, zone)) break;
-      count++;
-    }
-    return count;
-  }
-  function allZones() {
-    const zones = [];
-    for (const kind of ["dozen", "column"]) {
-      for (const id of [1, 2, 3]) {
-        zones.push({ kind, id });
-      }
-    }
-    return zones;
-  }
-  function bestPickForTable(tableId, historyNewestFirst, minAbsenceSpins = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS) {
-    let best = null;
-    for (const zone of allZones()) {
-      const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
-      if (absenceGap < minAbsenceSpins) continue;
-      if (!best || absenceGap > best.absenceGap || absenceGap === best.absenceGap && tableId < best.tableId) {
-        best = { tableId, zone, absenceGap };
-      }
-    }
-    return best;
-  }
-  function pickForTableZone(tableId, historyNewestFirst, zone, minAbsenceSpins = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS) {
-    const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
-    if (absenceGap < minAbsenceSpins) return null;
-    return { tableId, zone, absenceGap };
-  }
-  function comparePicks(a, b) {
-    if (a.absenceGap !== b.absenceGap) return b.absenceGap - a.absenceGap;
-    return a.tableId - b.tableId;
-  }
-  function listAllFibonacciAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS) {
-    const out = [];
-    for (const tableId of tableIds) {
-      if (excludeTableIds?.has(tableId)) continue;
-      const history = histories[tableId] ?? [];
-      if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
-      const pick = bestPickForTable(tableId, history, minAbsenceSpins);
-      if (pick) out.push(pick);
-    }
-    out.sort(comparePicks);
-    return out;
-  }
-  function pickGlobalFibonacciPrepare(tableIds, histories, excludeTableIds) {
-    return listAllFibonacciAlertPicks(
-      tableIds,
-      histories,
-      excludeTableIds,
-      ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS
-    )[0] ?? null;
-  }
-  function pickGlobalFibonacciAlert(tableIds, histories, excludeTableIds) {
-    return listAllFibonacciAlertPicks(
-      tableIds,
-      histories,
-      excludeTableIds,
-      ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS
-    )[0] ?? null;
-  }
-  function buildFibonacciActiveFromPick(pick, recovery) {
-    const stakeUnits = stakeUnitsAtRecovery(recovery);
-    const profitUnits = profitUnitsAtRecovery(recovery);
-    const zoneLabel = fibonacciZoneLabel(pick.zone);
-    return {
-      zone: pick.zone,
-      zoneLabel,
-      betKey: zoneBetKey(pick.zone),
-      absenceGap: pick.absenceGap,
-      stakeUnits,
-      profitUnits,
-      recoveryIndex: recovery,
-      tableId: pick.tableId,
-      armingDescription: `${zoneLabel} \xB7 aus\xEAncia ${pick.absenceGap} (mesa ${pick.tableId})`
-    };
-  }
-  function evaluateFibonacciRound(resultNumber, zone) {
-    const key = zoneBetKey(zone);
-    return payoutMultiplier(key, resultNumber) > 0 ? "W" : "L";
-  }
-  function defaultRotatingRoomFibonacciMachineState() {
-    return {
-      recovery: 0,
-      cycleTableId: null,
-      cycleZone: null,
-      prepareTableId: null,
-      prepareZone: null,
-      armedAtHead: null,
-      lastEvaluatedHead: null,
-      lastSpinHeadByTable: {},
-      tablePlacarLosses: {},
-      lastLostTableId: null,
-      awaitSwitchNoTable: false
-    };
-  }
-  function clearCycle(machine) {
-    return {
-      ...machine,
-      cycleTableId: null,
-      cycleZone: null,
-      armedAtHead: null,
-      lastEvaluatedHead: null
-    };
-  }
-  function finishCycle(machine) {
-    return {
-      ...clearPrepareState(clearCycle(machine)),
-      recovery: 0,
-      tablePlacarLosses: {},
-      lastLostTableId: null,
-      awaitSwitchNoTable: false
-    };
-  }
-  function clearPrepareState(machine) {
-    return {
-      ...machine,
-      prepareTableId: null,
-      prepareZone: null
-    };
-  }
-  function beginFibonacciPrepare(machine, pick, histories) {
-    const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
-    return {
-      ...clearCycle(clearPrepareState(machine)),
-      prepareTableId: pick.tableId,
-      prepareZone: pick.zone,
-      armedAtHead: head,
-      lastEvaluatedHead: head,
-      awaitSwitchNoTable: false
-    };
-  }
-  function tablesExcludedFromRotation(machine) {
-    const excluded = /* @__PURE__ */ new Set();
-    for (const [key, count] of Object.entries(machine.tablePlacarLosses)) {
-      if (Number(count) >= 1) excluded.add(Number(key));
-    }
-    if (machine.lastLostTableId != null) excluded.add(machine.lastLostTableId);
-    return excluded;
-  }
-  function relaxTableExclusionsIfAllBlocked(machine, tableIds) {
-    if (machine.recovery === 0 || tableIds.length === 0) return machine;
-    const excluded = tablesExcludedFromRotation(machine);
-    if (!tableIds.every((id) => excluded.has(id))) return machine;
-    const last = machine.lastLostTableId;
-    return {
-      ...machine,
-      tablePlacarLosses: last != null ? { [String(last)]: 1 } : {}
-    };
-  }
-  function markTableSessionLoss(machine, tableId) {
-    return {
-      ...machine,
-      tablePlacarLosses: { ...machine.tablePlacarLosses, [String(tableId)]: 1 },
-      lastLostTableId: tableId
-    };
-  }
-  function armCycleFromPick(machine, pick, histories, recovery = machine.recovery) {
-    const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
-    return {
-      ...clearPrepareState(machine),
-      cycleTableId: pick.tableId,
-      cycleZone: pick.zone,
-      recovery,
-      armedAtHead: head,
-      lastEvaluatedHead: null,
-      awaitSwitchNoTable: false
-    };
-  }
-  function syncSpinHeads(machine, tableIds, histories) {
-    const lastSpinHeadByTable = { ...machine.lastSpinHeadByTable };
-    for (const tableId of tableIds) {
-      lastSpinHeadByTable[String(tableId)] = spinHeadFromHistory(histories[tableId] ?? []);
-    }
-    return { ...machine, lastSpinHeadByTable };
-  }
-  function sanitizeRotatingRoomFibonacciMachineForTableIds(machine, tableIds) {
-    if (tableIds.length === 0) return machine;
-    const allowed = new Set(tableIds);
-    if (machine.cycleTableId != null && !allowed.has(machine.cycleTableId)) {
-      return clearPrepareState(clearCycle(machine));
-    }
-    if (machine.prepareTableId != null && !allowed.has(machine.prepareTableId)) {
-      return clearPrepareState(machine);
-    }
-    return machine;
-  }
-  function scanRotatingRoomFibonacciTables(tableIds, histories, activePick, prepareAbsenceSpins = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS, alertAbsenceSpins = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS) {
-    return tableIds.map((tableId) => {
-      const history = histories[tableId] ?? [];
-      const pickPrepare = bestPickForTable(tableId, history, prepareAbsenceSpins);
-      if (!pickPrepare) {
-        return {
-          tableId,
-          zoneLabel: null,
-          zoneKind: null,
-          absenceGap: 0,
-          status: "idle",
-          isAlertTable: false
-        };
-      }
-      const pickAlert = bestPickForTable(tableId, history, alertAbsenceSpins);
-      const isActive = activePick != null && activePick.tableId === pickPrepare.tableId && activePick.zone.kind === pickPrepare.zone.kind && activePick.zone.id === pickPrepare.zone.id;
-      const status = isActive ? "active" : pickAlert ? "alert" : "prepare";
-      return {
-        tableId,
-        zoneLabel: fibonacciZoneLabel(pickPrepare.zone),
-        zoneKind: pickPrepare.zone.kind,
-        absenceGap: pickPrepare.absenceGap,
-        status,
-        isAlertTable: isActive
-      };
-    });
-  }
-  function buildRotatingRoomFibonacciLiveView(tableIds, histories, machine, prepareAbsenceSpins = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS, alertAbsenceSpins = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS) {
-    let activePick = null;
-    if (machine.cycleZone && machine.cycleTableId != null) {
-      activePick = {
-        tableId: machine.cycleTableId,
-        zone: machine.cycleZone,
-        absenceGap: consecutiveZoneAbsence(
-          histories[machine.cycleTableId] ?? [],
-          machine.cycleZone
-        )
-      };
-    }
-    const relaxed = relaxTableExclusionsIfAllBlocked(machine, tableIds);
-    const excluded = relaxed.recovery > 0 ? tablesExcludedFromRotation(relaxed) : void 0;
-    const globalPick = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-    return {
-      globalPick,
-      fibonacciScan: scanRotatingRoomFibonacciTables(
-        tableIds,
-        histories,
-        activePick,
-        prepareAbsenceSpins,
-        alertAbsenceSpins
-      )
-    };
-  }
-  function tryRearmAfterPartialLoss(machine, lostTableId, _lostZone, tableIds, histories, recovery) {
-    const marked = markTableSessionLoss(machine, lostTableId);
-    const excluded = new Set(tablesExcludedFromRotation({ ...marked, recovery }));
-    excluded.add(lostTableId);
-    const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-    if (alert && alert.tableId !== lostTableId) {
-      return armCycleFromPick({ ...marked, recovery }, alert, histories, recovery);
-    }
-    return { ...marked, recovery, awaitSwitchNoTable: true };
-  }
-  function tickRotatingRoomFibonacciPlacar(tableIds, histories, machine, stats, maxRecovery = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY, allowNewArming = true) {
-    let nextMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
-      syncSpinHeads(machine, tableIds, histories),
-      tableIds
-    );
-    let nextStats = stats;
-    let statsChanged = false;
-    let flash = null;
-    if (nextMachine.cycleZone && nextMachine.cycleTableId != null) {
-      const tableId = nextMachine.cycleTableId;
-      const zone = nextMachine.cycleZone;
-      const history = histories[tableId] ?? [];
-      if (history.length === 0) {
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      const head = spinHeadFromHistory(history);
-      if (head === nextMachine.armedAtHead || head === nextMachine.lastEvaluatedHead) {
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      const resultNumber = history[0];
-      const active = buildFibonacciActiveFromPick(
-        { tableId, zone, absenceGap: consecutiveZoneAbsence(history, zone) },
-        nextMachine.recovery
-      );
-      nextMachine = { ...nextMachine, lastEvaluatedHead: head };
-      const outcome = evaluateFibonacciRound(resultNumber, zone);
-      if (outcome === "W") {
-        nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
-        statsChanged = true;
-        flash = {
-          resultNumber,
-          won: true,
-          tableId,
-          kind: "win",
-          zoneLabel: active.zoneLabel,
-          stakeUnits: active.stakeUnits,
-          profitUnits: active.profitUnits
-        };
-        nextMachine = finishCycle(nextMachine);
-        if (allowNewArming) {
-          const prepare = pickGlobalFibonacciPrepare(tableIds, histories, void 0);
-          if (prepare) {
-            nextMachine = beginFibonacciPrepare(nextMachine, prepare, histories);
-          }
-        }
-      } else {
-        const recoveryBefore = nextMachine.recovery;
-        const recovery = recoveryBefore + 1;
-        if (recovery > maxRecovery) {
-          nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery);
-          statsChanged = true;
-          flash = {
-            resultNumber,
-            won: false,
-            tableId,
-            kind: "loss",
-            zoneLabel: active.zoneLabel,
-            stakeUnits: active.stakeUnits,
-            profitUnits: active.profitUnits
-          };
-          const canRotate = tableIds.length > 1;
-          nextMachine = finishCycle(
-            canRotate ? markTableSessionLoss(nextMachine, tableId) : nextMachine
-          );
-        } else {
-          nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recoveryBefore, maxRecovery);
-          statsChanged = true;
-          flash = {
-            resultNumber,
-            won: false,
-            tableId,
-            kind: "recovery",
-            zoneLabel: active.zoneLabel,
-            stakeUnits: active.stakeUnits,
-            profitUnits: active.profitUnits
-          };
-          nextMachine = clearCycle({ ...nextMachine, recovery });
-          nextMachine = tryRearmAfterPartialLoss(
-            nextMachine,
-            tableId,
-            zone,
-            tableIds,
-            histories,
-            recovery
-          );
-        }
-      }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
-    if (!nextMachine.cycleZone && nextMachine.prepareTableId != null && nextMachine.prepareZone != null) {
-      const pt = nextMachine.prepareTableId;
-      const zone = nextMachine.prepareZone;
-      const hist = histories[pt] ?? [];
-      if (hist.length === 0) {
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      const head = spinHeadFromHistory(hist);
-      if (head === nextMachine.armedAtHead || head === nextMachine.lastEvaluatedHead) {
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      nextMachine = { ...nextMachine, lastEvaluatedHead: head };
-      const absenceGap = consecutiveZoneAbsence(hist, zone);
-      if (absenceGap < ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS) {
-        return {
-          nextMachine: clearPrepareState(nextMachine),
-          stats: nextStats,
-          statsChanged,
-          flash
-        };
-      }
-      if (allowNewArming && absenceGap >= ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS) {
-        const alertPick = pickForTableZone(
-          pt,
-          hist,
-          zone,
-          ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS
-        );
-        if (alertPick) {
-          return {
-            nextMachine: armCycleFromPick(nextMachine, alertPick, histories),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-      }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0 && allowNewArming) {
-      const excluded = tablesExcludedFromRotation(nextMachine);
-      const retry = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-      if (retry) {
-        return {
-          nextMachine: armCycleFromPick(nextMachine, retry, histories),
-          stats: nextStats,
-          statsChanged,
-          flash
-        };
-      }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    if (allowNewArming) {
-      const excluded = nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : void 0;
-      if (nextMachine.recovery > 0) {
-        const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-        if (alert) {
-          return {
-            nextMachine: armCycleFromPick(nextMachine, alert, histories),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      const prepare = pickGlobalFibonacciPrepare(tableIds, histories, excluded);
-      if (prepare) {
-        return {
-          nextMachine: beginFibonacciPrepare(nextMachine, prepare, histories),
-          stats: nextStats,
-          statsChanged,
-          flash
-        };
-      }
-    }
-    return { nextMachine, stats: nextStats, statsChanged, flash };
-  }
-
-  // src/lib/roulette/rotatingRoomFibonacciSession.ts
-  function buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine) {
-    return buildRotatingRoomFibonacciLiveView(tableIds, histories, machine);
-  }
-  function tickRotatingRoomFibonacciSessionPlacar(tableIds, histories, machine, stats) {
-    return tickRotatingRoomFibonacciPlacar(
-      tableIds,
-      histories,
-      machine,
-      stats,
-      ROTATING_ROOM_FIBONACCI_MAX_RECOVERY
-    );
-  }
-
-  // src/lib/roulette/liveTableColdStats.ts
-  function numbers1to36Where(pred) {
-    const r = [];
-    for (let n = 1; n <= 36; n++) {
-      if (pred(n)) r.push(n);
-    }
-    return r;
-  }
-  var CROSSING_BUCKET_DEFINITIONS = Object.freeze([
-    {
-      axis: "cor-altura",
-      category: "Vermelho \xB7 Baixo (1\u201318)",
-      nums: numbers1to36Where((n) => colorOf(n) === "Vermelho" && heightOf(n) === "Baixo")
-    },
-    {
-      axis: "cor-altura",
-      category: "Vermelho \xB7 Alto (19\u201336)",
-      nums: numbers1to36Where((n) => colorOf(n) === "Vermelho" && heightOf(n) === "Alto")
-    },
-    {
-      axis: "cor-altura",
-      category: "Preto \xB7 Baixo (1\u201318)",
-      nums: numbers1to36Where((n) => colorOf(n) === "Preto" && heightOf(n) === "Baixo")
-    },
-    {
-      axis: "cor-altura",
-      category: "Preto \xB7 Alto (19\u201336)",
-      nums: numbers1to36Where((n) => colorOf(n) === "Preto" && heightOf(n) === "Alto")
-    },
-    {
-      axis: "cor-paridade",
-      category: "Vermelho \xB7 Par",
-      nums: numbers1to36Where((n) => colorOf(n) === "Vermelho" && parityOf(n) === "Par")
-    },
-    {
-      axis: "cor-paridade",
-      category: "Vermelho \xB7 \xCDmpar",
-      nums: numbers1to36Where((n) => colorOf(n) === "Vermelho" && parityOf(n) === "Impar")
-    },
-    {
-      axis: "cor-paridade",
-      category: "Preto \xB7 Par",
-      nums: numbers1to36Where((n) => colorOf(n) === "Preto" && parityOf(n) === "Par")
-    },
-    {
-      axis: "cor-paridade",
-      category: "Preto \xB7 \xCDmpar",
-      nums: numbers1to36Where((n) => colorOf(n) === "Preto" && parityOf(n) === "Impar")
-    },
-    {
-      axis: "altura-paridade",
-      category: "Baixo (1\u201318) \xB7 Par",
-      nums: numbers1to36Where((n) => heightOf(n) === "Baixo" && parityOf(n) === "Par")
-    },
-    {
-      axis: "altura-paridade",
-      category: "Baixo (1\u201318) \xB7 \xCDmpar",
-      nums: numbers1to36Where((n) => heightOf(n) === "Baixo" && parityOf(n) === "Impar")
-    },
-    {
-      axis: "altura-paridade",
-      category: "Alto (19\u201336) \xB7 Par",
-      nums: numbers1to36Where((n) => heightOf(n) === "Alto" && parityOf(n) === "Par")
-    },
-    {
-      axis: "altura-paridade",
-      category: "Alto (19\u201336) \xB7 \xCDmpar",
-      nums: numbers1to36Where((n) => heightOf(n) === "Alto" && parityOf(n) === "Impar")
-    }
-  ]);
-
-  // src/lib/roulette/doisFatoresPatternCrossing.ts
-  var ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS = 12;
-  var ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS = 2;
-  var ROTATING_ROOM_CROSSING_PATTERN_AXES = [
-    "cor-altura",
-    "altura-paridade",
-    "cor-paridade"
-  ];
-  var CROSSING_PATTERN_PRIORITY = {
-    primary: 3,
-    secondary: 2,
-    tertiary: 1
-  };
-  var AXIS_ORDER = ROTATING_ROOM_CROSSING_PATTERN_AXES;
-  function tableHasZeroInLastSpins(historyNewestFirst, window2 = ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS) {
-    for (let i = 0; i < Math.min(window2, historyNewestFirst.length); i++) {
-      if (historyNewestFirst[i] === 0) return true;
-    }
-    return false;
-  }
-  function factorsForNumberOnAxis(n, axis) {
-    if (n === 0) return null;
-    const col = colorOf(n);
-    const alt = heightOf(n);
-    const par = parityOf(n);
-    if (axis === "cor-altura") {
-      if (col === "Zero" || alt === "Zero") return null;
-      return [{ kind: "cor", value: col }, { kind: "altura", value: alt }];
-    }
-    if (axis === "cor-paridade") {
-      if (col === "Zero" || par === "Zero") return null;
-      return [{ kind: "cor", value: col }, { kind: "paridade", value: par }];
-    }
-    if (axis === "altura-paridade") {
-      if (alt === "Zero" || par === "Zero") return null;
-      return [{ kind: "altura", value: alt }, { kind: "paridade", value: par }];
-    }
-    return null;
-  }
-  function crossingCategoryForNumber(n, axis) {
-    if (n === 0) return null;
-    const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.nums.includes(n));
-    return def?.category ?? null;
-  }
-  function sigAt(historyNewestFirst, index, axis) {
-    const n = historyNewestFirst[index];
-    if (n === void 0) return null;
-    return crossingCategoryForNumber(n, axis);
-  }
-  function buildMatch(axis, patternKind, category, historyNewestFirst, triggerIndices) {
-    const refIndex = triggerIndices[0];
-    if (refIndex === void 0) return null;
-    const refNum = historyNewestFirst[refIndex];
-    if (refNum === void 0) return null;
-    const factors = factorsForNumberOnAxis(refNum, axis);
-    if (!factors) return null;
-    const triggerNumbers = triggerIndices.map((i) => historyNewestFirst[i]).filter((n) => n !== void 0);
-    return {
-      axis,
-      patternKind,
-      category,
-      factor1: factors[0],
-      factor2: factors[1],
-      triggerNumbers,
-      patternPriority: CROSSING_PATTERN_PRIORITY[patternKind]
-    };
-  }
-  function matchPrimaryOnAxis(historyNewestFirst, axis) {
-    if (historyNewestFirst.length < 3) return null;
-    const s0 = sigAt(historyNewestFirst, 0, axis);
-    const s1 = sigAt(historyNewestFirst, 1, axis);
-    const s2 = sigAt(historyNewestFirst, 2, axis);
-    if (!s0 || !s1 || !s2) return null;
-    if (s0 !== s1 || s1 !== s2) return null;
-    return buildMatch(axis, "primary", s0, historyNewestFirst, [0, 1, 2]);
-  }
-  function matchSecondaryOnAxis(historyNewestFirst, axis) {
-    if (historyNewestFirst.length < 4) return null;
-    const s = [0, 1, 2, 3].map((i) => sigAt(historyNewestFirst, i, axis));
-    if (s.some((x) => !x)) return null;
-    const [a, b, c, d] = s;
-    if (a === b && a === d && c !== a) {
-      return buildMatch(axis, "secondary", a, historyNewestFirst, [0, 1, 2, 3]);
-    }
-    return null;
-  }
-  function matchTertiaryOnAxis(historyNewestFirst, axis) {
-    if (historyNewestFirst.length < 4) return null;
-    const s = [0, 1, 2, 3].map((i) => sigAt(historyNewestFirst, i, axis));
-    if (s.some((x) => !x)) return null;
-    const [a, b, c, d] = s;
-    if (a === c && a === d && b !== a) {
-      return buildMatch(axis, "tertiary", a, historyNewestFirst, [0, 1, 2, 3]);
-    }
-    return null;
-  }
-  function matchOnAxisByKind(historyNewestFirst, axis, patternKind) {
-    switch (patternKind) {
-      case "primary":
-        return matchPrimaryOnAxis(historyNewestFirst, axis);
-      case "secondary":
-        return matchSecondaryOnAxis(historyNewestFirst, axis);
-      case "tertiary":
-        return matchTertiaryOnAxis(historyNewestFirst, axis);
-    }
-  }
-  function findPriorPatternAxis(historyNewestFirst) {
-    if (historyNewestFirst.length < 4) return null;
-    const tail = historyNewestFirst.slice(1);
-    for (const kind of ["primary", "secondary", "tertiary"]) {
-      for (const axis of AXIS_ORDER) {
-        if (matchOnAxisByKind(tail, axis, kind)) return axis;
-      }
-    }
-    return null;
-  }
-  function resolveAxisPreference(historyNewestFirst, candidates) {
-    if (candidates.length === 1) return candidates[0];
-    const priorAxis = findPriorPatternAxis(historyNewestFirst);
-    if (priorAxis) {
-      const preferred = candidates.find((c) => c.axis === priorAxis);
-      if (preferred) return preferred;
-    }
-    const sorted = [...candidates].sort(
-      (a, b) => AXIS_ORDER.indexOf(a.axis) - AXIS_ORDER.indexOf(b.axis)
-    );
-    return sorted[0];
-  }
-  function detectPatternOnTableByKind(historyNewestFirst, patternKind) {
-    const candidates = [];
-    for (const axis of AXIS_ORDER) {
-      const m = matchOnAxisByKind(historyNewestFirst, axis, patternKind);
-      if (m) candidates.push(m);
-    }
-    if (candidates.length === 0) return null;
-    return resolveAxisPreference(historyNewestFirst, candidates);
-  }
-  function detectBestPatternOnTable(historyNewestFirst) {
-    if (tableHasZeroInLastSpins(historyNewestFirst)) return null;
-    for (const kind of ["primary", "secondary", "tertiary"]) {
-      const m = detectPatternOnTableByKind(historyNewestFirst, kind);
-      if (m) return m;
-    }
-    return null;
-  }
-  function crossingPatternKindLabel(kind) {
-    switch (kind) {
-      case "primary":
-        return "Prim\xE1rio x-x-x";
-      case "secondary":
-        return "Secund\xE1rio x-x-y-x";
-      case "tertiary":
-        return "Terci\xE1rio x-y-x-x";
-    }
-  }
-
-  // src/lib/roulette/umFatorTriggerEnable.ts
-  var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
-    two: false,
-    three: false
-  };
-  var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
-    ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-    crossing: false,
-    fibonacci: true
-  };
-  var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
-  function isUmFatorTriggerTierEnabled(tier) {
-    return runtimeEnabled[tier] !== false;
-  }
-  function isCrossingGatilhoEnabled() {
-    return runtimeEnabled.crossing !== false;
-  }
-
-  // src/lib/roulette/rotatingRoomCrossingStrategy.ts
-  function spinHeadFromHistory2(history) {
-    if (history.length === 0) return "0";
-    return `${history.length}:${history[0]}`;
-  }
-  var ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 1;
-  var ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
-  function pickFromPatternMatch(tableId, match) {
-    const t0 = match.triggerNumbers[0] ?? 0;
-    const t1 = match.triggerNumbers[1] ?? t0;
-    return {
-      tableId,
-      axis: match.axis,
-      category: match.category,
-      absentCategory: match.category,
-      bucketGap: match.patternPriority,
-      absenceGap: match.patternPriority,
-      excludedPair: [t0, t1],
-      patternKind: match.patternKind,
-      triggerNumbers: match.triggerNumbers,
-      factor1: match.factor1,
-      factor2: match.factor2
-    };
-  }
-  function pairKindFromAxis(axis) {
-    return axis;
-  }
-  function pairKindLabel(axis) {
-    switch (axis) {
-      case "cor-altura":
-        return "Cor \xB7 Altura";
-      case "cor-paridade":
-        return "Cor \xB7 Paridade";
-      case "altura-paridade":
-        return "Paridade \xB7 Altura";
-    }
-  }
-  function crossingAxisFromActive(active) {
-    return active.pairKind;
-  }
-  function crossingFingerprint(tableId, axis, category) {
-    return `${tableId}:${axis}:${category}`;
-  }
-  var ANCHOR_FINGERPRINT_PREFIX = "anchor:";
-  function anchorFingerprint(tableId) {
-    return `${ANCHOR_FINGERPRINT_PREFIX}${tableId}`;
-  }
-  function isAnchoredFingerprint(fp) {
-    return fp != null && fp.startsWith(ANCHOR_FINGERPRINT_PREFIX);
-  }
-  function buildCrossingActiveFromPick(pick) {
-    return {
-      pairKind: pairKindFromAxis(pick.axis),
-      pairKindLabel: pairKindLabel(pick.axis),
-      patternMode: "convergence",
-      patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
-      referenceNumber: pick.triggerNumbers[0] ?? pick.excludedPair[0],
-      factor1: pick.factor1,
-      factor2: pick.factor2,
-      triggerNumbers: [pick.excludedPair[0], pick.excludedPair[1]],
-      armingDescription: `${crossingPatternKindLabel(pick.patternKind)} \xB7 ${pick.category} (mesa ${pick.tableId})`
-    };
-  }
-  function pickForTableByCategory(tableId, historyNewestFirst, axis, category) {
-    const match = detectBestPatternOnTable(historyNewestFirst);
-    if (!match || match.axis !== axis || match.category !== category) return null;
-    return pickFromPatternMatch(tableId, match);
-  }
-  function crossingFlashSnapshot(active, history, tableId, machine) {
-    const triggerNumbers = history.slice(0, 4);
-    if (!active) return { triggerNumbers };
-    const axis = crossingAxisFromActive(active);
-    const category = machine.cycleMetricCategory;
-    const live = category ? pickForTableByCategory(tableId, history, axis, category) : null;
-    return {
-      factor1: active.factor1,
-      factor2: active.factor2,
-      triggerNumbers,
-      bucketGap: live?.bucketGap ?? 0
-    };
-  }
-  function clearPrepareState2(machine) {
-    return {
-      ...machine,
-      prepareFingerprint: null,
-      prepareTableId: null,
-      prepareActive: null,
-      pendingQueueEntry: null,
-      armedAtHead: null,
-      prepareSpinsWithoutPattern: 0
-    };
-  }
-  function bestPickForTable2(tableId, historyNewestFirst, _minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const match = detectBestPatternOnTable(historyNewestFirst);
-    if (!match) return null;
-    return pickFromPatternMatch(tableId, match);
-  }
-  function pickForTableOnAxis(tableId, historyNewestFirst, axis, _minGap = 1, category) {
-    const match = detectBestPatternOnTable(historyNewestFirst);
-    if (!match || match.axis !== axis) return null;
-    if (category && match.category !== category) return null;
-    return pickFromPatternMatch(tableId, match);
-  }
-  function comparePicks2(a, b) {
-    if (a.absenceGap !== b.absenceGap) return b.absenceGap - a.absenceGap;
-    return a.tableId - b.tableId;
-  }
-  function listAllAlertPicks(tableIds, histories, excludeTableIds, _minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const kinds = ["primary", "secondary", "tertiary"];
-    for (const kind of kinds) {
-      const out = [];
-      for (const tableId of tableIds) {
-        if (excludeTableIds?.has(tableId)) continue;
-        const history = histories[tableId] ?? [];
-        if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
-        if (tableHasZeroInLastSpins(history)) continue;
-        const match = detectPatternOnTableByKind(history, kind);
-        if (match) out.push(pickFromPatternMatch(tableId, match));
-      }
-      if (out.length > 0) {
-        out.sort(comparePicks2);
-        return out;
-      }
-    }
-    return [];
-  }
-  function pickGlobalCrossingAlert(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    if (!isCrossingGatilhoEnabled()) return null;
-    return listAllAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins)[0] ?? null;
-  }
-  function armCycleFromPick2(machine, pick, histories, recovery) {
-    const active = buildCrossingActiveFromPick(pick);
-    if (!active) return machine;
-    return armCycleFromActive(machine, pick, active, histories, recovery);
-  }
-  function armCycleFromActive(machine, pick, active, histories, recovery, opts) {
-    const head = spinHeadFromHistory2(histories[pick.tableId] ?? []);
-    return {
-      ...machine,
-      cycleTableId: pick.tableId,
-      cycleFingerprint: crossingFingerprint(pick.tableId, pick.axis, pick.category),
-      cycleActive: active,
-      recovery,
-      cycleSpinsWithoutWin: 0,
-      armedAtHead: head,
-      lastEvaluatedHead: opts?.lastEvaluatedHead ?? null,
-      signalQueue: [],
-      awaitingQueueTableId: null,
-      awaitingQueueHead: null,
-      awaitSwitchNoTable: false,
-      prepareFingerprint: null,
-      prepareTableId: null,
-      prepareActive: null,
-      pendingQueueEntry: null,
-      cycleMetricCategory: pick.absentCategory,
-      cyclePatternKind: pick.patternKind
-    };
-  }
-  function clearCycle2(machine) {
-    return {
-      ...machine,
-      cycleTableId: null,
-      cycleFingerprint: null,
-      cycleActive: null,
-      cycleMetricCategory: null,
-      cyclePatternKind: null,
-      cycleSpinsWithoutWin: 0,
-      armedAtHead: null,
-      lastEvaluatedHead: null
-    };
-  }
-  function tablesExcludedFromRotation2(machine) {
-    const excluded = /* @__PURE__ */ new Set();
-    for (const [key, count] of Object.entries(machine.tablePlacarLosses)) {
-      if (Number(count) >= 1) excluded.add(Number(key));
-    }
-    if (machine.lastLostTableId != null) excluded.add(machine.lastLostTableId);
-    return excluded;
-  }
-  function relaxTableExclusionsIfAllBlocked2(machine, tableIds) {
-    if (machine.recovery === 0 || tableIds.length === 0) return machine;
-    const excluded = tablesExcludedFromRotation2(machine);
-    if (!tableIds.every((id) => excluded.has(id))) return machine;
-    const last = machine.lastLostTableId;
-    return {
-      ...machine,
-      tablePlacarLosses: last != null ? { [String(last)]: 1 } : {}
-    };
-  }
-  function markTableSessionLoss2(machine, tableId) {
-    return {
-      ...machine,
-      tablePlacarLosses: { ...machine.tablePlacarLosses, [String(tableId)]: 1 },
-      lastLostTableId: tableId
-    };
-  }
-  function enterCrossingFromAlert(machine, alert, histories, recovery = machine.recovery) {
-    return armCycleFromPick2(clearPrepareState2(machine), alert, histories, recovery);
-  }
-  function tryEnterCrossingFromTablePattern(machine, tableId, histories, recovery, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const freshPick = bestPickForTable2(tableId, histories[tableId] ?? [], minAbsenceSpins);
-    if (!freshPick) return null;
-    return enterCrossingFromAlert(machine, freshPick, histories, recovery);
-  }
-  function reanchorOnTable(machine, tableId, histories, recovery, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const head = spinHeadFromHistory2(histories[tableId] ?? []);
-    const anchored = {
-      ...clearCycle2(machine),
-      recovery,
-      prepareTableId: tableId,
-      prepareFingerprint: anchorFingerprint(tableId),
-      prepareSpinsWithoutPattern: 0,
-      prepareActive: null,
-      pendingQueueEntry: null,
-      lastEvaluatedHead: head,
-      awaitSwitchNoTable: false
-    };
-    return tryEnterCrossingFromTablePattern(anchored, tableId, histories, recovery, minAbsenceSpins) ?? anchored;
-  }
-  function rotateAnchoredToNewTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const excluded = /* @__PURE__ */ new Set([fromTableId]);
-    const base = clearPrepareState2({ ...machine, prepareSpinsWithoutPattern: 0 });
-    const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
-    if (!alert) {
-      return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
-    }
-    return enterCrossingFromAlert(base, alert, histories, machine.recovery);
-  }
-  function finishCycle2(machine) {
-    return {
-      ...clearPrepareState2(clearCycle2(machine)),
-      recovery: 0,
-      tablePlacarLosses: {},
-      lastLostTableId: null,
-      awaitSwitchNoTable: false,
-      signalQueue: [],
-      awaitingQueueTableId: null,
-      awaitingQueueHead: null
-    };
-  }
-  function scanRotatingRoomCrossingTables(tableIds, histories, activePick, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    return tableIds.map((tableId) => {
-      const pick = bestPickForTable2(tableId, histories[tableId] ?? [], minAbsenceSpins);
-      if (!pick) {
-        return { tableId, category: null, axis: null, bucketGap: 0, factor1Label: null, factor2Label: null, status: "idle", isAlertTable: false };
-      }
-      const active = buildCrossingActiveFromPick(pick);
-      const fp = crossingFingerprint(pick.tableId, pick.axis, pick.category);
-      const isActive = activePick != null && crossingFingerprint(activePick.tableId, activePick.axis, activePick.category) === fp;
-      let status = "idle";
-      if (isActive) status = "active";
-      else if (pick) status = "alert";
-      return {
-        tableId,
-        category: pick.category,
-        axis: pick.axis,
-        bucketGap: pick.bucketGap,
-        factor1Label: active ? doisFatoresFactorLabel(active.factor1) : null,
-        factor2Label: active ? doisFatoresFactorLabel(active.factor2) : null,
-        status,
-        isAlertTable: isActive
-      };
-    });
-  }
-  function buildRotatingRoomCrossingLiveView(tableIds, histories, machine, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const globalPick = machine.cycleActive && machine.cycleTableId != null ? pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins) : pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins);
-    let activePick = null;
-    if (machine.cycleActive && machine.cycleTableId != null) {
-      const axis = crossingAxisFromActive(machine.cycleActive);
-      const category = machine.cycleMetricCategory;
-      activePick = category != null ? pickForTableByCategory(
-        machine.cycleTableId,
-        histories[machine.cycleTableId] ?? [],
-        axis,
-        category
-      ) : pickForTableOnAxis(machine.cycleTableId, histories[machine.cycleTableId] ?? [], axis, 0);
-    }
-    const displayPick = activePick ?? globalPick;
-    let preparePick = null;
-    if (machine.prepareTableId != null && isAnchoredFingerprint(machine.prepareFingerprint) && !machine.cycleActive) {
-      preparePick = bestPickForTable2(
-        machine.prepareTableId,
-        histories[machine.prepareTableId] ?? [],
-        minAbsenceSpins
-      );
-    } else if (machine.prepareTableId != null && machine.prepareFingerprint && !machine.cycleActive) {
-      const entry = machine.pendingQueueEntry;
-      if (entry && entry.tableId === machine.prepareTableId) {
-        preparePick = pickForTableByCategory(
-          entry.tableId,
-          histories[entry.tableId] ?? [],
-          entry.axis,
-          entry.category
-        );
-      }
-    }
-    let mode = "scanning";
-    if (machine.cycleActive) mode = "active";
-    else if (machine.prepareFingerprint || preparePick) mode = "prepare";
-    else if (machine.awaitSwitchNoTable && machine.recovery > 0) mode = "awaiting_queue";
-    return {
-      mode,
-      globalPick: displayPick,
-      preparePick,
-      signalQueue: [],
-      crossingScan: scanRotatingRoomCrossingTables(tableIds, histories, displayPick, minAbsenceSpins)
-    };
-  }
-  function syncSpinHeads2(machine, tableIds, histories) {
-    const lastSpinHeadByTable = { ...machine.lastSpinHeadByTable };
-    for (const tableId of tableIds) {
-      lastSpinHeadByTable[String(tableId)] = spinHeadFromHistory2(histories[tableId] ?? []);
-    }
-    return { ...machine, lastSpinHeadByTable };
-  }
-  function sanitizeRotatingRoomCrossingMachineForTableIds(machine, tableIds) {
-    if (tableIds.length === 0) return machine;
-    const allowed = new Set(tableIds);
-    let next = machine;
-    let changed = false;
-    const apply = (m) => {
-      if (m !== next) {
-        next = m;
-        changed = true;
-      }
-    };
-    if (next.cycleTableId != null && !allowed.has(next.cycleTableId)) {
-      apply(clearCycle2(next));
-    }
-    if (next.prepareTableId != null && !allowed.has(next.prepareTableId) || next.pendingQueueEntry != null && !allowed.has(next.pendingQueueEntry.tableId)) {
-      apply(clearPrepareState2(next));
-    }
-    if (next.awaitingQueueTableId != null && !allowed.has(next.awaitingQueueTableId)) {
-      next = { ...next, awaitingQueueTableId: null, awaitingQueueHead: null };
-      changed = true;
-    }
-    const lastSpinHeadByTable = { ...next.lastSpinHeadByTable };
-    let headsPruned = false;
-    for (const key of Object.keys(lastSpinHeadByTable)) {
-      const id = Number(key);
-      if (!allowed.has(id)) {
-        delete lastSpinHeadByTable[key];
-        headsPruned = true;
-      }
-    }
-    if (headsPruned) {
-      next = { ...next, lastSpinHeadByTable };
-      changed = true;
-    }
-    const tablePlacarLosses = { ...next.tablePlacarLosses };
-    let lossesPruned = false;
-    for (const key of Object.keys(tablePlacarLosses)) {
-      const id = Number(key);
-      if (!allowed.has(id)) {
-        delete tablePlacarLosses[key];
-        lossesPruned = true;
-      }
-    }
-    if (lossesPruned) {
-      next = { ...next, tablePlacarLosses };
-      changed = true;
-    }
-    if (next.recovery === 0 && next.awaitSwitchNoTable) {
-      next = { ...next, awaitSwitchNoTable: false };
-      changed = true;
-    }
-    if (next.prepareFingerprint && next.prepareTableId == null) {
-      apply(clearPrepareState2(next));
-    }
-    if (next.awaitSwitchNoTable && next.recovery > 0 && next.prepareFingerprint) {
-      apply(clearPrepareState2(next));
-    }
-    if (next.awaitSwitchNoTable && next.recovery > 0 && tableIds.length > 0) {
-      const relaxed = relaxTableExclusionsIfAllBlocked2(next, tableIds);
-      if (relaxed !== next) {
-        next = relaxed;
-        changed = true;
-      }
-    }
-    return changed ? next : machine;
-  }
-  function tickRotatingRoomCrossingPlacar(tableIds, histories, machine, stats, maxRecovery = ROTATING_ROOM_CROSSING_MAX_RECOVERY, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    let nextMachine = sanitizeRotatingRoomCrossingMachineForTableIds(
-      syncSpinHeads2(machine, tableIds, histories),
-      tableIds
-    );
-    let nextStats = stats;
-    let statsChanged = false;
-    let flash = null;
-    if (!nextMachine.cycleActive && nextMachine.prepareTableId != null && isAnchoredFingerprint(nextMachine.prepareFingerprint)) {
-      const pt = nextMachine.prepareTableId;
-      const hist = histories[pt] ?? [];
-      const head2 = spinHeadFromHistory2(hist);
-      if (head2 !== nextMachine.lastEvaluatedHead) {
-        nextMachine = { ...nextMachine, lastEvaluatedHead: head2 };
-        const resultNumber2 = hist[0];
-        if (resultNumber2 === 0 && tableIds.length > 1) {
-          return {
-            nextMachine: rotateAnchoredToNewTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        const freshPick = bestPickForTable2(pt, hist, minAbsenceSpins);
-        if (freshPick) {
-          return {
-            nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
-        if (spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS && tableIds.length > 1) {
-          return {
-            nextMachine: rotateAnchoredToNewTable(
-              { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
-              pt,
-              tableIds,
-              histories,
-              minAbsenceSpins
-            ),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        nextMachine = { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout };
-      }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    if (!nextMachine.cycleActive) {
-      if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
-        const retry = pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins);
-        if (retry) {
-          return {
-            nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      const alert = pickGlobalCrossingAlert(tableIds, histories, void 0, minAbsenceSpins);
-      if (alert && !nextMachine.prepareFingerprint) {
-        nextMachine = enterCrossingFromAlert(nextMachine, alert, histories);
-        return { nextMachine, stats: nextStats, statsChanged, flash };
-      }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    const tableId = nextMachine.cycleTableId;
-    if (tableId == null || !nextMachine.cycleActive) {
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    const history = histories[tableId] ?? [];
-    if (history.length === 0) return { nextMachine, stats: nextStats, statsChanged, flash };
-    const head = spinHeadFromHistory2(history);
-    if (head === nextMachine.armedAtHead || head === nextMachine.lastEvaluatedHead) {
-      return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    const resultNumber = history[0];
-    const activeForRound = nextMachine.cycleActive;
-    const patternKindForRound = nextMachine.cyclePatternKind;
-    nextMachine = { ...nextMachine, lastEvaluatedHead: head };
-    const outcome = evaluateDoisFatoresRound(resultNumber, activeForRound);
-    if (outcome === "W") {
-      nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
-      if (patternKindForRound != null) {
-        nextStats = recordCrossingPatternKindWin(nextStats, patternKindForRound);
-        statsChanged = true;
-      }
-      statsChanged = true;
-      flash = { resultNumber, won: true, tableId, kind: "win", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
-      nextMachine = reanchorOnTable(
-        {
-          ...nextMachine,
-          tablePlacarLosses: {},
-          lastLostTableId: null,
-          signalQueue: [],
-          awaitingQueueTableId: null,
-          awaitingQueueHead: null,
-          awaitSwitchNoTable: false
-        },
-        tableId,
-        histories,
-        0,
-        minAbsenceSpins
-      );
-    } else if (outcome === "L") {
-      const recoveryBefore = nextMachine.recovery;
-      const recovery = recoveryBefore + 1;
-      const canRotateTables = tableIds.length > 1;
-      if (patternKindForRound != null) {
-        nextStats = recordCrossingPatternKindLoss(nextStats, patternKindForRound);
-        statsChanged = true;
-      }
-      if (recovery > maxRecovery) {
-        nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery);
-        statsChanged = true;
-        flash = { resultNumber, won: false, tableId, kind: "loss", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
-        nextMachine = finishCycle2(canRotateTables ? markTableSessionLoss2(nextMachine, tableId) : nextMachine);
-      } else {
-        nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recoveryBefore, maxRecovery);
-        statsChanged = true;
-        const switchedOnZero = resultNumber === 0 && canRotateTables;
-        flash = {
-          resultNumber,
-          won: false,
-          tableId,
-          kind: "recovery",
-          switchedTable: switchedOnZero
-        };
-        if (switchedOnZero) {
-          nextMachine = rotateAnchoredToNewTable(
-            { ...nextMachine, recovery },
-            tableId,
-            tableIds,
-            histories,
-            minAbsenceSpins
-          );
-        } else {
-          nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery, minAbsenceSpins);
-        }
-      }
-    } else {
-      nextMachine = reanchorOnTable(
-        nextMachine,
-        tableId,
-        histories,
-        nextMachine.recovery,
-        minAbsenceSpins
-      );
-    }
-    return { nextMachine, stats: nextStats, statsChanged, flash };
-  }
-
-  // src/lib/roulette/rotatingRoomCrossingSession.ts
-  function defaultRotatingRoomCrossingMachineState() {
-    return {
-      cycleTableId: null,
-      cycleFingerprint: null,
-      cycleActive: null,
-      recovery: 0,
-      cycleSpinsWithoutWin: 0,
-      armedAtHead: null,
-      lastEvaluatedHead: null,
-      lastSpinHeadByTable: {},
-      signalQueue: [],
-      awaitingQueueTableId: null,
-      awaitingQueueHead: null,
-      tablePlacarLosses: {},
-      lastLostTableId: null,
-      awaitSwitchNoTable: false,
-      prepareFingerprint: null,
-      prepareTableId: null,
-      prepareActive: null,
-      pendingQueueEntry: null,
-      cycleMetricCategory: null,
-      cyclePatternKind: null,
-      prepareSpinsWithoutPattern: 0
-    };
-  }
-  function buildRotatingRoomCrossingSessionLiveView(tableIds, histories, machine) {
-    return buildRotatingRoomCrossingLiveView(tableIds, histories, machine);
-  }
-  function tickRotatingRoomCrossingSessionPlacar(tableIds, histories, machine, stats) {
-    return tickRotatingRoomCrossingPlacar(
-      tableIds,
-      histories,
-      machine,
-      stats,
-      ROTATING_ROOM_CROSSING_MAX_RECOVERY
-    );
   }
 
   // src/lib/roulette/umFatorStrategy.ts
@@ -1781,7 +292,7 @@ var SinglestakeUmFator = (() => {
       { kind: "paridade", value: par }
     ];
   }
-  function factorWins2(num, factor) {
+  function factorWins(num, factor) {
     if (num === 0) return false;
     switch (factor.kind) {
       case "cor":
@@ -1792,35 +303,24 @@ var SinglestakeUmFator = (() => {
         return heightOf(num) === factor.value;
     }
   }
-  function oppositeFactor(f) {
-    switch (f.kind) {
-      case "cor":
-        return { kind: "cor", value: f.value === "Vermelho" ? "Preto" : "Vermelho" };
-      case "paridade":
-        return { kind: "paridade", value: f.value === "Par" ? "Impar" : "Par" };
-      case "altura":
-        return { kind: "altura", value: f.value === "Baixo" ? "Alto" : "Baixo" };
-    }
-  }
-  function umFatorSharedFactorsBetween(a, b) {
-    if (a === 0 || b === 0) return [];
-    const triple = umFatorTripleFactorsForNumber(a);
-    if (!triple) return [];
-    return triple.filter((f) => factorWins2(b, f));
-  }
   function umFatorMatchCountOnTriple(num, triple) {
     if (num === 0) return 0;
-    return triple.filter((f) => factorWins2(num, f)).length;
+    return triple.filter((f) => factorWins(num, f)).length;
   }
-  function umFatorMatchCountWithReference(num, ref) {
-    if (num === 0 || ref === 0) return 0;
-    const triple = umFatorTripleFactorsForNumber(ref);
-    if (!triple) return 0;
-    return triple.filter((f) => factorWins2(num, f)).length;
-  }
-  function buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, triggerMatchTier) {
-    const sharedLabel = shared.map(doisFatoresFactorLabel).join(" \xB7 ");
-    const tierTag = triggerMatchTier === "three" ? "3g" : "2g";
+  function detectUmFatorActiveFromHistory(historyNewestFirst) {
+    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
+    const n0 = historyNewestFirst[0];
+    const n1 = historyNewestFirst[1];
+    const n2 = historyNewestFirst[2];
+    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
+    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
+    const trigger = umFatorTripleFactorsForNumber(n1);
+    if (!trigger) return null;
+    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
+    if (matchOnCurrent !== 2) return null;
+    const alertFactor = trigger.find((f) => !factorWins(n0, f));
+    if (!alertFactor) return null;
+    const triggerLabel = `${doisFatoresFactorLabel(trigger[0])} \xB7 ${doisFatoresFactorLabel(trigger[1])} \xB7 ${doisFatoresFactorLabel(trigger[2])}`;
     return {
       pairKind: "cor-altura",
       pairKindLabel: "Cor \xB7 Altura \xB7 Paridade",
@@ -1830,134 +330,69 @@ var SinglestakeUmFator = (() => {
       alertFactor,
       triggerNumbers: [n2, n1],
       resultNumber: n0,
-      triggerMatchTier,
-      armingDescription: `1 Fator (${tierTag}): gatilho ${sharedLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
+      triggerMatchTier: "three",
+      armingDescription: `1 Fator: gatilho ${triggerLabel} (${n2}, ${n1}) \u2192 alerta ${doisFatoresFactorLabel(alertFactor)} (aguarda pr\xF3ximo giro)`
     };
-  }
-  function detectUmFatorThreeTierActive(n0, n1, n2) {
-    if (umFatorTriggerMatchCount(n1, n2) !== 3) return null;
-    const trigger = umFatorTripleFactorsForNumber(n1);
-    if (!trigger) return null;
-    const matchOnCurrent = umFatorMatchCountOnTriple(n0, trigger);
-    if (matchOnCurrent !== 2) return null;
-    const alertFactor = trigger.find((f) => !factorWins2(n0, f));
-    if (!alertFactor) return null;
-    return buildUmFatorActive(n0, n1, n2, trigger, trigger, alertFactor, "three");
-  }
-  function detectUmFatorTwoTierActive(n0, n1, n2) {
-    if (umFatorTriggerMatchCount(n1, n2) !== 2) return null;
-    const trigger = umFatorTripleFactorsForNumber(n1);
-    if (!trigger) return null;
-    const shared = umFatorSharedFactorsBetween(n1, n2);
-    if (shared.length !== 2) return null;
-    const matchOnShared = shared.filter((f) => factorWins2(n0, f)).length;
-    if (matchOnShared !== 1) return null;
-    if (umFatorMatchCountWithReference(n0, n1) !== 1) return null;
-    const missingOnT0 = shared.find((f) => !factorWins2(n0, f));
-    if (!missingOnT0) return null;
-    const alertFactor = oppositeFactor(missingOnT0);
-    return buildUmFatorActive(n0, n1, n2, trigger, shared, alertFactor, "two");
-  }
-  function detectUmFatorActiveFromHistory(historyNewestFirst, isTierEnabled = isUmFatorTriggerTierEnabled) {
-    if (historyNewestFirst.length < UM_FATOR_MIN_HISTORY) return null;
-    const n0 = historyNewestFirst[0];
-    const n1 = historyNewestFirst[1];
-    const n2 = historyNewestFirst[2];
-    if (n0 === 0 || n1 === 0 || n2 === 0) return null;
-    const three = detectUmFatorThreeTierActive(n0, n1, n2);
-    if (three && isTierEnabled("three")) return three;
-    const two = detectUmFatorTwoTierActive(n0, n1, n2);
-    if (two && isTierEnabled("two")) return two;
-    return null;
   }
   function evaluateUmFatorRound(num, active) {
     if (num === 0) return "L";
-    return factorWins2(num, active.alertFactor) ? "W" : "L";
+    return factorWins(num, active.alertFactor) ? "W" : "L";
   }
   function umFatorAlertLabel(active) {
     return doisFatoresFactorLabel(active.alertFactor);
   }
-  function umFatorToTapeteActive(active) {
-    return {
-      pairKind: active.pairKind,
-      pairKindLabel: active.pairKindLabel,
-      patternMode: "convergence",
-      patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
-      referenceNumber: active.resultNumber,
-      factor1: active.alertFactor,
-      factor2: active.triggerFactor1,
-      triggerNumbers: active.triggerNumbers,
-      armingDescription: active.armingDescription
-    };
+
+  // src/lib/roulette/historyStorage.ts
+  function parseSpinTimesJson(raw) {
+    if (raw == null) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const out = [];
+      for (const x of parsed) {
+        if (x === null) {
+          out.push(null);
+          continue;
+        }
+        if (typeof x === "number" && Number.isFinite(x)) out.push(x);
+        else out.push(null);
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+  function liveTableSpinTimesStorageKey(tableId) {
+    return `roulette.liveTableSpinTimes.${tableId}`;
+  }
+  function readLiveTableSpinTimesAligned(tableId, historyLength) {
+    if (typeof window === "undefined" || historyLength <= 0) return [];
+    try {
+      const raw = parseSpinTimesJson(window.localStorage.getItem(liveTableSpinTimesStorageKey(tableId)));
+      if (raw.length >= historyLength) return raw.slice(0, historyLength);
+      return [...raw, ...Array.from({ length: historyLength - raw.length }, () => null)];
+    } catch {
+      return Array.from({ length: historyLength }, () => null);
+    }
   }
 
-  // src/lib/roulette/umFatorTriggerAutoSelect.ts
-  function defaultUmFatorTriggerAutoSelectFields() {
-    return {
-      autoPreferredTier: null,
-      sequenceLockedTier: null
-    };
+  // src/lib/roulette/liveTableBettingWindow.ts
+  var LIVE_TABLE_BETTING_WINDOW_SEC = 20;
+  var EXTENSION_PRE_BET_WAIT_SEC = 11;
+  var UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC = 3;
+  function liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs = Date.now(), bettingWindowSec = LIVE_TABLE_BETTING_WINDOW_SEC) {
+    if (historyNewestFirst.length === 0) return 0;
+    const times = readLiveTableSpinTimesAligned(tableId, historyNewestFirst.length);
+    const t0 = times[0] ?? null;
+    if (t0 == null) return bettingWindowSec;
+    const elapsedSec = Math.max(0, (nowMs - t0) / 1e3);
+    return Math.max(0, bettingWindowSec - elapsedSec);
   }
-  function resolveUmFatorSequenceLockedTier(ctx) {
-    if (ctx.sequenceLockedTier != null) return ctx.sequenceLockedTier;
-    if (ctx.recovery > 0 && ctx.lastActiveTriggerTier != null) return ctx.lastActiveTriggerTier;
-    return null;
-  }
-  function buildUmFatorTriggerTierGate(ctx, isAdminEnabled = isUmFatorTriggerTierEnabled) {
-    const locked = resolveUmFatorSequenceLockedTier(ctx);
-    return (tier) => {
-      if (!isAdminEnabled(tier)) return false;
-      if (tier === "two") return false;
-      if (ctx.recovery > 0 && locked != null) return tier === locked;
-      return true;
-    };
-  }
-  function applyUmFatorSequenceStart(fields, recovery, formationTier) {
-    if (formationTier == null) return fields;
-    if (recovery > 0 && fields.sequenceLockedTier != null) return fields;
-    return { ...fields, sequenceLockedTier: formationTier };
-  }
-  function applyUmFatorSequenceEnd(fields) {
-    if (fields.sequenceLockedTier == null) return fields;
-    return { ...fields, sequenceLockedTier: null };
-  }
-  function applyUmFatorTriggerSwitchAfterPartialLoss(fields, _recoveryBefore, _matchTier, _nextRecovery) {
-    return fields;
-  }
-
-  // src/lib/roulette/rotatingRoomLobbySignal.ts
-  var ROTATING_ROOM_ROUND_FLASH_MS = 2800;
-  var ROTATING_ROOM_LOBBY_RETURN_DELAY_MS = 2e3;
-  var ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT = ROTATING_ROOM_ROUND_FLASH_MS + ROTATING_ROOM_LOBBY_RETURN_DELAY_MS;
-  var ROTATING_ROOM_LOBBY_COOLDOWN_MS = 3e3;
-  var ROTATING_ROOM_LOBBY_NAV_SETTLE_MS = 6500;
-  function rotatingRoomLobbyCooldownUntilMs(fromMs = Date.now()) {
-    return fromMs + ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT + ROTATING_ROOM_LOBBY_NAV_SETTLE_MS + ROTATING_ROOM_LOBBY_COOLDOWN_MS;
-  }
-  function isRotatingRoomLobbyCooldownActive(lobbyCooldownUntilMs, nowMs = Date.now()) {
-    return typeof lobbyCooldownUntilMs === "number" && Number.isFinite(lobbyCooldownUntilMs) && nowMs < lobbyCooldownUntilMs;
-  }
-  function isRotatingRoomPostResultHoldActive(postResultHoldUntilMs, nowMs = Date.now()) {
-    return typeof postResultHoldUntilMs === "number" && Number.isFinite(postResultHoldUntilMs) && nowMs < postResultHoldUntilMs;
+  function tableArmableForUmFatorFormation(tableId, historyNewestFirst, nowMs) {
+    return liveTableBettingRemainingSec(tableId, historyNewestFirst, nowMs) >= UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC;
   }
 
   // src/lib/roulette/rotatingRoomUmFatorStrategy.ts
-  function detectUmFatorFormationForMachine(machine, history) {
-    const gate = buildUmFatorTriggerTierGate({
-      autoPreferredTier: machine.autoPreferredTier,
-      sequenceLockedTier: machine.sequenceLockedTier,
-      recovery: machine.recovery,
-      lastActiveTriggerTier: machine.lastActive?.triggerMatchTier ?? null
-    });
-    return detectUmFatorActiveFromHistory(history, gate);
-  }
-  function mergeTriggerAutoSelectFields(machine, patch) {
-    return {
-      ...machine,
-      autoPreferredTier: patch.autoPreferredTier,
-      sequenceLockedTier: patch.sequenceLockedTier
-    };
-  }
   function spinHead(history) {
     if (history.length === 0) return "0";
     return `${history.length}:${history[0]}`;
@@ -1973,53 +408,7 @@ var SinglestakeUmFator = (() => {
       lastLostTableId: null,
       lastActive: null,
       lastActiveTableId: null,
-      focusLockTableId: null,
-      staleFormationHeadByTable: {},
-      lobbyCooldownUntilMs: null,
-      lobbyArmingGateByTable: {},
-      postResultHoldUntilMs: null,
-      postResultHoldTableId: null,
-      ...defaultUmFatorTriggerAutoSelectFields()
-    };
-  }
-  function snapshotSpinHeadsByTable(tableIds, histories) {
-    const heads = {};
-    for (const tableId of tableIds) {
-      heads[String(tableId)] = spinHead(histories[tableId] ?? []);
-    }
-    return heads;
-  }
-  function isBlockedByLobbyArmingGate(machine, tableId, head) {
-    const gate = machine.lobbyArmingGateByTable?.[String(tableId)];
-    return gate != null && gate === head;
-  }
-  function refreshLobbyArmingGateIfReady(machine, tableIds, histories) {
-    if (machine.lobbyCooldownUntilMs == null) return machine;
-    if (isRotatingRoomLobbyCooldownActive(machine.lobbyCooldownUntilMs)) return machine;
-    return {
-      ...machine,
-      lobbyCooldownUntilMs: null,
-      lobbyArmingGateByTable: snapshotSpinHeadsByTable(tableIds, histories)
-    };
-  }
-  function clearExpiredPostResultHold(machine) {
-    if (!isRotatingRoomPostResultHoldActive(machine.postResultHoldUntilMs)) {
-      if (machine.postResultHoldUntilMs == null && machine.postResultHoldTableId == null) {
-        return machine;
-      }
-      return {
-        ...machine,
-        postResultHoldUntilMs: null,
-        postResultHoldTableId: null
-      };
-    }
-    return machine;
-  }
-  function beginPostResultLobbyHold(machine, tableId, fromMs = Date.now()) {
-    return {
-      ...machine,
-      postResultHoldUntilMs: fromMs + ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
-      postResultHoldTableId: tableId
+      focusLockTableId: null
     };
   }
   function isResultAlreadySettled(machine, tableId, head) {
@@ -2036,17 +425,6 @@ var SinglestakeUmFator = (() => {
     }
     return false;
   }
-  function isStaleQueuedFormation(machine, tableId, head) {
-    const blocked = machine.staleFormationHeadByTable[String(tableId)];
-    return blocked != null && blocked === head;
-  }
-  function snapshotStaleFormationHeads(machine, tableIds, histories) {
-    const stale = { ...machine.staleFormationHeadByTable };
-    for (const tableId of tableIds) {
-      stale[String(tableId)] = spinHead(histories[tableId] ?? []);
-    }
-    return stale;
-  }
   function pendingForTable(machine, tableId) {
     return machine.pendingByTable[String(tableId)] ?? null;
   }
@@ -2057,21 +435,28 @@ var SinglestakeUmFator = (() => {
     return !isResultAlreadySettled(machine, tableId, head);
   }
   function anyTablePendingEntryOpen(machine, tableIds, histories) {
-    return findLockedPendingTable(machine, tableIds, histories) != null;
+    const lock = machine.focusLockTableId;
+    if (lock == null || !tableIds.includes(lock)) return false;
+    return isPendingEntryOpen(machine, lock, histories[lock] ?? []);
   }
-  function findLockedPendingTable(machine, tableIds, histories) {
-    if (machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId)) {
-      const history = histories[machine.focusLockTableId] ?? [];
-      if (isPendingEntryOpen(machine, machine.focusLockTableId, history)) {
-        return machine.focusLockTableId;
-      }
-    }
+  function clearExpiredUmFatorPendingEntries(machine, tableIds, histories, nowMs = Date.now()) {
+    let next = machine;
     for (const tableId of tableIds) {
-      if (isPendingEntryOpen(machine, tableId, histories[tableId] ?? [])) {
-        return tableId;
-      }
+      const pending = pendingForTable(next, tableId);
+      if (!pending) continue;
+      const history = histories[tableId] ?? [];
+      const head = spinHead(history);
+      if (pending.armedHead !== head) continue;
+      if (liveTableBettingRemainingSec(tableId, history, nowMs) > 0) continue;
+      const pendingByTable = { ...next.pendingByTable };
+      delete pendingByTable[String(tableId)];
+      next = {
+        ...next,
+        pendingByTable,
+        focusLockTableId: next.focusLockTableId === tableId ? null : next.focusLockTableId
+      };
     }
-    return null;
+    return next;
   }
   function pruneOrphanUmFatorPending(machine) {
     const lock = machine.focusLockTableId;
@@ -2105,7 +490,7 @@ var SinglestakeUmFator = (() => {
         needsEval.push(tableId);
       } else if (pendingForTable(machine, tableId) != null) {
         withPending.push(tableId);
-      } else if (!isResultAlreadySettled(machine, tableId, head) && !isStaleQueuedFormation(machine, tableId, head) && !isBlockedByLobbyArmingGate(machine, tableId, head) && detectUmFatorFormationForMachine(machine, history) != null && tableArmableForUmFatorFormation(tableId, history)) {
+      } else if (!isResultAlreadySettled(machine, tableId, head) && detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history)) {
         withFormation.push(tableId);
       } else {
         rest.push(tableId);
@@ -2127,26 +512,19 @@ var SinglestakeUmFator = (() => {
     return pending.active;
   }
   function scanUmFatorTables(tableIds, histories, machine) {
-    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
     return tableIds.map((tableId) => {
       const h = histories[tableId] ?? [];
       const active = activeForDisplay(machine, tableId, h);
-      const formation = lockedTable != null ? null : h.length >= 3 && !active && !isStaleQueuedFormation(machine, tableId, spinHead(h)) ? detectUmFatorFormationForMachine(machine, h) : null;
+      const formation = h.length >= 3 && !active ? detectUmFatorActiveFromHistory(h) : null;
       return {
         tableId,
-        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) >= 2,
+        hasTriggerPair: h.length >= 3 && umFatorTriggerMatchCount(h[1], h[2]) === 3,
         alertLabel: active ? umFatorAlertLabel(active) : formation ? umFatorAlertLabel(formation) : null,
         status: active ? "alert" : formation ? "formation" : "idle"
       };
     });
   }
   function pickGlobalUmFatorAlert(tableIds, histories, machine) {
-    const lockedTable = findLockedPendingTable(machine, tableIds, histories);
-    if (lockedTable != null) {
-      const active = activeForDisplay(machine, lockedTable, histories[lockedTable] ?? []);
-      if (active) return { tableId: lockedTable, active };
-      return null;
-    }
     const picks = [];
     for (const tableId of tableIds) {
       const history = histories[tableId] ?? [];
@@ -2154,6 +532,21 @@ var SinglestakeUmFator = (() => {
       if (active) picks.push({ tableId, active });
     }
     if (picks.length === 0) return null;
+    const pendingOpen = picks.filter(
+      (p) => isPendingEntryOpen(machine, p.tableId, histories[p.tableId] ?? [])
+    );
+    if (pendingOpen.length > 0) {
+      if (machine.focusLockTableId != null) {
+        const locked = pendingOpen.find((p) => p.tableId === machine.focusLockTableId);
+        if (locked) return locked;
+      }
+      if (machine.lastActiveTableId != null) {
+        const sticky = pendingOpen.find((p) => p.tableId === machine.lastActiveTableId);
+        if (sticky) return sticky;
+      }
+      pendingOpen.sort((a, b) => a.tableId - b.tableId);
+      return pendingOpen[0];
+    }
     if (machine.lastActiveTableId != null) {
       const sticky = picks.find((p) => p.tableId === machine.lastActiveTableId);
       if (sticky) return sticky;
@@ -2170,9 +563,11 @@ var SinglestakeUmFator = (() => {
     };
   }
   function tickUmFatorPlacar(tableIds, histories, machine, stats, maxRecovery = UM_FATOR_MAX_RECOVERY) {
-    let nextMachine = pruneOrphanUmFatorPending(machine);
-    nextMachine = clearExpiredPostResultHold(nextMachine);
-    nextMachine = refreshLobbyArmingGateIfReady(nextMachine, tableIds, histories);
+    let nextMachine = clearExpiredUmFatorPendingEntries(
+      pruneOrphanUmFatorPending(machine),
+      tableIds,
+      histories
+    );
     nextMachine = {
       ...nextMachine,
       lastSpinHeadByTable: { ...nextMachine.lastSpinHeadByTable },
@@ -2183,16 +578,13 @@ var SinglestakeUmFator = (() => {
     let statsChanged = false;
     let flash = null;
     const globalHead = tableIds.map((id) => `${id}:${spinHead(histories[id] ?? [])}`).join("|");
-    const lobbyCooldownActive = isRotatingRoomLobbyCooldownActive(nextMachine.lobbyCooldownUntilMs);
     const hasWork = tableIds.some((tableId) => {
       const history = histories[tableId] ?? [];
       const head = spinHead(history);
       if (pendingReadyToEvaluate(nextMachine, tableId, head)) return true;
       if (pendingForTable(nextMachine, tableId) != null) return false;
       if (isResultAlreadySettled(nextMachine, tableId, head)) return false;
-      if (lobbyCooldownActive) return false;
-      if (isBlockedByLobbyArmingGate(nextMachine, tableId, head)) return false;
-      return !isStaleQueuedFormation(nextMachine, tableId, head) && detectUmFatorFormationForMachine(machine, history) != null && tableArmableForUmFatorFormation(tableId, history);
+      return detectUmFatorActiveFromHistory(history) != null && tableArmableForUmFatorFormation(tableId, history);
     });
     if (globalHead === machine.lastEvaluatedHead && !hasWork) {
       return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -2223,8 +615,7 @@ var SinglestakeUmFator = (() => {
           settledSpinHeadByTable: {
             ...nextMachine.settledSpinHeadByTable,
             [String(tableId)]: head
-          },
-          staleFormationHeadByTable: snapshotStaleFormationHeads(nextMachine, tableIds, histories)
+          }
         };
         if (outcome === "W") {
           nextStats = recordRotatingRoomSessionWin(nextStats, recoveryBefore, maxRecovery);
@@ -2233,16 +624,6 @@ var SinglestakeUmFator = (() => {
           nextMachine.recovery = 0;
           nextMachine.tablePlacarLosses = {};
           nextMachine.lastLostTableId = null;
-          nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
-          nextMachine.lobbyArmingGateByTable = {};
-          nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
-          nextMachine = mergeTriggerAutoSelectFields(
-            nextMachine,
-            applyUmFatorSequenceEnd({
-              autoPreferredTier: nextMachine.autoPreferredTier,
-              sequenceLockedTier: nextMachine.sequenceLockedTier
-            })
-          );
           flash = {
             resultNumber,
             won: true,
@@ -2260,16 +641,6 @@ var SinglestakeUmFator = (() => {
             nextMachine.recovery = 0;
             nextMachine.tablePlacarLosses = { [String(tableId)]: 1 };
             nextMachine.lastLostTableId = tableId;
-            nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
-            nextMachine.lobbyArmingGateByTable = {};
-            nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
-            nextMachine = mergeTriggerAutoSelectFields(
-              nextMachine,
-              applyUmFatorSequenceEnd({
-                autoPreferredTier: nextMachine.autoPreferredTier,
-                sequenceLockedTier: nextMachine.sequenceLockedTier
-              })
-            );
             flash = {
               resultNumber,
               won: false,
@@ -2283,18 +654,6 @@ var SinglestakeUmFator = (() => {
             statsChanged = true;
             nextMachine.recovery = nextRecovery;
             nextMachine.lastLostTableId = tableId;
-            nextMachine = mergeTriggerAutoSelectFields(
-              nextMachine,
-              applyUmFatorTriggerSwitchAfterPartialLoss(
-                {
-                  autoPreferredTier: nextMachine.autoPreferredTier,
-                  sequenceLockedTier: nextMachine.sequenceLockedTier
-                },
-                recoveryBefore,
-                matchTier,
-                nextRecovery
-              )
-            );
             flash = { resultNumber, won: false, tableId, kind: "recovery" };
           }
         }
@@ -2303,34 +662,19 @@ var SinglestakeUmFator = (() => {
       if (pending) continue;
       if (isResultAlreadySettled(nextMachine, tableId, head)) continue;
       if (anyTablePendingEntryOpen(nextMachine, tableIds, histories)) continue;
-      if (lobbyCooldownActive) continue;
-      const formation = detectUmFatorFormationForMachine(nextMachine, history);
+      const formation = detectUmFatorActiveFromHistory(history);
       if (!formation) continue;
       if (shouldSkipTableForFormation(nextMachine, tableId, formation)) continue;
-      if (isStaleQueuedFormation(nextMachine, tableId, head)) continue;
-      if (isBlockedByLobbyArmingGate(nextMachine, tableId, head)) continue;
-      if (!headChanged) continue;
-      if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
       if (!tableArmableForUmFatorFormation(tableId, history)) continue;
-      const formationTier = umFatorTriggerMatchTierFromActive(formation);
-      const autoFields = applyUmFatorSequenceStart(
-        {
-          autoPreferredTier: nextMachine.autoPreferredTier,
-          sequenceLockedTier: nextMachine.sequenceLockedTier
-        },
-        nextMachine.recovery,
-        formationTier
-      );
       nextMachine = {
-        ...mergeTriggerAutoSelectFields(nextMachine, autoFields),
+        ...nextMachine,
         pendingByTable: {
           ...nextMachine.pendingByTable,
           [String(tableId)]: { active: formation, armedHead: head }
         },
         lastActive: formation,
         lastActiveTableId: tableId,
-        focusLockTableId: tableId,
-        lobbyArmingGateByTable: {}
+        focusLockTableId: tableId
       };
       break;
     }
@@ -2351,27 +695,13 @@ var SinglestakeUmFator = (() => {
     for (const [k, v] of Object.entries(machine.pendingByTable ?? {})) {
       if (allowed.has(k)) pendingByTable[k] = v;
     }
-    const staleFormationHeadByTable = {};
-    for (const [k, v] of Object.entries(machine.staleFormationHeadByTable ?? {})) {
-      if (allowed.has(k)) staleFormationHeadByTable[k] = v;
-    }
-    const lobbyArmingGateByTable = {};
-    for (const [k, v] of Object.entries(machine.lobbyArmingGateByTable ?? {})) {
-      if (allowed.has(k)) lobbyArmingGateByTable[k] = v;
-    }
     const lastActiveTableId = machine.lastActiveTableId != null && tableIds.includes(machine.lastActiveTableId) ? machine.lastActiveTableId : null;
     const focusLockTableId = machine.focusLockTableId != null && tableIds.includes(machine.focusLockTableId) ? machine.focusLockTableId : null;
-    const postResultHoldTableId = machine.postResultHoldTableId != null && tableIds.includes(machine.postResultHoldTableId) ? machine.postResultHoldTableId : null;
-    const postResultHoldUntilMs = typeof machine.postResultHoldUntilMs === "number" && Number.isFinite(machine.postResultHoldUntilMs) ? machine.postResultHoldUntilMs : null;
     return {
       ...machine,
       lastSpinHeadByTable,
       pendingByTable,
       settledSpinHeadByTable,
-      staleFormationHeadByTable,
-      lobbyArmingGateByTable,
-      postResultHoldUntilMs,
-      postResultHoldTableId,
       tablePlacarLosses: {},
       lastLostTableId: null,
       lastActiveTableId,
@@ -2379,68 +709,9 @@ var SinglestakeUmFator = (() => {
     };
   }
 
-  // src/lib/roulette/rotatingRoomRotativaMerge.ts
-  function umFatorInCycleFromView(um) {
-    return um.showTapeteSignal || um.currentRecovery > 0 || isRotatingRoomLobbyCooldownActive(um.lobbyCooldownUntilMs) || isRotatingRoomPostResultHoldActive(um.postResultHoldUntilMs);
-  }
-  function crossingInCycleFromView(cross) {
-    return cross.showTapeteSignal || cross.currentRecovery > 0 || cross.sessionMode === "prepare";
-  }
-  function crossingHasQualifyingPatternFromView(cross) {
-    return cross.crossingScan.some(
-      (row) => row.status === "alert" || row.status === "active" || row.status === "prepare"
-    );
-  }
-  function fibonacciInCycleFromView(fib) {
-    return fib.showTapeteSignal || fib.currentRecovery > 0;
-  }
-  function fibonacciHasQualifyingAlert(fib) {
-    return fib.fibonacciScan.some(
-      (row) => row.status === "alert" || row.status === "active"
-    );
-  }
-  function fibonacciHasPrepare(fib) {
-    return fib.prepareTableId != null || fib.fibonacciScan.some((row) => row.status === "prepare");
-  }
-  function resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled, fibonacciEnabled = true) {
-    const um = snapshot.um1fator;
-    const crossing = snapshot.dois2fatores;
-    const fibonacci = snapshot.fibonacci;
-    if (fibonacciEnabled) {
-      const fibBusy = fibonacciInCycleFromView(fibonacci);
-      if (fibBusy) return "fibonacci";
-      if (fibonacciHasQualifyingAlert(fibonacci) && fibonacci.showTapeteSignal) return "fibonacci";
-      if (fibonacciHasPrepare(fibonacci)) return "fibonacci";
-      if (fibonacciHasQualifyingAlert(fibonacci)) return "fibonacci";
-    }
-    if (!crossingEnabled && !fibonacciEnabled) return "umFator";
-    const umBusy = umFatorInCycleFromView(um);
-    const crossBusy = crossingEnabled && crossingInCycleFromView(crossing);
-    const busy = [];
-    if (umBusy) busy.push("umFator");
-    if (crossBusy) busy.push("crossing");
-    if (busy.length === 1) return busy[0];
-    if (busy.length > 1) {
-      if (crossBusy && (crossing.showTapeteSignal || crossing.sessionMode === "prepare")) {
-        return "crossing";
-      }
-      if (umBusy && um.showTapeteSignal) return "umFator";
-      const recoveries = [];
-      if (umBusy) recoveries.push({ kind: "umFator", r: um.currentRecovery });
-      if (crossBusy) recoveries.push({ kind: "crossing", r: crossing.currentRecovery });
-      recoveries.sort((a, b) => b.r - a.r);
-      return recoveries[0].kind;
-    }
-    if (crossingEnabled && crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
-      return "crossing";
-    }
-    if (crossingEnabled) return "crossing";
-    return "umFator";
-  }
-
   // extension/strategy-entry.ts
   var ROTATING_ROOM_TABLE_IDS = buildRotatingRoomTableIds(206);
-  var BASE_STAKE = 50;
+  var BASE_STAKE = 0.5;
   var EXTENSION_MAX_GALES = 6;
   function clampExtensionMaxRecovery(value, fallback = UM_FATOR_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);
@@ -2451,178 +722,12 @@ var SinglestakeUmFator = (() => {
     const level = Math.min(Math.max(0, recovery), maxRecovery);
     return BASE_STAKE * 2 ** level;
   }
-  function stakeForFibonacciRecovery(recovery) {
-    const level = Math.max(0, Math.min(Math.floor(recovery), ROTATING_ROOM_FIBONACCI_MAX_RECOVERY));
-    return BASE_STAKE * stakeUnitsAtRecovery(level);
-  }
-  function buildTriggerSnapshot(umMachine, umStats, umView, crossingMachine, crossingStats, crossingView, fibonacciMachine, fibonacciStats, fibonacciView, tableIds) {
-    const showUmTapete = umView.globalActive != null && umView.globalTableId != null;
-    const crossingActive = crossingMachine.cycleActive;
-    const crossingTableId = crossingMachine.cycleTableId != null && tableIds.includes(crossingMachine.cycleTableId) ? crossingMachine.cycleTableId : null;
-    const showCrossTapete = crossingActive != null && crossingTableId != null;
-    const showFibTapete = fibonacciMachine.cycleZone != null && fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId);
-    const fibPrepareTableId = fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId) ? fibonacciMachine.prepareTableId : null;
-    const fibSessionMode = showFibTapete ? "active" : fibPrepareTableId != null ? "prepare" : "scanning";
-    return {
-      revision: 0,
-      updatedAt: Date.now(),
-      rotatingRoomTableIds: [...tableIds],
-      tableHistories: {},
-      um1fator: {
-        phase: showUmTapete ? "active" : "waiting",
-        sessionStats: umStats,
-        showTapeteSignal: showUmTapete,
-        singleFactorMode: true,
-        currentRecovery: umMachine.recovery,
-        currentTableId: showUmTapete ? umView.globalTableId : null,
-        alertCategory: umView.globalActive?.armingDescription ?? null,
-        alertBucketGap: 0,
-        sessionMode: showUmTapete ? "active" : "scanning",
-        umFatorScan: umView.tableScan,
-        activeCrossing: showUmTapete && umView.globalActive ? umFatorToTapeteActive(umView.globalActive) : null,
-        umActive: showUmTapete ? umView.globalActive : null,
-        lobbyCooldownUntilMs: umMachine.lobbyCooldownUntilMs,
-        postResultHoldUntilMs: umMachine.postResultHoldUntilMs,
-        postResultHoldTableId: umMachine.postResultHoldTableId
-      },
-      dois2fatores: {
-        phase: showCrossTapete ? "active" : "waiting",
-        sessionStats: crossingStats,
-        showTapeteSignal: showCrossTapete,
-        currentRecovery: crossingMachine.recovery,
-        currentTableId: showCrossTapete ? crossingTableId : null,
-        prepareTableId: crossingMachine.prepareTableId != null && tableIds.includes(crossingMachine.prepareTableId) ? crossingMachine.prepareTableId : null,
-        alertCategory: crossingView.globalPick?.category ?? null,
-        alertBucketGap: crossingView.globalPick?.bucketGap ?? 0,
-        sessionMode: crossingView.mode,
-        prepareCategory: crossingView.preparePick?.category ?? null,
-        crossingScan: crossingView.crossingScan,
-        activeCrossing: showCrossTapete ? crossingActive : null
-      },
-      fibonacci: {
-        phase: showFibTapete ? "active" : "waiting",
-        sessionStats: fibonacciStats,
-        showTapeteSignal: showFibTapete,
-        fibonacciMode: true,
-        currentRecovery: fibonacciMachine.recovery,
-        currentTableId: showFibTapete ? fibonacciMachine.cycleTableId : null,
-        prepareTableId: fibPrepareTableId,
-        alertCategory: fibonacciView.globalPick ? fibonacciView.globalPick.zone.kind === "dozen" ? `D\xFAzia ${fibonacciView.globalPick.zone.id}` : `Coluna ${fibonacciView.globalPick.zone.id}` : null,
-        alertBucketGap: fibonacciView.globalPick?.absenceGap ?? 0,
-        sessionMode: fibSessionMode,
-        prepareCategory: fibPrepareTableId != null && fibonacciMachine.prepareZone ? fibonacciMachine.prepareZone.kind === "dozen" ? `D\xFAzia ${fibonacciMachine.prepareZone.id}` : `Coluna ${fibonacciMachine.prepareZone.id}` : null,
-        fibonacciScan: fibonacciView.fibonacciScan,
-        activeFibonacci: showFibTapete && fibonacciMachine.cycleZone && fibonacciMachine.cycleTableId != null ? {
-          zone: fibonacciMachine.cycleZone,
-          zoneLabel: fibonacciZoneLabel(fibonacciMachine.cycleZone),
-          betKey: fibonacciMachine.cycleZone.kind === "dozen" ? `doz:${fibonacciMachine.cycleZone.id}` : `col:${fibonacciMachine.cycleZone.id}`,
-          absenceGap: fibonacciView.globalPick?.absenceGap ?? 0,
-          stakeUnits: stakeUnitsAtRecovery(fibonacciMachine.recovery),
-          profitUnits: 2 * stakeUnitsAtRecovery(fibonacciMachine.recovery),
-          recoveryIndex: fibonacciMachine.recovery,
-          tableId: fibonacciMachine.cycleTableId,
-          armingDescription: `${fibonacciZoneLabel(fibonacciMachine.cycleZone)} \xB7 mesa ${fibonacciMachine.cycleTableId}`
-        } : null
-      },
-      lifetime: {
-        dois2fatores: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] },
-        um1fator: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] },
-        fibonacci: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] }
-      },
-      ledgerTail: { dois2fatores: [], um1fator: [], fibonacci: [] }
-    };
-  }
-  function buildActiveView(trigger, umView, umMachine, crossingMachine, crossingView, fibonacciMachine, fibonacciView, tableIds) {
-    if (trigger === "fibonacci") {
-      const zone = fibonacciMachine.cycleZone;
-      const tableId2 = fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId) ? fibonacciMachine.cycleTableId : null;
-      const prepareTableId = fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId) ? fibonacciMachine.prepareTableId : null;
-      const showTapete2 = zone != null && tableId2 != null;
-      const sessionMode = showTapete2 ? "active" : prepareTableId != null ? "prepare" : fibonacciView.globalPick ? "scanning" : "scanning";
-      const head = fibonacciMachine.lastEvaluatedHead ?? fibonacciMachine.armedAtHead ?? "0";
-      const betAttemptKey2 = showTapete2 && zone ? `${tableId2}:${zone.kind}:${zone.id}:${fibonacciMachine.recovery}:${head}` : null;
-      const fibonacciActive = showTapete2 && zone && tableId2 != null ? {
-        zone,
-        zoneLabel: fibonacciZoneLabel(zone),
-        betKey: pragmaticFibonacciBetKeyFromZone(zone),
-        absenceGap: fibonacciView.globalPick?.absenceGap ?? 0,
-        stakeUnits: stakeUnitsAtRecovery(fibonacciMachine.recovery),
-        profitUnits: 2 * stakeUnitsAtRecovery(fibonacciMachine.recovery),
-        recoveryIndex: fibonacciMachine.recovery,
-        tableId: tableId2,
-        armingDescription: `${fibonacciZoneLabel(zone)} \xB7 mesa ${tableId2}`
-      } : null;
-      return {
-        trigger,
-        showTapeteSignal: showTapete2,
-        currentTableId: showTapete2 ? tableId2 : prepareTableId,
-        currentRecovery: fibonacciMachine.recovery,
-        singleFactorMode: true,
-        sessionMode,
-        activeCrossing: null,
-        umActive: null,
-        fibonacciActive,
-        betAttemptKey: betAttemptKey2
-      };
-    }
-    if (trigger === "crossing") {
-      const crossingActive = crossingMachine.cycleActive;
-      const tableId2 = crossingMachine.cycleTableId != null && tableIds.includes(crossingMachine.cycleTableId) ? crossingMachine.cycleTableId : null;
-      const showTapete2 = crossingActive != null && tableId2 != null;
-      const head = crossingMachine.lastEvaluatedHead ?? `s${crossingMachine.cycleSpinsWithoutWin}`;
-      const betAttemptKey2 = showTapete2 && tableId2 != null && crossingActive ? `${tableId2}:${crossingActive.pairKind}:${crossingMachine.recovery}:${head}` : null;
-      return {
-        trigger,
-        showTapeteSignal: showTapete2,
-        currentTableId: tableId2,
-        currentRecovery: crossingMachine.recovery,
-        singleFactorMode: false,
-        sessionMode: crossingView.mode,
-        activeCrossing: showTapete2 ? crossingActive : null,
-        umActive: null,
-        fibonacciActive: null,
-        betAttemptKey: betAttemptKey2
-      };
-    }
-    const tableId = umView.globalTableId;
-    const umActive = umView.globalActive;
-    const showTapete = umActive != null && tableId != null;
-    const betAttemptKey = showTapete && umActive ? `${tableId}:${umActive.resultNumber}:${umActive.alertFactor.kind}:${umMachine.recovery}` : null;
-    return {
-      trigger: "umFator",
-      showTapeteSignal: showTapete,
-      currentTableId: tableId,
-      currentRecovery: umMachine.recovery,
-      singleFactorMode: true,
-      sessionMode: showTapete ? "active" : "scanning",
-      activeCrossing: showTapete && umActive ? umFatorToTapeteActive(umActive) : null,
-      umActive: showTapete ? umActive : null,
-      fibonacciActive: null,
-      betAttemptKey
-    };
-  }
-  function createRotativaEngine(tableIdsOrOptions = ROTATING_ROOM_TABLE_IDS) {
+  function createUmFatorEngine(tableIdsOrOptions = ROTATING_ROOM_TABLE_IDS) {
     const opts = Array.isArray(tableIdsOrOptions) ? { tableIds: tableIdsOrOptions } : tableIdsOrOptions;
     const ids = [...opts.tableIds ?? ROTATING_ROOM_TABLE_IDS];
     const maxRecovery = clampExtensionMaxRecovery(opts.maxRecovery);
-    const crossingMaxRecovery = Math.min(maxRecovery, ROTATING_ROOM_CROSSING_MAX_RECOVERY);
-    const crossingEnabled = opts.crossingEnabled !== false;
-    const fibonacciEnabled = opts.fibonacciEnabled !== false;
-    let umMachine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
-    let umStats = opts.initialUmStats != null ? parseRotatingRoomSessionStats(opts.initialUmStats, maxRecovery) : emptyRotatingRoomSessionStats(maxRecovery);
-    let crossingMachine = sanitizeRotatingRoomCrossingMachineForTableIds(
-      defaultRotatingRoomCrossingMachineState(),
-      ids
-    );
-    let crossingStats = opts.initialCrossingStats != null ? parseRotatingRoomSessionStats(opts.initialCrossingStats, crossingMaxRecovery) : emptyRotatingRoomSessionStats(crossingMaxRecovery);
-    let fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
-      defaultRotatingRoomFibonacciMachineState(),
-      ids
-    );
-    let fibonacciStats = opts.initialFibonacciStats != null ? parseRotatingRoomSessionStats(
-      opts.initialFibonacciStats,
-      ROTATING_ROOM_FIBONACCI_MAX_RECOVERY
-    ) : emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
+    let machine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
+    let stats = opts.initialStats != null ? parseRotatingRoomSessionStats(opts.initialStats, maxRecovery) : emptyRotatingRoomSessionStats(maxRecovery);
     const histories = {};
     const lastGameIdByTable = {};
     const spinBaselinedByTable = {};
@@ -2632,7 +737,7 @@ var SinglestakeUmFator = (() => {
     function expireExtensionStalePending() {
       const now = Date.now();
       const maxAgeMs = (EXTENSION_PRE_BET_WAIT_SEC + LIVE_TABLE_BETTING_WINDOW_SEC) * 1e3;
-      const pendingByTable = { ...umMachine.pendingByTable };
+      const pendingByTable = { ...machine.pendingByTable };
       let changed = false;
       for (const tableId of ids) {
         if (!pendingByTable[String(tableId)]) continue;
@@ -2642,79 +747,19 @@ var SinglestakeUmFator = (() => {
         changed = true;
       }
       if (!changed) return;
-      umMachine = { ...umMachine, pendingByTable, focusLockTableId: null };
+      machine = {
+        ...machine,
+        pendingByTable,
+        focusLockTableId: null
+      };
     }
     function runTick() {
       expireExtensionStalePending();
-      const crossingTick = crossingEnabled ? tickRotatingRoomCrossingSessionPlacar(ids, histories, crossingMachine, crossingStats) : {
-        nextMachine: crossingMachine,
-        stats: crossingStats,
-        statsChanged: false,
-        flash: null
-      };
-      crossingMachine = sanitizeRotatingRoomCrossingMachineForTableIds(crossingTick.nextMachine, ids);
-      crossingStats = crossingTick.stats;
-      const umTick = tickUmFatorPlacar(ids, histories, umMachine, umStats, maxRecovery);
-      umMachine = umTick.nextMachine;
-      umStats = umTick.stats;
-      const fibonacciTick = fibonacciEnabled ? tickRotatingRoomFibonacciSessionPlacar(ids, histories, fibonacciMachine, fibonacciStats) : {
-        nextMachine: fibonacciMachine,
-        stats: fibonacciStats,
-        statsChanged: false,
-        flash: null
-      };
-      fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
-        fibonacciTick.nextMachine,
-        ids
-      );
-      fibonacciStats = fibonacciTick.stats;
-      const umView = buildUmFatorLiveView(ids, histories, umMachine);
-      const crossingView = buildRotatingRoomCrossingSessionLiveView(ids, histories, crossingMachine);
-      const fibonacciView = buildRotatingRoomFibonacciSessionLiveView(
-        ids,
-        histories,
-        fibonacciMachine
-      );
-      const snapshot = buildTriggerSnapshot(
-        umMachine,
-        umStats,
-        umView,
-        crossingMachine,
-        crossingStats,
-        crossingView,
-        fibonacciMachine,
-        fibonacciStats,
-        fibonacciView,
-        ids
-      );
-      const trigger = resolveRotativaTriggerFromSnapshot(
-        snapshot,
-        crossingEnabled,
-        fibonacciEnabled
-      );
-      const active = buildActiveView(
-        trigger,
-        umView,
-        umMachine,
-        crossingMachine,
-        crossingView,
-        fibonacciMachine,
-        fibonacciView,
-        ids
-      );
-      return {
-        trigger,
-        umFlash: umTick.flash,
-        crossingFlash: crossingTick.flash,
-        fibonacciFlash: fibonacciTick.flash,
-        umMachine,
-        crossingMachine,
-        fibonacciMachine,
-        umStats,
-        crossingStats,
-        fibonacciStats,
-        active
-      };
+      const tick = tickUmFatorPlacar(ids, histories, machine, stats, maxRecovery);
+      machine = tick.nextMachine;
+      stats = tick.stats;
+      const view = buildUmFatorLiveView(ids, histories, machine);
+      return { view, machine, stats, flash: tick.flash };
     }
     function spinHeadForTable(tableId) {
       const h = histories[tableId] ?? [];
@@ -2734,7 +779,7 @@ var SinglestakeUmFator = (() => {
         spinBaselinedByTable[tableId] = true;
       }
       const result = runTick();
-      if (umMachine.pendingByTable[String(tableId)] || fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone || fibonacciMachine.prepareTableId === tableId && fibonacciMachine.prepareZone) {
+      if (result.machine.pendingByTable[String(tableId)]) {
         anchorLiveSpinClockForFormation(tableId);
       }
       return result;
@@ -2762,109 +807,15 @@ var SinglestakeUmFator = (() => {
       return runTick();
     }
     function buildBridgePayload(result, mesaEmbedUrl = null) {
-      const { active } = result;
-      if (!active.showTapeteSignal || active.currentTableId == null) return null;
-      if (!canPlaceBet(active.currentTableId)) return null;
-      const tableId = active.currentTableId;
-      const recovery = active.currentRecovery;
-      const mesaProvider = typeof mesaEmbedUrl === "string" && mesaEmbedUrl.includes("/play/playtech") ? "playtech" : typeof mesaEmbedUrl === "string" && mesaEmbedUrl.includes("/play/pragmatic") ? "pragmatic" : "outro";
-      if (active.trigger === "fibonacci" && active.fibonacciActive) {
-        const fib = active.fibonacciActive;
-        const label2 = fib.zoneLabel;
-        const betKey2 = pragmaticFibonacciBetKeyFromZone(fib.zone);
-        const signalId2 = active.betAttemptKey ?? `${tableId}:${fib.zone.kind}:${fib.zone.id}:${recovery}`;
-        const stakeAmount2 = stakeForFibonacciRecovery(recovery);
-        return {
-          type: "game-odds-glow/rotating-room-extension",
-          version: 1,
-          fingerprint: signalId2,
-          actions: [
-            {
-              kind: "click",
-              target: "factor-1",
-              label: label2,
-              reason: `Autopilot Fibonacci \xB7 ${label2} \xB7 gale ${recovery}`
-            }
-          ],
-          context: {
-            sessionMode: "active",
-            prepareTableId: null,
-            currentTableId: tableId,
-            mesaEmbedUrl,
-            mesaProvider,
-            factor1Label: label2,
-            factor2Label: null,
-            factor1BetKey: betKey2,
-            factor2BetKey: null,
-            singleFactorMode: true,
-            rotativaTrigger: "fibonacci",
-            strategy: "fibonacci",
-            signalId: signalId2,
-            betAttemptKey: active.betAttemptKey,
-            stakeAmount: stakeAmount2,
-            currentRecovery: recovery,
-            baseStake: BASE_STAKE,
-            maxRecovery: ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
-            executionMode: null,
-            mesaCatalog: []
-          }
-        };
-      }
-      if (active.trigger === "crossing" && active.activeCrossing) {
-        const crossing = active.activeCrossing;
-        const f1Label = doisFatoresFactorLabel(crossing.factor1);
-        const f2Label = doisFatoresFactorLabel(crossing.factor2);
-        const f1Key = pragmaticExteriorBetKeyFromFactor(crossing.factor1);
-        const f2Key = pragmaticExteriorBetKeyFromFactor(crossing.factor2);
-        const signalId2 = active.betAttemptKey ?? `${tableId}:${crossing.pairKind}:${recovery}`;
-        const stakeAmount2 = stakeForRecovery(recovery, crossingMaxRecovery);
-        return {
-          type: "game-odds-glow/rotating-room-extension",
-          version: 1,
-          fingerprint: signalId2,
-          actions: [
-            {
-              kind: "click",
-              target: "factor-1",
-              label: f1Label,
-              reason: `Autopilot 2F \xB7 ${f1Label} \xB7 gale ${recovery}`
-            },
-            {
-              kind: "click",
-              target: "factor-2",
-              label: f2Label,
-              reason: `Autopilot 2F \xB7 ${f2Label} \xB7 gale ${recovery}`
-            }
-          ],
-          context: {
-            sessionMode: active.sessionMode,
-            prepareTableId: null,
-            currentTableId: tableId,
-            mesaEmbedUrl,
-            mesaProvider,
-            factor1Label: f1Label,
-            factor2Label: f2Label,
-            factor1BetKey: f1Key,
-            factor2BetKey: f2Key,
-            singleFactorMode: false,
-            rotativaTrigger: "crossing",
-            strategy: "dois2fatores",
-            signalId: signalId2,
-            betAttemptKey: active.betAttemptKey,
-            stakeAmount: stakeAmount2,
-            currentRecovery: recovery,
-            baseStake: BASE_STAKE,
-            maxRecovery: crossingMaxRecovery,
-            executionMode: null,
-            mesaCatalog: []
-          }
-        };
-      }
-      const umActive = active.umActive;
-      if (!umActive) return null;
-      const label = umFatorAlertLabel(umActive);
-      const betKey = pragmaticExteriorBetKeyFromFactor(umActive.alertFactor);
-      const signalId = active.betAttemptKey ?? `${tableId}:${umActive.resultNumber}:${umActive.alertFactor.kind}:${recovery}`;
+      const { view, machine: machine2 } = result;
+      if (!view.globalActive || view.globalTableId == null) return null;
+      if (!canPlaceBet(view.globalTableId)) return null;
+      const active = view.globalActive;
+      const tableId = view.globalTableId;
+      const recovery = machine2.recovery;
+      const signalId = `${tableId}:${active.resultNumber}:${active.alertFactor.kind}:${recovery}`;
+      const betKey = pragmaticExteriorBetKeyFromFactor(active.alertFactor);
+      const label = umFatorAlertLabel(active);
       const stakeAmount = stakeForRecovery(recovery, maxRecovery);
       return {
         type: "game-odds-glow/rotating-room-extension",
@@ -2875,7 +826,7 @@ var SinglestakeUmFator = (() => {
             kind: "click",
             target: "factor-1",
             label,
-            reason: `Autopilot 1F \xB7 ${label} \xB7 gale ${recovery}`
+            reason: `Autopilot \xB7 ${label} \xB7 gale ${recovery}`
           }
         ],
         context: {
@@ -2883,16 +834,13 @@ var SinglestakeUmFator = (() => {
           prepareTableId: null,
           currentTableId: tableId,
           mesaEmbedUrl,
-          mesaProvider,
+          mesaProvider: typeof mesaEmbedUrl === "string" && mesaEmbedUrl.includes("/play/playtech") ? "playtech" : typeof mesaEmbedUrl === "string" && mesaEmbedUrl.includes("/play/pragmatic") ? "pragmatic" : "outro",
           factor1Label: label,
           factor2Label: null,
           factor1BetKey: betKey,
           factor2BetKey: null,
           singleFactorMode: true,
-          rotativaTrigger: "umFator",
-          strategy: "um1fator",
           signalId,
-          betAttemptKey: active.betAttemptKey,
           stakeAmount,
           currentRecovery: recovery,
           baseStake: BASE_STAKE,
@@ -2904,43 +852,18 @@ var SinglestakeUmFator = (() => {
     }
     return {
       tableIds: ids,
-      crossingEnabled,
-      fibonacciEnabled,
       ingestHistorySnapshot,
       ingestSpin,
       runTick,
       buildBridgePayload,
       canPlaceBet,
-      getState: () => ({
-        machine: umMachine,
-        stats: umStats,
-        crossingMachine,
-        crossingStats,
-        fibonacciMachine,
-        fibonacciStats,
-        histories,
-        lastLiveSpinAtByTable,
-        maxRecovery,
-        crossingMaxRecovery
-      }),
+      getState: () => ({ machine, stats, histories, lastLiveSpinAtByTable, maxRecovery }),
       resetStats() {
-        umStats = emptyRotatingRoomSessionStats(maxRecovery);
-        crossingStats = emptyRotatingRoomSessionStats(crossingMaxRecovery);
-        fibonacciStats = emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
+        stats = emptyRotatingRoomSessionStats(maxRecovery);
       },
       reset() {
-        umMachine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
-        crossingMachine = sanitizeRotatingRoomCrossingMachineForTableIds(
-          defaultRotatingRoomCrossingMachineState(),
-          ids
-        );
-        fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
-          defaultRotatingRoomFibonacciMachineState(),
-          ids
-        );
-        umStats = emptyRotatingRoomSessionStats(maxRecovery);
-        crossingStats = emptyRotatingRoomSessionStats(crossingMaxRecovery);
-        fibonacciStats = emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
+        machine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
+        stats = emptyRotatingRoomSessionStats(maxRecovery);
         for (const id of ids) {
           histories[id] = [];
           delete lastGameIdByTable[id];
@@ -2951,14 +874,12 @@ var SinglestakeUmFator = (() => {
       }
     };
   }
-  var createUmFatorEngine = createRotativaEngine;
   var api = {
     ROTATING_ROOM_TABLE_IDS,
     UM_FATOR_MAX_RECOVERY,
     EXTENSION_MAX_GALES,
     BASE_STAKE,
     EXTENSION_PRE_BET_WAIT_SEC,
-    createRotativaEngine,
     createUmFatorEngine,
     clampExtensionMaxRecovery,
     doisFatoresFactorLabel

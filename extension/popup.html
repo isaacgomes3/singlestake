@@ -208,143 +208,33 @@
         background: #0b1220;
         color: #e2e8f0;
       }
-      .hero {
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-        margin: 10px 0 12px;
-        padding: 10px;
-        border-radius: 12px;
-        border: 1px solid #334155;
-        background: linear-gradient(135deg, #0b1220 0%, #111827 100%);
-      }
-      .hero-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-top: 4px;
-        background: #64748b;
-        flex-shrink: 0;
-      }
-      .hero-dot.on {
-        background: #22c55e;
-        box-shadow: 0 0 8px #22c55e88;
-      }
-      .hero-dot.off {
-        background: #ef4444;
-      }
-      .hero-title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #f1f5f9;
-        margin: 0 0 2px;
-      }
-      .hero-detail {
-        font-size: 10px;
-        color: #94a3b8;
-        margin: 0;
-        line-height: 1.45;
-      }
-      .section {
-        margin-top: 12px;
-        padding-top: 10px;
-        border-top: 1px solid #1e293b;
-      }
     </style>
   </head>
   <body>
-    <h1>STAKE37 · v1.6.4</h1>
-    <p class="sub">Sala rotativa · liga ao app e posiciona no lobby</p>
+    <h1>Singlestake · Pragmatic v1.4.7</h1>
+    <p class="sub">Um Fator · sala rotativa via app (iframe)</p>
 
-    <div class="hero">
-      <span id="connDot" class="hero-dot off" aria-hidden="true"></span>
-      <div>
-        <p id="connTitle" class="hero-title">Sala desligada</p>
-        <p id="connDetail" class="hero-detail">Ligue a sala para ir ao lobby poker. Com indicação, abre a roleta e aposta.</p>
-      </div>
+    <h2>Modo de execução</h2>
+    <div class="modes" style="margin-top:6px">
+      <button type="button" class="mode" id="modeDemo" data-mode="demo">
+        DEMO
+        <small>Só destaca — não aposta</small>
+      </button>
+      <button type="button" class="mode" id="modeReal" data-mode="real">
+        REAL
+        <small>Clica na mesa</small>
+      </button>
     </div>
-
-    <h2>Sala rotativa</h2>
-    <p id="bridgeStatus" class="muted" style="margin-top:0">
-      Ao ligar, o operador abre o lobby poker (como no iframe do app).
-    </p>
-    <div class="row">
-      <button type="button" id="bridgeOn" class="mode" style="flex:1">Ligar</button>
-      <button type="button" id="bridgeOff" class="mode" style="flex:1">Desligar</button>
-    </div>
-
-    <div class="section">
-      <h2>Modo de execução</h2>
-      <div class="modes" style="margin-top:6px">
-        <button type="button" class="mode" id="modeDemo" data-mode="demo">
-          DEMO
-          <small>Só destaca — não aposta</small>
-        </button>
-        <button type="button" class="mode" id="modeReal" data-mode="real">
-          REAL
-          <small>Clica na mesa</small>
-        </button>
-      </div>
-      <div>
-        Modo activo: <span id="modePill" class="pill demo">DEMO</span>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Gales</h2>
-      <p id="bridgePrefsStatus" class="muted" style="margin-top:0">Máximo de gales sincronizado com o app.</p>
-      <div class="field">
-        <label for="maxGales">Máximo de gales (0–6)</label>
-        <select id="maxGales">
-          <option value="0">0 gales (só entrada)</option>
-          <option value="1">1 gale</option>
-          <option value="2">2 gales</option>
-          <option value="3">3 gales</option>
-          <option value="4">4 gales</option>
-          <option value="5" selected>5 gales</option>
-          <option value="6">6 gales</option>
-        </select>
-      </div>
+    <div>
+      Modo activo: <span id="modePill" class="pill demo">DEMO</span>
     </div>
 
     <pre id="out">A carregar…</pre>
 
-    <div class="section">
-      <h2>Testar mesa (aba activa)</h2>
-      <p class="muted" style="margin-top:0;font-size:9px">
-        Abra a roleta no operador. Se só tiver poker aberto, a extensão abre roulette-macao automaticamente.
-      </p>
-      <div class="row">
-        <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
-        <button type="button" data-bet="even" data-label="Par">Par</button>
-        <button type="button" data-bet="red" data-label="Vermelho">Vermelho</button>
-        <button type="button" data-bet="black" data-label="Preto">Preto</button>
-      </div>
-      <div class="row">
-        <button type="button" data-bet="low" data-label="Baixo 1–18">Baixo 1–18</button>
-        <button type="button" data-bet="high" data-label="Alto 19–36">Alto 19–36</button>
-      </div>
-      <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">DÚZIAS (Fibonacci)</p>
-      <div class="row">
-        <button type="button" data-bet="doz:1" data-label="1.ª Dúzia">1.ª Dúzia</button>
-        <button type="button" data-bet="doz:2" data-label="2.ª Dúzia">2.ª Dúzia</button>
-        <button type="button" data-bet="doz:3" data-label="3.ª Dúzia">3.ª Dúzia</button>
-      </div>
-      <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">COLUNAS (Fibonacci)</p>
-      <div class="row">
-        <button type="button" data-bet="col:1" data-label="Coluna 1">Coluna 1</button>
-        <button type="button" data-bet="col:2" data-label="Coluna 2">Coluna 2</button>
-        <button type="button" data-bet="col:3" data-label="Coluna 3">Coluna 3</button>
-      </div>
-      <div class="row">
-        <button type="button" id="scan">Varredura completa</button>
-        <button type="button" id="refresh">Actualizar</button>
-      </div>
-    </div>
-
-    <details class="config-advanced">
-      <summary>Calibrar tapete e ficha</summary>
-    <p id="calStatus" class="muted" style="margin-top:6px">Par/Ímpar, dúzias e colunas — use 📍 para calibrar na mesa aberta.</p>
+    <h2>Calibrar tapete</h2>
+    <p id="calStatus" class="muted" style="margin-top:0">
+      Par/Ímpar, dúzias e colunas — use 📍 para calibrar na mesa aberta.
+    </p>
 
     <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">PARIDADE</p>
     <div class="row">
@@ -388,7 +278,33 @@
       Exporte após calibrar — guarda paridade, cor, altura, dúzias, colunas e gales.
     </p>
 
-    <h2 style="margin-top:12px">Cadastrar ficha</h2>
+    <h2>Sala rotativa</h2>
+    <p id="bridgeStatus" class="muted" style="margin-top:0">
+      Segue sinais do app (localhost). Desligue para ignorar entradas da sala.
+    </p>
+    <div class="row">
+      <button type="button" id="bridgeOn" class="mode" style="flex:1">Ligar</button>
+      <button type="button" id="bridgeOff" class="mode" style="flex:1">Desligar</button>
+    </div>
+
+    <h2>Gales</h2>
+    <p id="bridgePrefsStatus" class="muted" style="margin-top:0">
+      Máximo de gales sincronizado com a sala rotativa no app.
+    </p>
+    <div class="field">
+      <label for="maxGales">Máximo de gales (0–6)</label>
+      <select id="maxGales">
+        <option value="0">0 gales (só entrada)</option>
+        <option value="1">1 gale</option>
+        <option value="2">2 gales</option>
+        <option value="3">3 gales</option>
+        <option value="4">4 gales</option>
+        <option value="5" selected>5 gales</option>
+        <option value="6">6 gales</option>
+      </select>
+    </div>
+
+    <h2>Cadastrar ficha</h2>
     <p id="chipStatus" class="muted" style="margin-top:0">
       Por defeito a ficha <strong>não</strong> é clicada (já vem seleccionada na mesa). Gale repete cliques no tapete.
     </p>
@@ -399,17 +315,44 @@
     <div class="row" style="align-items:center">
       <label for="chipValue" style="font-size:10px;color:#94a3b8">Valor:</label>
       <select id="chipValue" style="flex:1;font-size:10px;padding:4px;border-radius:6px;border:1px solid #334155;background:#111827;color:#e2e8f0">
-        <option value="0.5">R$ 0,50</option>
+        <option value="0.5" selected>R$ 0,50</option>
         <option value="1">R$ 1</option>
         <option value="2">R$ 2</option>
         <option value="5">R$ 5</option>
-        <option value="50" selected>R$ 50</option>
+        <option value="50">R$ 50</option>
       </select>
       <button type="button" id="calChip">📍 Gravar ficha</button>
     </div>
 
+    <h2>Testar mesa (aba activa)</h2>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Vermelho</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="low" data-label="Baixo 1–18">Baixo 1–18</button>
+      <button type="button" data-bet="high" data-label="Alto 19–36">Alto 19–36</button>
+    </div>
+    <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">DÚZIAS / COLUNAS</p>
+    <div class="row">
+      <button type="button" data-bet="doz:1" data-label="1.ª Dúzia">1.ª Dúzia</button>
+      <button type="button" data-bet="doz:2" data-label="2.ª Dúzia">2.ª Dúzia</button>
+      <button type="button" data-bet="doz:3" data-label="3.ª Dúzia">3.ª Dúzia</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="col:1" data-label="Coluna 1">Col. 1</button>
+      <button type="button" data-bet="col:2" data-label="Coluna 2">Col. 2</button>
+      <button type="button" data-bet="col:3" data-label="Coluna 3">Col. 3</button>
+    </div>
+    <div class="row">
+      <button type="button" id="scan">Varredura 6 apostas</button>
+      <button type="button" id="refresh">Actualizar</button>
+    </div>
+
     <details class="config-advanced">
-      <summary>Testar mesa e autopilot DGA</summary>
+      <summary>Autopilot DGA (directo, sem app)</summary>
       <p id="autopilotStatus" class="muted" style="margin-top:6px">
         Capta giros na DGA e aposta sem localhost. Desactivado por defeito.
       </p>
@@ -456,25 +399,18 @@
           placeholder="wss://dga.pragmaticplaylive.net/ws"
         />
       </div>
-      <div class="field">
-        <label for="dgaSyncSecret">Sync servidor (segredo)</label>
-        <input
-          id="dgaSyncSecret"
-          type="password"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="mesmo valor que EXTENSION_SYNC_SECRET na VPS"
-        />
-      </div>
       <div class="row" style="margin-top:8px">
         <button type="button" id="dgaSave">💾 Guardar</button>
         <button type="button" id="dgaReset">↺ Repor defeitos</button>
       </div>
     </details>
-    </details>
+
+    <h2>Backup .prime</h2>
+    <input type="file" id="primeFile" accept=".prime" style="font-size:10px;width:100%" />
+    <p id="primeStatus" class="muted" style="margin-top:4px">Importar backup do painel (EXPORTAR CONFIG)</p>
 
     <p class="muted" id="hint">
-      <strong>Fluxo:</strong> Ligar → lobby poker · Indicação no app → abre roleta e aposta (REAL). Mantenha stake37.com.br aberto com extensão «Ligada».
+      <strong>REAL</strong> usa CDP (barra «A depurar» no topo — normal). Gale = vários cliques no mesmo tapete com a mesma sessão CDP. Não cancele a barra durante a aposta.
     </p>
     <script src="popup.js"></script>
   </body>

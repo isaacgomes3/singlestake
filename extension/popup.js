@@ -1,7 +1,5 @@
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_BRIDGE_PREFS = "gogBridgePrefs";
-const STORAGE_MODE = "gogExecutionMode";
-const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 
 const DGA_CONFIG_DEFAULTS = {
   wsUrl: "wss://dga.pragmaticplaylive.net/ws",
@@ -11,7 +9,6 @@ const DGA_CONFIG_DEFAULTS = {
   mesaEmbedUrl: "",
   preBetWaitSec: 11,
   maxRecovery: 5,
-  syncSecret: "",
 };
 
 const dgaCasinoId = document.getElementById("dgaCasinoId");
@@ -20,15 +17,11 @@ const dgaTableIds = document.getElementById("dgaTableIds");
 const dgaMesaUrl = document.getElementById("dgaMesaUrl");
 const dgaWsUrl = document.getElementById("dgaWsUrl");
 const dgaPreBetWait = document.getElementById("dgaPreBetWait");
-const dgaSyncSecret = document.getElementById("dgaSyncSecret");
 const maxGales = document.getElementById("maxGales");
 const bridgePrefsStatus = document.getElementById("bridgePrefsStatus");
 const bridgeStatus = document.getElementById("bridgeStatus");
 const bridgeOnBtn = document.getElementById("bridgeOn");
 const bridgeOffBtn = document.getElementById("bridgeOff");
-const connDot = document.getElementById("connDot");
-const connTitle = document.getElementById("connTitle");
-const connDetail = document.getElementById("connDetail");
 const dgaConfigStatus = document.getElementById("dgaConfigStatus");
 const dgaSaveBtn = document.getElementById("dgaSave");
 const dgaResetBtn = document.getElementById("dgaReset");
@@ -67,7 +60,6 @@ function mergeDgaConfig(stored) {
         ? stored.preBetWaitSec
         : base.preBetWaitSec,
     maxRecovery: clampMaxGales(stored.maxRecovery ?? base.maxRecovery),
-    syncSecret: typeof stored.syncSecret === "string" ? stored.syncSecret.trim() : "",
   };
 }
 
@@ -87,9 +79,6 @@ function fillDgaConfigForm(config) {
   if (dgaWsUrl instanceof HTMLInputElement) dgaWsUrl.value = config.wsUrl;
   if (dgaPreBetWait instanceof HTMLInputElement) {
     dgaPreBetWait.value = String(config.preBetWaitSec ?? 11);
-  }
-  if (dgaSyncSecret instanceof HTMLInputElement) {
-    dgaSyncSecret.value = config.syncSecret ?? "";
   }
 }
 
@@ -115,9 +104,6 @@ function readDgaConfigForm() {
     wsUrl:
       (dgaWsUrl instanceof HTMLInputElement ? dgaWsUrl.value : "").trim() ||
       DGA_CONFIG_DEFAULTS.wsUrl,
-    syncSecret:
-      (dgaSyncSecret instanceof HTMLInputElement ? dgaSyncSecret.value : "").trim() ||
-      DGA_CONFIG_DEFAULTS.syncSecret,
   };
 }
 
@@ -156,13 +142,6 @@ function resetDgaConfigForm() {
 loadDgaConfigForm();
 loadBridgePrefsForm();
 
-/** Estado «Ligar» e modo Demo/Real logo ao abrir o popup. */
-chrome.storage.local.get([STORAGE_BRIDGE_ENABLED, STORAGE_MODE], (data) => {
-  if (chrome.runtime.lastError) return;
-  setBridgeUi(data[STORAGE_BRIDGE_ENABLED] !== false);
-  setModeUi(data[STORAGE_MODE] === "real" ? "real" : "demo");
-});
-
 dgaSaveBtn?.addEventListener("click", saveDgaConfigForm);
 dgaResetBtn?.addEventListener("click", resetDgaConfigForm);
 
@@ -198,15 +177,6 @@ const BET_GROUP_LABELS = {
 
 const BET_GROUP_ORDER = ["paridade", "cor", "altura", "duzias", "colunas"];
 
-function calibrationGroupForKey(key) {
-  if (key === "odd" || key === "even") return "paridade";
-  if (key === "red" || key === "black") return "cor";
-  if (key === "low" || key === "high") return "altura";
-  if (key.startsWith("doz:")) return "duzias";
-  if (key.startsWith("col:")) return "colunas";
-  return "other";
-}
-
 function groupCalibrationBets(bets) {
   const grouped = {
     paridade: [],
@@ -217,7 +187,19 @@ function groupCalibrationBets(bets) {
     other: [],
   };
   for (const [key, info] of Object.entries(bets ?? {})) {
-    const group = info?.group ?? calibrationGroupForKey(key);
+    const group =
+      info?.group ??
+      (key === "odd" || key === "even"
+        ? "paridade"
+        : key === "red" || key === "black"
+          ? "cor"
+          : key === "low" || key === "high"
+            ? "altura"
+            : key.startsWith("doz:")
+              ? "duzias"
+              : key.startsWith("col:")
+                ? "colunas"
+                : "other");
     if (grouped[group]) grouped[group].push({ key, info });
     else grouped.other.push({ key, info });
   }
@@ -257,22 +239,10 @@ function setBridgeUi(enabled) {
   const on = enabled !== false;
   bridgeOnBtn?.classList.toggle("active-real", on);
   bridgeOffBtn?.classList.toggle("active-demo", !on);
-  if (connDot) {
-    connDot.classList.toggle("on", on);
-    connDot.classList.toggle("off", !on);
-  }
-  if (connTitle) {
-    connTitle.textContent = on ? "Sala ligada" : "Sala desligada";
-  }
-  if (connDetail) {
-    connDetail.textContent = on
-      ? "Posicionado no lobby. Aguarda indicações do back-office."
-      : "Ligue para abrir o lobby poker no operador.";
-  }
   if (bridgeStatus) {
     bridgeStatus.textContent = on
-      ? "Ligada — ao activar vai ao lobby; com sinal abre a mesa."
-      : "Desligada — não segue indicações do app.";
+      ? "Ligada — segue sinais da sala rotativa no app."
+      : "Desligada — ignora entradas da sala. Use «Ligar» para voltar a apostar.";
   }
 }
 
@@ -426,74 +396,10 @@ function renderStatus(status) {
   }
 }
 
-function loadStatusFromStorage(extraLines = []) {
-  chrome.storage.local.get(
-    [
-      STORAGE_MODE,
-      STORAGE_BRIDGE_ENABLED,
-      "gogLastBridge",
-      "gogLastContext",
-      "gogLastResults",
-      "gogLastTest",
-      "gogBetCalibration",
-      "gogCalibrationArmed",
-      "gogClickChipBeforeBet",
-      STORAGE_BRIDGE_PREFS,
-      "gogAutopilotStatus",
-      "gogAutopilotEnabled",
-    ],
-    (data) => {
-      if (chrome.runtime.lastError && out) {
-        out.textContent = chrome.runtime.lastError.message;
-        return;
-      }
-      const mode = data[STORAGE_MODE] === "real" ? "real" : "demo";
-      renderStatus({
-        mode,
-        bridgeEnabled: data[STORAGE_BRIDGE_ENABLED] !== false,
-        bridgePrefs: data[STORAGE_BRIDGE_PREFS] ?? {},
-        lastBridge: data.gogLastBridge ?? null,
-        lastContext: data.gogLastContext ?? null,
-        lastResults: data.gogLastResults ?? null,
-        lastTest: data.gogLastTest ?? null,
-        calibration: null,
-        calibrationArmed: data.gogCalibrationArmed ?? null,
-        clickChipBeforeBet: data.gogClickChipBeforeBet === true,
-        autopilot: {
-          enabled: data.gogAutopilotEnabled === true,
-          status: data.gogAutopilotStatus ?? { running: false },
-        },
-      });
-      if (extraLines.length && out) {
-        out.textContent = `${extraLines.join("\n")}\n\n${out.textContent}`;
-      }
-    },
-  );
-}
-
 function loadStatus() {
-  let settled = false;
-  const timer = window.setTimeout(() => {
-    if (settled) return;
-    settled = true;
-    loadStatusFromStorage([
-      "⚠ Service worker sem resposta (timeout)",
-      "Modo e «Ligar» usam armazenamento local — os botões devem responder.",
-      "Recarregue a extensão em chrome://extensions se o estado não actualizar.",
-    ]);
-  }, 3500);
-
   chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
-    if (settled) return;
-    settled = true;
-    window.clearTimeout(timer);
-    if (chrome.runtime.lastError || !status?.ok) {
-      const err = chrome.runtime.lastError?.message ?? "Service worker sem resposta";
-      loadStatusFromStorage([
-        `⚠ ${err}`,
-        "Modo e «Ligar» funcionam via armazenamento local.",
-        "Se persistir: chrome://extensions → Recarregar → feche e reabra este popup.",
-      ]);
+    if (chrome.runtime.lastError) {
+      out.textContent = chrome.runtime.lastError.message;
       return;
     }
     renderStatus(status);
@@ -510,87 +416,8 @@ function loadStatus() {
   });
 }
 
-function applyModeToStorage(mode, done) {
-  const isReal = mode === "real";
-  chrome.storage.local.set(
-    {
-      [STORAGE_MODE]: isReal ? "real" : "demo",
-      gogExteriorDryRun: !isReal,
-      gogPragmaticDryRun: !isReal,
-    },
-    () => {
-      if (chrome.runtime.lastError) {
-        if (out) out.textContent = chrome.runtime.lastError.message;
-        return;
-      }
-      setModeUi(mode);
-      done?.();
-    },
-  );
-}
-
 function setMode(mode) {
-  applyModeToStorage(mode, () => {
-    chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
-  });
-}
-
-function sendExtensionMessage(payload, onDone) {
-  chrome.runtime.sendMessage(payload, (response) => {
-    if (chrome.runtime.lastError) {
-      const err = chrome.runtime.lastError.message || "Service worker sem resposta";
-      if (out) {
-        out.textContent = `⚠ ${err}\n\nRecarregue a extensão em chrome://extensions e feche/reabra este popup.`;
-      }
-      onDone?.(null, err);
-      return;
-    }
-    onDone?.(response, null);
-  });
-}
-
-function readPopupMode(cb) {
-  chrome.storage.local.get([STORAGE_MODE], (data) => {
-    if (chrome.runtime.lastError) {
-      cb("demo");
-      return;
-    }
-    cb(data[STORAGE_MODE] === "real" ? "real" : "demo");
-  });
-}
-
-function runTestBet(betKey, label) {
-  readPopupMode((mode) => {
-    if (out) out.textContent = `A testar ${label} (${mode === "real" ? "REAL" : "DEMO"})…`;
-    sendExtensionMessage({ kind: "test-bet", betKey, label, mode }, (resp, err) => {
-      if (err) return;
-      if (resp && out) {
-        const prefix = resp.ok ? "✓" : "⚠";
-        out.textContent = `${prefix} Teste ${label} (${resp.mode ?? mode}): ${resp.detail ?? "concluído"}`;
-      }
-      loadStatus();
-    });
-  });
-}
-
-function setBridgeEnabled(enabled) {
-  chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled === true }, () => {
-    if (chrome.runtime.lastError) {
-      if (out) out.textContent = chrome.runtime.lastError.message;
-      return;
-    }
-    setBridgeUi(enabled);
-    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: enabled === true }, (resp) => {
-      if (chrome.runtime.lastError) {
-        if (out) out.textContent = chrome.runtime.lastError.message;
-        return;
-      }
-      if (enabled && resp?.navigated === false && resp?.detail && out) {
-        out.textContent = `⚠ Ligação activa mas navegação falhou: ${resp.detail}`;
-      }
-      loadStatus();
-    });
-  });
+  chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
 }
 
 modeDemoBtn?.addEventListener("click", () => setMode("demo"));
@@ -607,9 +434,13 @@ autopilotOffBtn?.addEventListener("click", () => {
   chrome.runtime.sendMessage({ kind: "set-autopilot", enabled: false }, () => loadStatus());
 });
 
-bridgeOnBtn?.addEventListener("click", () => setBridgeEnabled(true));
+bridgeOnBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: true }, () => loadStatus());
+});
 
-bridgeOffBtn?.addEventListener("click", () => setBridgeEnabled(false));
+bridgeOffBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: false }, () => loadStatus());
+});
 
 maxGales?.addEventListener("change", () => {
   if (!(maxGales instanceof HTMLSelectElement)) return;
@@ -621,11 +452,8 @@ maxGales?.addEventListener("change", () => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes[STORAGE_MODE]) {
-    setModeUi(changes[STORAGE_MODE].newValue === "real" ? "real" : "demo");
-  }
-  if (changes[STORAGE_BRIDGE_ENABLED]) {
-    setBridgeUi(changes[STORAGE_BRIDGE_ENABLED].newValue !== false);
+  if (changes.gogBridgeEnabled) {
+    setBridgeUi(changes.gogBridgeEnabled.newValue !== false);
   }
   if (changes[STORAGE_BRIDGE_PREFS]) {
     renderBridgePrefs(changes[STORAGE_BRIDGE_PREFS].newValue);
@@ -639,13 +467,12 @@ document.querySelectorAll("button[data-bet]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const betKey = btn.getAttribute("data-bet");
     const label = btn.getAttribute("data-label") ?? betKey;
-    runTestBet(betKey, label);
+    chrome.runtime.sendMessage({ kind: "test-bet", betKey, label }, () => loadStatus());
   });
 });
 
 document.getElementById("scan")?.addEventListener("click", () => {
-  if (out) out.textContent = "Varredura em curso…";
-  sendExtensionMessage({ kind: "scan-bets" }, () => loadStatus());
+  chrome.runtime.sendMessage({ kind: "scan-bets" }, () => loadStatus());
 });
 
 document.getElementById("refresh")?.addEventListener("click", loadStatus);
@@ -660,7 +487,6 @@ document.querySelectorAll("button.cal").forEach((btn) => {
     chrome.runtime.sendMessage({ kind: "arm-calibration", betKey, label }, (resp) => {
       if (chrome.runtime.lastError) {
         if (calStatus) calStatus.textContent = chrome.runtime.lastError.message;
-        if (out) out.textContent = chrome.runtime.lastError.message;
         return;
       }
       if (calStatus) {
@@ -675,7 +501,7 @@ document.querySelectorAll("button.cal").forEach((btn) => {
 
 document.getElementById("calChip")?.addEventListener("click", () => {
   const select = document.getElementById("chipValue");
-  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 50 : 50;
+  const chipValue = select instanceof HTMLSelectElement ? Number(select.value) || 0.5 : 0.5;
   const label = `Ficha R$ ${chipValue}`;
   if (chipStatus) chipStatus.textContent = `A activar overlay na mesa: ${label}…`;
   chrome.runtime.sendMessage({ kind: "arm-calibration", betKey: "chip", label, chipValue }, (resp) => {
@@ -783,5 +609,4 @@ document.getElementById("primeFile")?.addEventListener("change", (ev) => {
   reader.readAsText(file);
 });
 
-loadStatusFromStorage();
 loadStatus();
