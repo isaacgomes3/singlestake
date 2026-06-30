@@ -27,7 +27,7 @@ echo "→ sincronizar chaves .env em falta"
 bash deploy/sync-env-keys.sh
 
 echo "→ npm ci"
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
 if ! npm ci 2>/dev/null; then
   echo "→ lock desactualizado — npm install"
   npm install

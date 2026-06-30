@@ -22,7 +22,7 @@ if [[ ! -f package.json ]]; then
 fi
 
 echo "→ npm ci / build (pode demorar 2–5 min)"
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
 npm ci 2>/dev/null || npm install
 rebuild_native_modules
 pm2 delete singlestake 2>/dev/null || true
