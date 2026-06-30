@@ -22,6 +22,7 @@ import {
   reclassifyOneFinalLossAsWin,
 } from "@/lib/roulette/entryWinBreakdown";
 import { isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
+import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export {
   ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
@@ -120,7 +121,14 @@ export function buildRotatingRoomFibonacciSessionLiveView(
   histories: Record<number, readonly number[]>,
   machine: RotatingRoomFibonacciMachineState,
 ) {
-  return buildRotatingRoomFibonacciLiveView(tableIds, histories, machine);
+  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  return buildRotatingRoomFibonacciLiveView(
+    tableIds,
+    histories,
+    machine,
+    absenceSpins,
+    absenceSpins,
+  );
 }
 
 export function tickRotatingRoomFibonacciSessionPlacar(
@@ -134,11 +142,15 @@ export function tickRotatingRoomFibonacciSessionPlacar(
   statsChanged: boolean;
   flash: RotatingRoomFibonacciPlacarFlash;
 } {
+  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
   return tickRotatingRoomFibonacciPlacar(
     tableIds,
     histories,
     machine,
     stats,
     ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+    true,
+    absenceSpins,
+    absenceSpins,
   );
 }

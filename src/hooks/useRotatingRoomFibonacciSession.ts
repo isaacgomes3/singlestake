@@ -42,6 +42,10 @@ import {
   isStrategyGlobalEnabled,
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
+import {
+  FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT,
+  readEffectiveFibonacciAbsenceSpins,
+} from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export type RotatingRoomFibonacciRoundFlash = {
   resultNumber: number;
@@ -185,9 +189,22 @@ export function useRotatingRoomFibonacciSession(
     [tableIds, histories],
   );
 
+  const [absenceSpinsEpoch, setAbsenceSpinsEpoch] = useState(0);
+
+  useEffect(() => {
+    const onAbsenceChanged = () => setAbsenceSpinsEpoch((n) => n + 1);
+    window.addEventListener(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT, onAbsenceChanged);
+    return () => window.removeEventListener(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT, onAbsenceChanged);
+  }, []);
+
+  const effectiveAbsenceSpins = useMemo(
+    () => readEffectiveFibonacciAbsenceSpins(),
+    [absenceSpinsEpoch],
+  );
+
   const liveView = useMemo(
     () => buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine),
-    [tableIds, histories, machine],
+    [tableIds, histories, machine, effectiveAbsenceSpins],
   );
 
   const activeFibonacci =
@@ -246,7 +263,7 @@ export function useRotatingRoomFibonacciSession(
 
     applyMachine(placar.nextMachine);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, observeOnly, useGlobalSession, tableIds.join(","), historiesFingerprint, visibilityEpoch]);
+  }, [enabled, observeOnly, useGlobalSession, tableIds.join(","), historiesFingerprint, visibilityEpoch, effectiveAbsenceSpins]);
 
   useEffect(() => {
     if (!useGlobalSession) return;
@@ -303,7 +320,7 @@ export function useRotatingRoomFibonacciSession(
           ),
         }
       : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalFibonacciPrepare(tableIds, histories)
+        ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, effectiveAbsenceSpins)
         : null;
   const sessionMode: RotatingRoomSessionMode = showTapeteSignal
     ? "active"

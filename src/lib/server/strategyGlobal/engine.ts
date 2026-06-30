@@ -1,5 +1,6 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
 import { getAutomationConfig } from "@/lib/server/automationSim/config";
+import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
@@ -242,6 +243,7 @@ function driveFibonacci(
   const fibonacciTriggerOn = config.enabledTriggers.fibonacci !== false;
   const allowNewArming =
     fibonacciTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
   const result = drainPlacarSteps(
     state.fibonacci.machine,
     state.fibonacci.stats,
@@ -253,6 +255,8 @@ function driveFibonacci(
         stats,
         ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
         allowNewArming,
+        absenceSpins,
+        absenceSpins,
       ),
     fibonacciMachinePlacarStepProgressed,
   );
@@ -373,6 +377,7 @@ function buildFibonacciClientView(
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
   const alertPick = liveView.globalPick;
+  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
   const prepareTableId =
     machine.prepareTableId != null && allowed.has(machine.prepareTableId)
       ? machine.prepareTableId
@@ -388,7 +393,7 @@ function buildFibonacciClientView(
           ),
         }
       : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalFibonacciPrepare(tableIds, histories)
+        ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, absenceSpins)
         : null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   return {

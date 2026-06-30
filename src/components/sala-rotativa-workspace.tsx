@@ -9,6 +9,7 @@ import { CasinoGameEmbedFrame } from "@/components/casino-game-embed-frame";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import { useFibonacciGatilhoEnabled } from "@/hooks/useFibonacciGatilhoEnabled";
+import { useFibonacciAbsenceSpins } from "@/hooks/useFibonacciAbsenceSpins";
 import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
@@ -17,6 +18,10 @@ import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 
 const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import {
+  FIBONACCI_ABSENCE_SPINS_MAX,
+  FIBONACCI_ABSENCE_SPINS_MIN,
+} from "@/lib/roulette/fibonacciAbsencePrefs";
 import { rotatingRoomLobbyFocusTableId, isRotatingRoomLobbyWait, ROTATING_ROOM_LOBBY_WAIT_EMBED_URL } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   rotatingRoomCasinoMesaSearch,
@@ -62,6 +67,22 @@ export function SalaRotativaWorkspace({
   const isMobile = useIsMobile();
   const isFibonacciSession = "fibonacciMode" in session && session.fibonacciMode === true;
   const { enabled: fibonacciGatilhoOn, toggle: toggleFibonacciGatilho } = useFibonacciGatilhoEnabled();
+  const { absenceSpins: fibonacciAbsenceSpins, setAbsenceSpins: setFibonacciAbsenceSpins } =
+    useFibonacciAbsenceSpins();
+  const [absenceDraft, setAbsenceDraft] = useState(() => String(fibonacciAbsenceSpins));
+  useEffect(() => {
+    setAbsenceDraft(String(fibonacciAbsenceSpins));
+  }, [fibonacciAbsenceSpins]);
+
+  const commitFibonacciAbsenceDraft = useCallback(() => {
+    const parsed = Number(absenceDraft);
+    if (!Number.isFinite(parsed)) {
+      setAbsenceDraft(String(fibonacciAbsenceSpins));
+      return;
+    }
+    setFibonacciAbsenceSpins(parsed);
+  }, [absenceDraft, fibonacciAbsenceSpins, setFibonacciAbsenceSpins]);
+
   const [signalOnlyPref, setSignalOnlyPref] = useState<boolean | null>(() =>
     readRotatingRoomSignalOnlyMode(),
   );
@@ -235,18 +256,40 @@ export function SalaRotativaWorkspace({
             {signalOnlyMode ? "Modo sinal" : "Modo completo"}
           </button>
           {isFibonacciSession ? (
-            <button
-              type="button"
-              onClick={toggleFibonacciGatilho}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
-                fibonacciGatilhoOn
-                  ? "border-violet-500/60 bg-violet-500/15 text-violet-100"
-                  : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
-              )}
-            >
-              {fibonacciGatilhoOn ? "Gatilho Fibonacci ON" : "Gatilho Fibonacci OFF"}
-            </button>
+            <>
+              <label className="inline-flex items-center gap-1.5 rounded-lg border border-border-color px-2 py-1 text-xs font-semibold text-text-secondary">
+                <span className="whitespace-nowrap">Giros ausentes</span>
+                <input
+                  type="number"
+                  min={FIBONACCI_ABSENCE_SPINS_MIN}
+                  max={FIBONACCI_ABSENCE_SPINS_MAX}
+                  value={absenceDraft}
+                  onChange={(e) => setAbsenceDraft(e.target.value)}
+                  onBlur={commitFibonacciAbsenceDraft}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitFibonacciAbsenceDraft();
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="w-12 rounded border border-border-color bg-bg-card px-1 py-0.5 text-center text-xs font-semibold tabular-nums text-text-primary"
+                  aria-label="Giros de ausência Fibonacci"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={toggleFibonacciGatilho}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
+                  fibonacciGatilhoOn
+                    ? "border-violet-500/60 bg-violet-500/15 text-violet-100"
+                    : "border-border-color text-text-secondary hover:bg-bg-card-hover hover:text-text-primary",
+                )}
+              >
+                {fibonacciGatilhoOn ? "Gatilho Fibonacci ON" : "Gatilho Fibonacci OFF"}
+              </button>
+            </>
           ) : null}
           {!signalOnlyMode ? (
             <button
