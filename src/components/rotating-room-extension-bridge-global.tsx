@@ -112,9 +112,12 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     globalAutomation.balance,
   ]);
 
+  const activeBet = openBet ?? pendingSignal;
+  const fibonacciBridgeOnly = activeBet?.strategy === "fibonacci";
+
   useRotatingRoomClickBotLearning({
     session,
-    enabled: bridgeActive,
+    enabled: bridgeActive && !fibonacciBridgeOnly,
     mode: "extension",
     mesaEmbedUrl,
     automationBalance: globalAutomation.balance,

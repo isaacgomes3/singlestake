@@ -115,7 +115,7 @@ export function alignRotatingRoomSessionWithAutomationBet<
     | {
         tableId: number;
         recovery: number;
-        strategy?: "um1fator" | "dois2fatores";
+        strategy?: "um1fator" | "dois2fatores" | "fibonacci";
         signalId?: string;
         alertLabel?: string;
         umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
@@ -125,6 +125,19 @@ export function alignRotatingRoomSessionWithAutomationBet<
     | undefined,
 ): T {
   if (!bet?.tableId) return session;
+
+  if (bet.strategy === "fibonacci") {
+    return {
+      ...session,
+      currentTableId: bet.tableId,
+      showTapeteSignal: true,
+      prepareTableId: null,
+      currentRecovery: bet.recovery,
+      activeCrossing: null,
+      sessionMode: "active",
+      rotativaTrigger: "fibonacci",
+    };
+  }
 
   const betCrossing = activeCrossingFromAutomationBet(bet);
   const sameActiveBet =
