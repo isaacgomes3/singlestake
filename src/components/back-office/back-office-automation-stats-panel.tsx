@@ -7,6 +7,7 @@ import {
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
+import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
 import { isAdminUser } from "@/lib/back-office/admin-access";
 import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
@@ -25,6 +26,14 @@ function accuracyTone(pct: number | null): string {
   if (pct >= 55) return "text-success";
   if (pct >= 45) return "text-text-primary";
   return "text-danger";
+}
+
+function automationTriggerToggleId(
+  rowId: UmFatorTriggerTierReportRow["id"],
+): "three" | "crossing" | null {
+  if (rowId === "three") return "three";
+  if (rowId === "crossing-primary") return "crossing";
+  return null;
 }
 
 function triggerLabel(
@@ -180,14 +189,20 @@ export function BackOfficeAutomationStatsPanel() {
                       {formatAccuracy(row.accuracyPct)}
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <Switch
-                        checked={row.enabled}
-                        disabled={togglingId === row.id}
-                        aria-label={triggerLabel(messages, row.labelKey)}
-                        onCheckedChange={(checked) =>
-                          void handleToggleTrigger(row.id as "three" | "crossing", checked)
-                        }
-                      />
+                      {row.toggleable ? (
+                        <Switch
+                          checked={row.enabled}
+                          disabled={togglingId === automationTriggerToggleId(row.id)}
+                          aria-label={triggerLabel(messages, row.labelKey)}
+                          onCheckedChange={(checked) => {
+                            const toggleId = automationTriggerToggleId(row.id);
+                            if (toggleId == null) return;
+                            void handleToggleTrigger(toggleId, checked);
+                          }}
+                        />
+                      ) : (
+                        <span className="text-[11px] text-text-secondary">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

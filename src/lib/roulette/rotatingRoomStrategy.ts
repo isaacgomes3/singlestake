@@ -59,6 +59,8 @@ export type RotatingRoomSessionStats = {
   lossesAtRecovery?: number[];
   /** 1 Fator — acerto por coincidência dos dois giros de gatilho (2 vs 3 factores iguais). */
   umFatorMatchTier?: UmFatorMatchTierStats;
+  /** 2 Fatores — acerto por padrão primário / secundário / terciário. */
+  crossingPatternKind?: CrossingPatternKindStats;
 };
 
 export type UmFatorMatchTierBucket = {
@@ -69,6 +71,13 @@ export type UmFatorMatchTierBucket = {
 export type UmFatorMatchTierStats = {
   twoEqualFactors: UmFatorMatchTierBucket;
   threeEqualFactors: UmFatorMatchTierBucket;
+};
+
+/** 2 Fatores — acerto por tipo de padrão de cruzamento. */
+export type CrossingPatternKindStats = {
+  primary: UmFatorMatchTierBucket;
+  secondary: UmFatorMatchTierBucket;
+  tertiary: UmFatorMatchTierBucket;
 };
 
 /** Metade alvo Ruas 9% por mesa (quadro da sala rotativa). */

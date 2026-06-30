@@ -37,6 +37,8 @@ import {
   recordRotatingRoomSessionWin,
   recordRotatingRoomSessionPartialLoss,
   recordRotatingRoomSessionFinalLoss,
+  recordCrossingPatternKindWin,
+  recordCrossingPatternKindLoss,
 } from "@/lib/roulette/entryWinBreakdown";
 
 function spinHeadFromHistory(history: readonly number[]): string {
@@ -180,6 +182,9 @@ export type RotatingRoomCrossingMachineState = {
   /** Cruzamento alvo do ciclo activo. */
   cycleMetricCategory: string | null;
 
+  /** Padrão de gatilho do ciclo activo (primário / secundário / terciário). */
+  cyclePatternKind: CrossingPatternKind | null;
+
   /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
   prepareSpinsWithoutPattern: number;
 
@@ -258,6 +263,8 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
     pendingQueueEntry: null,
 
     cycleMetricCategory: null,
+
+    cyclePatternKind: null,
 
     prepareSpinsWithoutPattern: 0,
 
@@ -626,6 +633,8 @@ function armCycleFromActive(
 
     cycleMetricCategory: pick.absentCategory,
 
+    cyclePatternKind: pick.patternKind,
+
   };
 
 }
@@ -640,6 +649,7 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     cycleFingerprint: null,
     cycleActive: null,
     cycleMetricCategory: null,
+    cyclePatternKind: null,
     cycleSpinsWithoutWin: 0,
     armedAtHead: null,
     lastEvaluatedHead: null,
@@ -1285,6 +1295,7 @@ export function tickRotatingRoomCrossingPlacar(
 
   /** Indicação vigente neste giro — avaliar antes de actualizar com o último número. */
   const activeForRound = nextMachine.cycleActive;
+  const patternKindForRound = nextMachine.cyclePatternKind;
 
   nextMachine = { ...nextMachine, lastEvaluatedHead: head };
 
@@ -1295,6 +1306,10 @@ export function tickRotatingRoomCrossingPlacar(
   if (outcome === "W") {
 
     nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
+    if (patternKindForRound != null) {
+      nextStats = recordCrossingPatternKindWin(nextStats, patternKindForRound);
+      statsChanged = true;
+    }
 
     statsChanged = true;
 
@@ -1321,6 +1336,11 @@ export function tickRotatingRoomCrossingPlacar(
     const recoveryBefore = nextMachine.recovery;
     const recovery = recoveryBefore + 1;
     const canRotateTables = tableIds.length > 1;
+
+    if (patternKindForRound != null) {
+      nextStats = recordCrossingPatternKindLoss(nextStats, patternKindForRound);
+      statsChanged = true;
+    }
 
     if (recovery > maxRecovery) {
 

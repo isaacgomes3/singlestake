@@ -1,4 +1,9 @@
-import type { RotatingRoomSessionStats, UmFatorMatchTierStats } from "@/lib/roulette/rotatingRoomStrategy";
+import type {
+  CrossingPatternKindStats,
+  RotatingRoomSessionStats,
+  UmFatorMatchTierStats,
+} from "@/lib/roulette/rotatingRoomStrategy";
+import type { CrossingPatternKind } from "@/lib/roulette/doisFatoresPatternCrossing";
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 
 export type EntryWinBreakdown = {
@@ -10,6 +15,34 @@ export type EntryWinBreakdown = {
 
 export function emptyRecoveryLevelCounts(maxRecovery: number): number[] {
   return Array.from({ length: maxRecovery + 1 }, () => 0);
+}
+
+export function emptyCrossingPatternKindStats(): CrossingPatternKindStats {
+  return {
+    primary: { wins: 0, losses: 0 },
+    secondary: { wins: 0, losses: 0 },
+    tertiary: { wins: 0, losses: 0 },
+  };
+}
+
+export function parseCrossingPatternKindStats(raw: unknown): CrossingPatternKindStats {
+  const o = (raw ?? {}) as {
+    primary?: unknown;
+    secondary?: unknown;
+    tertiary?: unknown;
+  };
+  return {
+    primary: parseUmFatorMatchTierBucket(o.primary),
+    secondary: parseUmFatorMatchTierBucket(o.secondary),
+    tertiary: parseUmFatorMatchTierBucket(o.tertiary),
+  };
+}
+
+export function normalizeCrossingPatternKindStats(
+  stats: CrossingPatternKindStats | undefined,
+): CrossingPatternKindStats {
+  if (!stats) return emptyCrossingPatternKindStats();
+  return parseCrossingPatternKindStats(stats);
 }
 
 export function emptyUmFatorMatchTierStats(): UmFatorMatchTierStats {
@@ -62,6 +95,7 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     winsAtRecovery?: unknown;
     lossesAtRecovery?: unknown;
     umFatorMatchTier?: unknown;
+    crossingPatternKind?: unknown;
   };
   const base = {
     wins: Number(o.wins) || 0,
@@ -69,10 +103,17 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
     lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery),
   };
-  if (o.umFatorMatchTier != null) {
-    return { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) };
+  const withUm =
+    o.umFatorMatchTier != null
+      ? { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) }
+      : base;
+  if (o.crossingPatternKind != null) {
+    return {
+      ...withUm,
+      crossingPatternKind: parseCrossingPatternKindStats(o.crossingPatternKind),
+    };
   }
-  return base;
+  return withUm;
 }
 
 export function emptyRotatingRoomSessionStats(maxRecovery = 5): RotatingRoomSessionStats {
@@ -196,6 +237,48 @@ export function recordUmFatorMatchTierLoss(
       [key]: {
         wins: umFatorMatchTier[key].wins,
         losses: umFatorMatchTier[key].losses + 1,
+      },
+    },
+  };
+}
+
+function crossingPatternKindStatsKey(
+  kind: CrossingPatternKind,
+): keyof CrossingPatternKindStats {
+  return kind;
+}
+
+export function recordCrossingPatternKindWin(
+  stats: RotatingRoomSessionStats,
+  kind: CrossingPatternKind,
+): RotatingRoomSessionStats {
+  const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
+  const key = crossingPatternKindStatsKey(kind);
+  return {
+    ...stats,
+    crossingPatternKind: {
+      ...crossingPatternKind,
+      [key]: {
+        wins: crossingPatternKind[key].wins + 1,
+        losses: crossingPatternKind[key].losses,
+      },
+    },
+  };
+}
+
+export function recordCrossingPatternKindLoss(
+  stats: RotatingRoomSessionStats,
+  kind: CrossingPatternKind,
+): RotatingRoomSessionStats {
+  const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
+  const key = crossingPatternKindStatsKey(kind);
+  return {
+    ...stats,
+    crossingPatternKind: {
+      ...crossingPatternKind,
+      [key]: {
+        wins: crossingPatternKind[key].wins,
+        losses: crossingPatternKind[key].losses + 1,
       },
     },
   };

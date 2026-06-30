@@ -34,6 +34,25 @@ var SinglestakeUmFator = (() => {
   function emptyRecoveryLevelCounts(maxRecovery) {
     return Array.from({ length: maxRecovery + 1 }, () => 0);
   }
+  function emptyCrossingPatternKindStats() {
+    return {
+      primary: { wins: 0, losses: 0 },
+      secondary: { wins: 0, losses: 0 },
+      tertiary: { wins: 0, losses: 0 }
+    };
+  }
+  function parseCrossingPatternKindStats(raw) {
+    const o = raw ?? {};
+    return {
+      primary: parseUmFatorMatchTierBucket(o.primary),
+      secondary: parseUmFatorMatchTierBucket(o.secondary),
+      tertiary: parseUmFatorMatchTierBucket(o.tertiary)
+    };
+  }
+  function normalizeCrossingPatternKindStats(stats) {
+    if (!stats) return emptyCrossingPatternKindStats();
+    return parseCrossingPatternKindStats(stats);
+  }
   function emptyUmFatorMatchTierStats() {
     return {
       twoEqualFactors: { wins: 0, losses: 0 },
@@ -75,10 +94,14 @@ var SinglestakeUmFator = (() => {
       winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
       lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery)
     };
-    if (o.umFatorMatchTier != null) {
-      return { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) };
+    const withUm = o.umFatorMatchTier != null ? { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) } : base;
+    if (o.crossingPatternKind != null) {
+      return {
+        ...withUm,
+        crossingPatternKind: parseCrossingPatternKindStats(o.crossingPatternKind)
+      };
     }
-    return base;
+    return withUm;
   }
   function emptyRotatingRoomSessionStats(maxRecovery = 5) {
     return {
@@ -134,6 +157,37 @@ var SinglestakeUmFator = (() => {
         [key]: {
           wins: umFatorMatchTier[key].wins,
           losses: umFatorMatchTier[key].losses + 1
+        }
+      }
+    };
+  }
+  function crossingPatternKindStatsKey(kind) {
+    return kind;
+  }
+  function recordCrossingPatternKindWin(stats, kind) {
+    const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
+    const key = crossingPatternKindStatsKey(kind);
+    return {
+      ...stats,
+      crossingPatternKind: {
+        ...crossingPatternKind,
+        [key]: {
+          wins: crossingPatternKind[key].wins + 1,
+          losses: crossingPatternKind[key].losses
+        }
+      }
+    };
+  }
+  function recordCrossingPatternKindLoss(stats, kind) {
+    const crossingPatternKind = normalizeCrossingPatternKindStats(stats.crossingPatternKind);
+    const key = crossingPatternKindStatsKey(kind);
+    return {
+      ...stats,
+      crossingPatternKind: {
+        ...crossingPatternKind,
+        [key]: {
+          wins: crossingPatternKind[key].wins,
+          losses: crossingPatternKind[key].losses + 1
         }
       }
     };
@@ -724,7 +778,8 @@ var SinglestakeUmFator = (() => {
       prepareTableId: null,
       prepareActive: null,
       pendingQueueEntry: null,
-      cycleMetricCategory: pick.absentCategory
+      cycleMetricCategory: pick.absentCategory,
+      cyclePatternKind: pick.patternKind
     };
   }
   function clearCycle(machine) {
@@ -734,6 +789,7 @@ var SinglestakeUmFator = (() => {
       cycleFingerprint: null,
       cycleActive: null,
       cycleMetricCategory: null,
+      cyclePatternKind: null,
       cycleSpinsWithoutWin: 0,
       armedAtHead: null,
       lastEvaluatedHead: null
@@ -1032,10 +1088,15 @@ var SinglestakeUmFator = (() => {
     }
     const resultNumber = history[0];
     const activeForRound = nextMachine.cycleActive;
+    const patternKindForRound = nextMachine.cyclePatternKind;
     nextMachine = { ...nextMachine, lastEvaluatedHead: head };
     const outcome = evaluateDoisFatoresRound(resultNumber, activeForRound);
     if (outcome === "W") {
       nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
+      if (patternKindForRound != null) {
+        nextStats = recordCrossingPatternKindWin(nextStats, patternKindForRound);
+        statsChanged = true;
+      }
       statsChanged = true;
       flash = { resultNumber, won: true, tableId, kind: "win", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
       nextMachine = reanchorOnTable(
@@ -1057,6 +1118,10 @@ var SinglestakeUmFator = (() => {
       const recoveryBefore = nextMachine.recovery;
       const recovery = recoveryBefore + 1;
       const canRotateTables = tableIds.length > 1;
+      if (patternKindForRound != null) {
+        nextStats = recordCrossingPatternKindLoss(nextStats, patternKindForRound);
+        statsChanged = true;
+      }
       if (recovery > maxRecovery) {
         nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery);
         statsChanged = true;
@@ -1119,6 +1184,7 @@ var SinglestakeUmFator = (() => {
       prepareActive: null,
       pendingQueueEntry: null,
       cycleMetricCategory: null,
+      cyclePatternKind: null,
       prepareSpinsWithoutPattern: 0
     };
   }

@@ -1,12 +1,15 @@
 import {
+  normalizeCrossingPatternKindStats,
   normalizeUmFatorMatchTierStats,
   umFatorMatchTierAproveitamentoPct,
 } from "@/lib/roulette/entryWinBreakdown";
 import type {
+  CrossingPatternKindStats,
   RotatingRoomSessionStats,
   UmFatorMatchTierBucket,
   UmFatorMatchTierStats,
 } from "@/lib/roulette/rotatingRoomStrategy";
+import type { CrossingPatternKind } from "@/lib/roulette/doisFatoresPatternCrossing";
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 
 /** Chave i18n em `automationStats.triggers.*` — adicione entradas ao registar novos gatilhos. */
@@ -23,17 +26,47 @@ export const UM_FATOR_TRIGGER_TIER_DEFINITIONS: readonly UmFatorTriggerTierDefin
   { id: "three", statsKey: "threeEqualFactors", labelKey: "threeFactors" },
 ] as const;
 
-/** Gatilho 2 Fatores · padrões de cruzamento (primário/secundário/terciário). */
+/** Gatilho 2 Fatores · padrões de cruzamento (activação global). */
 export const ROTATING_ROOM_CROSSING_GATILHO_ID = "crossing" as const;
 
+export type CrossingPatternGatilhoId =
+  | "crossing-primary"
+  | "crossing-secondary"
+  | "crossing-tertiary";
+
+export type RotatingRoomGatilhoReportId =
+  | UmFatorTriggerMatchTier
+  | CrossingPatternGatilhoId;
+
+export type CrossingPatternKindDefinition = {
+  id: CrossingPatternGatilhoId;
+  patternKind: CrossingPatternKind;
+  statsKey: keyof CrossingPatternKindStats;
+  labelKey: string;
+};
+
+/** Catálogo dos 3 gatilhos 2 Fatores por padrão de cruzamento. */
+export const CROSSING_PATTERN_KIND_DEFINITIONS: readonly CrossingPatternKindDefinition[] = [
+  { id: "crossing-primary", patternKind: "primary", statsKey: "primary", labelKey: "crossingPrimary" },
+  {
+    id: "crossing-secondary",
+    patternKind: "secondary",
+    statsKey: "secondary",
+    labelKey: "crossingSecondary",
+  },
+  { id: "crossing-tertiary", patternKind: "tertiary", statsKey: "tertiary", labelKey: "crossingTertiary" },
+] as const;
+
 export type UmFatorTriggerTierReportRow = {
-  id: UmFatorTriggerMatchTier | typeof ROTATING_ROOM_CROSSING_GATILHO_ID;
+  id: RotatingRoomGatilhoReportId;
   labelKey: string;
   wins: number;
   losses: number;
   total: number;
   accuracyPct: number | null;
   enabled: boolean;
+  /** Interruptor de activação no painel (só em linhas configuráveis). */
+  toggleable: boolean;
 };
 
 export function buildUmFatorTriggerTierReport(
@@ -42,7 +75,22 @@ export function buildUmFatorTriggerTierReport(
 ): UmFatorTriggerTierReportRow[] {
   const tier = normalizeUmFatorMatchTierStats(stats?.umFatorMatchTier);
   return UM_FATOR_TRIGGER_TIER_DEFINITIONS.map((def) =>
-    rowFromBucket(def, tier[def.statsKey], enabledTriggers?.[def.id] !== false),
+    rowFromBucket(def, tier[def.statsKey], enabledTriggers?.[def.id] !== false, true),
+  );
+}
+
+function buildCrossingPatternKindReport(
+  crossingStats: RotatingRoomSessionStats | undefined,
+  crossingEnabled: boolean,
+): UmFatorTriggerTierReportRow[] {
+  const kindStats = normalizeCrossingPatternKindStats(crossingStats?.crossingPatternKind);
+  return CROSSING_PATTERN_KIND_DEFINITIONS.map((def, index) =>
+    rowFromBucket(
+      def,
+      kindStats[def.statsKey],
+      crossingEnabled,
+      index === 0,
+    ),
   );
 }
 
@@ -51,36 +99,29 @@ export function buildRotatingRoomGatilhoTriggerReport(
   crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing", boolean>>,
 ): UmFatorTriggerTierReportRow[] {
-  const crossingWins = Math.max(0, crossingStats?.wins ?? 0);
-  const crossingLosses = Math.max(0, crossingStats?.losses ?? 0);
-  const crossingTotal = crossingWins + crossingLosses;
-  const crossingRow: UmFatorTriggerTierReportRow = {
-    id: ROTATING_ROOM_CROSSING_GATILHO_ID,
-    labelKey: "crossingPattern",
-    wins: crossingWins,
-    losses: crossingLosses,
-    total: crossingTotal,
-    accuracyPct:
-      crossingTotal > 0 ? Math.round((1000 * crossingWins) / crossingTotal) / 10 : null,
-    enabled: enabledTriggers?.crossing !== false,
-  };
-  return [crossingRow, ...buildUmFatorTriggerTierReport(umStats, enabledTriggers)];
+  const crossingEnabled = enabledTriggers?.crossing !== false;
+  return [
+    ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),
+    ...buildUmFatorTriggerTierReport(umStats, enabledTriggers),
+  ];
 }
 
 function rowFromBucket(
-  def: UmFatorTriggerTierDefinition,
+  def: { id: string; labelKey: string },
   bucket: UmFatorMatchTierBucket,
   enabled: boolean,
+  toggleable: boolean,
 ): UmFatorTriggerTierReportRow {
   const wins = Math.max(0, bucket.wins);
   const losses = Math.max(0, bucket.losses);
   return {
-    id: def.id,
+    id: def.id as RotatingRoomGatilhoReportId,
     labelKey: def.labelKey,
     wins,
     losses,
     total: wins + losses,
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
     enabled,
+    toggleable,
   };
 }
