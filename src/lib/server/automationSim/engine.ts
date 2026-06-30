@@ -38,6 +38,7 @@ import {
   initAutomationSimState,
   replaceAutomationSimState,
 } from "./persistence";
+import type { StrategyGlobalPersistedState } from "@/lib/server/strategyGlobal/persistence";
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
@@ -45,9 +46,11 @@ let replayedLedger = false;
 let capitalReady = false;
 
 function combinedStrategyLedger(
-  ledger: Pick<StrategyGlobalPersistedState["ledger"], "um1fator" | "dois2fatores">,
+  ledger: Pick<StrategyGlobalPersistedState["ledger"], "um1fator" | "dois2fatores" | "fibonacci">,
 ): StrategyGlobalLedgerEntry[] {
-  return [...ledger.um1fator, ...ledger.dois2fatores].sort((a, b) => a.ts - b.ts);
+  return [...ledger.um1fator, ...ledger.dois2fatores, ...ledger.fibonacci].sort(
+    (a, b) => a.ts - b.ts,
+  );
 }
 
 async function ensureCapitalAndSyncBalance(): Promise<void> {
@@ -133,6 +136,7 @@ function buildSnapshotBody(
         baseStake: resolved.baseStake,
         blockNewEntries,
         crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+        fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
       },
     ),
     config: resolved,
@@ -215,7 +219,9 @@ export async function ensureAutomationSimEngine(): Promise<void> {
         const sim = getAutomationSimState();
         const globalState = getStrategyGlobalState();
         const hasLedger =
-          globalState.ledger.um1fator.length > 0 || globalState.ledger.dois2fatores.length > 0;
+          globalState.ledger.um1fator.length > 0 ||
+          globalState.ledger.dois2fatores.length > 0 ||
+          globalState.ledger.fibonacci.length > 0;
         const hasSimHistory = sim.rounds.length > 0 || sim.processedKeys.length > 0;
         if (hasLedger && hasSimHistory) {
           const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
@@ -314,6 +320,7 @@ export async function syncAutomationSimWithStrategy(
       baseStake: configDto.baseStake,
       blockNewEntries,
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+      fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
     },
   );
   const openedHead =
@@ -448,6 +455,7 @@ export async function replayAutomationSimFromLedger(
       baseStake: getAutomationConfig().baseStake,
       blockNewEntries: configDtoForBalance(getAutomationSimState().balance).blocksNewEntries,
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+      fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
     },
   );
   const openedHead =

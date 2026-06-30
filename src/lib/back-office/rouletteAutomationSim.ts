@@ -21,6 +21,7 @@ import {
   resolveLedgerEntryStake,
   ROULETTE_AUTOMATION_BASE_STAKE,
   stakeForRecovery,
+  stakeForFibonacciRecovery,
 } from "@/lib/back-office/automationStakes";
 
 export {
@@ -28,6 +29,7 @@ export {
   ROULETTE_AUTOMATION_BASE_STAKE,
   resolveLedgerEntryStake,
   stakeForRecovery,
+  stakeForFibonacciRecovery,
 } from "@/lib/back-office/automationStakes";
 
 export const ROULETTE_AUTOMATION_INITIAL_BANK = 50_000;
@@ -49,7 +51,7 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
-  strategy?: "um1fator" | "dois2fatores";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
 };
@@ -211,15 +213,34 @@ export function pendingSignalFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
-  options?: { baseStake?: number; blockNewEntries?: boolean; crossingEnabled?: boolean },
+  options?: {
+    baseStake?: number;
+    blockNewEntries?: boolean;
+    crossingEnabled?: boolean;
+    fibonacciEnabled?: boolean;
+  },
 ): AutomationPendingSignal | null {
   if (options?.blockNewEntries) return null;
 
   const crossingEnabled = options?.crossingEnabled !== false;
-  const trigger = resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled);
+  const fibonacciEnabled = options?.fibonacciEnabled !== false;
+  const trigger = resolveRotativaTriggerFromSnapshot(
+    snapshot,
+    crossingEnabled,
+    fibonacciEnabled,
+  );
   if (trigger === "crossing") {
     return pendingSignalFromCrossingSession(
       snapshot.dois2fatores,
+      balance,
+      histories,
+      options?.baseStake,
+    );
+  }
+
+  if (trigger === "fibonacci") {
+    return pendingSignalFromFibonacciSession(
+      snapshot.fibonacci,
       balance,
       histories,
       options?.baseStake,
@@ -303,6 +324,41 @@ export function pendingSignalFromUmFatorSession(
     stake: stakeForRecovery(recovery, balance, baseStake),
     strategy: "um1fator",
     umActive: session.umActive,
+  };
+}
+
+/** Sinal activo Fibonacci (dúzia/coluna). */
+export function pendingSignalFromFibonacciSession(
+  session: Pick<
+    StrategyGlobalSnapshot["fibonacci"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeFibonacci"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.activeFibonacci) {
+    return null;
+  }
+
+  const tableId = session.currentTableId;
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
+    return null;
+  }
+
+  const active = session.activeFibonacci;
+  const alertLabel = active.zoneLabel;
+  const recovery = session.currentRecovery;
+
+  return {
+    signalId: `${tableId}:${active.zone.kind}:${active.zone.id}:${recovery}`,
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel,
+    recovery,
+    stake: stakeForFibonacciRecovery(recovery, baseStake),
+    strategy: "fibonacci",
   };
 }
 

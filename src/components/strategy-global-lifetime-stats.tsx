@@ -73,7 +73,12 @@ export function StrategyGlobalLifetimeStats({ kind, compact = false, className }
   if (!isStrategyGlobalEnabled() || snapshot == null) return null;
 
   const data = snapshot.lifetime[kind];
-  const label = kind === "dois2fatores" ? "2 Fatores · histórico global" : "1 Fator · histórico global";
+  const label =
+    kind === "dois2fatores"
+      ? "2 Fatores · histórico global"
+      : kind === "fibonacci"
+        ? "Fibonacci · histórico global"
+        : "1 Fator · histórico global";
 
   return (
     <section className={cn(className)} aria-label={label}>

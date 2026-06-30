@@ -4,16 +4,20 @@ import type {
   RotatingRoomCrossingPlacarFlash,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import type { UmFatorMachineState, UmFatorPlacarFlash } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
+import type {
+  RotatingRoomFibonacciMachineState,
+  RotatingRoomFibonacciPlacarFlash,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 export const EXTENSION_SYNC_VERSION = 1 as const;
 
 export type ExtensionSyncSettlement = {
   recoveryBefore: number;
-  flash: NonNullable<UmFatorPlacarFlash | RotatingRoomCrossingPlacarFlash>;
+  flash: NonNullable<UmFatorPlacarFlash | RotatingRoomCrossingPlacarFlash | RotatingRoomFibonacciPlacarFlash>;
   stake: number;
   dedupeKey: string;
-  /** um1fator | dois2fatores — por defeito um1fator */
-  trigger?: "um1fator" | "dois2fatores";
+  /** um1fator | dois2fatores | fibonacci — por defeito um1fator */
+  trigger?: "um1fator" | "dois2fatores" | "fibonacci";
 };
 
 /** Payload enviado pela extensão Chrome — motor da sala rotativa como fonte de verdade. */
@@ -29,6 +33,8 @@ export type ExtensionSyncPayload = {
   stats: RotatingRoomSessionStats;
   crossingMachine?: RotatingRoomCrossingMachineState | null;
   crossingStats?: RotatingRoomSessionStats | null;
+  fibonacciMachine?: RotatingRoomFibonacciMachineState | null;
+  fibonacciStats?: RotatingRoomSessionStats | null;
   maxRecovery?: number;
   settlements?: ExtensionSyncSettlement[];
 };

@@ -33,6 +33,14 @@ import { fibonacciMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoo
 import { ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { RotatingRoomFibonacciActive } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import { useStrategyGlobalSnapshot } from "@/hooks/useStrategyGlobalSnapshot";
+import {
+  consumeStrategyGlobalFlashes,
+  getStrategyGlobalFlashSeq,
+  isStrategyGlobalConnected,
+  isStrategyGlobalEnabled,
+  STRATEGY_GLOBAL_CHANGED_EVENT,
+} from "@/lib/roulette/strategyGlobalClient";
 
 export type RotatingRoomFibonacciRoundFlash = {
   resultNumber: number;
@@ -71,6 +79,13 @@ export function useRotatingRoomFibonacciSession(
 ): RotatingRoomFibonacciSession {
   const observeOnly = options.observeOnly ?? false;
   const enabled = options.enabled ?? true;
+  const globalSnap = useStrategyGlobalSnapshot();
+  const globalView = globalSnap?.fibonacci;
+  const useGlobalSession =
+    isStrategyGlobalEnabled() &&
+    isStrategyGlobalConnected() &&
+    globalSnap != null &&
+    globalView != null;
 
   const [sessionStats, setSessionStats] = useState(() => readRotatingRoomFibonacciSessionStats());
   const [roundFlash, setRoundFlash] = useState<RotatingRoomFibonacciRoundFlash>(null);
@@ -83,6 +98,7 @@ export function useRotatingRoomFibonacciSession(
   const flashClearRef = useRef<number | null>(null);
   const machineRef = useRef(machine);
   const placarResetGenRef = useRef(0);
+  const globalFlashSeqRef = useRef(getStrategyGlobalFlashSeq());
   const visibilityEpoch = useStrategySessionVisibilityEpoch();
   machineRef.current = machine;
 
@@ -192,7 +208,7 @@ export function useRotatingRoomFibonacciSession(
   const phase: RotatingRoomPhase = showTapeteSignal ? "active" : "waiting";
 
   useEffect(() => {
-    if (!enabled || observeOnly || tableIds.length === 0) return;
+    if (!enabled || observeOnly || tableIds.length === 0 || useGlobalSession) return;
 
     const tickGen = placarResetGenRef.current;
     const placar = drainPlacarSteps(
@@ -229,7 +245,39 @@ export function useRotatingRoomFibonacciSession(
 
     applyMachine(placar.nextMachine);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, observeOnly, tableIds.join(","), historiesFingerprint, visibilityEpoch]);
+  }, [enabled, observeOnly, useGlobalSession, tableIds.join(","), historiesFingerprint, visibilityEpoch]);
+
+  useEffect(() => {
+    if (!useGlobalSession) return;
+
+    const applyGlobalFlash = () => {
+      const seq = getStrategyGlobalFlashSeq();
+      if (seq === globalFlashSeqRef.current) return;
+      globalFlashSeqRef.current = seq;
+      const flashes = consumeStrategyGlobalFlashes();
+      const flash = flashes?.fibonacci;
+      if (!flash || observeOnly) return;
+      setRoundFlash({
+        resultNumber: flash.resultNumber,
+        won: flash.won,
+        tableId: flash.tableId,
+        kind: flash.kind,
+      });
+      if (shouldPresentStrategyPlacarFeedback()) {
+        if (flash.kind === "win") void playPlacarWinCoins();
+        else if (flash.kind === "loss") void playPlacarDefeat();
+      }
+      if (flashClearRef.current != null) window.clearTimeout(flashClearRef.current);
+      flashClearRef.current = window.setTimeout(() => {
+        setRoundFlash(null);
+        flashClearRef.current = null;
+      }, ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT);
+    };
+
+    applyGlobalFlash();
+    window.addEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, applyGlobalFlash);
+    return () => window.removeEventListener(STRATEGY_GLOBAL_CHANGED_EVENT, applyGlobalFlash);
+  }, [useGlobalSession, observeOnly]);
 
   const allowedTableIds = useMemo(() => new Set(tableIds), [tableIds.join(",")]);
 
@@ -239,6 +287,26 @@ export function useRotatingRoomFibonacciSession(
       : null;
 
   const alertPick = liveView.globalPick;
+
+  if (useGlobalSession && globalView) {
+    return {
+      phase: globalView.phase,
+      sessionStats: globalView.sessionStats,
+      showTapeteSignal: globalView.showTapeteSignal,
+      roundFlash,
+      activeFibonacci: globalView.activeFibonacci,
+      currentRecovery: globalView.currentRecovery,
+      currentTableId: globalView.currentTableId,
+      prepareTableId: null,
+      alertCategory: globalView.alertCategory,
+      alertBucketGap: globalView.alertBucketGap,
+      sessionMode: globalView.sessionMode,
+      prepareCategory: null,
+      fibonacciScan: globalView.fibonacciScan,
+      lastEvaluatedHead: null,
+      fibonacciMode: true,
+    };
+  }
 
   return {
     phase,

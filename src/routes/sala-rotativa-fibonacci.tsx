@@ -39,7 +39,7 @@ export const Route = createFileRoute("/sala-rotativa-fibonacci")({
       {
         name: "description",
         content:
-          "Sala rotativa Fibonacci — dúzias e colunas com gatilho de ausência 12 giros e recuperação 1-1-2-3-5-8-13-21.",
+          "Sala rotativa Fibonacci — dúzias e colunas com gatilho de ausência 10 giros e recuperação 1-1-2-3-5-8-13-21.",
       },
     ],
   }),

@@ -8,11 +8,12 @@ import {
 import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
 import type {
   StrategyGlobalCrossingClientView,
+  StrategyGlobalFibonacciClientView,
   StrategyGlobalSnapshot,
   StrategyGlobalUmFatorClientView,
 } from "@/lib/roulette/strategyGlobalTypes";
 
-export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing";
+export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci";
 
 export type RotatingRoomRotativaSessionMeta = {
   /** Gatilho activo na indicação actual. */
@@ -141,6 +142,7 @@ export function mergeRotatingRoomRotativaSession(
 
 export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind): string {
   if (kind === "crossing") return "2 Fatores · padrões";
+  if (kind === "fibonacci") return "Fibonacci";
   return "1 Fator";
 }
 
@@ -167,30 +169,66 @@ function crossingHasQualifyingPatternFromView(cross: StrategyGlobalCrossingClien
   );
 }
 
+function fibonacciInCycleFromView(fib: StrategyGlobalFibonacciClientView): boolean {
+  return fib.showTapeteSignal || fib.currentRecovery > 0;
+}
+
+function fibonacciHasQualifyingAlert(fib: StrategyGlobalFibonacciClientView): boolean {
+  return fib.fibonacciScan.some(
+    (row) => row.status === "alert" || row.status === "active",
+  );
+}
+
 /** Mesma prioridade do merge na sala rotativa — para automação global e simulador. */
 export function resolveRotativaTriggerFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   crossingEnabled: boolean,
+  fibonacciEnabled = true,
 ): RotatingRoomRotativaTriggerKind {
-  if (!crossingEnabled) return "umFator";
+  if (!crossingEnabled && !fibonacciEnabled) return "umFator";
 
   const um = snapshot.um1fator;
   const crossing = snapshot.dois2fatores;
+  const fibonacci = snapshot.fibonacci;
   const umBusy = umFatorInCycleFromView(um);
-  const crossBusy = crossingInCycleFromView(crossing);
+  const crossBusy = crossingEnabled && crossingInCycleFromView(crossing);
+  const fibBusy = fibonacciEnabled && fibonacciInCycleFromView(fibonacci);
 
-  if (umBusy && !crossBusy) return "umFator";
-  if (crossBusy && !umBusy) return "crossing";
+  const busy: RotatingRoomRotativaTriggerKind[] = [];
+  if (umBusy) busy.push("umFator");
+  if (crossBusy) busy.push("crossing");
+  if (fibBusy) busy.push("fibonacci");
 
-  if (crossBusy && umBusy) {
-    if (crossing.showTapeteSignal || crossing.sessionMode === "prepare") return "crossing";
-    if (um.showTapeteSignal) return "umFator";
-    if (crossing.currentRecovery >= um.currentRecovery) return "crossing";
-    return "umFator";
+  if (busy.length === 1) return busy[0]!;
+
+  if (busy.length > 1) {
+    if (fibBusy && fibonacci.showTapeteSignal) return "fibonacci";
+    if (crossBusy && (crossing.showTapeteSignal || crossing.sessionMode === "prepare")) {
+      return "crossing";
+    }
+    if (umBusy && um.showTapeteSignal) return "umFator";
+    const recoveries: Array<{ kind: RotatingRoomRotativaTriggerKind; r: number }> = [];
+    if (umBusy) recoveries.push({ kind: "umFator", r: um.currentRecovery });
+    if (crossBusy) recoveries.push({ kind: "crossing", r: crossing.currentRecovery });
+    if (fibBusy) recoveries.push({ kind: "fibonacci", r: fibonacci.currentRecovery });
+    recoveries.sort((a, b) => b.r - a.r);
+    return recoveries[0]!.kind;
   }
 
-  if (crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
+  if (
+    fibonacciEnabled &&
+    fibonacciHasQualifyingAlert(fibonacci) &&
+    fibonacci.showTapeteSignal
+  ) {
+    return "fibonacci";
+  }
+
+  if (crossingEnabled && crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
     return "crossing";
+  }
+
+  if (fibonacciEnabled && fibonacciHasQualifyingAlert(fibonacci)) {
+    return "fibonacci";
   }
 
   if (crossingEnabled) return "crossing";

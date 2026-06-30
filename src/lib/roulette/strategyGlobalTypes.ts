@@ -1,11 +1,15 @@
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import type { RotatingRoomCrossingTableScan, RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
+import type {
+  RotatingRoomFibonacciActive,
+  RotatingRoomFibonacciTableScan,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import type { DoisFatoresActive, DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
 import type { UmFatorActive } from "@/lib/roulette/umFatorStrategy";
 import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 
-export type StrategyGlobalKind = "dois2fatores" | "um1fator";
+export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci";
 
 export type StrategyGlobalLedgerEntry = {
   ts: number;
@@ -19,6 +23,10 @@ export type StrategyGlobalLedgerEntry = {
   factor2?: DoisFatoresFactor;
   triggerNumbers?: number[];
   bucketGap?: number;
+  /** Estratégia de origem (automação global). */
+  strategy?: StrategyGlobalKind;
+  /** Zona Fibonacci liquidada (dúzia/coluna). */
+  zoneLabel?: string;
   /** Stake real da extensão (ex. R$ 0,50 × 2^gale) — quando presente, extrato usa este valor. */
   stake?: number;
 };
@@ -66,6 +74,20 @@ export type StrategyGlobalUmFatorClientView = {
   postResultHoldTableId: number | null;
 };
 
+export type StrategyGlobalFibonacciClientView = {
+  phase: RotatingRoomPhase;
+  sessionStats: RotatingRoomSessionStats;
+  showTapeteSignal: boolean;
+  fibonacciMode: true;
+  currentRecovery: number;
+  currentTableId: number | null;
+  alertCategory: string | null;
+  alertBucketGap: number;
+  sessionMode: "scanning" | "active";
+  fibonacciScan: RotatingRoomFibonacciTableScan[];
+  activeFibonacci: RotatingRoomFibonacciActive | null;
+};
+
 /** Snapshot servido a todos os clientes (fonte única de verdade). */
 export type StrategyGlobalSnapshot = {
   revision: number;
@@ -74,6 +96,7 @@ export type StrategyGlobalSnapshot = {
   tableHistories: Record<number, number[]>;
   dois2fatores: StrategyGlobalCrossingClientView;
   um1fator: StrategyGlobalUmFatorClientView;
+  fibonacci: StrategyGlobalFibonacciClientView;
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
   ledgerTail: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
@@ -93,6 +116,12 @@ export type StrategyGlobalFlashPayload = {
     kind: "win" | "loss" | "recovery";
   } | null;
   um1fator: {
+    resultNumber: number;
+    won: boolean;
+    tableId: number;
+    kind: "win" | "loss" | "recovery";
+  } | null;
+  fibonacci: {
     resultNumber: number;
     won: boolean;
     tableId: number;

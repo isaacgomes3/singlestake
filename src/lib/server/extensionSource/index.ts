@@ -7,10 +7,15 @@ import {
   type UmFatorPlacarFlash,
 } from "@/lib/roulette/rotatingRoomUmFatorStrategy";
 import {
+  ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+  stakeUnitsAtRecovery,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import {
   ROTATING_ROOM_CROSSING_MAX_RECOVERY,
   sanitizeRotatingRoomCrossingMachineForTableIds,
   type RotatingRoomCrossingMachineState,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import type { RotatingRoomFibonacciMachineState } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 const EXTENSION_TTL_MS = Number.isFinite(Number(process.env.EXTENSION_SYNC_TTL_MS))
   ? Math.max(5_000, Number(process.env.EXTENSION_SYNC_TTL_MS))
@@ -114,15 +119,23 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
           }
           const recoveryBefore = Math.max(0, Math.floor(Number(s.recoveryBefore) || 0));
           const stakeRaw = Number(s.stake);
+          const triggerRaw = s.trigger;
+          const trigger =
+            triggerRaw === "crossing" || triggerRaw === "dois2fatores"
+              ? ("dois2fatores" as const)
+              : triggerRaw === "fibonacci"
+                ? ("fibonacci" as const)
+                : ("um1fator" as const);
           const stake =
             Number.isFinite(stakeRaw) && stakeRaw > 0
               ? stakeRaw
-              : 50 * 2 ** Math.min(Math.max(0, recoveryBefore), maxRecovery);
+              : trigger === "fibonacci"
+                ? 50 * stakeUnitsAtRecovery(recoveryBefore)
+                : 50 * 2 ** Math.min(Math.max(0, recoveryBefore), maxRecovery);
           const dedupeKey =
             typeof s.dedupeKey === "string" && s.dedupeKey.trim()
               ? s.dedupeKey.trim()
               : `${f.tableId}:${f.resultNumber}:${f.kind}:${recoveryBefore}`;
-          const trigger = s.trigger === "crossing" ? "dois2fatores" : "um1fator";
           return { recoveryBefore, flash: f, stake, dedupeKey, trigger };
         })
         .filter((x): x is NonNullable<typeof x> => x != null)
@@ -145,6 +158,14 @@ export function parseExtensionSyncPayload(raw: unknown): ExtensionSyncPayload | 
     crossingStats:
       o.crossingStats && typeof o.crossingStats === "object"
         ? parseRotatingRoomSessionStats(o.crossingStats, ROTATING_ROOM_CROSSING_MAX_RECOVERY)
+        : null,
+    fibonacciMachine:
+      o.fibonacciMachine && typeof o.fibonacciMachine === "object"
+        ? (o.fibonacciMachine as RotatingRoomFibonacciMachineState)
+        : null,
+    fibonacciStats:
+      o.fibonacciStats && typeof o.fibonacciStats === "object"
+        ? parseRotatingRoomSessionStats(o.fibonacciStats, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY)
         : null,
     maxRecovery,
     settlements,

@@ -8,6 +8,21 @@ import {
 import { buildRotatingRoomTableIds } from "../src/lib/roulette/lobbyTables";
 import { doisFatoresFactorLabel } from "../src/lib/roulette/doisFatoresStrategy";
 import { pragmaticExteriorBetKeyFromFactor } from "../src/lib/roulette/pragmaticExteriorBetMap";
+import { pragmaticFibonacciBetKeyFromZone } from "../src/lib/roulette/pragmaticFibonacciBetMap";
+import {
+  buildRotatingRoomFibonacciSessionLiveView,
+  tickRotatingRoomFibonacciSessionPlacar,
+} from "../src/lib/roulette/rotatingRoomFibonacciSession";
+import {
+  ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+  defaultRotatingRoomFibonacciMachineState,
+  fibonacciZoneLabel,
+  sanitizeRotatingRoomFibonacciMachineForTableIds,
+  stakeUnitsAtRecovery,
+  type RotatingRoomFibonacciActive,
+  type RotatingRoomFibonacciMachineState,
+  type RotatingRoomFibonacciPlacarFlash,
+} from "../src/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
   buildRotatingRoomCrossingSessionLiveView,
   defaultRotatingRoomCrossingMachineState,
@@ -48,8 +63,10 @@ export type CreateRotativaEngineOptions = {
   maxRecovery?: number;
   initialUmStats?: RotatingRoomSessionStats | null;
   initialCrossingStats?: RotatingRoomSessionStats | null;
+  initialFibonacciStats?: RotatingRoomSessionStats | null;
   /** Por defeito activo — desligar para modo só 1 Fator. */
   crossingEnabled?: boolean;
+  fibonacciEnabled?: boolean;
 };
 
 export type CreateUmFatorEngineOptions = CreateRotativaEngineOptions;
@@ -65,8 +82,13 @@ function stakeForRecovery(recovery: number, maxRecovery: number): number {
   return BASE_STAKE * 2 ** level;
 }
 
+function stakeForFibonacciRecovery(recovery: number): number {
+  const level = Math.max(0, Math.min(Math.floor(recovery), ROTATING_ROOM_FIBONACCI_MAX_RECOVERY));
+  return BASE_STAKE * stakeUnitsAtRecovery(level);
+}
+
 export type RotativaActiveView = {
-  trigger: "umFator" | "crossing";
+  trigger: "umFator" | "crossing" | "fibonacci";
   showTapeteSignal: boolean;
   currentTableId: number | null;
   currentRecovery: number;
@@ -74,17 +96,21 @@ export type RotativaActiveView = {
   sessionMode: StrategyGlobalSnapshot["dois2fatores"]["sessionMode"] | "scanning" | "active";
   activeCrossing: ReturnType<typeof umFatorToTapeteActive> | null;
   umActive: ReturnType<typeof buildUmFatorLiveView>["globalActive"];
+  fibonacciActive: RotatingRoomFibonacciActive | null;
   betAttemptKey: string | null;
 };
 
 export type RotativaTickResult = {
-  trigger: "umFator" | "crossing";
+  trigger: "umFator" | "crossing" | "fibonacci";
   umFlash: UmFatorPlacarFlash;
   crossingFlash: RotatingRoomCrossingPlacarFlash;
+  fibonacciFlash: RotatingRoomFibonacciPlacarFlash;
   umMachine: UmFatorMachineState;
   crossingMachine: RotatingRoomCrossingMachineState;
+  fibonacciMachine: RotatingRoomFibonacciMachineState;
   umStats: RotatingRoomSessionStats;
   crossingStats: RotatingRoomSessionStats;
+  fibonacciStats: RotatingRoomSessionStats;
   active: RotativaActiveView;
 };
 
@@ -95,6 +121,9 @@ function buildTriggerSnapshot(
   crossingMachine: RotatingRoomCrossingMachineState,
   crossingStats: RotatingRoomSessionStats,
   crossingView: ReturnType<typeof buildRotatingRoomCrossingSessionLiveView>,
+  fibonacciMachine: RotatingRoomFibonacciMachineState,
+  fibonacciStats: RotatingRoomSessionStats,
+  fibonacciView: ReturnType<typeof buildRotatingRoomFibonacciSessionLiveView>,
   tableIds: readonly number[],
 ): StrategyGlobalSnapshot {
   const showUmTapete = umView.globalActive != null && umView.globalTableId != null;
@@ -104,6 +133,10 @@ function buildTriggerSnapshot(
       ? crossingMachine.cycleTableId
       : null;
   const showCrossTapete = crossingActive != null && crossingTableId != null;
+  const showFibTapete =
+    fibonacciMachine.cycleZone != null &&
+    fibonacciMachine.cycleTableId != null &&
+    tableIds.includes(fibonacciMachine.cycleTableId);
 
   return {
     revision: 0,
@@ -144,22 +177,98 @@ function buildTriggerSnapshot(
       crossingScan: crossingView.crossingScan,
       activeCrossing: showCrossTapete ? crossingActive : null,
     },
+    fibonacci: {
+      phase: showFibTapete ? "active" : "waiting",
+      sessionStats: fibonacciStats,
+      showTapeteSignal: showFibTapete,
+      fibonacciMode: true,
+      currentRecovery: fibonacciMachine.recovery,
+      currentTableId: showFibTapete ? fibonacciMachine.cycleTableId : null,
+      alertCategory: fibonacciView.globalPick
+        ? fibonacciView.globalPick.zone.kind === "dozen"
+          ? `Dúzia ${fibonacciView.globalPick.zone.id}`
+          : `Coluna ${fibonacciView.globalPick.zone.id}`
+        : null,
+      alertBucketGap: fibonacciView.globalPick?.absenceGap ?? 0,
+      sessionMode: showFibTapete ? "active" : "scanning",
+      fibonacciScan: fibonacciView.fibonacciScan,
+      activeFibonacci:
+        showFibTapete && fibonacciMachine.cycleZone && fibonacciMachine.cycleTableId != null
+          ? {
+              zone: fibonacciMachine.cycleZone,
+              zoneLabel: fibonacciZoneLabel(fibonacciMachine.cycleZone),
+              betKey:
+                fibonacciMachine.cycleZone.kind === "dozen"
+                  ? (`doz:${fibonacciMachine.cycleZone.id}` as const)
+                  : (`col:${fibonacciMachine.cycleZone.id}` as const),
+              absenceGap: fibonacciView.globalPick?.absenceGap ?? 0,
+              stakeUnits: stakeUnitsAtRecovery(fibonacciMachine.recovery),
+              profitUnits: 2 * stakeUnitsAtRecovery(fibonacciMachine.recovery),
+              recoveryIndex: fibonacciMachine.recovery,
+              tableId: fibonacciMachine.cycleTableId,
+              armingDescription: `${fibonacciZoneLabel(fibonacciMachine.cycleZone)} · mesa ${fibonacciMachine.cycleTableId}`,
+            }
+          : null,
+    },
     lifetime: {
       dois2fatores: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] },
       um1fator: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] },
+      fibonacci: { since: 0, wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] },
     },
-    ledgerTail: { dois2fatores: [], um1fator: [] },
+    ledgerTail: { dois2fatores: [], um1fator: [], fibonacci: [] },
   };
 }
 
 function buildActiveView(
-  trigger: "umFator" | "crossing",
+  trigger: "umFator" | "crossing" | "fibonacci",
   umView: ReturnType<typeof buildUmFatorLiveView>,
   umMachine: UmFatorMachineState,
   crossingMachine: RotatingRoomCrossingMachineState,
   crossingView: ReturnType<typeof buildRotatingRoomCrossingSessionLiveView>,
+  fibonacciMachine: RotatingRoomFibonacciMachineState,
+  fibonacciView: ReturnType<typeof buildRotatingRoomFibonacciSessionLiveView>,
   tableIds: readonly number[],
 ): RotativaActiveView {
+  if (trigger === "fibonacci") {
+    const zone = fibonacciMachine.cycleZone;
+    const tableId =
+      fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId)
+        ? fibonacciMachine.cycleTableId
+        : null;
+    const showTapete = zone != null && tableId != null;
+    const head = fibonacciMachine.lastEvaluatedHead ?? fibonacciMachine.armedAtHead ?? "0";
+    const betAttemptKey =
+      showTapete && zone
+        ? `${tableId}:${zone.kind}:${zone.id}:${fibonacciMachine.recovery}:${head}`
+        : null;
+    const fibonacciActive =
+      showTapete && zone && tableId != null
+        ? {
+            zone,
+            zoneLabel: fibonacciZoneLabel(zone),
+            betKey: pragmaticFibonacciBetKeyFromZone(zone),
+            absenceGap: fibonacciView.globalPick?.absenceGap ?? 0,
+            stakeUnits: stakeUnitsAtRecovery(fibonacciMachine.recovery),
+            profitUnits: 2 * stakeUnitsAtRecovery(fibonacciMachine.recovery),
+            recoveryIndex: fibonacciMachine.recovery,
+            tableId,
+            armingDescription: `${fibonacciZoneLabel(zone)} · mesa ${tableId}`,
+          }
+        : null;
+    return {
+      trigger,
+      showTapeteSignal: showTapete,
+      currentTableId: tableId,
+      currentRecovery: fibonacciMachine.recovery,
+      singleFactorMode: true,
+      sessionMode: showTapete ? "active" : "scanning",
+      activeCrossing: null,
+      umActive: null,
+      fibonacciActive,
+      betAttemptKey,
+    };
+  }
+
   if (trigger === "crossing") {
     const crossingActive = crossingMachine.cycleActive;
     const tableId =
@@ -181,6 +290,7 @@ function buildActiveView(
       sessionMode: crossingView.mode,
       activeCrossing: showTapete ? crossingActive : null,
       umActive: null,
+      fibonacciActive: null,
       betAttemptKey,
     };
   }
@@ -202,6 +312,7 @@ function buildActiveView(
     sessionMode: showTapete ? "active" : "scanning",
     activeCrossing: showTapete && umActive ? umFatorToTapeteActive(umActive) : null,
     umActive: showTapete ? umActive : null,
+    fibonacciActive: null,
     betAttemptKey,
   };
 }
@@ -216,6 +327,7 @@ export function createRotativaEngine(
   const maxRecovery = clampExtensionMaxRecovery(opts.maxRecovery);
   const crossingMaxRecovery = Math.min(maxRecovery, ROTATING_ROOM_CROSSING_MAX_RECOVERY);
   const crossingEnabled = opts.crossingEnabled !== false;
+  const fibonacciEnabled = opts.fibonacciEnabled !== false;
 
   let umMachine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
   let umStats =
@@ -231,6 +343,18 @@ export function createRotativaEngine(
     opts.initialCrossingStats != null
       ? parseRotatingRoomSessionStats(opts.initialCrossingStats, crossingMaxRecovery)
       : emptyRotatingRoomSessionStats(crossingMaxRecovery);
+
+  let fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+    defaultRotatingRoomFibonacciMachineState(),
+    ids,
+  );
+  let fibonacciStats =
+    opts.initialFibonacciStats != null
+      ? parseRotatingRoomSessionStats(
+          opts.initialFibonacciStats,
+          ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+        )
+      : emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
 
   const histories: Record<number, number[]> = {};
   const lastGameIdByTable: Record<number, string> = {};
@@ -274,8 +398,27 @@ export function createRotativaEngine(
     umMachine = umTick.nextMachine;
     umStats = umTick.stats;
 
+    const fibonacciTick = fibonacciEnabled
+      ? tickRotatingRoomFibonacciSessionPlacar(ids, histories, fibonacciMachine, fibonacciStats)
+      : {
+          nextMachine: fibonacciMachine,
+          stats: fibonacciStats,
+          statsChanged: false,
+          flash: null as RotatingRoomFibonacciPlacarFlash,
+        };
+    fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+      fibonacciTick.nextMachine,
+      ids,
+    );
+    fibonacciStats = fibonacciTick.stats;
+
     const umView = buildUmFatorLiveView(ids, histories, umMachine);
     const crossingView = buildRotatingRoomCrossingSessionLiveView(ids, histories, crossingMachine);
+    const fibonacciView = buildRotatingRoomFibonacciSessionLiveView(
+      ids,
+      histories,
+      fibonacciMachine,
+    );
     const snapshot = buildTriggerSnapshot(
       umMachine,
       umStats,
@@ -283,19 +426,38 @@ export function createRotativaEngine(
       crossingMachine,
       crossingStats,
       crossingView,
+      fibonacciMachine,
+      fibonacciStats,
+      fibonacciView,
       ids,
     );
-    const trigger = resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled);
-    const active = buildActiveView(trigger, umView, umMachine, crossingMachine, crossingView, ids);
+    const trigger = resolveRotativaTriggerFromSnapshot(
+      snapshot,
+      crossingEnabled,
+      fibonacciEnabled,
+    );
+    const active = buildActiveView(
+      trigger,
+      umView,
+      umMachine,
+      crossingMachine,
+      crossingView,
+      fibonacciMachine,
+      fibonacciView,
+      ids,
+    );
 
     return {
       trigger,
       umFlash: umTick.flash,
       crossingFlash: crossingTick.flash,
+      fibonacciFlash: fibonacciTick.flash,
       umMachine,
       crossingMachine,
+      fibonacciMachine,
       umStats,
       crossingStats,
+      fibonacciStats,
       active,
     };
   }
@@ -320,7 +482,10 @@ export function createRotativaEngine(
       spinBaselinedByTable[tableId] = true;
     }
     const result = runTick();
-    if (umMachine.pendingByTable[String(tableId)]) {
+    if (
+      umMachine.pendingByTable[String(tableId)] ||
+      (fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone)
+    ) {
       anchorLiveSpinClockForFormation(tableId);
     }
     return result;
@@ -366,6 +531,51 @@ export function createRotativaEngine(
         : typeof mesaEmbedUrl === "string" && mesaEmbedUrl.includes("/play/pragmatic")
           ? ("pragmatic" as const)
           : ("outro" as const);
+
+    if (active.trigger === "fibonacci" && active.fibonacciActive) {
+      const fib = active.fibonacciActive;
+      const label = fib.zoneLabel;
+      const betKey = pragmaticFibonacciBetKeyFromZone(fib.zone);
+      const signalId =
+        active.betAttemptKey ?? `${tableId}:${fib.zone.kind}:${fib.zone.id}:${recovery}`;
+      const stakeAmount = stakeForFibonacciRecovery(recovery);
+
+      return {
+        type: "game-odds-glow/rotating-room-extension" as const,
+        version: 1 as const,
+        fingerprint: signalId,
+        actions: [
+          {
+            kind: "click" as const,
+            target: "factor-1" as const,
+            label,
+            reason: `Autopilot Fibonacci · ${label} · gale ${recovery}`,
+          },
+        ],
+        context: {
+          sessionMode: "active" as const,
+          prepareTableId: null,
+          currentTableId: tableId,
+          mesaEmbedUrl,
+          mesaProvider,
+          factor1Label: label,
+          factor2Label: null,
+          factor1BetKey: betKey,
+          factor2BetKey: null,
+          singleFactorMode: true,
+          rotativaTrigger: "fibonacci" as const,
+          strategy: "fibonacci" as const,
+          signalId,
+          betAttemptKey: active.betAttemptKey,
+          stakeAmount,
+          currentRecovery: recovery,
+          baseStake: BASE_STAKE,
+          maxRecovery: ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+          executionMode: null,
+          mesaCatalog: [],
+        },
+      };
+    }
 
     if (active.trigger === "crossing" && active.activeCrossing) {
       const crossing = active.activeCrossing;
@@ -466,6 +676,7 @@ export function createRotativaEngine(
   return {
     tableIds: ids,
     crossingEnabled,
+    fibonacciEnabled,
     ingestHistorySnapshot,
     ingestSpin,
     runTick,
@@ -476,6 +687,8 @@ export function createRotativaEngine(
       stats: umStats,
       crossingMachine,
       crossingStats,
+      fibonacciMachine,
+      fibonacciStats,
       histories,
       lastLiveSpinAtByTable,
       maxRecovery,
@@ -484,6 +697,7 @@ export function createRotativaEngine(
     resetStats() {
       umStats = emptyRotatingRoomSessionStats(maxRecovery);
       crossingStats = emptyRotatingRoomSessionStats(crossingMaxRecovery);
+      fibonacciStats = emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
     },
     reset() {
       umMachine = sanitizeUmFatorMachineForTableIds(defaultUmFatorMachineState(), ids);
@@ -491,8 +705,13 @@ export function createRotativaEngine(
         defaultRotatingRoomCrossingMachineState(),
         ids,
       );
+      fibonacciMachine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+        defaultRotatingRoomFibonacciMachineState(),
+        ids,
+      );
       umStats = emptyRotatingRoomSessionStats(maxRecovery);
       crossingStats = emptyRotatingRoomSessionStats(crossingMaxRecovery);
+      fibonacciStats = emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
       for (const id of ids) {
         histories[id] = [];
         delete lastGameIdByTable[id];

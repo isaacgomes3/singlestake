@@ -102,18 +102,21 @@ async function readAutopilotStats(maxRecovery) {
   };
 }
 
-async function persistAutopilotStats(umStats, crossingStats, maxRecovery) {
+async function persistAutopilotStats(umStats, crossingStats, fibonacciStats, maxRecovery) {
   const mr = clampMaxGales(maxRecovery);
   await chrome.storage.local.set({
     [STORAGE_AUTO_STATS]: {
       umStats,
       crossingStats,
+      fibonacciStats,
       maxRecovery: mr,
       updatedAt: new Date().toISOString(),
     },
   });
-  const wins = (umStats?.wins ?? 0) + (crossingStats?.wins ?? 0);
-  const losses = (umStats?.losses ?? 0) + (crossingStats?.losses ?? 0);
+  const wins =
+    (umStats?.wins ?? 0) + (crossingStats?.wins ?? 0) + (fibonacciStats?.wins ?? 0);
+  const losses =
+    (umStats?.losses ?? 0) + (crossingStats?.losses ?? 0) + (fibonacciStats?.losses ?? 0);
   await writeAutopilotStatus({ wins, losses, maxRecovery: mr });
 }
 
@@ -121,7 +124,7 @@ async function resetAutopilotStats() {
   const cfg = await readDgaConfig();
   const mr = cfg.maxRecovery;
   const empty = { wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] };
-  await persistAutopilotStats(empty, empty, mr);
+  await persistAutopilotStats(empty, empty, empty, mr);
   if (engine?.resetStats) engine.resetStats();
   return { ok: true, wins: 0, losses: 0, maxRecovery: mr };
 }
@@ -213,7 +216,9 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
       const recoveryBefore =
         result.active.trigger === "crossing"
           ? engine.getState().crossingMachine.recovery
-          : engine.getState().machine.recovery;
+          : result.active.trigger === "fibonacci"
+            ? engine.getState().fibonacciMachine.recovery
+            : engine.getState().machine.recovery;
       const tickResult = engine.runTick();
       void readDgaConfig().then((cfgNow) =>
         processEngineResult(tickResult, cfgNow.mesaEmbedUrl, cfgNow, { recoveryBefore, trigger: tickResult.trigger }),
@@ -228,24 +233,38 @@ function scheduleBetAttempt(result, mesaEmbedUrl, cfg) {
 }
 
 const EXTENSION_REAL_BASE_STAKE = 50;
+const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
 
-function extensionStakeForRecovery(recoveryBefore, maxRecovery) {
+function extensionStakeForRecovery(recoveryBefore, maxRecovery, trigger) {
   const level = Math.min(Math.max(0, Math.floor(recoveryBefore)), maxRecovery ?? 5);
+  if (trigger === "fibonacci") {
+    const idx = Math.min(level, FIBONACCI_LEVELS.length - 1);
+    return EXTENSION_REAL_BASE_STAKE * FIBONACCI_LEVELS[idx];
+  }
   return EXTENSION_REAL_BASE_STAKE * 2 ** level;
 }
 
 async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) {
   if (!result || !engine) return;
-  if (result.umStats || result.crossingStats) {
-    await persistAutopilotStats(result.umStats, result.crossingStats, cfg.maxRecovery);
+  if (result.umStats || result.crossingStats || result.fibonacciStats) {
+    await persistAutopilotStats(
+      result.umStats,
+      result.crossingStats,
+      result.fibonacciStats,
+      cfg.maxRecovery,
+    );
   }
 
   const settlements = [];
   const trigger = tickContext.trigger ?? result.trigger ?? "umFator";
+  const settlementTrigger =
+    trigger === "crossing" ? "dois2fatores" : trigger === "fibonacci" ? "fibonacci" : "um1fator";
   const flashes =
     trigger === "crossing"
       ? [{ flash: result.crossingFlash, recoveryBefore: tickContext.recoveryBefore }]
-      : [{ flash: result.umFlash, recoveryBefore: tickContext.recoveryBefore }];
+      : trigger === "fibonacci"
+        ? [{ flash: result.fibonacciFlash, recoveryBefore: tickContext.recoveryBefore }]
+        : [{ flash: result.umFlash, recoveryBefore: tickContext.recoveryBefore }];
 
   for (const item of flashes) {
     const { flash, recoveryBefore } = item;
@@ -258,12 +277,14 @@ async function processEngineResult(result, mesaEmbedUrl, cfg, tickContext = {}) 
           ? recoveryBefore
           : trigger === "crossing"
             ? engine.getState().crossingMachine.recovery
-            : engine.getState().machine.recovery;
+            : trigger === "fibonacci"
+              ? engine.getState().fibonacciMachine.recovery
+              : engine.getState().machine.recovery;
       settlements.push({
-        trigger,
+        trigger: settlementTrigger,
         recoveryBefore: rb,
         flash,
-        stake: extensionStakeForRecovery(rb, cfg.maxRecovery),
+        stake: extensionStakeForRecovery(rb, cfg.maxRecovery, settlementTrigger),
       });
     }
   }

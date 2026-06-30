@@ -24,10 +24,24 @@ import {
   buildRotatingRoomUmFatorSessionLiveView,
   tickRotatingRoomUmFatorSessionPlacar,
 } from "@/lib/roulette/rotatingRoomUmFatorSession";
+import {
+  buildRotatingRoomFibonacciSessionLiveView,
+  tickRotatingRoomFibonacciSessionPlacar,
+} from "@/lib/roulette/rotatingRoomFibonacciSession";
+import {
+  ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+  buildFibonacciActiveFromPick,
+  consecutiveZoneAbsence,
+  defaultRotatingRoomFibonacciMachineState,
+  sanitizeRotatingRoomFibonacciMachineForTableIds,
+  seedRotatingRoomFibonacciMachineAfterPlacarReset,
+  type RotatingRoomFibonacciPlacarFlash,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import { STRATEGY_PLACAR_DRAIN_MAX_STEPS, drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
+import { fibonacciMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomFibonacciPlacarDrive";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
 import {
   isRotatingRoomLobbyCooldownActive,
@@ -35,6 +49,7 @@ import {
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type {
   StrategyGlobalCrossingClientView,
+  StrategyGlobalFibonacciClientView,
   StrategyGlobalKind,
   StrategyGlobalLedgerEntry,
   StrategyGlobalSnapshot,
@@ -86,6 +101,10 @@ function syncRotatingTableIds(state: StrategyGlobalPersistedState, liveTableIds:
     next,
   );
   state.um1fator.machine = sanitizeUmFatorMachineForTableIds(state.um1fator.machine, next);
+  state.fibonacci.machine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+    state.fibonacci.machine,
+    next,
+  );
 }
 
 function appendCrossingLedgerIfNeeded(
@@ -100,14 +119,34 @@ function appendCrossingLedgerIfNeeded(
   ) {
     return [];
   }
-  const ledgerEntry = ledgerFromFlash(crossing.flash, crossing.recoveryBefore);
+  const ledgerEntry = ledgerFromFlash(crossing.flash, crossing.recoveryBefore, "dois2fatores");
   appendLedger(state, "dois2fatores", ledgerEntry, ROTATING_ROOM_CROSSING_MAX_RECOVERY);
   return [ledgerEntry];
 }
 
+function appendFibonacciLedgerIfNeeded(
+  state: StrategyGlobalPersistedState,
+  fibonacci: { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number },
+): StrategyGlobalLedgerEntry[] {
+  if (
+    !fibonacci.flash ||
+    (fibonacci.flash.kind !== "win" &&
+      fibonacci.flash.kind !== "loss" &&
+      fibonacci.flash.kind !== "recovery")
+  ) {
+    return [];
+  }
+  const ledgerEntry = ledgerFromFlash(fibonacci.flash, fibonacci.recoveryBefore, "fibonacci");
+  appendLedger(state, "fibonacci", ledgerEntry, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
+  return [ledgerEntry];
+}
+
 function ledgerFromFlash(
-  flash: NonNullable<RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash>,
+  flash: NonNullable<
+    RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash | RotatingRoomFibonacciPlacarFlash
+  >,
   recovery: number,
+  strategy: StrategyGlobalKind,
   stake?: number,
 ): StrategyGlobalLedgerEntry {
   return {
@@ -116,11 +155,13 @@ function ledgerFromFlash(
     won: flash.won,
     recovery,
     kind: flash.kind,
+    strategy,
     resultNumber: flash.resultNumber,
-    factor1: flash.factor1,
+    factor1: "factor1" in flash ? flash.factor1 : undefined,
     factor2: "factor2" in flash ? flash.factor2 : undefined,
-    triggerNumbers: flash.triggerNumbers,
+    triggerNumbers: "triggerNumbers" in flash ? flash.triggerNumbers : undefined,
     bucketGap: "bucketGap" in flash ? flash.bucketGap : undefined,
+    zoneLabel: "zoneLabel" in flash ? flash.zoneLabel : undefined,
     ...(typeof stake === "number" && stake > 0 && Number.isFinite(stake) ? { stake } : {}),
   };
 }
@@ -183,6 +224,27 @@ function driveUmFator(
     recoveryBefore: last?.recoveryBefore ?? state.um1fator.machine.recovery,
     settlements,
   };
+}
+
+function driveFibonacci(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+): { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number } {
+  const tableIds = state.rotatingRoomTableIds;
+  const recoveryBefore = state.fibonacci.machine.recovery;
+  const result = drainPlacarSteps(
+    state.fibonacci.machine,
+    state.fibonacci.stats,
+    (machine, stats) =>
+      tickRotatingRoomFibonacciSessionPlacar(tableIds, histories, machine, stats),
+    fibonacciMachinePlacarStepProgressed,
+  );
+  state.fibonacci.machine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+    result.nextMachine,
+    tableIds,
+  );
+  state.fibonacci.stats = result.stats;
+  return { flash: result.flash, recoveryBefore };
 }
 
 async function pushAutomationSimSettlements(
@@ -268,6 +330,51 @@ function buildUmFatorClientView(
   };
 }
 
+function buildFibonacciClientView(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+): StrategyGlobalFibonacciClientView {
+  const tableIds = state.rotatingRoomTableIds;
+  const machine = sanitizeRotatingRoomFibonacciMachineForTableIds(state.fibonacci.machine, tableIds);
+  const liveView = buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine);
+  const allowed = new Set(tableIds);
+  const activeFibonacci =
+    machine.cycleZone && machine.cycleTableId != null
+      ? buildFibonacciActiveFromPick(
+          {
+            tableId: machine.cycleTableId,
+            zone: machine.cycleZone,
+            absenceGap: consecutiveZoneAbsence(
+              histories[machine.cycleTableId] ?? [],
+              machine.cycleZone,
+            ),
+          },
+          machine.recovery,
+        )
+      : null;
+  const currentTableId =
+    machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
+  const showTapeteSignal = activeFibonacci != null && currentTableId != null;
+  const alertPick = liveView.globalPick;
+  return {
+    phase: showTapeteSignal ? "active" : "waiting",
+    sessionStats: state.fibonacci.stats,
+    showTapeteSignal,
+    fibonacciMode: true,
+    currentRecovery: machine.recovery,
+    currentTableId: showTapeteSignal ? currentTableId : null,
+    alertCategory: alertPick
+      ? alertPick.zone.kind === "dozen"
+        ? `Dúzia ${alertPick.zone.id}`
+        : `Coluna ${alertPick.zone.id}`
+      : null,
+    alertBucketGap: alertPick?.absenceGap ?? 0,
+    sessionMode: showTapeteSignal ? "active" : "scanning",
+    fibonacciScan: liveView.fibonacciScan,
+    activeFibonacci: showTapeteSignal ? activeFibonacci : null,
+  };
+}
+
 export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState): StrategyGlobalSnapshot {
   const histories = historiesRecord(state);
   const tableHistories: Record<number, number[]> = {};
@@ -282,10 +389,12 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     tableHistories,
     dois2fatores: buildCrossingClientView(state, histories),
     um1fator: buildUmFatorClientView(state, histories),
+    fibonacci: buildFibonacciClientView(state, histories),
     lifetime: state.lifetime,
     ledgerTail: {
       dois2fatores: state.ledger.dois2fatores.slice(-120),
       um1fator: state.ledger.um1fator.slice(-120),
+      fibonacci: state.ledger.fibonacci.slice(-120),
     },
     extensionSource: {
       active: extensionSource.active,
@@ -298,6 +407,7 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
 function toFlashPayload(
   crossing: RotatingRoomCrossingPlacarFlash,
   um: UmFatorPlacarFlash,
+  fibonacci: RotatingRoomFibonacciPlacarFlash = null,
 ): StrategyGlobalFlashPayload {
   return {
     dois2fatores: crossing
@@ -316,6 +426,14 @@ function toFlashPayload(
           kind: um.kind,
         }
       : null,
+    fibonacci: fibonacci
+      ? {
+          resultNumber: fibonacci.resultNumber,
+          won: fibonacci.won,
+          tableId: fibonacci.tableId,
+          kind: fibonacci.kind,
+        }
+      : null,
   };
 }
 
@@ -323,12 +441,13 @@ function bumpAndBroadcast(
   state: StrategyGlobalPersistedState,
   crossingFlash: RotatingRoomCrossingPlacarFlash,
   umFlash: UmFatorPlacarFlash,
+  fibonacciFlash: RotatingRoomFibonacciPlacarFlash = null,
 ): StrategyGlobalSnapshot {
   state.revision += 1;
   state.updatedAt = Date.now();
   schedulePersist(state);
   const snapshot = buildStrategyGlobalSnapshot(state);
-  const flashes = toFlashPayload(crossingFlash, umFlash);
+  const flashes = toFlashPayload(crossingFlash, umFlash, fibonacciFlash);
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
   void import("@/lib/server/automationSim/engine").then((m) => {
     void m.ensureAutomationSimEngine().then(() => {
@@ -358,11 +477,14 @@ export function ingestStrategyGlobalSpin(
 
   const crossing = driveCrossing(state, histories);
   const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
+  const fibonacci = driveFibonacci(state, histories);
+  const fibonacciLedgerEntries = appendFibonacciLedgerIfNeeded(state, fibonacci);
 
   if (extensionActive) {
-    const snapshot = bumpAndBroadcast(state, crossing.flash, null);
-    if (crossingLedgerEntries.length > 0) {
-      void pushAutomationSimSettlements(crossingLedgerEntries, snapshot);
+    const snapshot = bumpAndBroadcast(state, crossing.flash, null, fibonacci.flash);
+    const automationEntries = [...crossingLedgerEntries, ...fibonacciLedgerEntries];
+    if (automationEntries.length > 0) {
+      void pushAutomationSimSettlements(automationEntries, snapshot);
     }
     return snapshot;
   }
@@ -370,13 +492,13 @@ export function ingestStrategyGlobalSpin(
   const um = driveUmFator(state, histories);
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   for (const settlement of um.settlements) {
-    const ledgerEntry = ledgerFromFlash(settlement.flash, settlement.recoveryBefore);
+    const ledgerEntry = ledgerFromFlash(settlement.flash, settlement.recoveryBefore, "um1fator");
     appendLedger(state, "um1fator", ledgerEntry, UM_FATOR_MAX_RECOVERY);
     umLedgerEntries.push(ledgerEntry);
   }
 
-  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash);
-  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries];
+  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash, fibonacci.flash);
+  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries, ...fibonacciLedgerEntries];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
   }
@@ -423,6 +545,14 @@ export async function ingestStrategyGlobalExtensionSync(
     );
   }
 
+  if (payload.fibonacciMachine && payload.fibonacciStats) {
+    state.fibonacci.stats = payload.fibonacciStats;
+    state.fibonacci.machine = sanitizeRotatingRoomFibonacciMachineForTableIds(
+      payload.fibonacciMachine,
+      state.rotatingRoomTableIds,
+    );
+  }
+
   const histories = historiesRecord(state);
   let crossingFlash: RotatingRoomCrossingPlacarFlash = null;
   const crossingLedgerEntries: StrategyGlobalLedgerEntry[] = [];
@@ -432,33 +562,59 @@ export async function ingestStrategyGlobalExtensionSync(
     crossingLedgerEntries.push(...appendCrossingLedgerIfNeeded(state, crossing));
   }
 
+  let fibonacciFlash: RotatingRoomFibonacciPlacarFlash = null;
+  const fibonacciLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  if (!payload.fibonacciMachine) {
+    const fibonacci = driveFibonacci(state, histories);
+    fibonacciFlash = fibonacci.flash;
+    fibonacciLedgerEntries.push(...appendFibonacciLedgerIfNeeded(state, fibonacci));
+  }
+
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   const crossLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
+  const fibLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
   let umFlash: UmFatorPlacarFlash = null;
   for (const settlement of payload.settlements ?? []) {
     if (!rememberExtensionSettlementKey(settlement.dedupeKey)) continue;
+    const trigger = settlement.trigger ?? "um1fator";
+    const kind: StrategyGlobalKind =
+      trigger === "dois2fatores"
+        ? "dois2fatores"
+        : trigger === "fibonacci"
+          ? "fibonacci"
+          : "um1fator";
     const ledgerEntry = ledgerFromFlash(
       settlement.flash,
       settlement.recoveryBefore,
+      kind,
       settlement.stake,
     );
-    const kind = settlement.trigger === "dois2fatores" ? "dois2fatores" : "um1fator";
-    const maxR = kind === "dois2fatores" ? ROTATING_ROOM_CROSSING_MAX_RECOVERY : maxRecovery;
+    const maxR =
+      kind === "dois2fatores"
+        ? ROTATING_ROOM_CROSSING_MAX_RECOVERY
+        : kind === "fibonacci"
+          ? ROTATING_ROOM_FIBONACCI_MAX_RECOVERY
+          : maxRecovery;
     appendLedger(state, kind, ledgerEntry, maxR);
     if (kind === "dois2fatores") {
       crossLedgerFromExtension.push(ledgerEntry);
       crossingFlash = settlement.flash;
+    } else if (kind === "fibonacci") {
+      fibLedgerFromExtension.push(ledgerEntry);
+      fibonacciFlash = settlement.flash;
     } else {
       umLedgerEntries.push(ledgerEntry);
       umFlash = settlement.flash;
     }
   }
 
-  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash);
+  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash, fibonacciFlash);
   const automationEntries = [
     ...crossingLedgerEntries,
     ...crossLedgerFromExtension,
     ...umLedgerEntries,
+    ...fibonacciLedgerEntries,
+    ...fibLedgerFromExtension,
   ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
@@ -489,7 +645,8 @@ export function ingestStrategyGlobalHistorySnapshot(
   const histories = historiesRecord(state);
   driveCrossing(state, histories);
   driveUmFator(state, histories);
-  bumpAndBroadcast(state, null, null);
+  driveFibonacci(state, histories);
+  bumpAndBroadcast(state, null, null, null);
 }
 
 export function ingestStrategyGlobalReplayBatch(
@@ -515,7 +672,8 @@ export function ingestStrategyGlobalReplayBatch(
   const histories = historiesRecord(state);
   driveCrossing(state, histories);
   driveUmFator(state, histories);
-  bumpAndBroadcast(state, null, null);
+  driveFibonacci(state, histories);
+  bumpAndBroadcast(state, null, null, null);
 }
 
 export function getStrategyGlobalSnapshotOrThrow(): StrategyGlobalSnapshot {
@@ -539,6 +697,13 @@ export function resetStrategyGlobalSession(
         tableIds,
         histories,
       );
+    } else if (k === "fibonacci") {
+      state.fibonacci.stats = emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY);
+      state.fibonacci.machine = seedRotatingRoomFibonacciMachineAfterPlacarReset(
+        defaultRotatingRoomFibonacciMachineState(),
+        tableIds,
+        histories,
+      );
     } else {
       state.um1fator.stats = emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY);
       state.um1fator.machine = seedUmFatorMachineAfterPlacarReset(
@@ -552,11 +717,12 @@ export function resetStrategyGlobalSession(
   if (kind === "all") {
     resetOne("dois2fatores");
     resetOne("um1fator");
+    resetOne("fibonacci");
   } else {
     resetOne(kind);
   }
 
-  return bumpAndBroadcast(state, null, null);
+  return bumpAndBroadcast(state, null, null, null);
 }
 
 export function wipeStrategyGlobalState(liveTableIds: readonly number[]): StrategyGlobalSnapshot {

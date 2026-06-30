@@ -1040,9 +1040,20 @@ function stakeUnitsForContext(context, chip) {
     typeof context?.baseStake === "number" && context.baseStake > 0
       ? context.baseStake
       : DEFAULT_CHIP_VALUE;
-  const stakeAmount = baseStake * 2 ** recovery;
+  const explicitStake =
+    typeof context?.stakeAmount === "number" && context.stakeAmount > 0
+      ? context.stakeAmount
+      : null;
+  const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
+  const stakeAmount =
+    explicitStake ??
+    (context?.strategy === "fibonacci"
+      ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
+      : baseStake * 2 ** recovery);
   let units;
-  if (Math.abs(chipValue - baseStake) < 0.001) {
+  if (context?.strategy === "fibonacci" && Math.abs(chipValue - baseStake) < 0.001) {
+    units = Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]);
+  } else if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);
   } else {
     units = chipValue > 0 ? Math.max(1, Math.ceil(stakeAmount / chipValue)) : 1;

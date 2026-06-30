@@ -89,7 +89,7 @@ export function MobileStrategyListPage() {
     {
       id: "fibonacci",
       title: "Fibonacci",
-      subtitle: "Dúzias/colunas · ausência 12 giros",
+      subtitle: "Dúzias/colunas · ausência 10 giros",
       to: automationWorkspaceHref("/sala-rotativa-fibonacci"),
       external: true,
     },
@@ -104,7 +104,7 @@ export function MobileStrategyListPage() {
       <ul className="space-y-3">
         {items.map((item) => {
           let pct: number | null = null;
-          if (globalOn && globalSnap && item.id !== "sala2fatores" && item.id !== "fibonacci") {
+          if (globalOn && globalSnap && item.id !== "sala2fatores") {
             const life = globalSnap.lifetime[item.id as StrategyGlobalKind];
             pct = mobileLifetimeAssertivenessPct(life.wins, life.losses);
           }

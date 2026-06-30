@@ -2,12 +2,13 @@ import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
 /** Gatilhos activos na sala rotativa. 2 Fatores (padrões) activo por defeito; 1 Fator só manual. */
-export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing";
+export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci";
 
 export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 
 export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   crossing: boolean;
+  fibonacci: boolean;
 };
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
@@ -18,13 +19,14 @@ export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
 export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap = {
   ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
   crossing: true,
+  fibonacci: true,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
 
 export function normalizeUmFatorTriggerEnable(raw: unknown): UmFatorTriggerEnableMap {
   const full = normalizeRotatingRoomGatilhoEnable(raw);
-  const { crossing: _crossing, ...umOnly } = full;
+  const { crossing: _crossing, fibonacci: _fibonacci, ...umOnly } = full;
   return umOnly;
 }
 
@@ -36,6 +38,7 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
     if (typeof o[def.id] === "boolean") base[def.id] = o[def.id]!;
   }
   if (typeof o.crossing === "boolean") base.crossing = o.crossing;
+  if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
   base.two = false;
   return base;
 }
@@ -49,7 +52,7 @@ export function setRotatingRoomGatilhoEnabled(map: RotatingRoomGatilhoEnableMap)
 }
 
 export function getUmFatorEnabledTriggers(): UmFatorTriggerEnableMap {
-  const { crossing: _c, ...um } = runtimeEnabled;
+  const { crossing: _c, fibonacci: _f, ...um } = runtimeEnabled;
   return um;
 }
 
@@ -63,4 +66,8 @@ export function isUmFatorTriggerTierEnabled(tier: UmFatorTriggerMatchTier): bool
 
 export function isCrossingGatilhoEnabled(): boolean {
   return runtimeEnabled.crossing !== false;
+}
+
+export function isFibonacciGatilhoEnabled(): boolean {
+  return runtimeEnabled.fibonacci !== false;
 }

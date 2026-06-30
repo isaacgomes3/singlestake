@@ -56,5 +56,5 @@ export function mobileEntryHistoryFromLedger(
 }
 
 export function strategyKindIsSingleFactor(kind: StrategyGlobalKind): boolean {
-  return kind === "um1fator";
+  return kind === "um1fator" || kind === "fibonacci";
 }

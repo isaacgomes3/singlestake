@@ -105,7 +105,7 @@ export function lobbyTableHasRotatingRoomSignal(
 
 /** Alinha o cartão da sala com entrada em jogo da automação financeira (quando o motor ainda não expõe mesa). */
 export function alignRotatingRoomSessionWithAutomationBet<
-  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" },
+  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" },
 >(
   session: T,
   bet:

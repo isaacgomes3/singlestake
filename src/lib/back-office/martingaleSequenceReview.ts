@@ -1,9 +1,11 @@
 import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTypes";
 import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
+import { ROTATING_ROOM_FIBONACCI_MAX_RECOVERY } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 import {
   resolveLedgerEntryStake,
   ROULETTE_AUTOMATION_BASE_STAKE,
+  stakeForFibonacciRecovery,
   stakeForRecovery,
 } from "@/lib/back-office/automationStakes";
 
@@ -103,6 +105,36 @@ export function reviewMartingaleSettlement(
   entry: StrategyGlobalLedgerEntry,
   baseStake: number = ROULETTE_AUTOMATION_BASE_STAKE,
 ): MartingaleReviewResult {
+  if (entry.strategy === "fibonacci") {
+    const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
+    const recovery = Math.max(0, Math.floor(entry.recovery));
+    const maxR = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY;
+    const net = entry.won ? stake : -stake;
+
+    if (entry.won) {
+      if (entry.kind !== "win") {
+        return { accepted: false, reason: `vitória Fibonacci com kind inválido (${entry.kind})` };
+      }
+      return { accepted: true, stake, net };
+    }
+    if (entry.kind === "recovery") {
+      if (recovery >= maxR) {
+        return { accepted: false, reason: "recuperação Fibonacci inválida no gale máximo" };
+      }
+      return { accepted: true, stake, net };
+    }
+    if (entry.kind === "loss") {
+      if (recovery < maxR) {
+        return {
+          accepted: false,
+          reason: `derrota Fibonacci só no gale ${maxR}, recebido gale ${recovery}`,
+        };
+      }
+      return { accepted: true, stake, net };
+    }
+    return { accepted: false, reason: `tipo de liquidação Fibonacci desconhecido (${entry.kind})` };
+  }
+
   const lastRound = state.rounds[0] ?? null;
   const expected = expectedMartingaleStep(lastRound, baseStake);
   const recovery = Math.max(0, Math.floor(entry.recovery));

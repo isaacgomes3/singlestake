@@ -10,6 +10,11 @@ import {
   ROTATING_ROOM_CROSSING_MAX_RECOVERY,
   type RotatingRoomCrossingMachineState,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import {
+  ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+  defaultRotatingRoomFibonacciMachineState,
+  type RotatingRoomFibonacciMachineState,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { defaultRotatingRoomCrossingMachineState } from "@/lib/roulette/rotatingRoomCrossingSession";
 import {
   UM_FATOR_MAX_RECOVERY,
@@ -41,6 +46,10 @@ export type StrategyGlobalPersistedState = {
   };
   um1fator: {
     machine: UmFatorMachineState;
+    stats: RotatingRoomSessionStats;
+  };
+  fibonacci: {
+    machine: RotatingRoomFibonacciMachineState;
     stats: RotatingRoomSessionStats;
   };
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
@@ -81,6 +90,10 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
       machine: defaultUmFatorMachineState(),
       stats: emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY),
     },
+    fibonacci: {
+      machine: defaultRotatingRoomFibonacciMachineState(),
+      stats: emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
+    },
     lifetime: {
       dois2fatores: { ...defaultLifetime(), since: now },
       um1fator: {
@@ -89,9 +102,19 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
         winsAtRecovery: emptyRecoveryLevelCounts(UM_FATOR_MAX_RECOVERY),
         lossesAtRecovery: emptyRecoveryLevelCounts(UM_FATOR_MAX_RECOVERY),
       },
+      fibonacci: {
+        ...defaultLifetime(),
+        since: now,
+        winsAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
+        lossesAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
+      },
     },
-    ledger: { dois2fatores: [], um1fator: [] },
+    ledger: { dois2fatores: [], um1fator: [], fibonacci: [] },
   };
+}
+
+function parseFibonacciMachine(raw: unknown): RotatingRoomFibonacciMachineState {
+  return { ...defaultRotatingRoomFibonacciMachineState(), ...(raw as object) };
 }
 
 function parseMachine(raw: unknown): RotatingRoomCrossingMachineState {
@@ -156,9 +179,17 @@ export function parsePersistedState(
         machine: parseUmMachine(o.um1fator?.machine, umStats),
       };
     })(),
+    fibonacci: {
+      machine: parseFibonacciMachine(o.fibonacci?.machine),
+      stats: parseRotatingRoomSessionStats(
+        o.fibonacci?.stats,
+        ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
+      ),
+    },
     lifetime: {
       dois2fatores: parseLifetime(o.lifetime?.dois2fatores, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
       um1fator: parseLifetime(o.lifetime?.um1fator, UM_FATOR_MAX_RECOVERY),
+      fibonacci: parseLifetime(o.lifetime?.fibonacci, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
     },
     ledger: {
       dois2fatores: Array.isArray(o.ledger?.dois2fatores)
@@ -166,6 +197,9 @@ export function parsePersistedState(
         : [],
       um1fator: Array.isArray(o.ledger?.um1fator)
         ? (o.ledger!.um1fator as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
+        : [],
+      fibonacci: Array.isArray(o.ledger?.fibonacci)
+        ? (o.ledger!.fibonacci as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
         : [],
     },
   };

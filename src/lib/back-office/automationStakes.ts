@@ -1,5 +1,6 @@
 import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTypes";
 import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
+import { stakeUnitsAtRecovery } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 /** Stake base da automação e extensão: R$ 50 → 100 → 200 → 400 → 800 → 1600. */
 export const EXTENSION_REAL_BASE_STAKE = 50;
@@ -16,6 +17,14 @@ export function stakeForRecovery(
   return baseStake * 2 ** level;
 }
 
+/** baseStake × nível Fibonacci (1-1-2-3-5-8-13-21). */
+export function stakeForFibonacciRecovery(
+  recovery: number,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): number {
+  return baseStake * stakeUnitsAtRecovery(Math.max(0, Math.floor(recovery)));
+}
+
 export function resolveLedgerEntryStake(
   entry: StrategyGlobalLedgerEntry,
   _balance?: number,
@@ -23,6 +32,9 @@ export function resolveLedgerEntryStake(
 ): number {
   if (typeof entry.stake === "number" && entry.stake > 0 && Number.isFinite(entry.stake)) {
     return entry.stake;
+  }
+  if (entry.strategy === "fibonacci") {
+    return stakeForFibonacciRecovery(entry.recovery, baseStake);
   }
   return stakeForRecovery(entry.recovery, undefined, baseStake);
 }
