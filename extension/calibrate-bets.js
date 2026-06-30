@@ -2,20 +2,25 @@
  * Calibração — overlay em ecrã completo no frame principal; 1 clique grava coordenadas.
  */
 (function () {
-  const docEl = document.documentElement;
   const betKey =
-    docEl?.dataset?.gogCalBetKey || window.__gogCalBetKey || "";
+    window.__gogCalBetKey ||
+    document.documentElement?.dataset?.gogCalBetKey ||
+    "";
   const label =
-    docEl?.dataset?.gogCalLabel || window.__gogCalLabel || betKey;
+    window.__gogCalLabel ||
+    document.documentElement?.dataset?.gogCalLabel ||
+    betKey;
   if (!betKey) return;
 
-  const findSurface =
-    typeof window.__gogFindGameSurface === "function"
-      ? window.__gogFindGameSurface
-      : null;
-  const surface = findSurface ? findSurface() : null;
   const isTop = window === window.top;
-  if (!isTop && !surface?.el) return;
+  if (!isTop) {
+    const findSurface =
+      typeof window.__gogFindGameSurface === "function"
+        ? window.__gogFindGameSurface
+        : null;
+    const surface = findSurface ? findSurface() : null;
+    if (!surface?.el) return;
+  }
 
   if (typeof window.__gogStopCalibration === "function") {
     try {
@@ -165,6 +170,7 @@
       }
       return;
     }
+    if (document.getElementById(ROOT_ID)) return;
     document.body.appendChild(root);
     document.body.appendChild(banner);
     document.body.appendChild(cancel);

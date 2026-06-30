@@ -1809,17 +1809,20 @@ async function disarmCalibration(tabId) {
   }
   try {
     await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
-      },
-    });
-    await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
       func: () => {
-        if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
+        if (typeof window.__gogStopCalibration === "function") {
+          try {
+            window.__gogStopCalibration();
+          } catch {
+            /* ignore */
+          }
+        }
         delete document.documentElement.dataset.gogCalBetKey;
         delete document.documentElement.dataset.gogCalLabel;
+        delete window.__gogCalBetKey;
+        delete window.__gogCalLabel;
+        delete window.__gogCalibrationActive;
       },
     });
   } catch {
@@ -1981,17 +1984,6 @@ async function armCalibrationOnAppOverlay(betKey, label) {
   } catch {
     /* ignore */
   }
-  if (!operatorUrl) {
-    const roulette = await findRouletteTabForAction(null);
-    if (roulette.tabId != null) {
-      try {
-        const t = await chrome.tabs.get(roulette.tabId);
-        operatorUrl = t.url ?? null;
-      } catch {
-        /* ignore */
-      }
-    }
-  }
 
   let injected = 0;
   try {
@@ -2004,15 +1996,56 @@ async function armCalibrationOnAppOverlay(betKey, label) {
     return { tabId: appTab.id, via: "app-extension-overlay", operatorUrl };
   }
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label);
+  try {
+    await postCalibrationToAppPageMainWorld(appTab.id, "arm", betKey, label);
+    await sleep(300);
+    const reactArmed =
+      (await chrome.scripting.executeScript({
+        target: { tabId: appTab.id },
+        world: "MAIN",
+        func: () => Boolean(document.documentElement.dataset.singlestakeArmCalibration),
+      }))?.[0]?.result === true;
+    if (reactArmed) {
       return { tabId: appTab.id, via: "app-react-overlay", operatorUrl };
-    } catch {
-      if (attempt < 3) await sleep(250);
     }
+  } catch {
+    /* ignore */
   }
   return null;
+}
+
+/** Inject clássico no separador do operador (br4) — overlay azul directo, como extensão ≤1.4.5. */
+async function injectOperatorCalibrationClassic(tabId, betKey, label) {
+  await waitForTabComplete(tabId);
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => window.__gogClearVisualArtifacts?.(),
+  });
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["exterior-bets.js"],
+  });
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (bk, lb) => {
+      const root = document.documentElement;
+      root.dataset.gogCalBetKey = bk;
+      root.dataset.gogCalLabel = lb;
+      window.__gogCalBetKey = bk;
+      window.__gogCalLabel = lb;
+    },
+    args: [betKey, label],
+  });
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["calibrate-bets.js"],
+  });
+
+  return (await verifyCalibrationOverlayActive(tabId)) ? 1 : 0;
 }
 
 function stampCalibrationDataset(tabId, frameIds, betKey, label) {
@@ -2085,6 +2118,41 @@ async function armCalibration(betKey, label, chipValue) {
   const resolvedLabel =
     label ?? (betKey === "chip" ? `Ficha R$ ${Number(chipValue) || DEFAULT_CHIP_VALUE}` : betKey);
 
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const preferredId = activeTabs[0]?.id ?? null;
+  const { tabId, navigated } = await findRouletteTabForAction(preferredId);
+
+  if (tabId != null) {
+    await chrome.tabs.update(tabId, { active: true });
+    await disarmCalibration(tabId);
+
+    try {
+      let injected = await injectOperatorCalibrationClassic(tabId, betKey, resolvedLabel);
+      if (injected < 1) {
+        injected = await injectOperatorCalibration(tabId, betKey, resolvedLabel);
+      }
+      if (injected >= 1 && (await verifyCalibrationOverlayActive(tabId))) {
+        await chrome.storage.local.set({
+          gogCalibrationArmed: {
+            betKey,
+            label: resolvedLabel,
+            tabId,
+            chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
+            at: new Date().toISOString(),
+            via: "operator",
+          },
+        });
+        return {
+          ok: true,
+          detail: `Overlay azul na mesa — clique em ${resolvedLabel}${navigated ? " (roleta aberta)" : ""}`,
+          tabId,
+        };
+      }
+    } catch {
+      /* fallback stake37 abaixo */
+    }
+  }
+
   const appOverlay = await armCalibrationOnAppOverlay(betKey, resolvedLabel);
   if (appOverlay) {
     await chrome.storage.local.set({
@@ -2100,55 +2168,21 @@ async function armCalibration(betKey, label, chipValue) {
     });
     return {
       ok: true,
-      detail: `Overlay azul no app — clique em ${resolvedLabel} sobre o casino`,
+      detail: `Overlay no app — clique em ${resolvedLabel} sobre o casino`,
       tabId: appOverlay.tabId,
     };
   }
 
-  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const preferredId = activeTabs[0]?.id ?? null;
-  const { tabId, navigated } = await findRouletteTabForAction(preferredId);
-
   if (tabId == null) {
     return {
       ok: false,
-      detail: "Abra stake37.com.br com o casino ou a roleta Pragmatic num separador.",
+      detail: "Abra br4.bet.br/play/pragmatic num separador ou stake37 com o casino.",
     };
   }
-
-  await chrome.tabs.update(tabId, { active: true });
-  await disarmCalibration(tabId);
-
-  try {
-    const injected = await injectOperatorCalibration(tabId, betKey, resolvedLabel);
-    if (injected < 1) {
-      return {
-        ok: false,
-        detail: "Não foi possível injectar o overlay — recarregue a mesa e tente de novo",
-      };
-    }
-  } catch (e) {
-    return {
-      ok: false,
-      detail: e instanceof Error ? e.message : String(e),
-    };
-  }
-
-  await chrome.storage.local.set({
-    gogCalibrationArmed: {
-      betKey,
-      label: resolvedLabel,
-      tabId,
-      chipValue: betKey === "chip" ? Number(chipValue) || DEFAULT_CHIP_VALUE : null,
-      at: new Date().toISOString(),
-      via: "operator",
-    },
-  });
 
   return {
-    ok: true,
-    detail: `Overlay activo — clique em ${resolvedLabel} na mesa${navigated ? " (roleta aberta)" : ""}`,
-    tabId,
+    ok: false,
+    detail: "Não foi possível activar o overlay — recarregue a mesa e a extensão em chrome://extensions",
   };
 }
 
