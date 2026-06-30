@@ -2,6 +2,18 @@
 # Executado na VPS pelo GitHub Actions (deploy-stake37.yml).
 set -euo pipefail
 
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ "${DEPLOY_TRACE:-0}" = "1" ]; then
+  set -x
+fi
+
+on_remote_err() {
+  local rc=$?
+  echo "=== ERRO remoto (exit ${rc}) na linha ${1} ==="
+  bash deploy/github-actions-failure-diagnostics.sh 2>/dev/null || true
+  exit "$rc"
+}
+trap 'on_remote_err $LINENO' ERR
+
 echo "=== Ligado como $(whoami) em $(hostname) ==="
 APP_DIR=/var/www/stake37
 if [ ! -d "$APP_DIR" ]; then APP_DIR=/var/www/singlestake; fi
@@ -30,6 +42,7 @@ if [ "$DEPLOY_RC" -eq 0 ]; then
 fi
 
 echo "=== deploy.sh falhou (${DEPLOY_RC}) — quick-fix e verificação ==="
+bash deploy/github-actions-failure-diagnostics.sh || true
 bash deploy/quick-fix-site.sh || true
 
 PUB="${PUBLIC_APP_URL:-https://stake37.com.br}"
@@ -61,5 +74,6 @@ if [ "$PUB_CODE" = "200" ] || [ "$PUB_CODE" = "302" ]; then
 fi
 
 bash deploy/verify-site.sh && exit 0
+bash deploy/github-actions-failure-diagnostics.sh || true
 pm2 logs singlestake --lines 30 --nostream 2>/dev/null || true
 exit 1

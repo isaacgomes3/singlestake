@@ -41,37 +41,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+
       - name: Deploy na VPS
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-        run: |
-          set -euo pipefail
-          if [ -z "${VPS_HOST:-}" ] || [ -z "${VPS_USER:-}" ]; then
-            echo "::error::Defina VPS_HOST e VPS_USER nos secrets do repositório."
-            exit 1
-          fi
-          install -m 700 -d ~/.ssh
-          if [ -n "${SSH_KEY_B64:-}" ]; then
-            echo "$SSH_KEY_B64" | base64 -d > ~/.ssh/vps_deploy_key
-          elif [ -n "${SSH_KEY:-}" ]; then
-            printf '%s' "$SSH_KEY" > ~/.ssh/vps_deploy_key
-            printf '\n' >> ~/.ssh/vps_deploy_key
-          else
-            echo "::error::Defina VPS_SSH_KEY_B64 (recomendado) ou VPS_SSH_KEY."
-            exit 1
-          fi
-          chmod 600 ~/.ssh/vps_deploy_key
-          if ! ssh-keygen -y -f ~/.ssh/vps_deploy_key >/dev/null 2>&1; then
-            echo "::error::Chave SSH inválida. Na VPS: base64 -w0 /root/.ssh/github-deploy-stake37"
-            exit 1
-          fi
-          echo "Chave SSH válida. A ligar a ${VPS_USER}@${VPS_HOST}..."
-          ssh -o StrictHostKeyChecking=accept-new \
-              -o ServerAliveInterval=30 \
-              -o ConnectTimeout=120 \
-              -i ~/.ssh/vps_deploy_key \
-              "${VPS_USER}@${VPS_HOST}" \
-              "APP_DIR=/var/www/stake37; [ -d \"\$APP_DIR\" ] || APP_DIR=/var/www/singlestake; cd \"\$APP_DIR\" && git fetch origin main && git reset --hard origin/main && PUBLIC_APP_URL=https://stake37.com.br bash deploy/github-actions-remote.sh"
+          GITHUB_SHA: ${{ github.sha }}
+        run: bash deploy/ci-ssh-deploy.sh
+
+      - name: Guardar log do deploy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vps-deploy-log-${{ github.run_number }}
+          path: vps-deploy.log
+          retention-days: 14
+          if-no-files-found: ignore
