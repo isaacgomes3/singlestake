@@ -1,5 +1,7 @@
 import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
 import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navigation";
+import { isAdminUser, isBackOfficeAdminModule } from "@/lib/back-office/admin-access";
+import { getSession } from "@/lib/auth/session";
 import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
 import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-office-automation-config-panel";
 import { BackOfficeAutomationStatsPanel } from "@/components/back-office/back-office-automation-stats-panel";
@@ -170,6 +172,10 @@ export function BackOfficeModulePage({ moduleId }: Props) {
 
   if (!mod || moduleId === "visao-geral") {
     return null;
+  }
+
+  if (isBackOfficeAdminModule(mod.id) && !isAdminUser(getSession()?.user)) {
+    return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
   }
 
   const Icon = mod.icon;

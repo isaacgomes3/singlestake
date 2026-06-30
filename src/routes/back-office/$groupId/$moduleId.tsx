@@ -1,11 +1,13 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { BackOfficeModulePage } from "@/components/back-office/back-office-module-page";
+import { requireAdminRole } from "@/lib/auth/admin-gate";
 import {
   getBackOfficeGroup,
   type BackOfficeGroupId,
   type BackOfficeModuleId,
 } from "@/lib/back-office/navigation";
+import { isBackOfficeAdminGroup, isBackOfficeAdminModule } from "@/lib/back-office/admin-access";
 import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
 
 const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([
@@ -34,6 +36,9 @@ export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
     if (!group) throw notFound();
     if (!group.moduleIds.includes(params.moduleId as BackOfficeModuleId)) {
       throw notFound();
+    }
+    if (isBackOfficeAdminGroup(params.groupId) || isBackOfficeAdminModule(params.moduleId)) {
+      await requireAdminRole();
     }
     if (SUBSCRIPTION_GATED_MODULES.has(params.moduleId as BackOfficeModuleId)) {
       await requireActiveSubscription();

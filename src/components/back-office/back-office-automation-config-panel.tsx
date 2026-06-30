@@ -11,10 +11,15 @@ import {
 } from "@/lib/back-office/automation-config-api";
 import type { GlobalAutomationConfigDto } from "@/lib/back-office/automation-config";
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/rouletteAutomationSim";
+import { isAdminUser } from "@/lib/back-office/admin-access";
+import { getSession } from "@/lib/auth/session";
 import { useFormat } from "@/lib/i18n/use-format";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 export function BackOfficeAutomationConfigPanel() {
+  const { t } = useI18n();
   const { money } = useFormat();
+  const isAdmin = isAdminUser(getSession()?.user);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -26,6 +31,10 @@ export function BackOfficeAutomationConfigPanel() {
   const [savingYield, setSavingYield] = useState(false);
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     void (async () => {
       setLoading(true);
       const [row, yieldRes] = await Promise.all([
@@ -44,7 +53,7 @@ export function BackOfficeAutomationConfigPanel() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [isAdmin]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +100,10 @@ export function BackOfficeAutomationConfigPanel() {
       setPaused(row.paused);
     }
   };
+
+  if (!isAdmin) {
+    return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
+  }
 
   if (loading) {
     return <p className="text-sm text-text-secondary">A carregar configuração…</p>;

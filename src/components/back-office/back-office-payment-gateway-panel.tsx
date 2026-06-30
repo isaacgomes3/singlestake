@@ -8,6 +8,9 @@ import {
   savePaymentGatewaySettings,
   type PaymentGatewaySettingsDto,
 } from "@/lib/back-office/payment-gateway-api";
+import { isAdminUser } from "@/lib/back-office/admin-access";
+import { getSession } from "@/lib/auth/session";
+import { useI18n } from "@/lib/i18n/i18n-provider";
 
 const DEFAULT_FORM: PaymentGatewaySettingsDto = {
   apiBaseUrl: "https://api.lucpaguei.com",
@@ -21,11 +24,17 @@ const DEFAULT_FORM: PaymentGatewaySettingsDto = {
 };
 
 export function BackOfficePaymentGatewayPanel() {
+  const { t } = useI18n();
+  const isAdmin = isAdminUser(getSession()?.user);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<PaymentGatewaySettingsDto>(DEFAULT_FORM);
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     void (async () => {
       setLoading(true);
       const settings = await fetchPaymentGatewaySettings();
@@ -39,7 +48,7 @@ export function BackOfficePaymentGatewayPanel() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [isAdmin]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +67,10 @@ export function BackOfficePaymentGatewayPanel() {
     });
     toast.success("Configurações de pagamento guardadas.");
   };
+
+  if (!isAdmin) {
+    return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
+  }
 
   if (loading) {
     return <p className="text-sm text-text-secondary">A carregar gateway…</p>;

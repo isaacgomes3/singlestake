@@ -66,11 +66,19 @@ export function BackOfficeBinaryPanel() {
 
   const preferredSide = data?.nextDirectSide.selected ?? "left";
 
+  function registrationSideLabel(row: NonNullable<typeof data>["myDirects"][number]): string {
+    if (row.placementPending) return t("network.binary.registrationSidePending");
+    if (!row.hasActiveStart) return t("network.binary.registrationSideAwaitingStart");
+    if (row.side === "left") return t("network.binary.sideLeft");
+    if (row.side === "right") return t("network.binary.sideRight");
+    return t("shared.dash");
+  }
+
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.binary.placementTitle")}</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
             <p className="text-xs text-text-secondary">{t("network.binary.sponsorBinary")}</p>
             <p className="mt-1 font-semibold text-text-primary">
@@ -94,6 +102,12 @@ export function BackOfficeBinaryPanel() {
               {loading ? "…" : (data?.placement.placedAt ?? t("shared.dash"))}
             </p>
           </div>
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
+            <p className="text-xs text-text-secondary">{t("network.binary.myDirectsCount")}</p>
+            <p className="mt-1 font-semibold tabular-nums text-text-primary">
+              {loading ? "…" : (data?.myDirects.length ?? 0)}
+            </p>
+          </div>
         </div>
         {!loading && data ? (
           <p
@@ -108,6 +122,68 @@ export function BackOfficeBinaryPanel() {
           </p>
         ) : null}
         <p className="mt-2 text-[11px] text-text-secondary">{t("network.binary.qualifierNote")}</p>
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("network.binary.myDirectsTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("network.binary.myDirectsHint")}</p>
+        <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
+          {loading ? (
+            <p className="px-4 py-6 text-sm text-text-secondary">{t("shared.loading")}</p>
+          ) : !data?.myDirects.length ? (
+            <p className="px-4 py-6 text-sm text-text-secondary">{t("network.binary.myDirectsEmpty")}</p>
+          ) : (
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-color bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
+                  <th className="px-3 py-2.5 font-semibold">{t("network.binary.colDirectName")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("network.binary.colJoined")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("network.binary.colStatus")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("network.binary.colRegistrationSide")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.myDirects.map((row) => (
+                  <tr key={row.userId} className="border-b border-border-color last:border-0">
+                    <td className="px-3 py-2.5 text-text-primary">{row.name}</td>
+                    <td className="px-3 py-2.5 text-text-secondary">{row.joinedAt}</td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={cn(
+                          "text-xs font-medium",
+                          row.hasActiveStart ? "text-success" : "text-warning",
+                        )}
+                      >
+                        {row.hasActiveStart
+                          ? t("network.binary.startActive")
+                          : t("network.binary.awaitingStart")}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={cn(
+                          "text-sm font-semibold",
+                          row.side === "left"
+                            ? "text-sky-400"
+                            : row.side === "right"
+                              ? "text-violet-400"
+                              : row.placementPending
+                                ? "text-warning"
+                                : "text-text-secondary",
+                        )}
+                      >
+                        {registrationSideLabel(row)}
+                      </span>
+                      {row.placedAt ? (
+                        <p className="mt-0.5 text-[11px] text-text-secondary">{row.placedAt}</p>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </section>
 
       <section className="theme-card rounded-2xl p-5">

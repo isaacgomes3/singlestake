@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { BINARY_START_PACKAGE_ID } from "@/lib/back-office/binary-constants";
-import type { PendingDirectPlacement } from "@/lib/back-office/network-types";
+import type { PendingDirectPlacement, BinaryDirectPlacement } from "@/lib/back-office/network-types";
 import { getDb } from "@/lib/server/db/client";
 import { binaryTreeNodes, userPackages, users } from "@/lib/server/db/schema";
 import { onPackagePurchaseBinary } from "@/lib/server/network/binary-engine";
@@ -66,6 +66,50 @@ export async function listPendingDirectPlacements(
     })
     .filter((row) => row.pending)
     .sort((a, b) => {
+      if (a.hasActiveStart !== b.hasActiveStart) return a.hasActiveStart ? -1 : 1;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+}
+
+export async function listMyDirectPlacements(sponsorId: string): Promise<BinaryDirectPlacement[]> {
+  const db = getDb();
+  const [directs, nodes, startRows] = await Promise.all([
+    db.query.users.findMany({ where: eq(users.sponsorId, sponsorId) }),
+    db.query.binaryTreeNodes.findMany(),
+    db
+      .select({ userId: userPackages.userId })
+      .from(userPackages)
+      .where(
+        and(
+          eq(userPackages.packageId, BINARY_START_PACKAGE_ID),
+          eq(userPackages.status, "active"),
+        ),
+      ),
+  ]);
+
+  const startUsers = new Set(startRows.map((r) => r.userId));
+  const nodeByUser = new Map(nodes.map((n) => [n.userId, n]));
+
+  return directs
+    .filter((u) => !u.masterUserId)
+    .map((u) => {
+      const node = nodeByUser.get(u.id);
+      const placementPending = isBinaryPlacementPending(node);
+      const side =
+        node?.side === "left" || node?.side === "right" ? node.side : null;
+      return {
+        userId: u.id,
+        name: u.name,
+        email: u.email,
+        joinedAt: formatDate(u.createdAt),
+        hasActiveStart: startUsers.has(u.id),
+        placementPending,
+        side,
+        placedAt: node?.side && node.placedAt ? formatDate(node.placedAt) : null,
+      };
+    })
+    .sort((a, b) => {
+      if (a.placementPending !== b.placementPending) return a.placementPending ? -1 : 1;
       if (a.hasActiveStart !== b.hasActiveStart) return a.hasActiveStart ? -1 : 1;
       return a.name.localeCompare(b.name, "pt-BR");
     });

@@ -64,6 +64,19 @@ export type PendingDirectPlacement = {
   rightSlotAvailable: boolean;
 };
 
+/** Indicado directo do utilizador — com perna na árvore quando já posicionado. */
+export type BinaryDirectPlacement = {
+  userId: string;
+  name: string;
+  email: string;
+  joinedAt: string;
+  hasActiveStart: boolean;
+  /** Aguarda escolha manual de perna pelo patrocinador. */
+  placementPending: boolean;
+  side: "left" | "right" | null;
+  placedAt: string | null;
+};
+
 export type NextDirectSidePreference = {
   /** Valor persistido na base de dados (null = ainda não escolheu). */
   stored: "left" | "right" | null;
@@ -89,6 +102,8 @@ export type BinaryNetworkData = {
   };
   nextDirectSide: NextDirectSidePreference;
   pendingDirects: PendingDirectPlacement[];
+  /** Todos os indicados directos (posicionados e pendentes). */
+  myDirects: BinaryDirectPlacement[];
   binaryQualified: boolean;
 };
 

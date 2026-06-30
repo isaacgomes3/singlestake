@@ -11,6 +11,8 @@ import {
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { navGroupLabel, navModuleLabel } from "@/lib/i18n/messages";
 import { BACK_OFFICE_NAV, BACK_OFFICE_GROUPS } from "@/lib/back-office/navigation";
+import { isAdminUser } from "@/lib/back-office/admin-access";
+import { getSession } from "@/lib/auth/session";
 
 type Props = {
   open: boolean;
@@ -20,8 +22,10 @@ type Props = {
 export function BackOfficeSearchCommand({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const { messages, t } = useI18n();
+  const isAdmin = isAdminUser(getSession()?.user);
 
   const modules = BACK_OFFICE_NAV.filter((item) => item.id !== "visao-geral");
+  const groups = BACK_OFFICE_GROUPS.filter((group) => group.id !== "administracao" || isAdmin);
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
@@ -38,7 +42,7 @@ export function BackOfficeSearchCommand({ open, onOpenChange }: Props) {
             {t("nav.overview")}
           </CommandItem>
         </CommandGroup>
-        {BACK_OFFICE_GROUPS.map((group) => (
+        {groups.map((group) => (
           <CommandGroup key={group.id} heading={navGroupLabel(messages, group.id)}>
             {group.moduleIds.map((moduleId) => {
               const mod = modules.find((m) => m.id === moduleId);

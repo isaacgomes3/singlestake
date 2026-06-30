@@ -4,6 +4,8 @@
  * Padrões: primário x-x-x, secundário x-x-y-x, terciário x-y-x-x.
  * - POSICIONAR → JOGANDO com indicação do cruzamento do padrão
  * - Placar: vitória só com ambos os fatores; derrota se ambos falharem (zero = derrota)
+ * - Empate (um factor certo): não conta derrota — encerra a indicação
+ * - Indicação vigente apenas **uma rodada** após o gatilho (sem gales no empate)
  * - 5 recuperações antes de L final; troca de mesa após zero ou 2 giros sem padrão
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
@@ -671,6 +673,15 @@ function markTableSessionLoss(
   };
 }
 
+function enterCrossingFromAlert(
+  machine: RotatingRoomCrossingMachineState,
+  alert: RotatingRoomCrossingPick,
+  histories: Record<number, readonly number[]>,
+  recovery: number = machine.recovery,
+): RotatingRoomCrossingMachineState {
+  return armCycleFromPick(clearPrepareState(machine), alert, histories, recovery);
+}
+
 function beginPrepareOnAlert(
   machine: RotatingRoomCrossingMachineState,
   alert: RotatingRoomCrossingPick,
@@ -702,10 +713,10 @@ function rotatePrepareToNextTable(
   if (!alert) {
     return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
   }
-  return beginPrepareOnAlert(base, alert, histories);
+  return enterCrossingFromAlert(base, alert, histories);
 }
 
-/** Suspende ciclo na mesa derrotada e posiciona noutra roleta (recuperação mantém-se). */
+/** Suspende ciclo na mesa derrotada e arma gatilho noutra roleta (recuperação mantém-se). */
 function suspendAndPrepareNextTable(
   machine: RotatingRoomCrossingMachineState,
   lostTableId: number,
@@ -722,7 +733,7 @@ function suspendAndPrepareNextTable(
   if (!alert || alert.tableId === lostTableId) {
     return { ...cleared, awaitSwitchNoTable: true };
   }
-  return beginPrepareOnAlert(cleared, alert, histories);
+  return enterCrossingFromAlert(cleared, alert, histories);
 }
 
 /** Vitória em POSICIONAR com recuperação — troca de mesa sem contar W nem zerar recuperação. */
@@ -745,7 +756,7 @@ function rotatePrepareAfterWinDuringPrepare(
   if (!alert) {
     return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
   }
-  return beginPrepareOnAlert(base, alert, histories);
+  return enterCrossingFromAlert(base, alert, histories);
 }
 
 function finishCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCrossingMachineState {
@@ -1091,63 +1102,18 @@ export function tickRotatingRoomCrossingPlacar(
 
 
   if (!nextMachine.cycleActive && nextMachine.prepareFingerprint && nextMachine.prepareTableId != null) {
-
     const pt = nextMachine.prepareTableId;
-
-    const head = spinHeadFromHistory(histories[pt] ?? []);
-
-    if (nextMachine.armedAtHead != null && head !== nextMachine.armedAtHead) {
-      const hist = histories[pt] ?? [];
-      const resultNumber = hist[0];
-
-      if (resultNumber === 0) {
-        return {
-          nextMachine: rotatePrepareToNextTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
-          stats: nextStats,
-          statsChanged,
-          flash,
-        };
-      }
-
-      const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
-      if (freshPick) {
-        return {
-          nextMachine: armCycleFromPick(
-            clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: 0 }),
-            freshPick,
-            histories,
-            nextMachine.recovery,
-          ),
-          stats: nextStats,
-          statsChanged,
-          flash,
-        };
-      }
-
-      const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
-      if (
-        spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS &&
-        tableIds.length > 1
-      ) {
-        return {
-          nextMachine: rotatePrepareToNextTable(
-            { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
-            pt,
-            tableIds,
-            histories,
-            minAbsenceSpins,
-          ),
-          stats: nextStats,
-          statsChanged,
-          flash,
-        };
-      }
-
-      nextMachine = clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: spinsWithout });
+    const hist = histories[pt] ?? [];
+    const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+    if (freshPick) {
+      return {
+        nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
+        stats: nextStats,
+        statsChanged,
+        flash,
+      };
     }
-
-    return { nextMachine, stats: nextStats, statsChanged, flash };
-
+    nextMachine = clearPrepareState(nextMachine);
   }
 
 
@@ -1160,7 +1126,7 @@ export function tickRotatingRoomCrossingPlacar(
       const retry = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
       if (retry) {
         return {
-          nextMachine: beginPrepareOnAlert(nextMachine, retry, histories),
+          nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
           stats: nextStats,
           statsChanged,
           flash,
@@ -1174,7 +1140,7 @@ export function tickRotatingRoomCrossingPlacar(
     const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
 
     if (alert && !nextMachine.prepareFingerprint) {
-      nextMachine = beginPrepareOnAlert(nextMachine, alert, histories);
+      nextMachine = enterCrossingFromAlert(nextMachine, alert, histories);
 
       return { nextMachine, stats: nextStats, statsChanged, flash };
 
@@ -1276,11 +1242,8 @@ export function tickRotatingRoomCrossingPlacar(
     }
 
   } else {
-
-    nextMachine = { ...nextMachine, cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1 };
-
-    nextMachine = refreshCycleActiveFromLive(nextMachine, histories);
-
+    /** Empate (um factor certo): encerra a indicação sem derrota nem gale. */
+    nextMachine = clearCycle(nextMachine);
   }
 
 

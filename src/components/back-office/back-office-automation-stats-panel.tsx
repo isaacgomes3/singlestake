@@ -7,6 +7,8 @@ import {
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
+import { isAdminUser } from "@/lib/back-office/admin-access";
+import { getSession } from "@/lib/auth/session";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -36,21 +38,31 @@ function triggerLabel(
 export function BackOfficeAutomationStatsPanel() {
   const { t, messages } = useI18n();
   const { time } = useFormat();
+  const isAdmin = isAdminUser(getSession()?.user);
   const [data, setData] = useState<AutomationStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     const row = await fetchAutomationStats();
     setData(row);
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     void reload();
+    if (!isAdmin) return;
     const timer = window.setInterval(() => void reload(), REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, [reload]);
+  }, [reload, isAdmin]);
+
+  if (!isAdmin) {
+    return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
+  }
 
   async function handleToggleTrigger(id: "three" | "crossing", enabled: boolean) {
     setTogglingId(id);

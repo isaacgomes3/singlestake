@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import type { AuthUser } from "@/lib/auth/session";
+import { isAdminUser } from "@/lib/back-office/admin-access";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ function initials(name: string) {
 export function BackOfficeUserMenu({ user, onLogout }: Props) {
   const { t } = useI18n();
   const { theme, setTheme } = useTheme();
+  const isAdmin = isAdminUser(user);
 
   return (
     <DropdownMenu>
@@ -114,12 +116,14 @@ export function BackOfficeUserMenu({ user, onLogout }: Props) {
           <BookOpen className="mr-2 size-4" aria-hidden />
           {t("layout.documentation")}
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/back-office/administracao/admin" className="cursor-pointer">
-            <Settings className="mr-2 size-4" aria-hidden />
-            {t("layout.settings")}
-          </Link>
-        </DropdownMenuItem>
+        {isAdmin ? (
+          <DropdownMenuItem asChild>
+            <Link to="/back-office/administracao/admin" className="cursor-pointer">
+              <Settings className="mr-2 size-4" aria-hidden />
+              {t("layout.settings")}
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={onLogout}

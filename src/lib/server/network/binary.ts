@@ -12,6 +12,7 @@ import { isBinaryGloballyActive, resolvePrimaryUserId } from "@/lib/server/netwo
 import {
   isBinaryPlacementPending,
   listPendingDirectPlacements,
+  listMyDirectPlacements,
   resolveNextDirectSide,
   autoPlacePendingDirectsWithPreferredSide,
 } from "@/lib/server/network/direct-placement";
@@ -266,6 +267,7 @@ export async function buildBinaryNetworkData(
   const binaryQualified = isBinaryGloballyActive(primaryId, childIndex, usersMap, startUsers);
 
   const pendingDirects = await listPendingDirectPlacements(userId);
+  const myDirects = await listMyDirectPlacements(userId);
   const leftAvailable = legSpilloverSlotAvailable(userId, "left", nodes);
   const rightAvailable = legSpilloverSlotAvailable(userId, "right", nodes);
   const selectedNextSide = resolveNextDirectSide({
@@ -304,6 +306,7 @@ export async function buildBinaryNetworkData(
       rightAvailable,
     },
     pendingDirects,
+    myDirects,
     binaryQualified,
   };
 }

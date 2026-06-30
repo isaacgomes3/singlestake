@@ -346,7 +346,6 @@ var SinglestakeUmFator = (() => {
 
   // src/lib/roulette/doisFatoresPatternCrossing.ts
   var ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS = 12;
-  var ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS = 2;
   var ROTATING_ROOM_CROSSING_PATTERN_AXES = [
     "cor-altura",
     "altura-paridade",
@@ -613,9 +612,6 @@ var SinglestakeUmFator = (() => {
   function crossingFingerprint(tableId, axis, category) {
     return `${tableId}:${axis}:${category}`;
   }
-  function crossingPrepareKey(tableId, axis) {
-    return `${tableId}:${axis}`;
-  }
   function buildCrossingActiveFromPick(pick) {
     return {
       pairKind: pairKindFromAxis(pick.axis),
@@ -699,9 +695,6 @@ var SinglestakeUmFator = (() => {
   function pickGlobalCrossingAlertWithFallback(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     return pickGlobalCrossingAlert(tableIds, histories, excludeTableIds, minAbsenceSpins);
   }
-  function pickToQueueEntry(pick) {
-    return { tableId: pick.tableId, axis: pick.axis, category: pick.category, bucketGap: pick.bucketGap };
-  }
   function armCycleFromPick(machine, pick, histories, recovery) {
     const active = buildCrossingActiveFromPick(pick);
     if (!active) return machine;
@@ -769,27 +762,8 @@ var SinglestakeUmFator = (() => {
       lastLostTableId: tableId
     };
   }
-  function beginPrepareOnAlert(machine, alert, histories) {
-    return {
-      ...machine,
-      awaitSwitchNoTable: false,
-      prepareFingerprint: crossingPrepareKey(alert.tableId, alert.axis),
-      prepareTableId: alert.tableId,
-      prepareActive: buildCrossingActiveFromPick(alert),
-      pendingQueueEntry: pickToQueueEntry(alert),
-      armedAtHead: spinHeadFromHistory(histories[alert.tableId] ?? []),
-      prepareSpinsWithoutPattern: 0
-    };
-  }
-  function rotatePrepareToNextTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const excluded = new Set(tablesExcludedFromRotation(machine));
-    excluded.add(fromTableId);
-    const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
-    const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
-    if (!alert) {
-      return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
-    }
-    return beginPrepareOnAlert(base, alert, histories);
+  function enterCrossingFromAlert(machine, alert, histories, recovery = machine.recovery) {
+    return armCycleFromPick(clearPrepareState(machine), alert, histories, recovery);
   }
   function suspendAndPrepareNextTable(machine, lostTableId, recovery, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const marked = markTableSessionLoss(machine, lostTableId);
@@ -800,7 +774,7 @@ var SinglestakeUmFator = (() => {
     if (!alert || alert.tableId === lostTableId) {
       return { ...cleared, awaitSwitchNoTable: true };
     }
-    return beginPrepareOnAlert(cleared, alert, histories);
+    return enterCrossingFromAlert(cleared, alert, histories);
   }
   function finishCycle(machine) {
     return {
@@ -959,51 +933,17 @@ var SinglestakeUmFator = (() => {
     let flash = null;
     if (!nextMachine.cycleActive && nextMachine.prepareFingerprint && nextMachine.prepareTableId != null) {
       const pt = nextMachine.prepareTableId;
-      const head2 = spinHeadFromHistory(histories[pt] ?? []);
-      const entry = nextMachine.pendingQueueEntry;
-      if (nextMachine.armedAtHead != null && head2 !== nextMachine.armedAtHead) {
-        const hist = histories[pt] ?? [];
-        const resultNumber2 = hist[0];
-        if (resultNumber2 === 0) {
-          return {
-            nextMachine: rotatePrepareToNextTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
-        if (freshPick) {
-          return {
-            nextMachine: armCycleFromPick(
-              clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: 0 }),
-              freshPick,
-              histories,
-              nextMachine.recovery
-            ),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
-        if (spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS && tableIds.length > 1) {
-          return {
-            nextMachine: rotatePrepareToNextTable(
-              { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
-              pt,
-              tableIds,
-              histories,
-              minAbsenceSpins
-            ),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-        nextMachine = clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: spinsWithout });
+      const hist = histories[pt] ?? [];
+      const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+      if (freshPick) {
+        return {
+          nextMachine: enterCrossingFromAlert(nextMachine, freshPick, histories),
+          stats: nextStats,
+          statsChanged,
+          flash
+        };
       }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
+      nextMachine = clearPrepareState(nextMachine);
     }
     if (!nextMachine.cycleActive) {
       if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
@@ -1012,7 +952,7 @@ var SinglestakeUmFator = (() => {
         const retry = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded2, minAbsenceSpins);
         if (retry) {
           return {
-            nextMachine: beginPrepareOnAlert(nextMachine, retry, histories),
+            nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
             stats: nextStats,
             statsChanged,
             flash
@@ -1023,7 +963,7 @@ var SinglestakeUmFator = (() => {
       const excluded = nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : void 0;
       const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
       if (alert && !nextMachine.prepareFingerprint) {
-        nextMachine = beginPrepareOnAlert(nextMachine, alert, histories);
+        nextMachine = enterCrossingFromAlert(nextMachine, alert, histories);
         return { nextMachine, stats: nextStats, statsChanged, flash };
       }
       return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -1081,8 +1021,7 @@ var SinglestakeUmFator = (() => {
         }
       }
     } else {
-      nextMachine = { ...nextMachine, cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1 };
-      nextMachine = refreshCycleActiveFromLive(nextMachine, histories);
+      nextMachine = clearCycle(nextMachine);
     }
     return { nextMachine, stats: nextStats, statsChanged, flash };
   }
@@ -1108,7 +1047,8 @@ var SinglestakeUmFator = (() => {
       prepareTableId: null,
       prepareActive: null,
       pendingQueueEntry: null,
-      cycleMetricCategory: null
+      cycleMetricCategory: null,
+      prepareSpinsWithoutPattern: 0
     };
   }
   function buildRotatingRoomCrossingSessionLiveView(tableIds, histories, machine) {
