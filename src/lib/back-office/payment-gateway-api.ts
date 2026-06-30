@@ -5,6 +5,9 @@ export type PaymentGatewaySettingsDto = {
   callbackUrl: string;
   enabled: boolean;
   hasClientSecret?: boolean;
+  withdrawalMode: "manual" | "automatic_up_to_limit";
+  withdrawalAutoLimit: number;
+  pixManualConfirmation: boolean;
 };
 
 export async function fetchPaymentGatewaySettings(): Promise<PaymentGatewaySettingsDto | null> {

@@ -10,6 +10,8 @@ import {
 import { fulfillPackagePixOrderById } from "@/lib/server/finance/package-pix";
 import { confirmDepositFromGateway } from "@/lib/server/finance/deposits";
 import { confirmWithdrawalPaidFromGateway } from "@/lib/server/finance/withdrawals";
+import { isPixManualConfirmationOnly } from "@/lib/server/finance/pix-confirmation-policy";
+import { getWithdrawalMode } from "@/lib/server/finance/withdrawal-policy";
 
 function logCallback(message: string, detail?: unknown): void {
   const ts = new Date().toISOString();
@@ -98,6 +100,10 @@ export async function handleLucPagueiWebhook(body: unknown): Promise<void> {
         .set({ gatewayTransactionId: parsed.transactionId })
         .where(eq(packagePixOrders.id, pkg.id));
     }
+    if (await isPixManualConfirmationOnly()) {
+      logCallback("PIX pacote recebido — aguarda confirmação admin", pkg.id);
+      return;
+    }
     const ok = await fulfillPackagePixOrderById(pkg.id);
     logCallback(ok ? "pacote activado" : "falha activar pacote", pkg.id);
     return;
@@ -115,6 +121,10 @@ export async function handleLucPagueiWebhook(body: unknown): Promise<void> {
         .set({ gatewayTransactionId: parsed.transactionId })
         .where(eq(deposits.id, dep.id));
     }
+    if (await isPixManualConfirmationOnly()) {
+      logCallback("PIX depósito recebido — aguarda confirmação admin", dep.id);
+      return;
+    }
     const result = await confirmDepositFromGateway(dep.id);
     logCallback(result.ok ? "depósito creditado" : "falha creditar depósito", dep.id);
     return;
@@ -126,6 +136,10 @@ export async function handleLucPagueiWebhook(body: unknown): Promise<void> {
       : null;
 
   if (wd && (wd.status === "approved" || wd.status === "pending")) {
+    if ((await getWithdrawalMode()) === "manual") {
+      logCallback("saque pago no gateway — modo manual, admin marca como pago", wd.id);
+      return;
+    }
     const result = await confirmWithdrawalPaidFromGateway(wd.id);
     logCallback(result.ok ? "saque confirmado" : "falha confirmar saque", wd.id);
     return;

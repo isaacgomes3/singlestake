@@ -41,6 +41,9 @@ export const Route = createFileRoute("/api/back-office/admin/payment-gateway")({
           clientSecret?: string;
           callbackUrl?: string;
           enabled?: boolean;
+          withdrawalMode?: "manual" | "automatic_up_to_limit";
+          withdrawalAutoLimit?: number;
+          pixManualConfirmation?: boolean;
         }>(request);
 
         const current = await getPaymentGatewaySettings();
@@ -55,6 +58,20 @@ export const Route = createFileRoute("/api/back-office/admin/payment-gateway")({
           clientSecret,
           callbackUrl: body?.callbackUrl?.trim() || current.callbackUrl,
           enabled: true,
+          withdrawalMode:
+            body?.withdrawalMode === "automatic_up_to_limit"
+              ? "automatic_up_to_limit"
+              : body?.withdrawalMode === "manual"
+                ? "manual"
+                : current.withdrawalMode,
+          withdrawalAutoLimit:
+            body?.withdrawalAutoLimit != null && Number.isFinite(body.withdrawalAutoLimit)
+              ? body.withdrawalAutoLimit
+              : current.withdrawalAutoLimit,
+          pixManualConfirmation:
+            body?.pixManualConfirmation != null
+              ? body.pixManualConfirmation
+              : current.pixManualConfirmation,
         });
 
         return jsonResponse({ ok: true, settings: redactPaymentGatewaySettings(saved) });

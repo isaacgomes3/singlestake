@@ -84,6 +84,10 @@ export function StartPackPaymentBanner({ order, packageName, onPaid }: Props) {
       <div className="space-y-4 p-5">
         <p className="text-sm text-text-secondary">{t("auth.activation.bannerHint")}</p>
 
+        <p className="rounded-lg border border-border-color bg-bg-secondary/60 px-3 py-2 text-xs text-text-secondary">
+          {t("products.packages.pixAutomationAdminHint")}
+        </p>
+
         {current.mode === "static" ? (
           <p className="rounded-lg border border-border-color bg-bg-secondary/60 px-3 py-2 text-xs text-text-secondary">
             {t("products.packages.pixStaticHint")}
@@ -119,7 +123,7 @@ export function StartPackPaymentBanner({ order, packageName, onPaid }: Props) {
           {polling ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              {t("auth.activation.waitingPayment")}
+              {t("products.packages.pixAwaitAdmin")}
             </>
           ) : (
             t("products.packages.pixExpired")

@@ -226,6 +226,7 @@ export async function activatePackageAfterPayment(
   await applyPackagePurchaseSplit({
     buyerUserId: input.userId,
     userPackageId,
+    purchaseAmount: amount,
     amounts: split,
     packageName: pkg.name,
     packageKind: kind,
@@ -246,7 +247,7 @@ export async function activatePackageAfterPayment(
     }
   }
 
-  if (!binaryPointsHandled) {
+  if (!binaryPointsHandled && kind !== "automation") {
     const { onPackagePurchaseBinary } = await import("@/lib/server/network/binary-engine");
     await onPackagePurchaseBinary({ buyerUserId: input.userId, amount });
   }

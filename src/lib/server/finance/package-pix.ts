@@ -31,6 +31,7 @@ import {
   activatePackageAfterPayment,
   validatePackagePurchase,
 } from "@/lib/server/finance/packages";
+import { isPixManualConfirmationOnly } from "@/lib/server/finance/pix-confirmation-policy";
 
 import type { UserPackageDto } from "@/lib/back-office/product-types";
 
@@ -362,10 +363,12 @@ async function isAutomationPackageOrder(
   return pkg?.packageKind === "automation";
 }
 
-/** Pacotes de automação exigem confirmação manual do administrador (como Start estático). */
+/** Todos os pedidos PIX de pacote exigem confirmação manual (Start e automação), salvo legado automático. */
 async function requiresAdminPixApproval(
   row: typeof packagePixOrders.$inferSelect,
 ): Promise<boolean> {
+  if (row.status !== "pending") return false;
+  if (await isPixManualConfirmationOnly()) return true;
   return isAutomationPackageOrder(row);
 }
 

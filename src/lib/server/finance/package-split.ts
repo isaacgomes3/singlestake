@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { REFERRAL_LEVELS, RESIDUAL_LEVELS, RESIDUAL_WEIGHT } from "@/lib/back-office/constants";
 import type { PackageKind } from "@/lib/back-office/product-constants";
 import {
+  AUTOMATION_DIRECT_REFERRAL_PCT,
   calculateCompanyAutomationPaymentSplit,
   calculateStartSubscriptionCompanySplit,
 } from "@/lib/back-office/product-constants";
@@ -10,6 +11,7 @@ import {
   creditCompanyBucket,
   debitCompanyAffiliatePool,
 } from "@/lib/server/finance/company-pool";
+import { capPayoutAmount } from "@/lib/server/finance/profit-cap";
 import {
   getSponsorChain,
   isAffiliateServicesActive,
@@ -58,18 +60,21 @@ async function paySponsorFromAffiliatePool(input: {
 }): Promise<void> {
   if (input.amount <= 0) return;
 
+  const capped = await capPayoutAmount(input.sponsorId, input.amount);
+  if (capped <= 0) return;
+
   const active = await isAffiliateServicesActive(input.sponsorId);
   if (active) {
     await creditWallet({
       userId: input.sponsorId,
       bucket: "afiliados",
-      amount: input.amount,
+      amount: capped,
       description: input.description,
       referenceType: input.referenceType,
       referenceId: input.referenceId,
     });
     await debitCompanyAffiliatePool({
-      amount: input.amount,
+      amount: capped,
       description: `Saída pool afiliados — ${input.description}`,
       referenceType: input.referenceType,
       referenceId: input.referenceId,
@@ -77,7 +82,7 @@ async function paySponsorFromAffiliatePool(input: {
   } else {
     await recordMissedCredit({
       userId: input.sponsorId,
-      amount: input.amount,
+      amount: capped,
       reason: input.description,
       referenceType: input.referenceType,
       referenceId: input.referenceId,
@@ -109,10 +114,35 @@ export async function distributeReferralPool(input: {
       sponsorId,
       amount: share,
       description: `${input.descriptionPrefix} — nível ${level.level}`,
-      referenceType: input.referenceType,
+      referenceType: "package_referral",
       referenceId: input.referenceId,
     });
   }
+}
+
+/** Automação — só patrocinador directo, 10% do valor da cota (respeita teto de ganhos). */
+export async function distributeAutomationDirectReferral(input: {
+  buyerUserId: string;
+  purchaseAmount: number;
+  referenceId: string;
+  packageName: string;
+}): Promise<void> {
+  if (input.purchaseAmount <= 0) return;
+
+  const sponsors = await getSponsorChain(input.buyerUserId, 1);
+  const sponsorId = sponsors[0];
+  if (!sponsorId) return;
+
+  const share = roundMoney((input.purchaseAmount * AUTOMATION_DIRECT_REFERRAL_PCT) / 100);
+  if (share <= 0) return;
+
+  await paySponsorFromAffiliatePool({
+    sponsorId,
+    amount: share,
+    description: `Pacote ${input.packageName} — indicação directa (${AUTOMATION_DIRECT_REFERRAL_PCT}%)`,
+    referenceType: "package_referral",
+    referenceId: input.referenceId,
+  });
 }
 
 /** Residual mensalidade — 10 níveis (% directo sobre parte rede). */
@@ -176,6 +206,7 @@ export async function distributeSubscriptionPayment(input: {
 export async function applyPackagePurchaseSplit(input: {
   buyerUserId: string;
   userPackageId: string;
+  purchaseAmount: number;
   amounts: PackageSplitAmounts;
   packageName: string;
   packageKind: PackageKind;
@@ -211,13 +242,22 @@ export async function applyPackagePurchaseSplit(input: {
       referenceId: refId,
     });
 
-    await distributeReferralPool({
-      buyerUserId: input.buyerUserId,
-      poolAmount: input.amounts.affiliateAmount,
-      referenceType: "package",
-      referenceId: refId,
-      descriptionPrefix: `Pacote ${input.packageName} — indicação`,
-    });
+    if (input.packageKind === "automation") {
+      await distributeAutomationDirectReferral({
+        buyerUserId: input.buyerUserId,
+        purchaseAmount: input.purchaseAmount,
+        referenceId: refId,
+        packageName: input.packageName,
+      });
+    } else {
+      await distributeReferralPool({
+        buyerUserId: input.buyerUserId,
+        poolAmount: input.amounts.affiliateAmount,
+        referenceType: "package_referral",
+        referenceId: refId,
+        descriptionPrefix: `Pacote ${input.packageName} — indicação`,
+      });
+    }
   }
 }
 

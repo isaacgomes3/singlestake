@@ -35,6 +35,7 @@ const BONUS_REFERENCE_TYPES = [
   "binary_bonus",
   "automation_yield",
   "subscription_residual",
+  "package_referral",
 ] as const;
 
 async function main() {
@@ -76,7 +77,7 @@ async function main() {
   await db.delete(binaryLegPoints);
 
   await db.delete(ledgerEntries).where(
-    inArray(ledgerEntries.referenceType, [...BONUS_REFERENCE_TYPES]),
+    inArray(ledgerEntries.referenceType, [...BONUS_REFERENCE_TYPES, "package"]),
   );
 
   await db.delete(ledgerEntries).where(
@@ -117,6 +118,7 @@ async function main() {
     await applyPackagePurchaseSplit({
       buyerUserId: row.userId,
       userPackageId: row.id,
+      purchaseAmount: row.amount,
       amounts: split,
       packageName: row.pkg.name,
       packageKind: kind,

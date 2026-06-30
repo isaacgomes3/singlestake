@@ -89,6 +89,9 @@ export function DepositPixCheckoutDialog({ deposit, onClose, onPaid }: Props) {
               />
             ) : null}
             <p className="mt-3 text-xs text-text-secondary">{t("products.packages.pixHint")}</p>
+            <p className="mt-2 rounded-lg border border-border-color bg-bg-secondary/60 px-3 py-2 text-xs text-text-secondary">
+              {t("finance.deposits.pixAdminHint")}
+            </p>
             {current.pixCopyPaste ? (
               <div className="mt-3 flex gap-2">
                 <input
@@ -102,7 +105,7 @@ export function DepositPixCheckoutDialog({ deposit, onClose, onPaid }: Props) {
               </div>
             ) : null}
             <p className="mt-3 text-center text-xs text-text-secondary">
-              {polling ? t("products.packages.pixWaiting") : t("products.packages.pixExpired")}
+              {polling ? t("finance.deposits.pixAwaitAdmin") : t("products.packages.pixExpired")}
             </p>
           </>
         )}

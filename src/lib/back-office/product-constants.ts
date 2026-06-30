@@ -17,6 +17,8 @@ export const SUBSCRIPTION_COMPANY_SHARE = 0.5;
 export const AUTOMATION_MAX_DAILY_YIELD_PCT = 1;
 export const AUTOMATION_YIELD_SETTING_KEY = "automation_daily_yield_pct";
 export const MAX_PROFIT_MULTIPLIER = 2;
+/** Indicação directa na compra de automação — 10% do valor da cota (só nível 1). */
+export const AUTOMATION_DIRECT_REFERRAL_PCT = 10;
 /** Duração máxima de cada cota de automação (12 meses). */
 export const PACKAGE_TERM_MONTHS = 12;
 export const ADHESION_DAYS = PACKAGE_TERM_MONTHS * 30;

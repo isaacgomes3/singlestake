@@ -4,7 +4,8 @@ import { MAX_PROFIT_MULTIPLIER } from "@/lib/back-office/product-constants";
 import { getDb } from "@/lib/server/db/client";
 import { ledgerEntries, userPackages } from "@/lib/server/db/schema";
 
-const NON_EARNING_REFERENCE_TYPES = ["deposit", "package", "withdrawal"];
+/** Créditos que não contam para o teto de ganhos (200% do investido). */
+const NON_EARNING_REFERENCE_TYPES = ["deposit", "withdrawal", "withdrawal-rollback"];
 
 export type ProfitCapStatus = {
   invested: number;

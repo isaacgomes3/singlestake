@@ -388,6 +388,7 @@ export async function rebuildBinaryPointsFromHistory(): Promise<{ purchases: num
   await db.delete(binaryLegPoints);
 
   const purchases = await db.query.userPackages.findMany({
+    where: eq(userPackages.packageId, BINARY_START_PACKAGE_ID),
     orderBy: (t, { asc }) => [asc(t.createdAt)],
   });
 

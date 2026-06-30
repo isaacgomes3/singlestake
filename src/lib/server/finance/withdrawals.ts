@@ -16,17 +16,16 @@ import { isAffiliateServicesActive } from "@/lib/server/finance/subscription-acc
 import { creditCompanyBucket } from "@/lib/server/finance/company-pool";
 import { getWalletBalance, creditWallet } from "@/lib/server/finance/wallet";
 import { getPersonalAutomationWalletBalance } from "@/lib/server/finance/global-automation-capital";
-import { isValidCpf } from "@/lib/server/finance/cpf";
+import {
+  getPaymentGatewaySettings,
+} from "@/lib/server/finance/payment-gateway-settings";
+import { shouldAutoSendWithdrawalViaGateway } from "@/lib/server/finance/withdrawal-policy";
+import { getDb } from "@/lib/server/db/client";
+import { auditLogs, users, withdrawals } from "@/lib/server/db/schema";
 import {
   buildPaymentExternalId,
   lucPagueiWithdrawPix,
 } from "@/lib/server/finance/luc-paguei-client";
-import {
-  getPaymentGatewaySettings,
-  isLucPagueiGatewayReady,
-} from "@/lib/server/finance/payment-gateway-settings";
-import { getDb } from "@/lib/server/db/client";
-import { auditLogs, users, withdrawals } from "@/lib/server/db/schema";
 
 export type WithdrawalDto = {
   id: string;
@@ -288,17 +287,14 @@ export async function processWithdrawal(input: {
 
     const externalRef = buildPaymentExternalId("SAQ", row.userId);
     let gatewayTransactionId: string | null = null;
-    let nextStatus: typeof row.status = "approved";
+    const nextStatus: typeof row.status = "approved";
 
-    if (await isLucPagueiGatewayReady()) {
-      const userCpf = row.user.cpf;
-      if (!userCpf || !isValidCpf(userCpf)) {
-        return {
-          ok: false,
-          error: "Utilizador sem CPF válido — necessário para saque automático via gateway.",
-        };
-      }
+    const autoViaGateway = await shouldAutoSendWithdrawalViaGateway({
+      amount: row.amount,
+      userCpf: row.user.cpf,
+    });
 
+    if (autoViaGateway) {
       const gateway = await getPaymentGatewaySettings();
       const withdraw = await lucPagueiWithdrawPix({
         settings: gateway,
@@ -306,17 +302,19 @@ export async function processWithdrawal(input: {
         externalId: externalRef,
         pixKey: row.pixKey ?? "",
         name: row.user.name,
-        taxId: userCpf,
+        taxId: row.user.cpf!,
         description: `Saque ${row.id}`,
       });
 
-      if (!withdraw.ok) {
-        await creditWalletRollback(row, "gateway");
-        return withdraw;
+      if (withdraw.ok) {
+        gatewayTransactionId = withdraw.result.transactionId;
+      } else {
+        console.warn(
+          "[withdrawals] gateway falhou — saque aprovado para pagamento manual:",
+          withdraw.error,
+          row.id,
+        );
       }
-
-      gatewayTransactionId = withdraw.result.transactionId;
-      nextStatus = "approved";
     }
 
     await db
@@ -324,7 +322,7 @@ export async function processWithdrawal(input: {
       .set({
         status: nextStatus,
         processedAt: now,
-        externalRef,
+        externalRef: gatewayTransactionId ? externalRef : null,
         gatewayTransactionId,
       })
       .where(eq(withdrawals.id, row.id));

@@ -214,10 +214,15 @@ export async function processDeposit(input: {
   };
 }
 
-/** Crédito automático via webhook Luc Paguei. */
+/** Crédito automático via webhook Luc Paguei (desactivado com confirmação manual PIX). */
 export async function confirmDepositFromGateway(
   depositId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { isPixManualConfirmationOnly } = await import("@/lib/server/finance/pix-confirmation-policy");
+  if (await isPixManualConfirmationOnly()) {
+    return { ok: false, error: "Confirmação manual — aguarda aprovação do administrador." };
+  }
+
   const db = getDb();
   const row = await db.query.deposits.findFirst({
     where: eq(deposits.id, depositId),
