@@ -428,6 +428,7 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     tableHistories[Number(id)] = [...list];
   }
   const extensionSource = getExtensionSourceStatus();
+  const config = getAutomationConfig();
   return {
     revision: state.revision,
     updatedAt: state.updatedAt,
@@ -446,6 +447,10 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
       active: extensionSource.active,
       lastSyncAt: extensionSource.lastSyncAt,
       autopilotRunning: extensionSource.autopilotRunning,
+    },
+    fibonacciPrefs: {
+      enabled: config.enabledTriggers.fibonacci !== false,
+      absenceSpins: config.fibonacciAbsenceSpins,
     },
   };
 }

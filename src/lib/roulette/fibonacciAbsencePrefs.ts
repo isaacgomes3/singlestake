@@ -1,4 +1,5 @@
 import { ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import { writeFibonacciGatilhoLocalEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 export const FIBONACCI_ABSENCE_SPINS_MIN = 3;
 export const FIBONACCI_ABSENCE_SPINS_MAX = 99;
@@ -58,4 +59,17 @@ export function writeFibonacciAbsenceSpinsLocal(
 export function readEffectiveFibonacciAbsenceSpins(): number {
   if (serverEffectiveAbsenceSpins != null) return serverEffectiveAbsenceSpins;
   return readFibonacciAbsenceSpinsLocal();
+}
+
+/** Alinha preferências locais com a configuração global (painel admin). */
+export function syncFibonacciPrefsFromAutomationConfig(
+  fibonacciEnabled: boolean,
+  absenceSpins: number,
+): void {
+  const clamped = clampFibonacciAbsenceSpins(absenceSpins);
+  writeFibonacciAbsenceSpinsLocal(clamped, { silent: true });
+  writeFibonacciGatilhoLocalEnabled(fibonacciEnabled);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT));
+  }
 }

@@ -30,7 +30,15 @@ export const automationStatsContent = {
       crossingPrimary: "2 Fatores · primário x-x-x",
       crossingSecondary: "2 Fatores · secundário x-x-y-x",
       crossingTertiary: "2 Fatores · terciário x-y-x-x",
+      fibonacci: "Fibonacci · dúzias/colunas",
     },
+    fibonacciTitle: "Fibonacci — sala rotativa",
+    fibonacciHint:
+      "Gatilho e giros de ausência mínimos (dúzia e coluna na mesma mesa). Confirme após alterar os giros.",
+    fibonacciAbsenceLabel: "Giros ausentes",
+    fibonacciAbsenceConfirm: "Confirmar ausências",
+    fibonacciAbsenceSaved: "Giros de ausência actualizados.",
+    fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
   },
   en: {
     title: "Automation statistics",
@@ -63,7 +71,15 @@ export const automationStatsContent = {
       crossingPrimary: "2 Factors · primary x-x-x",
       crossingSecondary: "2 Factors · secondary x-x-y-x",
       crossingTertiary: "2 Factors · tertiary x-y-x-x",
+      fibonacci: "Fibonacci · dozens/columns",
     },
+    fibonacciTitle: "Fibonacci — rotating room",
+    fibonacciHint:
+      "Trigger and minimum absence spins (dozen and column on the same table). Confirm after changing spins.",
+    fibonacciAbsenceLabel: "Absent spins",
+    fibonacciAbsenceConfirm: "Confirm absence",
+    fibonacciAbsenceSaved: "Absence spins updated.",
+    fibonacciAbsenceInvalid: "Invalid value (3–99 spins).",
   },
   es: {
     title: "Estadísticas de automatización",
@@ -96,6 +112,14 @@ export const automationStatsContent = {
       crossingPrimary: "2 Factores · primario x-x-x",
       crossingSecondary: "2 Factores · secundario x-x-y-x",
       crossingTertiary: "2 Factores · terciario x-y-x-x",
+      fibonacci: "Fibonacci · docenas/columnas",
     },
+    fibonacciTitle: "Fibonacci — sala rotativa",
+    fibonacciHint:
+      "Gatillo y giros de ausencia mínimos (docena y columna en la misma mesa). Confirme tras cambiar los giros.",
+    fibonacciAbsenceLabel: "Giros ausentes",
+    fibonacciAbsenceConfirm: "Confirmar ausencias",
+    fibonacciAbsenceSaved: "Giros de ausencia actualizados.",
+    fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
   },
 } as const;

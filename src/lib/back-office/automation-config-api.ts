@@ -20,7 +20,10 @@ export async function fetchAutomationConfig(): Promise<AutomationConfigApiRespon
 
 export async function saveAutomationConfig(
   patch: Partial<
-    Pick<GlobalAutomationConfig, "paused" | "baseStake" | "stopWin" | "stopLoss" | "enabledTriggers">
+    Pick<
+      GlobalAutomationConfig,
+      "paused" | "baseStake" | "stopWin" | "stopLoss" | "enabledTriggers" | "fibonacciAbsenceSpins"
+    >
   >,
 ): Promise<AutomationConfigApiResponse> {
   try {

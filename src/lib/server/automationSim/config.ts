@@ -6,10 +6,12 @@ import {
   normalizeGlobalAutomationConfig,
   type GlobalAutomationConfig,
 } from "@/lib/back-office/automation-config";
+import { setServerFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { setRotatingRoomGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setRotatingRoomGatilhoEnabled(config.enabledTriggers);
+  setServerFibonacciAbsenceSpins(config.fibonacciAbsenceSpins);
 }
 
 declare global {

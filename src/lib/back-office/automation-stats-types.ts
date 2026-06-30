@@ -1,4 +1,5 @@
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
+import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 
 export type AutomationStatsDto = {
   updatedAt: number;
@@ -11,4 +12,8 @@ export type AutomationStatsDto = {
     accuracyPct: number | null;
   };
   triggers: UmFatorTriggerTierReportRow[];
+  fibonacci: {
+    enabled: boolean;
+    absenceSpins: number;
+  };
 };

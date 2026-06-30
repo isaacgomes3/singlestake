@@ -1,5 +1,6 @@
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
+import { DEFAULT_FIBONACCI_ABSENCE_SPINS } from "@/lib/roulette/fibonacciAbsencePrefs";
 import {
   DEFAULT_ROTATING_ROOM_GATILHO_ENABLE,
   normalizeRotatingRoomGatilhoEnable,
@@ -26,6 +27,8 @@ export type GlobalAutomationConfig = {
   stopLoss: number | null;
   /** Gatilhos activos na sala rotativa (1 Fator + cruzamento 2F). */
   enabledTriggers: RotatingRoomGatilhoEnableMap;
+  /** Giros de ausência mínimos para gatilho Fibonacci (dúzia + coluna na mesma mesa). */
+  fibonacciAbsenceSpins: number;
   updatedAt: number;
 };
 
@@ -47,6 +50,7 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   stopWin: null,
   stopLoss: null,
   enabledTriggers: { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE },
+  fibonacciAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   updatedAt: 0,
 };
 
@@ -84,6 +88,12 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     stopWin,
     stopLoss,
     enabledTriggers: normalizeRotatingRoomGatilhoEnable(o.enabledTriggers),
+    fibonacciAbsenceSpins:
+      typeof o.fibonacciAbsenceSpins === "number" &&
+      Number.isFinite(o.fibonacciAbsenceSpins) &&
+      o.fibonacciAbsenceSpins >= 3
+        ? Math.min(99, Math.floor(o.fibonacciAbsenceSpins))
+        : DEFAULT_GLOBAL_AUTOMATION_CONFIG.fibonacciAbsenceSpins,
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

@@ -51,6 +51,7 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           baseStake?: number;
           stopWin?: number | null;
           stopLoss?: number | null;
+          fibonacciAbsenceSpins?: number;
           enabledTriggers?: Partial<import("@/lib/roulette/umFatorTriggerEnable").RotatingRoomGatilhoEnableMap>;
         }>(request);
 
@@ -70,6 +71,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           baseStake: body?.baseStake ?? current.baseStake,
           stopWin: null,
           stopLoss: null,
+          fibonacciAbsenceSpins:
+            typeof body?.fibonacciAbsenceSpins === "number"
+              ? Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)))
+              : current.fibonacciAbsenceSpins,
           enabledTriggers: body?.enabledTriggers
             ? { ...current.enabledTriggers, ...body.enabledTriggers }
             : current.enabledTriggers,

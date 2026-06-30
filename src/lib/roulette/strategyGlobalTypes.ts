@@ -108,6 +108,11 @@ export type StrategyGlobalSnapshot = {
     lastSyncAt: number | null;
     autopilotRunning: boolean;
   };
+  /** Gatilho Fibonacci e giros de ausência (config global da automação). */
+  fibonacciPrefs: {
+    enabled: boolean;
+    absenceSpins: number;
+  };
 };
 
 export type StrategyGlobalFlashPayload = {

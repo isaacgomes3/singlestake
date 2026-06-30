@@ -40,15 +40,27 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        const body = await readJsonBody<{ id?: string; enabled?: boolean }>(request);
-        const id = body?.id;
-        const enabled = body?.enabled;
-        if ((id !== "three" && id !== "crossing") || typeof enabled !== "boolean") {
-          return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
-        }
+        const body = await readJsonBody<{
+          id?: string;
+          enabled?: boolean;
+          fibonacciAbsenceSpins?: number;
+        }>(request);
 
         await initAutomationConfig();
         const current = getAutomationConfig();
+
+        if (typeof body?.fibonacciAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)));
+          await saveAutomationConfig({ fibonacciAbsenceSpins: spins });
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        const id = body?.id;
+        const enabled = body?.enabled;
+        if ((id !== "three" && id !== "crossing" && id !== "fibonacci") || typeof enabled !== "boolean") {
+          return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
+        }
+
         await saveAutomationConfig({
           enabledTriggers: { ...current.enabledTriggers, [id]: enabled },
         });

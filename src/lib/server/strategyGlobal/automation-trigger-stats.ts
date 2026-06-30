@@ -18,6 +18,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const losses = Math.max(0, stats.losses);
   const extension = getExtensionSourceStatus();
   const enabledTriggers = getAutomationConfig().enabledTriggers;
+  const config = getAutomationConfig();
 
   return {
     updatedAt: state.updatedAt,
@@ -28,7 +29,16 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       total: wins + losses,
       accuracyPct: sessionAccuracyPct(wins, losses),
     },
-    triggers: buildRotatingRoomGatilhoTriggerReport(stats, crossingStats, enabledTriggers),
+    triggers: buildRotatingRoomGatilhoTriggerReport(
+      stats,
+      crossingStats,
+      enabledTriggers,
+      state.fibonacci.stats,
+    ),
+    fibonacci: {
+      enabled: enabledTriggers.fibonacci !== false,
+      absenceSpins: config.fibonacciAbsenceSpins,
+    },
   };
 }
 

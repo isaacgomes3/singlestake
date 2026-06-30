@@ -4,6 +4,7 @@ import type {
   StrategyGlobalSnapshot,
   StrategyGlobalStreamMessage,
 } from "@/lib/roulette/strategyGlobalTypes";
+import { syncFibonacciPrefsFromAutomationConfig } from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export const STRATEGY_GLOBAL_CHANGED_EVENT = "strategy-global-changed";
 
@@ -45,6 +46,12 @@ export function applyStrategyGlobalStreamMessage(msg: StrategyGlobalStreamMessag
       lastFlashes = msg.flashes;
       flashSeq += 1;
     }
+  }
+  if (snapshot?.fibonacciPrefs) {
+    syncFibonacciPrefsFromAutomationConfig(
+      snapshot.fibonacciPrefs.enabled,
+      snapshot.fibonacciPrefs.absenceSpins,
+    );
   }
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(STRATEGY_GLOBAL_CHANGED_EVENT));

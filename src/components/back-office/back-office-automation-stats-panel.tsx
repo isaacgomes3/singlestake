@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   fetchAutomationStats,
+  saveFibonacciAbsenceSpins,
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
 import { isAdminUser } from "@/lib/back-office/admin-access";
 import { getSession } from "@/lib/auth/session";
+import {
+  FIBONACCI_ABSENCE_SPINS_MAX,
+  FIBONACCI_ABSENCE_SPINS_MIN,
+  syncFibonacciPrefsFromAutomationConfig,
+} from "@/lib/roulette/fibonacciAbsencePrefs";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -30,9 +38,10 @@ function accuracyTone(pct: number | null): string {
 
 function automationTriggerToggleId(
   rowId: UmFatorTriggerTierReportRow["id"],
-): "three" | "crossing" | null {
+): "three" | "crossing" | "fibonacci" | null {
   if (rowId === "three") return "three";
   if (rowId === "crossing-primary") return "crossing";
+  if (rowId === "fibonacci") return "fibonacci";
   return null;
 }
 
@@ -44,6 +53,10 @@ function triggerLabel(
   return triggers[labelKey] ?? labelKey;
 }
 
+function applyFibonacciPrefsFromDto(data: AutomationStatsDto): void {
+  syncFibonacciPrefsFromAutomationConfig(data.fibonacci.enabled, data.fibonacci.absenceSpins);
+}
+
 export function BackOfficeAutomationStatsPanel() {
   const { t, messages } = useI18n();
   const { time } = useFormat();
@@ -51,6 +64,8 @@ export function BackOfficeAutomationStatsPanel() {
   const [data, setData] = useState<AutomationStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [absenceDraft, setAbsenceDraft] = useState("12");
+  const [savingAbsence, setSavingAbsence] = useState(false);
 
   const reload = useCallback(async () => {
     if (!isAdmin) {
@@ -59,6 +74,10 @@ export function BackOfficeAutomationStatsPanel() {
     }
     const row = await fetchAutomationStats();
     setData(row);
+    if (row) {
+      setAbsenceDraft(String(row.fibonacci.absenceSpins));
+      applyFibonacciPrefsFromDto(row);
+    }
     setLoading(false);
   }, [isAdmin]);
 
@@ -73,7 +92,7 @@ export function BackOfficeAutomationStatsPanel() {
     return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
   }
 
-  async function handleToggleTrigger(id: "three" | "crossing", enabled: boolean) {
+  async function handleToggleTrigger(id: "three" | "crossing" | "fibonacci", enabled: boolean) {
     setTogglingId(id);
     const result = await setAutomationTriggerEnabled(id, enabled);
     setTogglingId(null);
@@ -82,9 +101,29 @@ export function BackOfficeAutomationStatsPanel() {
       return;
     }
     setData(result.data);
+    applyFibonacciPrefsFromDto(result.data);
     toast.success(
       enabled ? t("automationStats.triggerEnabled") : t("automationStats.triggerDisabled"),
     );
+  }
+
+  async function handleConfirmAbsence() {
+    const parsed = Number(absenceDraft);
+    if (!Number.isFinite(parsed) || parsed < FIBONACCI_ABSENCE_SPINS_MIN || parsed > FIBONACCI_ABSENCE_SPINS_MAX) {
+      toast.error(t("automationStats.fibonacciAbsenceInvalid"));
+      return;
+    }
+    setSavingAbsence(true);
+    const result = await saveFibonacciAbsenceSpins(Math.floor(parsed));
+    setSavingAbsence(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setAbsenceDraft(String(result.data.fibonacci.absenceSpins));
+    applyFibonacciPrefsFromDto(result.data);
+    toast.success(t("automationStats.fibonacciAbsenceSaved"));
   }
 
   const sourceLabel =
@@ -93,6 +132,10 @@ export function BackOfficeAutomationStatsPanel() {
       : data?.source === "server"
         ? t("automationStats.sourceServer")
         : t("automationStats.sourceUnknown");
+
+  const fibonacciRow = data?.triggers.find((row) => row.id === "fibonacci");
+  const absenceDirty =
+    data != null && Number(absenceDraft) !== data.fibonacci.absenceSpins;
 
   return (
     <div className="space-y-5">
@@ -132,6 +175,56 @@ export function BackOfficeAutomationStatsPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("automationStats.fibonacciTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("automationStats.fibonacciHint")}</p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-text-secondary" htmlFor="fib-absence-spins">
+              {t("automationStats.fibonacciAbsenceLabel")}
+            </label>
+            <Input
+              id="fib-absence-spins"
+              type="number"
+              min={FIBONACCI_ABSENCE_SPINS_MIN}
+              max={FIBONACCI_ABSENCE_SPINS_MAX}
+              value={absenceDraft}
+              onChange={(e) => setAbsenceDraft(e.target.value)}
+              className="w-24 tabular-nums"
+              disabled={loading || savingAbsence}
+            />
+          </div>
+          <Button
+            type="button"
+            variant={absenceDirty ? "default" : "secondary"}
+            disabled={loading || savingAbsence || !absenceDirty}
+            onClick={() => void handleConfirmAbsence()}
+          >
+            {savingAbsence ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+          </Button>
+          <div className="flex items-center gap-2 rounded-xl border border-border-color bg-bg-secondary px-3 py-2">
+            <span className="text-xs font-medium text-text-secondary">
+              {triggerLabel(messages, "fibonacci")}
+            </span>
+            <Switch
+              checked={fibonacciRow?.enabled ?? data?.fibonacci.enabled ?? true}
+              disabled={loading || togglingId === "fibonacci"}
+              aria-label={triggerLabel(messages, "fibonacci")}
+              onCheckedChange={(checked) => void handleToggleTrigger("fibonacci", checked)}
+            />
+          </div>
+        </div>
+        {!loading && data ? (
+          <p className="mt-2 text-[11px] text-text-secondary">
+            Activo: {data.fibonacci.enabled ? "sim" : "não"} · Ausências confirmadas:{" "}
+            <span className="font-semibold tabular-nums text-text-primary">
+              {data.fibonacci.absenceSpins}
+            </span>{" "}
+            giros
+          </p>
+        ) : null}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("automationStats.triggersTitle")}</h2>
         <p className="mt-1 text-xs text-text-secondary">{t("automationStats.triggersHint")}</p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
@@ -160,7 +253,9 @@ export function BackOfficeAutomationStatsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.triggers ?? []).filter((row) => row.id !== "two").map((row) => (
+                {(data?.triggers ?? [])
+                  .filter((row) => row.id !== "two" && row.id !== "fibonacci")
+                  .map((row) => (
                   <tr
                     key={row.id}
                     className={cn(

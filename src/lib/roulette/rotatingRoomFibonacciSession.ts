@@ -23,6 +23,7 @@ import {
 } from "@/lib/roulette/entryWinBreakdown";
 import { isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
 import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { isFibonacciGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 export {
   ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
@@ -143,13 +144,14 @@ export function tickRotatingRoomFibonacciSessionPlacar(
   flash: RotatingRoomFibonacciPlacarFlash;
 } {
   const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  const allowNewArming = isFibonacciGatilhoEnabled();
   return tickRotatingRoomFibonacciPlacar(
     tableIds,
     histories,
     machine,
     stats,
     ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
-    true,
+    allowNewArming,
     absenceSpins,
     absenceSpins,
   );
