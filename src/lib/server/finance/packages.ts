@@ -140,6 +140,19 @@ export async function listUserPackages(userId: string): Promise<UserPackageDto[]
   }));
 }
 
+/** Soma de todas as cotas de automação compradas pelo utilizador. */
+export async function getUserAutomationDepositedTotal(userId: string): Promise<number> {
+  const db = getDb();
+  const rows = await db.query.userPackages.findMany({
+    where: eq(userPackages.userId, userId),
+    with: { pkg: true },
+  });
+  const total = rows
+    .filter((row) => row.pkg.packageKind === "automation")
+    .reduce((sum, row) => sum + row.amount, 0);
+  return Math.round(total * 100) / 100;
+}
+
 export type ActivatePackageInput = {
   userId: string;
   packageId: string;

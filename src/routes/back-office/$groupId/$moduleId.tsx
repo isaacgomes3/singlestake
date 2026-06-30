@@ -15,6 +15,12 @@ const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([
 
 export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
   beforeLoad: async ({ params }) => {
+    if (params.moduleId === "operacoes") {
+      throw redirect({ to: "/back-office/operacoes/casino-ao-vivo" });
+    }
+    if (params.moduleId === "relatorios-rede") {
+      throw redirect({ to: "/back-office" });
+    }
     if (params.moduleId === "residual") {
       throw redirect({ to: "/back-office/rede/bonus-equipe" });
     }

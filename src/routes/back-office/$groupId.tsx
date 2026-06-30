@@ -12,6 +12,9 @@ import {
 
 export const Route = createFileRoute("/back-office/$groupId")({
   beforeLoad: ({ params }) => {
+    if (params.groupId === "relatorios") {
+      throw redirect({ to: "/back-office" });
+    }
     const { groupId } = params;
 
     if (BACK_OFFICE_GROUP_IDS.has(groupId as BackOfficeGroupId)) {

@@ -2,6 +2,7 @@ import type {
   DepositRecord,
   LedgerEntryRecord,
   WalletRecord,
+  WalletSummary,
   WithdrawalRecord,
 } from "@/lib/back-office/finance-types";
 
@@ -109,10 +110,19 @@ export async function processWithdrawal(
   return { ok: true };
 }
 
-export async function fetchWallets(): Promise<WalletRecord[]> {
+export async function fetchWallets(): Promise<WalletSummary> {
   const res = await fetch("/api/back-office/wallet", { credentials: "include" });
-  const data = await parseJson<{ ok: boolean; wallets?: WalletRecord[] }>(res);
-  return data?.wallets ?? [];
+  const data = await parseJson<{
+    ok: boolean;
+    wallets?: WalletRecord[];
+    automationDepositedTotal?: number;
+    automationBalance?: number;
+  }>(res);
+  return {
+    wallets: data?.wallets ?? [],
+    automationDepositedTotal: data?.automationDepositedTotal ?? 0,
+    automationBalance: data?.automationBalance ?? 0,
+  };
 }
 
 export type LedgerQuery = {

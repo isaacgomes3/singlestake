@@ -63,6 +63,9 @@ export const financeContent = {
       byBucket: "Por carteira",
       balancesByOrigin: "Saldos por origem",
       blocked: "Bloqueado: {{amount}}",
+      automationTitle: "Automação",
+      automationDeposited: "Valor depositado na automação",
+      automationBalance: "Saldo da automação",
     },
     ledger: {
       summaryTitle: "Resumo do extrato",
@@ -177,6 +180,9 @@ export const financeContent = {
       byBucket: "By wallet",
       balancesByOrigin: "Balances by source",
       blocked: "Blocked: {{amount}}",
+      automationTitle: "Automation",
+      automationDeposited: "Total deposited in automation",
+      automationBalance: "Automation balance",
     },
     ledger: {
       summaryTitle: "Statement summary",
@@ -291,6 +297,9 @@ export const financeContent = {
       byBucket: "Por cartera",
       balancesByOrigin: "Saldos por origen",
       blocked: "Bloqueado: {{amount}}",
+      automationTitle: "Automatización",
+      automationDeposited: "Valor depositado en automatización",
+      automationBalance: "Saldo de automatización",
     },
     ledger: {
       summaryTitle: "Resumen del extracto",

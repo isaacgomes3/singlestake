@@ -11,11 +11,15 @@ export function BackOfficeWalletPanel() {
   const { t } = useI18n();
   const { money } = useFormat();
   const [wallets, setWallets] = useState<WalletRecord[]>([]);
+  const [automationDepositedTotal, setAutomationDepositedTotal] = useState(0);
+  const [automationBalance, setAutomationBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    const rows = await fetchWallets();
-    setWallets(rows);
+    const data = await fetchWallets();
+    setWallets(data.wallets);
+    setAutomationDepositedTotal(data.automationDepositedTotal);
+    setAutomationBalance(data.automationBalance);
     setLoading(false);
   }, []);
 
@@ -46,6 +50,24 @@ export function BackOfficeWalletPanel() {
             <p className="text-xs text-text-secondary">{t("finance.wallet.totalBlocked")}</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-text-primary">
               {loading ? "…" : money(totalBlocked)}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("finance.wallet.automationTitle")}</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
+            <p className="text-xs text-text-secondary">{t("finance.wallet.automationDeposited")}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-text-primary">
+              {loading ? "…" : money(automationDepositedTotal)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-color bg-bg-secondary px-4 py-3">
+            <p className="text-xs text-text-secondary">{t("finance.wallet.automationBalance")}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-text-primary">
+              {loading ? "…" : money(automationBalance)}
             </p>
           </div>
         </div>

@@ -49,7 +49,6 @@ export type BackOfficeGroupId =
   | "rede"
   | "operacoes"
   | "financeiro"
-  | "relatorios"
   | "administracao";
 
 export type BackOfficeSuporteItem = {
@@ -113,8 +112,8 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Operações",
     path: "/back-office/operacoes",
     icon: BarChart3,
-    description: "Comissões, automação e casino ao vivo.",
-    moduleIds: ["operacoes", "casino-ao-vivo"],
+    description: "Casino ao vivo e sala rotativa.",
+    moduleIds: ["casino-ao-vivo"],
   },
   {
     id: "financeiro",
@@ -123,14 +122,6 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     icon: Wallet,
     description: "Carteira, depósitos, saques e extrato.",
     moduleIds: ["carteira", "depositos", "saques", "extrato"],
-  },
-  {
-    id: "relatorios",
-    label: "Relatórios",
-    path: "/back-office/relatorios",
-    icon: ClipboardList,
-    description: "Rede directa, indireta e volume.",
-    moduleIds: ["relatorios-rede"],
   },
   {
     id: "administracao",
@@ -142,16 +133,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
   },
 ];
 
-export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [
-  {
-    key: "operacoes",
-    moduleIds: ["operacoes"],
-  },
-  {
-    key: "liveCasino",
-    moduleIds: ["casino-ao-vivo"],
-  },
-];
+export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [];
 
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   {
@@ -351,7 +333,7 @@ export function getGroupSections(
   groupId: BackOfficeGroupId,
 ): BackOfficeGroupSection[] | null {
   if (groupId === "administracao") return ADMINISTRACAO_SECTIONS;
-  if (groupId === "operacoes") return OPERACOES_SECTIONS;
+  if (groupId === "operacoes" && OPERACOES_SECTIONS.length > 0) return OPERACOES_SECTIONS;
   return null;
 }
 

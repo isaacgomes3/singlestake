@@ -36,13 +36,13 @@ export function BackOfficeWithdrawalsPanel() {
 
   const reload = async () => {
     setLoading(true);
-    const [rows, walletRows, profile] = await Promise.all([
+    const [rows, walletData, profile] = await Promise.all([
       fetchWithdrawals(),
       fetchWallets(),
       fetchPixKeyProfile(),
     ]);
     setWithdrawals(rows);
-    setWallets(walletRows);
+    setWallets(walletData.wallets);
     setPixProfile(profile);
     if (profile?.pixKey) setPixKey(profile.pixKey);
     setLoading(false);

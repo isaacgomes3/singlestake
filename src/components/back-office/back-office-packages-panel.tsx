@@ -43,7 +43,7 @@ export function BackOfficePackagesPanel() {
 
   const reload = async () => {
     setLoading(true);
-    const [{ packages, pixEnabled: pixOn }, owned, wallets] = await Promise.all([
+    const [{ packages, pixEnabled: pixOn }, owned, walletData] = await Promise.all([
       fetchProductPackages(),
       fetchUserPackages(),
       fetchWallets(),
@@ -51,7 +51,9 @@ export function BackOfficePackagesPanel() {
     setCatalog(packages);
     setPixEnabled(pixOn);
     setMine(owned);
-    setWalletBalance(wallets.find((w) => w.bucket === "rendimentos")?.availableBalance ?? 0);
+    setWalletBalance(
+      walletData.wallets.find((w) => w.bucket === "rendimentos")?.availableBalance ?? 0,
+    );
     setLoading(false);
   };
 

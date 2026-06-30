@@ -53,7 +53,6 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       rede: "Red",
       operacoes: "Operaciones",
       financeiro: "Finanzas",
-      relatorios: "Informes",
       administracao: "Administración",
     },
     modules: {

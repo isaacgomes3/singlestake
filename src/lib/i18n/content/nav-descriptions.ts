@@ -3,9 +3,8 @@ export const navDescriptionsContent = {
     groups: {
       produtos: "Pacotes e mensalidades.",
       rede: "Afiliados, binário, qualificação e bônus.",
-      operacoes: "Comissões, automação e casino ao vivo.",
-      financeiro: "Carteira, depósitos, saques, automação global e extrato.",
-      relatorios: "Rede e central de qualificação.",
+      operacoes: "Casino ao vivo e sala rotativa.",
+      financeiro: "Carteira, depósitos, saques e extrato.",
       administracao: "Automação global, painel admin e auditoria.",
     },
     modules: {
@@ -38,9 +37,8 @@ export const navDescriptionsContent = {
     groups: {
       produtos: "Packages and subscriptions.",
       rede: "Affiliates, binary, qualification and bonuses.",
-      operacoes: "Commissions, automation and live casino.",
-      financeiro: "Wallet, deposits, withdrawals, global automation and statement.",
-      relatorios: "Network and qualification hub.",
+      operacoes: "Live casino and rotating room.",
+      financeiro: "Wallet, deposits, withdrawals and statement.",
       administracao: "Global automation, admin panel and audit.",
     },
     modules: {
@@ -73,9 +71,8 @@ export const navDescriptionsContent = {
     groups: {
       produtos: "Paquetes y mensualidades.",
       rede: "Afiliados, binario, calificación y bonos.",
-      operacoes: "Comisiones, automatización y casino en vivo.",
-      financeiro: "Cartera, depósitos, retiros, automatización global y extracto.",
-      relatorios: "Red y central de calificación.",
+      operacoes: "Casino en vivo y sala rotativa.",
+      financeiro: "Cartera, depósitos, retiros y extracto.",
       administracao: "Automatización global, panel admin y auditoría.",
     },
     modules: {

@@ -34,6 +34,12 @@ export type WalletRecord = {
   blockedBalance: number;
 };
 
+export type WalletSummary = {
+  wallets: WalletRecord[];
+  automationDepositedTotal: number;
+  automationBalance: number;
+};
+
 export type LedgerEntryRecord = {
   id: string;
   userId: string;
