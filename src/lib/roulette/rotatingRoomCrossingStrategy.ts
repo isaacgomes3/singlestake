@@ -8,6 +8,7 @@
  * - Indicação vigente apenas **uma rodada** após o gatilho (sem gales no empate)
  * - **Mesa fixa:** posiciona numa roleta com padrão e só sai se sair **zero** ou **2 giros sem novo gatilho**
  * - Recuperações na **mesma mesa** quando o gatilho voltar a aparecer
+ * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
  * - 5 recuperações antes de L final
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
@@ -179,7 +180,7 @@ export type RotatingRoomCrossingMachineState = {
   /** Cruzamento alvo do ciclo activo. */
   cycleMetricCategory: string | null;
 
-  /** Giros na mesa fixa sem novo gatilho (troca de mesa aos 2). */
+  /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
   prepareSpinsWithoutPattern: number;
 
 };
@@ -718,14 +719,27 @@ function beginPrepareOnAlert(
   };
 }
 
+function tryEnterCrossingFromTablePattern(
+  machine: RotatingRoomCrossingMachineState,
+  tableId: number,
+  histories: Record<number, readonly number[]>,
+  recovery: number,
+  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+): RotatingRoomCrossingMachineState | null {
+  const freshPick = bestPickForTable(tableId, histories[tableId] ?? [], minAbsenceSpins);
+  if (!freshPick) return null;
+  return enterCrossingFromAlert(machine, freshPick, histories, recovery);
+}
+
 function reanchorOnTable(
   machine: RotatingRoomCrossingMachineState,
   tableId: number,
   histories: Record<number, readonly number[]>,
   recovery: number,
+  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingMachineState {
   const head = spinHeadFromHistory(histories[tableId] ?? []);
-  return {
+  const anchored: RotatingRoomCrossingMachineState = {
     ...clearCycle(machine),
     recovery,
     prepareTableId: tableId,
@@ -736,6 +750,10 @@ function reanchorOnTable(
     lastEvaluatedHead: head,
     awaitSwitchNoTable: false,
   };
+  return (
+    tryEnterCrossingFromTablePattern(anchored, tableId, histories, recovery, minAbsenceSpins) ??
+    anchored
+  );
 }
 
 function rotateAnchoredToNewTable(
@@ -1183,6 +1201,7 @@ export function tickRotatingRoomCrossingPlacar(
         };
       }
 
+      /** Só conta rodada sem gatilho — se surgir padrão em qualquer cruzamento, entra acima. */
       const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
       if (
         spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS &&
@@ -1294,6 +1313,7 @@ export function tickRotatingRoomCrossingPlacar(
       tableId,
       histories,
       0,
+      minAbsenceSpins,
     );
 
   } else if (outcome === "L") {
@@ -1337,14 +1357,20 @@ export function tickRotatingRoomCrossingPlacar(
           minAbsenceSpins,
         );
       } else {
-        nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery);
+        nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery, minAbsenceSpins);
       }
 
     }
 
   } else {
     /** Empate (um factor certo): encerra a indicação; permanece na mesma mesa à espera do próximo gatilho. */
-    nextMachine = reanchorOnTable(nextMachine, tableId, histories, nextMachine.recovery);
+    nextMachine = reanchorOnTable(
+      nextMachine,
+      tableId,
+      histories,
+      nextMachine.recovery,
+      minAbsenceSpins,
+    );
   }
 
 

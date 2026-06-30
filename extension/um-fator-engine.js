@@ -767,9 +767,14 @@ var SinglestakeUmFator = (() => {
   function enterCrossingFromAlert(machine, alert, histories, recovery = machine.recovery) {
     return armCycleFromPick(clearPrepareState(machine), alert, histories, recovery);
   }
-  function reanchorOnTable(machine, tableId, histories, recovery) {
+  function tryEnterCrossingFromTablePattern(machine, tableId, histories, recovery, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
+    const freshPick = bestPickForTable(tableId, histories[tableId] ?? [], minAbsenceSpins);
+    if (!freshPick) return null;
+    return enterCrossingFromAlert(machine, freshPick, histories, recovery);
+  }
+  function reanchorOnTable(machine, tableId, histories, recovery, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const head = spinHeadFromHistory(histories[tableId] ?? []);
-    return {
+    const anchored = {
       ...clearCycle(machine),
       recovery,
       prepareTableId: tableId,
@@ -780,6 +785,7 @@ var SinglestakeUmFator = (() => {
       lastEvaluatedHead: head,
       awaitSwitchNoTable: false
     };
+    return tryEnterCrossingFromTablePattern(anchored, tableId, histories, recovery, minAbsenceSpins) ?? anchored;
   }
   function rotateAnchoredToNewTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const excluded = /* @__PURE__ */ new Set([fromTableId]);
@@ -1044,7 +1050,8 @@ var SinglestakeUmFator = (() => {
         },
         tableId,
         histories,
-        0
+        0,
+        minAbsenceSpins
       );
     } else if (outcome === "L") {
       const recoveryBefore = nextMachine.recovery;
@@ -1075,11 +1082,17 @@ var SinglestakeUmFator = (() => {
             minAbsenceSpins
           );
         } else {
-          nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery);
+          nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery, minAbsenceSpins);
         }
       }
     } else {
-      nextMachine = reanchorOnTable(nextMachine, tableId, histories, nextMachine.recovery);
+      nextMachine = reanchorOnTable(
+        nextMachine,
+        tableId,
+        histories,
+        nextMachine.recovery,
+        minAbsenceSpins
+      );
     }
     return { nextMachine, stats: nextStats, statsChanged, flash };
   }

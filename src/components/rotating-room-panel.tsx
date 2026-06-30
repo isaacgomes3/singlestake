@@ -70,9 +70,9 @@ function crossingPrepareHint(session: RotatingRoomPanelSession, hasPreparePatter
   if (isSingleFactorSession(session)) return "Toque na roleta para abrir a mesa indicada";
   if (isCrossingTableAnchored(session)) {
     if (hasPreparePattern) {
-      return "Posicione-se nesta roleta — recuperações também ficam aqui";
+      return "Posicione-se nesta roleta — novo gatilho (qualquer cruzamento)";
     }
-    return `Só troca de roleta com zero ou ${ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS} rodadas sem novo gatilho`;
+    return `Aguardando gatilho — troca só com zero ou ${ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS} rodadas sem padrão`;
   }
   return "Toque na roleta para abrir a mesa indicada";
 }
