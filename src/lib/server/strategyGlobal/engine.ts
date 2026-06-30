@@ -370,11 +370,23 @@ function buildFibonacciClientView(
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
   const alertPick = liveView.globalPick;
-  const preparePick =
-    !showTapeteSignal && machine.recovery === 0
-      ? pickGlobalFibonacciPrepare(tableIds, histories)
+  const prepareTableId =
+    machine.prepareTableId != null && allowed.has(machine.prepareTableId)
+      ? machine.prepareTableId
       : null;
-  const prepareTableId = preparePick?.tableId ?? null;
+  const preparePick =
+    prepareTableId != null && machine.prepareZone
+      ? {
+          tableId: prepareTableId,
+          zone: machine.prepareZone,
+          absenceGap: consecutiveZoneAbsence(
+            histories[prepareTableId] ?? [],
+            machine.prepareZone,
+          ),
+        }
+      : !showTapeteSignal && machine.recovery === 0
+        ? pickGlobalFibonacciPrepare(tableIds, histories)
+        : null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   return {
     phase: showTapeteSignal ? "active" : "waiting",

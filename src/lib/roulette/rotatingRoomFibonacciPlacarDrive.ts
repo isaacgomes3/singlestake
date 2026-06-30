@@ -14,6 +14,9 @@ export function fibonacciMachinePlacarStepProgressed(
     before.cycleZone?.kind !== after.cycleZone?.kind ||
     before.cycleZone?.id !== after.cycleZone?.id ||
     before.recovery !== after.recovery ||
+    before.prepareTableId !== after.prepareTableId ||
+    before.prepareZone?.kind !== after.prepareZone?.kind ||
+    before.prepareZone?.id !== after.prepareZone?.id ||
     before.awaitSwitchNoTable !== after.awaitSwitchNoTable
   );
 }

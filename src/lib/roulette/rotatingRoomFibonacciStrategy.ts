@@ -67,6 +67,9 @@ export type RotatingRoomFibonacciMachineState = {
   recovery: number;
   cycleTableId: number | null;
   cycleZone: FibonacciZone | null;
+  /** Mesa em preparação (ausência ≥8) — aguarda o próximo giro para indicar. */
+  prepareTableId: number | null;
+  prepareZone: FibonacciZone | null;
   armedAtHead: string | null;
   lastEvaluatedHead: string | null;
   lastSpinHeadByTable: Record<string, string>;
@@ -267,6 +270,8 @@ export function defaultRotatingRoomFibonacciMachineState(): RotatingRoomFibonacc
     recovery: 0,
     cycleTableId: null,
     cycleZone: null,
+    prepareTableId: null,
+    prepareZone: null,
     armedAtHead: null,
     lastEvaluatedHead: null,
     lastSpinHeadByTable: {},
@@ -288,10 +293,36 @@ function clearCycle(machine: RotatingRoomFibonacciMachineState): RotatingRoomFib
 
 function finishCycle(machine: RotatingRoomFibonacciMachineState): RotatingRoomFibonacciMachineState {
   return {
-    ...clearCycle(machine),
+    ...clearPrepareState(clearCycle(machine)),
     recovery: 0,
     tablePlacarLosses: {},
     lastLostTableId: null,
+    awaitSwitchNoTable: false,
+  };
+}
+
+function clearPrepareState(
+  machine: RotatingRoomFibonacciMachineState,
+): RotatingRoomFibonacciMachineState {
+  return {
+    ...machine,
+    prepareTableId: null,
+    prepareZone: null,
+  };
+}
+
+function beginFibonacciPrepare(
+  machine: RotatingRoomFibonacciMachineState,
+  pick: RotatingRoomFibonacciPick,
+  histories: Record<number, readonly number[]>,
+): RotatingRoomFibonacciMachineState {
+  const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
+  return {
+    ...clearCycle(clearPrepareState(machine)),
+    prepareTableId: pick.tableId,
+    prepareZone: pick.zone,
+    armedAtHead: head,
+    lastEvaluatedHead: head,
     awaitSwitchNoTable: false,
   };
 }
@@ -338,7 +369,7 @@ function armCycleFromPick(
 ): RotatingRoomFibonacciMachineState {
   const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
   return {
-    ...machine,
+    ...clearPrepareState(machine),
     cycleTableId: pick.tableId,
     cycleZone: pick.zone,
     recovery,
@@ -371,7 +402,9 @@ export function seedRotatingRoomFibonacciMachineAfterPlacarReset(
   }
 
   const focusTableId =
-    machine.cycleTableId ?? (tableIds.length === 1 ? tableIds[0]! : null);
+    machine.cycleTableId ??
+    machine.prepareTableId ??
+    (tableIds.length === 1 ? tableIds[0]! : null);
 
   let lastEvaluatedHead = machine.lastEvaluatedHead;
   let armedAtHead = machine.armedAtHead;
@@ -391,7 +424,10 @@ export function sanitizeRotatingRoomFibonacciMachineForTableIds(
   if (tableIds.length === 0) return machine;
   const allowed = new Set(tableIds);
   if (machine.cycleTableId != null && !allowed.has(machine.cycleTableId)) {
-    return clearCycle(machine);
+    return clearPrepareState(clearCycle(machine));
+  }
+  if (machine.prepareTableId != null && !allowed.has(machine.prepareTableId)) {
+    return clearPrepareState(machine);
   }
   return machine;
 }
@@ -553,9 +589,9 @@ export function tickRotatingRoomFibonacciPlacar(
       };
       nextMachine = finishCycle(nextMachine);
       if (allowNewArming) {
-        const alert = pickGlobalFibonacciAlert(tableIds, histories, undefined);
-        if (alert) {
-          nextMachine = armCycleFromPick(nextMachine, alert, histories, 0);
+        const prepare = pickGlobalFibonacciPrepare(tableIds, histories, undefined);
+        if (prepare) {
+          nextMachine = beginFibonacciPrepare(nextMachine, prepare, histories);
         }
       }
     } else {
@@ -607,6 +643,54 @@ export function tickRotatingRoomFibonacciPlacar(
 
   nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
 
+  if (
+    !nextMachine.cycleZone &&
+    nextMachine.prepareTableId != null &&
+    nextMachine.prepareZone != null
+  ) {
+    const pt = nextMachine.prepareTableId;
+    const zone = nextMachine.prepareZone;
+    const hist = histories[pt] ?? [];
+    if (hist.length === 0) {
+      return { nextMachine, stats: nextStats, statsChanged, flash };
+    }
+
+    const head = spinHeadFromHistory(hist);
+    if (head === nextMachine.armedAtHead || head === nextMachine.lastEvaluatedHead) {
+      return { nextMachine, stats: nextStats, statsChanged, flash };
+    }
+
+    nextMachine = { ...nextMachine, lastEvaluatedHead: head };
+    const absenceGap = consecutiveZoneAbsence(hist, zone);
+    if (absenceGap < ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS) {
+      return {
+        nextMachine: clearPrepareState(nextMachine),
+        stats: nextStats,
+        statsChanged,
+        flash,
+      };
+    }
+
+    if (allowNewArming && absenceGap >= ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS) {
+      const alertPick = pickForTableZone(
+        pt,
+        hist,
+        zone,
+        ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+      );
+      if (alertPick) {
+        return {
+          nextMachine: armCycleFromPick(nextMachine, alertPick, histories),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
+    }
+
+    return { nextMachine, stats: nextStats, statsChanged, flash };
+  }
+
   if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0 && allowNewArming) {
     const excluded = tablesExcludedFromRotation(nextMachine);
     const retry = pickGlobalFibonacciAlert(tableIds, histories, excluded);
@@ -624,10 +708,24 @@ export function tickRotatingRoomFibonacciPlacar(
   if (allowNewArming) {
     const excluded =
       nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : undefined;
-    const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-    if (alert) {
+
+    if (nextMachine.recovery > 0) {
+      const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
+      if (alert) {
+        return {
+          nextMachine: armCycleFromPick(nextMachine, alert, histories),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
+      return { nextMachine, stats: nextStats, statsChanged, flash };
+    }
+
+    const prepare = pickGlobalFibonacciPrepare(tableIds, histories, excluded);
+    if (prepare) {
       return {
-        nextMachine: armCycleFromPick(nextMachine, alert, histories),
+        nextMachine: beginFibonacciPrepare(nextMachine, prepare, histories),
         stats: nextStats,
         statsChanged,
         flash,

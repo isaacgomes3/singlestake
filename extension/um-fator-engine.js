@@ -510,6 +510,11 @@ var SinglestakeUmFator = (() => {
     }
     return best;
   }
+  function pickForTableZone(tableId, historyNewestFirst, zone, minAbsenceSpins = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS) {
+    const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
+    if (absenceGap < minAbsenceSpins) return null;
+    return { tableId, zone, absenceGap };
+  }
   function comparePicks(a, b) {
     if (a.absenceGap !== b.absenceGap) return b.absenceGap - a.absenceGap;
     return a.tableId - b.tableId;
@@ -525,6 +530,14 @@ var SinglestakeUmFator = (() => {
     }
     out.sort(comparePicks);
     return out;
+  }
+  function pickGlobalFibonacciPrepare(tableIds, histories, excludeTableIds) {
+    return listAllFibonacciAlertPicks(
+      tableIds,
+      histories,
+      excludeTableIds,
+      ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS
+    )[0] ?? null;
   }
   function pickGlobalFibonacciAlert(tableIds, histories, excludeTableIds) {
     return listAllFibonacciAlertPicks(
@@ -559,6 +572,8 @@ var SinglestakeUmFator = (() => {
       recovery: 0,
       cycleTableId: null,
       cycleZone: null,
+      prepareTableId: null,
+      prepareZone: null,
       armedAtHead: null,
       lastEvaluatedHead: null,
       lastSpinHeadByTable: {},
@@ -578,10 +593,28 @@ var SinglestakeUmFator = (() => {
   }
   function finishCycle(machine) {
     return {
-      ...clearCycle(machine),
+      ...clearPrepareState(clearCycle(machine)),
       recovery: 0,
       tablePlacarLosses: {},
       lastLostTableId: null,
+      awaitSwitchNoTable: false
+    };
+  }
+  function clearPrepareState(machine) {
+    return {
+      ...machine,
+      prepareTableId: null,
+      prepareZone: null
+    };
+  }
+  function beginFibonacciPrepare(machine, pick, histories) {
+    const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
+    return {
+      ...clearCycle(clearPrepareState(machine)),
+      prepareTableId: pick.tableId,
+      prepareZone: pick.zone,
+      armedAtHead: head,
+      lastEvaluatedHead: head,
       awaitSwitchNoTable: false
     };
   }
@@ -613,7 +646,7 @@ var SinglestakeUmFator = (() => {
   function armCycleFromPick(machine, pick, histories, recovery = machine.recovery) {
     const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
     return {
-      ...machine,
+      ...clearPrepareState(machine),
       cycleTableId: pick.tableId,
       cycleZone: pick.zone,
       recovery,
@@ -633,7 +666,10 @@ var SinglestakeUmFator = (() => {
     if (tableIds.length === 0) return machine;
     const allowed = new Set(tableIds);
     if (machine.cycleTableId != null && !allowed.has(machine.cycleTableId)) {
-      return clearCycle(machine);
+      return clearPrepareState(clearCycle(machine));
+    }
+    if (machine.prepareTableId != null && !allowed.has(machine.prepareTableId)) {
+      return clearPrepareState(machine);
     }
     return machine;
   }
@@ -740,9 +776,9 @@ var SinglestakeUmFator = (() => {
         };
         nextMachine = finishCycle(nextMachine);
         if (allowNewArming) {
-          const alert = pickGlobalFibonacciAlert(tableIds, histories, void 0);
-          if (alert) {
-            nextMachine = armCycleFromPick(nextMachine, alert, histories, 0);
+          const prepare = pickGlobalFibonacciPrepare(tableIds, histories, void 0);
+          if (prepare) {
+            nextMachine = beginFibonacciPrepare(nextMachine, prepare, histories);
           }
         }
       } else {
@@ -790,6 +826,45 @@ var SinglestakeUmFator = (() => {
       return { nextMachine, stats: nextStats, statsChanged, flash };
     }
     nextMachine = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
+    if (!nextMachine.cycleZone && nextMachine.prepareTableId != null && nextMachine.prepareZone != null) {
+      const pt = nextMachine.prepareTableId;
+      const zone = nextMachine.prepareZone;
+      const hist = histories[pt] ?? [];
+      if (hist.length === 0) {
+        return { nextMachine, stats: nextStats, statsChanged, flash };
+      }
+      const head = spinHeadFromHistory(hist);
+      if (head === nextMachine.armedAtHead || head === nextMachine.lastEvaluatedHead) {
+        return { nextMachine, stats: nextStats, statsChanged, flash };
+      }
+      nextMachine = { ...nextMachine, lastEvaluatedHead: head };
+      const absenceGap = consecutiveZoneAbsence(hist, zone);
+      if (absenceGap < ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS) {
+        return {
+          nextMachine: clearPrepareState(nextMachine),
+          stats: nextStats,
+          statsChanged,
+          flash
+        };
+      }
+      if (allowNewArming && absenceGap >= ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS) {
+        const alertPick = pickForTableZone(
+          pt,
+          hist,
+          zone,
+          ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS
+        );
+        if (alertPick) {
+          return {
+            nextMachine: armCycleFromPick(nextMachine, alertPick, histories),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+      }
+      return { nextMachine, stats: nextStats, statsChanged, flash };
+    }
     if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0 && allowNewArming) {
       const excluded = tablesExcludedFromRotation(nextMachine);
       const retry = pickGlobalFibonacciAlert(tableIds, histories, excluded);
@@ -805,10 +880,22 @@ var SinglestakeUmFator = (() => {
     }
     if (allowNewArming) {
       const excluded = nextMachine.recovery > 0 ? tablesExcludedFromRotation(nextMachine) : void 0;
-      const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
-      if (alert) {
+      if (nextMachine.recovery > 0) {
+        const alert = pickGlobalFibonacciAlert(tableIds, histories, excluded);
+        if (alert) {
+          return {
+            nextMachine: armCycleFromPick(nextMachine, alert, histories),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+        return { nextMachine, stats: nextStats, statsChanged, flash };
+      }
+      const prepare = pickGlobalFibonacciPrepare(tableIds, histories, excluded);
+      if (prepare) {
         return {
-          nextMachine: armCycleFromPick(nextMachine, alert, histories),
+          nextMachine: beginFibonacciPrepare(nextMachine, prepare, histories),
           stats: nextStats,
           statsChanged,
           flash
@@ -1158,7 +1245,7 @@ var SinglestakeUmFator = (() => {
       bucketGap: live?.bucketGap ?? 0
     };
   }
-  function clearPrepareState(machine) {
+  function clearPrepareState2(machine) {
     return {
       ...machine,
       prepareFingerprint: null,
@@ -1274,7 +1361,7 @@ var SinglestakeUmFator = (() => {
     };
   }
   function enterCrossingFromAlert(machine, alert, histories, recovery = machine.recovery) {
-    return armCycleFromPick2(clearPrepareState(machine), alert, histories, recovery);
+    return armCycleFromPick2(clearPrepareState2(machine), alert, histories, recovery);
   }
   function tryEnterCrossingFromTablePattern(machine, tableId, histories, recovery, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const freshPick = bestPickForTable2(tableId, histories[tableId] ?? [], minAbsenceSpins);
@@ -1298,7 +1385,7 @@ var SinglestakeUmFator = (() => {
   }
   function rotateAnchoredToNewTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const excluded = /* @__PURE__ */ new Set([fromTableId]);
-    const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
+    const base = clearPrepareState2({ ...machine, prepareSpinsWithoutPattern: 0 });
     const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
     if (!alert) {
       return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
@@ -1307,7 +1394,7 @@ var SinglestakeUmFator = (() => {
   }
   function finishCycle2(machine) {
     return {
-      ...clearPrepareState(clearCycle2(machine)),
+      ...clearPrepareState2(clearCycle2(machine)),
       recovery: 0,
       tablePlacarLosses: {},
       lastLostTableId: null,
@@ -1407,7 +1494,7 @@ var SinglestakeUmFator = (() => {
       apply(clearCycle2(next));
     }
     if (next.prepareTableId != null && !allowed.has(next.prepareTableId) || next.pendingQueueEntry != null && !allowed.has(next.pendingQueueEntry.tableId)) {
-      apply(clearPrepareState(next));
+      apply(clearPrepareState2(next));
     }
     if (next.awaitingQueueTableId != null && !allowed.has(next.awaitingQueueTableId)) {
       next = { ...next, awaitingQueueTableId: null, awaitingQueueHead: null };
@@ -1444,10 +1531,10 @@ var SinglestakeUmFator = (() => {
       changed = true;
     }
     if (next.prepareFingerprint && next.prepareTableId == null) {
-      apply(clearPrepareState(next));
+      apply(clearPrepareState2(next));
     }
     if (next.awaitSwitchNoTable && next.recovery > 0 && next.prepareFingerprint) {
-      apply(clearPrepareState(next));
+      apply(clearPrepareState2(next));
     }
     if (next.awaitSwitchNoTable && next.recovery > 0 && tableIds.length > 0) {
       const relaxed = relaxTableExclusionsIfAllBlocked2(next, tableIds);
@@ -2374,6 +2461,8 @@ var SinglestakeUmFator = (() => {
     const crossingTableId = crossingMachine.cycleTableId != null && tableIds.includes(crossingMachine.cycleTableId) ? crossingMachine.cycleTableId : null;
     const showCrossTapete = crossingActive != null && crossingTableId != null;
     const showFibTapete = fibonacciMachine.cycleZone != null && fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId);
+    const fibPrepareTableId = fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId) ? fibonacciMachine.prepareTableId : null;
+    const fibSessionMode = showFibTapete ? "active" : fibPrepareTableId != null ? "prepare" : "scanning";
     return {
       revision: 0,
       updatedAt: Date.now(),
@@ -2417,9 +2506,11 @@ var SinglestakeUmFator = (() => {
         fibonacciMode: true,
         currentRecovery: fibonacciMachine.recovery,
         currentTableId: showFibTapete ? fibonacciMachine.cycleTableId : null,
+        prepareTableId: fibPrepareTableId,
         alertCategory: fibonacciView.globalPick ? fibonacciView.globalPick.zone.kind === "dozen" ? `D\xFAzia ${fibonacciView.globalPick.zone.id}` : `Coluna ${fibonacciView.globalPick.zone.id}` : null,
         alertBucketGap: fibonacciView.globalPick?.absenceGap ?? 0,
-        sessionMode: showFibTapete ? "active" : "scanning",
+        sessionMode: fibSessionMode,
+        prepareCategory: fibPrepareTableId != null && fibonacciMachine.prepareZone ? fibonacciMachine.prepareZone.kind === "dozen" ? `D\xFAzia ${fibonacciMachine.prepareZone.id}` : `Coluna ${fibonacciMachine.prepareZone.id}` : null,
         fibonacciScan: fibonacciView.fibonacciScan,
         activeFibonacci: showFibTapete && fibonacciMachine.cycleZone && fibonacciMachine.cycleTableId != null ? {
           zone: fibonacciMachine.cycleZone,
@@ -2445,7 +2536,9 @@ var SinglestakeUmFator = (() => {
     if (trigger === "fibonacci") {
       const zone = fibonacciMachine.cycleZone;
       const tableId2 = fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId) ? fibonacciMachine.cycleTableId : null;
+      const prepareTableId = fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId) ? fibonacciMachine.prepareTableId : null;
       const showTapete2 = zone != null && tableId2 != null;
+      const sessionMode = showTapete2 ? "active" : prepareTableId != null ? "prepare" : fibonacciView.globalPick ? "scanning" : "scanning";
       const head = fibonacciMachine.lastEvaluatedHead ?? fibonacciMachine.armedAtHead ?? "0";
       const betAttemptKey2 = showTapete2 && zone ? `${tableId2}:${zone.kind}:${zone.id}:${fibonacciMachine.recovery}:${head}` : null;
       const fibonacciActive = showTapete2 && zone && tableId2 != null ? {
@@ -2462,10 +2555,10 @@ var SinglestakeUmFator = (() => {
       return {
         trigger,
         showTapeteSignal: showTapete2,
-        currentTableId: tableId2,
+        currentTableId: showTapete2 ? tableId2 : prepareTableId,
         currentRecovery: fibonacciMachine.recovery,
         singleFactorMode: true,
-        sessionMode: showTapete2 ? "active" : "scanning",
+        sessionMode,
         activeCrossing: null,
         umActive: null,
         fibonacciActive,
@@ -2641,7 +2734,7 @@ var SinglestakeUmFator = (() => {
         spinBaselinedByTable[tableId] = true;
       }
       const result = runTick();
-      if (umMachine.pendingByTable[String(tableId)] || fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone) {
+      if (umMachine.pendingByTable[String(tableId)] || fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone || fibonacciMachine.prepareTableId === tableId && fibonacciMachine.prepareZone) {
         anchorLiveSpinClockForFormation(tableId);
       }
       return result;

@@ -288,11 +288,23 @@ export function useRotatingRoomFibonacciSession(
       : null;
 
   const alertPick = liveView.globalPick;
-  const preparePick =
-    !showTapeteSignal && machine.recovery === 0
-      ? pickGlobalFibonacciPrepare(tableIds, histories)
+  const prepareTableId =
+    machine.prepareTableId != null && allowedTableIds.has(machine.prepareTableId)
+      ? machine.prepareTableId
       : null;
-  const prepareTableId = preparePick?.tableId ?? null;
+  const preparePick =
+    prepareTableId != null && machine.prepareZone
+      ? {
+          tableId: prepareTableId,
+          zone: machine.prepareZone,
+          absenceGap: consecutiveZoneAbsence(
+            histories[prepareTableId] ?? [],
+            machine.prepareZone,
+          ),
+        }
+      : !showTapeteSignal && machine.recovery === 0
+        ? pickGlobalFibonacciPrepare(tableIds, histories)
+        : null;
   const sessionMode: RotatingRoomSessionMode = showTapeteSignal
     ? "active"
     : prepareTableId != null

@@ -137,6 +137,15 @@ function buildTriggerSnapshot(
     fibonacciMachine.cycleZone != null &&
     fibonacciMachine.cycleTableId != null &&
     tableIds.includes(fibonacciMachine.cycleTableId);
+  const fibPrepareTableId =
+    fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId)
+      ? fibonacciMachine.prepareTableId
+      : null;
+  const fibSessionMode = showFibTapete
+    ? "active"
+    : fibPrepareTableId != null
+      ? "prepare"
+      : "scanning";
 
   return {
     revision: 0,
@@ -184,13 +193,20 @@ function buildTriggerSnapshot(
       fibonacciMode: true,
       currentRecovery: fibonacciMachine.recovery,
       currentTableId: showFibTapete ? fibonacciMachine.cycleTableId : null,
+      prepareTableId: fibPrepareTableId,
       alertCategory: fibonacciView.globalPick
         ? fibonacciView.globalPick.zone.kind === "dozen"
           ? `Dúzia ${fibonacciView.globalPick.zone.id}`
           : `Coluna ${fibonacciView.globalPick.zone.id}`
         : null,
       alertBucketGap: fibonacciView.globalPick?.absenceGap ?? 0,
-      sessionMode: showFibTapete ? "active" : "scanning",
+      sessionMode: fibSessionMode,
+      prepareCategory:
+        fibPrepareTableId != null && fibonacciMachine.prepareZone
+          ? fibonacciMachine.prepareZone.kind === "dozen"
+            ? `Dúzia ${fibonacciMachine.prepareZone.id}`
+            : `Coluna ${fibonacciMachine.prepareZone.id}`
+          : null,
       fibonacciScan: fibonacciView.fibonacciScan,
       activeFibonacci:
         showFibTapete && fibonacciMachine.cycleZone && fibonacciMachine.cycleTableId != null
@@ -235,7 +251,18 @@ function buildActiveView(
       fibonacciMachine.cycleTableId != null && tableIds.includes(fibonacciMachine.cycleTableId)
         ? fibonacciMachine.cycleTableId
         : null;
+    const prepareTableId =
+      fibonacciMachine.prepareTableId != null && tableIds.includes(fibonacciMachine.prepareTableId)
+        ? fibonacciMachine.prepareTableId
+        : null;
     const showTapete = zone != null && tableId != null;
+    const sessionMode = showTapete
+      ? "active"
+      : prepareTableId != null
+        ? "prepare"
+        : fibonacciView.globalPick
+          ? "scanning"
+          : "scanning";
     const head = fibonacciMachine.lastEvaluatedHead ?? fibonacciMachine.armedAtHead ?? "0";
     const betAttemptKey =
       showTapete && zone
@@ -258,10 +285,10 @@ function buildActiveView(
     return {
       trigger,
       showTapeteSignal: showTapete,
-      currentTableId: tableId,
+      currentTableId: showTapete ? tableId : prepareTableId,
       currentRecovery: fibonacciMachine.recovery,
       singleFactorMode: true,
-      sessionMode: showTapete ? "active" : "scanning",
+      sessionMode,
       activeCrossing: null,
       umActive: null,
       fibonacciActive,
@@ -484,7 +511,8 @@ export function createRotativaEngine(
     const result = runTick();
     if (
       umMachine.pendingByTable[String(tableId)] ||
-      (fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone)
+      (fibonacciMachine.cycleTableId === tableId && fibonacciMachine.cycleZone) ||
+      (fibonacciMachine.prepareTableId === tableId && fibonacciMachine.prepareZone)
     ) {
       anchorLiveSpinClockForFormation(tableId);
     }
