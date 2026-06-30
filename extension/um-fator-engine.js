@@ -273,30 +273,7 @@ var SinglestakeUmFator = (() => {
     return doisFatoresExteriorCellKey(factor);
   }
 
-  // src/lib/roulette/umFatorTriggerEnable.ts
-  var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
-    two: false,
-    three: true
-  };
-  var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
-    ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
-    crossing: false
-  };
-  var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
-  function isUmFatorTriggerTierEnabled(tier) {
-    return runtimeEnabled[tier] !== false;
-  }
-  function isCrossingGatilhoEnabled() {
-    return false;
-  }
-
   // src/lib/roulette/liveTableColdStats.ts
-  function spinsSinceHit(historyNewestFirst, targets) {
-    for (let i = 0; i < historyNewestFirst.length; i++) {
-      if (targets.has(historyNewestFirst[i])) return i;
-    }
-    return historyNewestFirst.length;
-  }
   function numbers1to36Where(pred) {
     const r = [];
     for (let n = 1; n <= 36; n++) {
@@ -366,35 +343,178 @@ var SinglestakeUmFator = (() => {
       nums: numbers1to36Where((n) => heightOf(n) === "Alto" && parityOf(n) === "Impar")
     }
   ]);
-  function crossingBucketAbsenceGap(historyNewestFirst, def) {
-    return spinsSinceHit(historyNewestFirst, new Set(def.nums));
+
+  // src/lib/roulette/doisFatoresPatternCrossing.ts
+  var ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS = 12;
+  var ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS = 2;
+  var ROTATING_ROOM_CROSSING_PATTERN_AXES = [
+    "cor-altura",
+    "altura-paridade",
+    "cor-paridade"
+  ];
+  var CROSSING_PATTERN_PRIORITY = {
+    primary: 3,
+    secondary: 2,
+    tertiary: 1
+  };
+  var AXIS_ORDER = ROTATING_ROOM_CROSSING_PATTERN_AXES;
+  function tableHasZeroInLastSpins(historyNewestFirst, window2 = ROTATING_ROOM_CROSSING_ZERO_EXCLUDE_SPINS) {
+    for (let i = 0; i < Math.min(window2, historyNewestFirst.length); i++) {
+      if (historyNewestFirst[i] === 0) return true;
+    }
+    return false;
   }
-  function bestAbsentBucketCrossingAlert(historyNewestFirst, axes, minAbsenceSpins) {
-    if (historyNewestFirst.length === 0) return null;
-    let best = null;
-    for (const def of CROSSING_BUCKET_DEFINITIONS) {
-      if (!axes.includes(def.axis)) continue;
-      const bucketGap = crossingBucketAbsenceGap(historyNewestFirst, def);
-      if (bucketGap < minAbsenceSpins) continue;
-      if (best == null || bucketGap > best.bucketGap || bucketGap === best.bucketGap && def.category < best.def.category) {
-        best = { def, bucketGap };
+  function factorsForNumberOnAxis(n, axis) {
+    if (n === 0) return null;
+    const col = colorOf(n);
+    const alt = heightOf(n);
+    const par = parityOf(n);
+    if (axis === "cor-altura") {
+      if (col === "Zero" || alt === "Zero") return null;
+      return [{ kind: "cor", value: col }, { kind: "altura", value: alt }];
+    }
+    if (axis === "cor-paridade") {
+      if (col === "Zero" || par === "Zero") return null;
+      return [{ kind: "cor", value: col }, { kind: "paridade", value: par }];
+    }
+    if (axis === "altura-paridade") {
+      if (alt === "Zero" || par === "Zero") return null;
+      return [{ kind: "altura", value: alt }, { kind: "paridade", value: par }];
+    }
+    return null;
+  }
+  function crossingCategoryForNumber(n, axis) {
+    if (n === 0) return null;
+    const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.nums.includes(n));
+    return def?.category ?? null;
+  }
+  function sigAt(historyNewestFirst, index, axis) {
+    const n = historyNewestFirst[index];
+    if (n === void 0) return null;
+    return crossingCategoryForNumber(n, axis);
+  }
+  function buildMatch(axis, patternKind, category, historyNewestFirst, triggerIndices) {
+    const refIndex = triggerIndices[0];
+    if (refIndex === void 0) return null;
+    const refNum = historyNewestFirst[refIndex];
+    if (refNum === void 0) return null;
+    const factors = factorsForNumberOnAxis(refNum, axis);
+    if (!factors) return null;
+    const triggerNumbers = triggerIndices.map((i) => historyNewestFirst[i]).filter((n) => n !== void 0);
+    return {
+      axis,
+      patternKind,
+      category,
+      factor1: factors[0],
+      factor2: factors[1],
+      triggerNumbers,
+      patternPriority: CROSSING_PATTERN_PRIORITY[patternKind]
+    };
+  }
+  function matchPrimaryOnAxis(historyNewestFirst, axis) {
+    if (historyNewestFirst.length < 3) return null;
+    const s0 = sigAt(historyNewestFirst, 0, axis);
+    const s1 = sigAt(historyNewestFirst, 1, axis);
+    const s2 = sigAt(historyNewestFirst, 2, axis);
+    if (!s0 || !s1 || !s2) return null;
+    if (s0 !== s1 || s1 !== s2) return null;
+    return buildMatch(axis, "primary", s0, historyNewestFirst, [0, 1, 2]);
+  }
+  function matchSecondaryOnAxis(historyNewestFirst, axis) {
+    if (historyNewestFirst.length < 4) return null;
+    const s = [0, 1, 2, 3].map((i) => sigAt(historyNewestFirst, i, axis));
+    if (s.some((x) => !x)) return null;
+    const [a, b, c, d] = s;
+    if (a === b && a === d && c !== a) {
+      return buildMatch(axis, "secondary", a, historyNewestFirst, [0, 1, 2, 3]);
+    }
+    return null;
+  }
+  function matchTertiaryOnAxis(historyNewestFirst, axis) {
+    if (historyNewestFirst.length < 4) return null;
+    const s = [0, 1, 2, 3].map((i) => sigAt(historyNewestFirst, i, axis));
+    if (s.some((x) => !x)) return null;
+    const [a, b, c, d] = s;
+    if (a === c && a === d && b !== a) {
+      return buildMatch(axis, "tertiary", a, historyNewestFirst, [0, 1, 2, 3]);
+    }
+    return null;
+  }
+  function matchOnAxisByKind(historyNewestFirst, axis, patternKind) {
+    switch (patternKind) {
+      case "primary":
+        return matchPrimaryOnAxis(historyNewestFirst, axis);
+      case "secondary":
+        return matchSecondaryOnAxis(historyNewestFirst, axis);
+      case "tertiary":
+        return matchTertiaryOnAxis(historyNewestFirst, axis);
+    }
+  }
+  function findPriorPatternAxis(historyNewestFirst) {
+    if (historyNewestFirst.length < 4) return null;
+    const tail = historyNewestFirst.slice(1);
+    for (const kind of ["primary", "secondary", "tertiary"]) {
+      for (const axis of AXIS_ORDER) {
+        if (matchOnAxisByKind(tail, axis, kind)) return axis;
       }
     }
-    return best;
+    return null;
   }
-  function twoColdestInSet(historyNewestFirst, numbers) {
-    const ranked = numbers.map((n) => ({
-      n,
-      gap: spinsSinceHit(historyNewestFirst, /* @__PURE__ */ new Set([n]))
-    }));
-    ranked.sort((a2, b2) => b2.gap - a2.gap || a2.n - b2.n);
-    const a = ranked[0] ?? { n: 0, gap: 0 };
-    const b = ranked[1] ?? a;
-    return [a, b];
+  function resolveAxisPreference(historyNewestFirst, candidates) {
+    if (candidates.length === 1) return candidates[0];
+    const priorAxis = findPriorPatternAxis(historyNewestFirst);
+    if (priorAxis) {
+      const preferred = candidates.find((c) => c.axis === priorAxis);
+      if (preferred) return preferred;
+    }
+    const sorted = [...candidates].sort(
+      (a, b) => AXIS_ORDER.indexOf(a.axis) - AXIS_ORDER.indexOf(b.axis)
+    );
+    return sorted[0];
   }
-  function twoColdestNumbersInNumberSet(historyNewestFirst, numbers) {
-    const [x, y] = twoColdestInSet(historyNewestFirst, numbers);
-    return [x.n, y.n];
+  function detectPatternOnTableByKind(historyNewestFirst, patternKind) {
+    const candidates = [];
+    for (const axis of AXIS_ORDER) {
+      const m = matchOnAxisByKind(historyNewestFirst, axis, patternKind);
+      if (m) candidates.push(m);
+    }
+    if (candidates.length === 0) return null;
+    return resolveAxisPreference(historyNewestFirst, candidates);
+  }
+  function detectBestPatternOnTable(historyNewestFirst) {
+    if (tableHasZeroInLastSpins(historyNewestFirst)) return null;
+    for (const kind of ["primary", "secondary", "tertiary"]) {
+      const m = detectPatternOnTableByKind(historyNewestFirst, kind);
+      if (m) return m;
+    }
+    return null;
+  }
+  function crossingPatternKindLabel(kind) {
+    switch (kind) {
+      case "primary":
+        return "Prim\xE1rio x-x-x";
+      case "secondary":
+        return "Secund\xE1rio x-x-y-x";
+      case "tertiary":
+        return "Terci\xE1rio x-y-x-x";
+    }
+  }
+
+  // src/lib/roulette/umFatorTriggerEnable.ts
+  var DEFAULT_UM_FATOR_TRIGGER_ENABLE = {
+    two: false,
+    three: false
+  };
+  var DEFAULT_ROTATING_ROOM_GATILHO_ENABLE = {
+    ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
+    crossing: true
+  };
+  var runtimeEnabled = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
+  function isUmFatorTriggerTierEnabled(tier) {
+    return runtimeEnabled[tier] !== false;
+  }
+  function isCrossingGatilhoEnabled() {
+    return runtimeEnabled.crossing !== false;
   }
 
   // src/lib/roulette/historyStorage.ts
@@ -455,33 +575,40 @@ var SinglestakeUmFator = (() => {
     if (history.length === 0) return "0";
     return `${history.length}:${history[0]}`;
   }
-  var ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 18;
+  var ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 1;
   var ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
-  var ROTATING_ROOM_CROSSING_AXES = ["cor-altura", "altura-paridade"];
-  function factorsFromBucket(def) {
-    const sample = def.nums[0];
-    if (sample == null) return null;
-    const col = colorOf(sample);
-    const alt = heightOf(sample);
-    const par = parityOf(sample);
-    if (def.axis === "cor-altura") {
-      if (col === "Zero" || alt === "Zero") return null;
-      return [{ kind: "cor", value: col }, { kind: "altura", value: alt }];
-    }
-    if (def.axis === "altura-paridade") {
-      if (alt === "Zero" || par === "Zero") return null;
-      return [{ kind: "altura", value: alt }, { kind: "paridade", value: par }];
-    }
-    return null;
+  function pickFromPatternMatch(tableId, match) {
+    const t0 = match.triggerNumbers[0] ?? 0;
+    const t1 = match.triggerNumbers[1] ?? t0;
+    return {
+      tableId,
+      axis: match.axis,
+      category: match.category,
+      absentCategory: match.category,
+      bucketGap: match.patternPriority,
+      absenceGap: match.patternPriority,
+      excludedPair: [t0, t1],
+      patternKind: match.patternKind,
+      triggerNumbers: match.triggerNumbers,
+      factor1: match.factor1,
+      factor2: match.factor2
+    };
   }
   function pairKindFromAxis(axis) {
-    return axis === "cor-altura" ? "cor-altura" : "altura-paridade";
+    return axis;
   }
   function pairKindLabel(axis) {
-    return axis === "cor-altura" ? "Cor \xB7 Altura" : "Paridade \xB7 Altura";
+    switch (axis) {
+      case "cor-altura":
+        return "Cor \xB7 Altura";
+      case "cor-paridade":
+        return "Cor \xB7 Paridade";
+      case "altura-paridade":
+        return "Paridade \xB7 Altura";
+    }
   }
   function crossingAxisFromActive(active) {
-    return active.pairKind === "cor-altura" ? "cor-altura" : "altura-paridade";
+    return active.pairKind;
   }
   function crossingFingerprint(tableId, axis, category) {
     return `${tableId}:${axis}:${category}`;
@@ -490,42 +617,22 @@ var SinglestakeUmFator = (() => {
     return `${tableId}:${axis}`;
   }
   function buildCrossingActiveFromPick(pick) {
-    const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === pick.axis && d.category === pick.category);
-    if (!def) return null;
-    const factors = factorsFromBucket(def);
-    if (!factors) return null;
-    const [factor1, factor2] = factors;
     return {
       pairKind: pairKindFromAxis(pick.axis),
       pairKindLabel: pairKindLabel(pick.axis),
       patternMode: "convergence",
       patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
-      referenceNumber: pick.excludedPair[0],
-      factor1,
-      factor2,
-      triggerNumbers: pick.excludedPair,
-      armingDescription: `${pick.category} \xB7 ${pick.absenceGap} giros sem aparecer (mesa ${pick.tableId})`
-    };
-  }
-  function pickFromAbsentBucket(tableId, historyNewestFirst, def, bucketGap) {
-    return {
-      tableId,
-      axis: def.axis,
-      category: def.category,
-      absentCategory: def.category,
-      bucketGap,
-      absenceGap: bucketGap,
-      excludedPair: twoColdestNumbersInNumberSet(historyNewestFirst, def.nums)
+      referenceNumber: pick.triggerNumbers[0] ?? pick.excludedPair[0],
+      factor1: pick.factor1,
+      factor2: pick.factor2,
+      triggerNumbers: [pick.excludedPair[0], pick.excludedPair[1]],
+      armingDescription: `${crossingPatternKindLabel(pick.patternKind)} \xB7 ${pick.category} (mesa ${pick.tableId})`
     };
   }
   function pickForTableByCategory(tableId, historyNewestFirst, axis, category) {
-    const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.category === category);
-    if (!def) return null;
-    const bucketGap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    return pickFromAbsentBucket(tableId, historyNewestFirst, def, bucketGap);
-  }
-  function absentPickMeetsAlertThreshold(pick, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    return pick != null && pick.bucketGap >= minAbsenceSpins;
+    const match = detectBestPatternOnTable(historyNewestFirst);
+    if (!match || match.axis !== axis || match.category !== category) return null;
+    return pickFromPatternMatch(tableId, match);
   }
   function crossingFlashSnapshot(active, history, tableId, machine) {
     const triggerNumbers = history.slice(0, 4);
@@ -547,45 +654,43 @@ var SinglestakeUmFator = (() => {
       prepareTableId: null,
       prepareActive: null,
       pendingQueueEntry: null,
-      armedAtHead: null
+      armedAtHead: null,
+      prepareSpinsWithoutPattern: 0
     };
   }
-  function bestPickForTable(tableId, historyNewestFirst, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const best = bestAbsentBucketCrossingAlert(
-      historyNewestFirst,
-      ROTATING_ROOM_CROSSING_AXES,
-      minAbsenceSpins
-    );
-    if (!best) return null;
-    return pickFromAbsentBucket(tableId, historyNewestFirst, best.def, best.bucketGap);
+  function bestPickForTable(tableId, historyNewestFirst, _minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
+    const match = detectBestPatternOnTable(historyNewestFirst);
+    if (!match) return null;
+    return pickFromPatternMatch(tableId, match);
   }
-  function pickForTableOnAxis(tableId, historyNewestFirst, axis, minGap = 1, category) {
-    if (category) {
-      const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.category === category);
-      if (!def) return null;
-      const bucketGap = crossingBucketAbsenceGap(historyNewestFirst, def);
-      if (bucketGap < minGap) return null;
-      return pickFromAbsentBucket(tableId, historyNewestFirst, def, bucketGap);
-    }
-    const best = bestAbsentBucketCrossingAlert(historyNewestFirst, [axis], minGap);
-    if (!best) return null;
-    return pickFromAbsentBucket(tableId, historyNewestFirst, best.def, best.bucketGap);
+  function pickForTableOnAxis(tableId, historyNewestFirst, axis, _minGap = 1, category) {
+    const match = detectBestPatternOnTable(historyNewestFirst);
+    if (!match || match.axis !== axis) return null;
+    if (category && match.category !== category) return null;
+    return pickFromPatternMatch(tableId, match);
   }
   function comparePicks(a, b) {
     if (a.absenceGap !== b.absenceGap) return b.absenceGap - a.absenceGap;
     return a.tableId - b.tableId;
   }
-  function listAllAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const out = [];
-    for (const tableId of tableIds) {
-      if (excludeTableIds?.has(tableId)) continue;
-      const history = histories[tableId] ?? [];
-      if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
-      const pick = bestPickForTable(tableId, history, minAbsenceSpins);
-      if (pick) out.push(pick);
+  function listAllAlertPicks(tableIds, histories, excludeTableIds, _minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
+    const kinds = ["primary", "secondary", "tertiary"];
+    for (const kind of kinds) {
+      const out = [];
+      for (const tableId of tableIds) {
+        if (excludeTableIds?.has(tableId)) continue;
+        const history = histories[tableId] ?? [];
+        if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
+        if (tableHasZeroInLastSpins(history)) continue;
+        const match = detectPatternOnTableByKind(history, kind);
+        if (match) out.push(pickFromPatternMatch(tableId, match));
+      }
+      if (out.length > 0) {
+        out.sort(comparePicks);
+        return out;
+      }
     }
-    out.sort(comparePicks);
-    return out;
+    return [];
   }
   function pickGlobalCrossingAlert(tableIds, histories, excludeTableIds, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     if (!isCrossingGatilhoEnabled()) return null;
@@ -636,20 +741,8 @@ var SinglestakeUmFator = (() => {
       lastEvaluatedHead: null
     };
   }
-  function refreshCycleActiveFromLive(machine, histories) {
-    if (!machine.cycleActive || machine.cycleTableId == null) return machine;
-    const axis = crossingAxisFromActive(machine.cycleActive);
-    const category = machine.cycleMetricCategory;
-    const live = category != null ? pickForTableByCategory(machine.cycleTableId, histories[machine.cycleTableId] ?? [], axis, category) : pickForTableOnAxis(machine.cycleTableId, histories[machine.cycleTableId] ?? [], axis, 0);
-    if (!live) return machine;
-    const active = buildCrossingActiveFromPick(live);
-    if (!active) return machine;
-    return {
-      ...machine,
-      cycleActive: active,
-      cycleFingerprint: crossingFingerprint(live.tableId, live.axis, live.category),
-      cycleMetricCategory: live.absentCategory
-    };
+  function refreshCycleActiveFromLive(machine, _histories) {
+    return machine;
   }
   function tablesExcludedFromRotation(machine) {
     const excluded = /* @__PURE__ */ new Set();
@@ -684,8 +777,19 @@ var SinglestakeUmFator = (() => {
       prepareTableId: alert.tableId,
       prepareActive: buildCrossingActiveFromPick(alert),
       pendingQueueEntry: pickToQueueEntry(alert),
-      armedAtHead: spinHeadFromHistory(histories[alert.tableId] ?? [])
+      armedAtHead: spinHeadFromHistory(histories[alert.tableId] ?? []),
+      prepareSpinsWithoutPattern: 0
     };
+  }
+  function rotatePrepareToNextTable(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
+    const excluded = new Set(tablesExcludedFromRotation(machine));
+    excluded.add(fromTableId);
+    const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
+    const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
+    if (!alert) {
+      return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
+    }
+    return beginPrepareOnAlert(base, alert, histories);
   }
   function suspendAndPrepareNextTable(machine, lostTableId, recovery, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
     const marked = markTableSessionLoss(machine, lostTableId);
@@ -697,21 +801,6 @@ var SinglestakeUmFator = (() => {
       return { ...cleared, awaitSwitchNoTable: true };
     }
     return beginPrepareOnAlert(cleared, alert, histories);
-  }
-  function rotatePrepareAfterWinDuringPrepare(machine, fromTableId, tableIds, histories, minAbsenceSpins = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS) {
-    const excluded = new Set(tablesExcludedFromRotation(machine));
-    excluded.add(fromTableId);
-    const base = {
-      ...clearPrepareState(machine),
-      recovery: machine.recovery,
-      tablePlacarLosses: machine.tablePlacarLosses,
-      awaitSwitchNoTable: false
-    };
-    const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
-    if (!alert) {
-      return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
-    }
-    return beginPrepareOnAlert(base, alert, histories);
   }
   function finishCycle(machine) {
     return {
@@ -736,7 +825,7 @@ var SinglestakeUmFator = (() => {
       const isActive = activePick != null && crossingFingerprint(activePick.tableId, activePick.axis, activePick.category) === fp;
       let status = "idle";
       if (isActive) status = "active";
-      else if (pick.absenceGap >= minAbsenceSpins) status = "alert";
+      else if (pick) status = "alert";
       return {
         tableId,
         category: pick.category,
@@ -872,76 +961,23 @@ var SinglestakeUmFator = (() => {
       const pt = nextMachine.prepareTableId;
       const head2 = spinHeadFromHistory(histories[pt] ?? []);
       const entry = nextMachine.pendingQueueEntry;
-      if (entry && entry.tableId === pt) {
-        const gapNow = pickForTableByCategory(pt, histories[pt] ?? [], entry.axis, entry.category);
-        if (!absentPickMeetsAlertThreshold(gapNow, minAbsenceSpins) && head2 === nextMachine.armedAtHead) {
-          return {
-            nextMachine: clearPrepareState(nextMachine),
-            stats: nextStats,
-            statsChanged,
-            flash
-          };
-        }
-      }
       if (nextMachine.armedAtHead != null && head2 !== nextMachine.armedAtHead) {
         const hist = histories[pt] ?? [];
         const resultNumber2 = hist[0];
         if (resultNumber2 === 0) {
           return {
-            nextMachine: { ...nextMachine, armedAtHead: head2 },
+            nextMachine: rotatePrepareToNextTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
             stats: nextStats,
             statsChanged,
             flash
           };
         }
-        const prepareActive = nextMachine.prepareActive;
-        if (prepareActive && entry && entry.tableId === pt) {
-          const outcome2 = evaluateDoisFatoresRound(resultNumber2, prepareActive);
-          const pickFromEntry = pickForTableByCategory(pt, hist, entry.axis, entry.category);
-          if (outcome2 === "W") {
-            if (nextMachine.recovery > 0 && tableIds.length > 1) {
-              return {
-                nextMachine: rotatePrepareAfterWinDuringPrepare(
-                  nextMachine,
-                  pt,
-                  tableIds,
-                  histories,
-                  minAbsenceSpins
-                ),
-                stats: nextStats,
-                statsChanged,
-                flash
-              };
-            }
-            return {
-              nextMachine: clearPrepareState(nextMachine),
-              stats: nextStats,
-              statsChanged,
-              flash
-            };
-          }
-          if (pickFromEntry) {
-            return {
-              nextMachine: armCycleFromActive(
-                { ...nextMachine, pendingQueueEntry: null },
-                pickFromEntry,
-                prepareActive,
-                histories,
-                nextMachine.recovery,
-                { lastEvaluatedHead: head2 }
-              ),
-              stats: nextStats,
-              statsChanged,
-              flash
-            };
-          }
-        }
-        const live = entry && entry.tableId === pt ? pickForTableByCategory(pt, histories[pt] ?? [], entry.axis, entry.category) : null;
-        if (absentPickMeetsAlertThreshold(live, minAbsenceSpins)) {
+        const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+        if (freshPick) {
           return {
             nextMachine: armCycleFromPick(
-              { ...nextMachine, pendingQueueEntry: null },
-              live,
+              clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: 0 }),
+              freshPick,
               histories,
               nextMachine.recovery
             ),
@@ -950,7 +986,22 @@ var SinglestakeUmFator = (() => {
             flash
           };
         }
-        nextMachine = clearPrepareState(nextMachine);
+        const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
+        if (spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS && tableIds.length > 1) {
+          return {
+            nextMachine: rotatePrepareToNextTable(
+              { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
+              pt,
+              tableIds,
+              histories,
+              minAbsenceSpins
+            ),
+            stats: nextStats,
+            statsChanged,
+            flash
+          };
+        }
+        nextMachine = clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: spinsWithout });
       }
       return { nextMachine, stats: nextStats, statsChanged, flash };
     }
@@ -980,23 +1031,6 @@ var SinglestakeUmFator = (() => {
     const tableId = nextMachine.cycleTableId;
     if (tableId == null || !nextMachine.cycleActive) {
       return { nextMachine, stats: nextStats, statsChanged, flash };
-    }
-    if (nextMachine.lastEvaluatedHead === null && nextMachine.recovery === 0 && nextMachine.cycleMetricCategory && nextMachine.cycleActive) {
-      const axis = crossingAxisFromActive(nextMachine.cycleActive);
-      const live = pickForTableByCategory(
-        tableId,
-        histories[tableId] ?? [],
-        axis,
-        nextMachine.cycleMetricCategory
-      );
-      if (!absentPickMeetsAlertThreshold(live, minAbsenceSpins)) {
-        return {
-          nextMachine: clearCycle(nextMachine),
-          stats: nextStats,
-          statsChanged,
-          flash
-        };
-      }
     }
     const history = histories[tableId] ?? [];
     if (history.length === 0) return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -1735,9 +1769,9 @@ var SinglestakeUmFator = (() => {
   function crossingInCycleFromView(cross) {
     return cross.showTapeteSignal || cross.currentRecovery > 0 || cross.sessionMode === "prepare";
   }
-  function crossingHasQualifyingGapFromView(cross) {
+  function crossingHasQualifyingPatternFromView(cross) {
     return cross.crossingScan.some(
-      (row) => (row.bucketGap ?? 0) >= ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS
+      (row) => row.status === "alert" || row.status === "active" || row.status === "prepare"
     );
   }
   function resolveRotativaTriggerFromSnapshot(snapshot, crossingEnabled) {
@@ -1754,9 +1788,10 @@ var SinglestakeUmFator = (() => {
       if (crossing.currentRecovery >= um.currentRecovery) return "crossing";
       return "umFator";
     }
-    if (crossingHasQualifyingGapFromView(crossing) && crossing.prepareTableId != null) {
+    if (crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
       return "crossing";
     }
+    if (crossingEnabled) return "crossing";
     return "umFator";
   }
 

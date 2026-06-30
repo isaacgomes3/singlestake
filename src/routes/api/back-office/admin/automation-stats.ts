@@ -43,7 +43,7 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
         const body = await readJsonBody<{ id?: string; enabled?: boolean }>(request);
         const id = body?.id;
         const enabled = body?.enabled;
-        if (id !== "three" || typeof enabled !== "boolean") {
+        if ((id !== "three" && id !== "crossing") || typeof enabled !== "boolean") {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
         }
 

@@ -1,47 +1,38 @@
 /**
- * Sala rotativa — cruzamentos cor/altura ou paridade/altura.
- * - Detecta cruzamentos **ausentes** (giros desde a última saída de qualquer número do bucket)
- * - Com **18+** giros de ausência → **POSICIONAR** (1 rodada) → **JOGANDO** no cruzamento ausente
- * - **POSICIONAR:** vitória no giro não conta e **não** entra em JOGANDO; L/continue → JOGANDO
- * - Com recuperação activa, vitória em POSICIONAR posiciona noutra roleta (recuperação mantém-se)
- * - Placar (JOGANDO): vitória só com **ambos** os fatores; um factor certo → continua; ambos errados → recuperação
- * - **Zero** com sinal activo: conta como derrota e incrementa recuperação (como ambos os fatores errados)
- * - **Recuperação (sala multi-mesa):** derrota parcial suspende o sinal, marca a mesa (1 perda/sessão)
- *   e posiciona noutra roleta; recuperação mantém-se. Mesa suspensa só volta após vitória ou derrota final da sessão.
+ * Sala rotativa — 2 Fatores por padrões de cruzamento.
+ * Eixos: cor/altura, paridade/altura, cor/paridade.
+ * Padrões: primário x-x-x, secundário x-x-y-x, terciário x-y-x-x.
+ * - POSICIONAR → JOGANDO com indicação do cruzamento do padrão
+ * - Placar: vitória só com ambos os fatores; derrota se ambos falharem (zero = derrota)
+ * - 5 recuperações antes de L final; troca de mesa após zero ou 2 giros sem padrão
+ * - Não posiciona em mesas com zero nos últimos 12 números
  */
 
-
-
 import {
-
   evaluateDoisFatoresRound,
-
   doisFatoresFactorLabel,
-
   type DoisFatoresActive,
-
   type DoisFatoresFactor,
-
   type DoisFatoresPairKind,
-
 } from "@/lib/roulette/doisFatoresStrategy";
-
-import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
-
 import {
-  CROSSING_BUCKET_DEFINITIONS,
-  bestAbsentBucketCrossingAlert,
-  crossingBucketAbsenceGap,
-  twoColdestNumbersInNumberSet,
-  type CrossingAxisKind,
-  type CrossingBucketDef,
-} from "@/lib/roulette/liveTableColdStats";
-
-import { colorOf, heightOf, parityOf } from "@/lib/roulette/streetPairTrigger";
-
+  crossingPatternKindLabel,
+  detectBestPatternOnTable,
+  detectPatternOnTableByKind,
+  tableHasZeroInLastSpins,
+  type CrossingPatternKind,
+  type CrossingPatternMatch,
+  ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS,
+} from "@/lib/roulette/doisFatoresPatternCrossing";
+import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { type CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import { tableAcceptableForRotatingRoomEntry } from "@/lib/roulette/liveTableBettingWindow";
-import { recordRotatingRoomSessionWin, recordRotatingRoomSessionPartialLoss, recordRotatingRoomSessionFinalLoss } from "@/lib/roulette/entryWinBreakdown";
+import {
+  recordRotatingRoomSessionWin,
+  recordRotatingRoomSessionPartialLoss,
+  recordRotatingRoomSessionFinalLoss,
+} from "@/lib/roulette/entryWinBreakdown";
 
 function spinHeadFromHistory(history: readonly number[]): string {
   if (history.length === 0) return "0";
@@ -50,8 +41,8 @@ function spinHeadFromHistory(history: readonly number[]): string {
 
 
 
-/** Sequência mínima sem repetição consecutiva do cruzamento → começa a indicar. */
-export const ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 18;
+/** @deprecated Legado ausência 18 giros — padrões usam prioridade 1–3. */
+export const ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS = 1;
 
 /** @deprecated Use {@link ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS}. */
 export const ROTATING_ROOM_CROSSING_ALERT_OPPOSITE_HITS = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS;
@@ -69,29 +60,19 @@ export const ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
 
 
 
-const ROTATING_ROOM_CROSSING_AXES: readonly CrossingAxisKind[] = ["cor-altura", "altura-paridade"];
-
-
-
 export type RotatingRoomCrossingPick = {
-
   tableId: number;
-
   axis: CrossingAxisKind;
-
-  /** Cruzamento indicado (cor/altura ou paridade/altura). */
   category: string;
-
-  /** Igual a `category` — cruzamento que está ausente. */
   absentCategory: string;
-
-  /** Giros desde a última saída de qualquer número deste cruzamento. */
+  /** Prioridade do padrão (3=primário, 2=secundário, 1=terciário). */
   bucketGap: number;
-
   absenceGap: number;
-
   excludedPair: readonly [number, number];
-
+  patternKind: CrossingPatternKind;
+  triggerNumbers: readonly number[];
+  factor1: DoisFatoresFactor;
+  factor2: DoisFatoresFactor;
 };
 
 
@@ -191,8 +172,11 @@ export type RotatingRoomCrossingMachineState = {
 
   pendingQueueEntry: RotatingRoomCrossingQueueEntry | null;
 
-  /** Cruzamento alvo/ausente do ciclo activo. */
+  /** Cruzamento alvo do ciclo activo. */
   cycleMetricCategory: string | null;
+
+  /** Giros em POSICIONAR sem novo padrão válido (troca de mesa aos 2). */
+  prepareSpinsWithoutPattern: number;
 
 };
 
@@ -270,139 +254,7 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
 
     cycleMetricCategory: null,
 
-  };
-
-}
-
-
-
-function factorsFromBucket(def: CrossingBucketDef): readonly [DoisFatoresFactor, DoisFatoresFactor] | null {
-
-  const sample = def.nums[0];
-
-  if (sample == null) return null;
-
-  const col = colorOf(sample);
-
-  const alt = heightOf(sample);
-
-  const par = parityOf(sample);
-
-  if (def.axis === "cor-altura") {
-
-    if (col === "Zero" || alt === "Zero") return null;
-
-    return [{ kind: "cor", value: col }, { kind: "altura", value: alt }] as const;
-
-  }
-
-  if (def.axis === "altura-paridade") {
-
-    if (alt === "Zero" || par === "Zero") return null;
-
-    return [{ kind: "altura", value: alt }, { kind: "paridade", value: par }] as const;
-
-  }
-
-  return null;
-
-}
-
-
-
-function pairKindFromAxis(axis: CrossingAxisKind): DoisFatoresPairKind {
-
-  return axis === "cor-altura" ? "cor-altura" : "altura-paridade";
-
-}
-
-
-
-function pairKindLabel(axis: CrossingAxisKind): string {
-
-  return axis === "cor-altura" ? "Cor · Altura" : "Paridade · Altura";
-
-}
-
-
-
-function crossingAxisFromActive(active: DoisFatoresActive): CrossingAxisKind {
-
-  return active.pairKind === "cor-altura" ? "cor-altura" : "altura-paridade";
-
-}
-
-
-
-export function crossingFingerprint(tableId: number, axis: CrossingAxisKind, category: string): string {
-
-  return `${tableId}:${axis}:${category}`;
-
-}
-
-
-
-/** Mesa + eixo na fase POSICIONAR (categoria muda com o último número). */
-
-function crossingPrepareKey(tableId: number, axis: CrossingAxisKind): string {
-
-  return `${tableId}:${axis}`;
-
-}
-
-
-
-function parseCrossingPrepareKey(key: string): { tableId: number; axis: CrossingAxisKind } | null {
-
-  const parts = key.split(":");
-
-  if (parts.length < 2) return null;
-
-  const tableId = Number(parts[0]);
-
-  const axis = parts[1] as CrossingAxisKind;
-
-  if (!Number.isFinite(tableId)) return null;
-
-  if (axis !== "cor-altura" && axis !== "altura-paridade") return null;
-
-  return { tableId, axis };
-
-}
-
-
-
-export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): DoisFatoresActive | null {
-
-  const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === pick.axis && d.category === pick.category);
-
-  if (!def) return null;
-
-  const factors = factorsFromBucket(def);
-
-  if (!factors) return null;
-
-  const [factor1, factor2] = factors;
-
-  return {
-
-    pairKind: pairKindFromAxis(pick.axis),
-
-    pairKindLabel: pairKindLabel(pick.axis),
-
-    patternMode: "convergence",
-
-    patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
-
-    referenceNumber: pick.excludedPair[0],
-
-    factor1,
-
-    factor2,
-
-    triggerNumbers: pick.excludedPair,
-
-    armingDescription: `${pick.category} · ${pick.absenceGap} giros sem aparecer (mesa ${pick.tableId})`,
+    prepareSpinsWithoutPattern: 0,
 
   };
 
@@ -410,20 +262,76 @@ export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): Doi
 
 
 
-function pickFromAbsentBucket(
+function pickFromPatternMatch(
   tableId: number,
-  historyNewestFirst: readonly number[],
-  def: CrossingBucketDef,
-  bucketGap: number,
+  match: CrossingPatternMatch,
 ): RotatingRoomCrossingPick {
+  const t0 = match.triggerNumbers[0] ?? 0;
+  const t1 = match.triggerNumbers[1] ?? t0;
   return {
     tableId,
-    axis: def.axis,
-    category: def.category,
-    absentCategory: def.category,
-    bucketGap,
-    absenceGap: bucketGap,
-    excludedPair: twoColdestNumbersInNumberSet(historyNewestFirst, def.nums),
+    axis: match.axis,
+    category: match.category,
+    absentCategory: match.category,
+    bucketGap: match.patternPriority,
+    absenceGap: match.patternPriority,
+    excludedPair: [t0, t1] as const,
+    patternKind: match.patternKind,
+    triggerNumbers: match.triggerNumbers,
+    factor1: match.factor1,
+    factor2: match.factor2,
+  };
+}
+
+function pairKindFromAxis(axis: CrossingAxisKind): DoisFatoresPairKind {
+  return axis;
+}
+
+function pairKindLabel(axis: CrossingAxisKind): string {
+  switch (axis) {
+    case "cor-altura":
+      return "Cor · Altura";
+    case "cor-paridade":
+      return "Cor · Paridade";
+    case "altura-paridade":
+      return "Paridade · Altura";
+  }
+}
+
+function crossingAxisFromActive(active: DoisFatoresActive): CrossingAxisKind {
+  return active.pairKind;
+}
+
+export function crossingFingerprint(tableId: number, axis: CrossingAxisKind, category: string): string {
+  return `${tableId}:${axis}:${category}`;
+}
+
+/** Mesa + eixo na fase POSICIONAR (categoria muda com o último número). */
+function crossingPrepareKey(tableId: number, axis: CrossingAxisKind): string {
+  return `${tableId}:${axis}`;
+}
+
+function parseCrossingPrepareKey(key: string): { tableId: number; axis: CrossingAxisKind } | null {
+  const parts = key.split(":");
+  if (parts.length < 2) return null;
+  const tableId = Number(parts[0]);
+  const axis = parts[1] as CrossingAxisKind;
+  if (!Number.isFinite(tableId)) return null;
+  if (axis !== "cor-altura" && axis !== "altura-paridade" && axis !== "cor-paridade") return null;
+  return { tableId, axis };
+}
+
+export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): DoisFatoresActive | null {
+  return {
+    pairKind: pairKindFromAxis(pick.axis),
+    pairKindLabel: pairKindLabel(pick.axis),
+    patternMode: "convergence",
+    patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
+    referenceNumber: pick.triggerNumbers[0] ?? pick.excludedPair[0],
+    factor1: pick.factor1,
+    factor2: pick.factor2,
+    triggerNumbers: [pick.excludedPair[0], pick.excludedPair[1]] as const,
+    armingDescription: `${crossingPatternKindLabel(pick.patternKind)} · ${pick.category} (mesa ${pick.tableId})`,
   };
 }
 
@@ -433,17 +341,13 @@ function pickForTableByCategory(
   axis: CrossingAxisKind,
   category: string,
 ): RotatingRoomCrossingPick | null {
-  const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.category === category);
-  if (!def) return null;
-  const bucketGap = crossingBucketAbsenceGap(historyNewestFirst, def);
-  return pickFromAbsentBucket(tableId, historyNewestFirst, def, bucketGap);
+  const match = detectBestPatternOnTable(historyNewestFirst);
+  if (!match || match.axis !== axis || match.category !== category) return null;
+  return pickFromPatternMatch(tableId, match);
 }
 
-function absentPickMeetsAlertThreshold(
-  pick: RotatingRoomCrossingPick | null,
-  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
-): boolean {
-  return pick != null && pick.bucketGap >= minAbsenceSpins;
+function patternPickMeetsThreshold(pick: RotatingRoomCrossingPick | null): boolean {
+  return pick != null;
 }
 
 function crossingFlashSnapshot(
@@ -476,86 +380,61 @@ function clearPrepareState(machine: RotatingRoomCrossingMachineState): RotatingR
     prepareActive: null,
     pendingQueueEntry: null,
     armedAtHead: null,
+    prepareSpinsWithoutPattern: 0,
   };
 }
 
 function bestPickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
-  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+  _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingPick | null {
-  const best = bestAbsentBucketCrossingAlert(
-    historyNewestFirst,
-    ROTATING_ROOM_CROSSING_AXES,
-    minAbsenceSpins,
-  );
-  if (!best) return null;
-  return pickFromAbsentBucket(tableId, historyNewestFirst, best.def, best.bucketGap);
+  const match = detectBestPatternOnTable(historyNewestFirst);
+  if (!match) return null;
+  return pickFromPatternMatch(tableId, match);
 }
 
 function pickForTableOnAxis(
   tableId: number,
   historyNewestFirst: readonly number[],
   axis: CrossingAxisKind,
-  minGap = 1,
+  _minGap = 1,
   category?: string,
 ): RotatingRoomCrossingPick | null {
-  if (category) {
-    const def = CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.category === category);
-    if (!def) return null;
-    const bucketGap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    if (bucketGap < minGap) return null;
-    return pickFromAbsentBucket(tableId, historyNewestFirst, def, bucketGap);
-  }
-
-  const best = bestAbsentBucketCrossingAlert(historyNewestFirst, [axis], minGap);
-  if (!best) return null;
-  return pickFromAbsentBucket(tableId, historyNewestFirst, best.def, best.bucketGap);
+  const match = detectBestPatternOnTable(historyNewestFirst);
+  if (!match || match.axis !== axis) return null;
+  if (category && match.category !== category) return null;
+  return pickFromPatternMatch(tableId, match);
 }
-
-
 
 function comparePicks(a: RotatingRoomCrossingPick, b: RotatingRoomCrossingPick): number {
-
   if (a.absenceGap !== b.absenceGap) return b.absenceGap - a.absenceGap;
-
   return a.tableId - b.tableId;
-
 }
 
-
-
 export function listAllAlertPicks(
-
   tableIds: readonly number[],
-
   histories: Record<number, readonly number[]>,
-
   excludeTableIds?: ReadonlySet<number>,
-
-  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
-
+  _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingPick[] {
-
-  const out: RotatingRoomCrossingPick[] = [];
-
-  for (const tableId of tableIds) {
-
-    if (excludeTableIds?.has(tableId)) continue;
-
-    const history = histories[tableId] ?? [];
-    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
-
-    const pick = bestPickForTable(tableId, history, minAbsenceSpins);
-
-    if (pick) out.push(pick);
-
+  const kinds = ["primary", "secondary", "tertiary"] as const;
+  for (const kind of kinds) {
+    const out: RotatingRoomCrossingPick[] = [];
+    for (const tableId of tableIds) {
+      if (excludeTableIds?.has(tableId)) continue;
+      const history = histories[tableId] ?? [];
+      if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
+      if (tableHasZeroInLastSpins(history)) continue;
+      const match = detectPatternOnTableByKind(history, kind);
+      if (match) out.push(pickFromPatternMatch(tableId, match));
+    }
+    if (out.length > 0) {
+      out.sort(comparePicks);
+      return out;
+    }
   }
-
-  out.sort(comparePicks);
-
-  return out;
-
+  return [];
 }
 
 
@@ -749,40 +628,10 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
 
 
 function refreshCycleActiveFromLive(
-
   machine: RotatingRoomCrossingMachineState,
-
-  histories: Record<number, readonly number[]>,
-
+  _histories: Record<number, readonly number[]>,
 ): RotatingRoomCrossingMachineState {
-
-  if (!machine.cycleActive || machine.cycleTableId == null) return machine;
-
-  const axis = crossingAxisFromActive(machine.cycleActive);
-  const category = machine.cycleMetricCategory;
-  const live =
-    category != null
-      ? pickForTableByCategory(machine.cycleTableId, histories[machine.cycleTableId] ?? [], axis, category)
-      : pickForTableOnAxis(machine.cycleTableId, histories[machine.cycleTableId] ?? [], axis, 0);
-
-  if (!live) return machine;
-
-  const active = buildCrossingActiveFromPick(live);
-
-  if (!active) return machine;
-
-  return {
-
-    ...machine,
-
-    cycleActive: active,
-
-    cycleFingerprint: crossingFingerprint(live.tableId, live.axis, live.category),
-
-    cycleMetricCategory: live.absentCategory,
-
-  };
-
+  return machine;
 }
 
 
@@ -835,7 +684,25 @@ function beginPrepareOnAlert(
     prepareActive: buildCrossingActiveFromPick(alert),
     pendingQueueEntry: pickToQueueEntry(alert),
     armedAtHead: spinHeadFromHistory(histories[alert.tableId] ?? []),
+    prepareSpinsWithoutPattern: 0,
   };
+}
+
+function rotatePrepareToNextTable(
+  machine: RotatingRoomCrossingMachineState,
+  fromTableId: number,
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+): RotatingRoomCrossingMachineState {
+  const excluded = new Set(tablesExcludedFromRotation(machine));
+  excluded.add(fromTableId);
+  const base = clearPrepareState({ ...machine, prepareSpinsWithoutPattern: 0 });
+  const alert = pickGlobalCrossingAlertWithFallback(tableIds, histories, excluded, minAbsenceSpins);
+  if (!alert) {
+    return { ...base, awaitSwitchNoTable: machine.recovery > 0 };
+  }
+  return beginPrepareOnAlert(base, alert, histories);
 }
 
 /** Suspende ciclo na mesa derrotada e posiciona noutra roleta (recuperação mantém-se). */
@@ -936,7 +803,7 @@ export function scanRotatingRoomCrossingTables(
 
     if (isActive) status = "active";
 
-    else if (pick.absenceGap >= minAbsenceSpins) status = "alert";
+    else if (pick) status = "alert";
 
 
 
@@ -1229,111 +1096,54 @@ export function tickRotatingRoomCrossingPlacar(
 
     const head = spinHeadFromHistory(histories[pt] ?? []);
 
-    const entry = nextMachine.pendingQueueEntry;
-
-    if (entry && entry.tableId === pt) {
-      const gapNow = pickForTableByCategory(pt, histories[pt] ?? [], entry.axis, entry.category);
-      if (!absentPickMeetsAlertThreshold(gapNow, minAbsenceSpins) && head === nextMachine.armedAtHead) {
-        return {
-          nextMachine: clearPrepareState(nextMachine),
-          stats: nextStats,
-          statsChanged,
-          flash,
-        };
-      }
-    }
-
     if (nextMachine.armedAtHead != null && head !== nextMachine.armedAtHead) {
-
       const hist = histories[pt] ?? [];
-
       const resultNumber = hist[0];
 
       if (resultNumber === 0) {
-
         return {
-
-          nextMachine: { ...nextMachine, armedAtHead: head },
-
+          nextMachine: rotatePrepareToNextTable(nextMachine, pt, tableIds, histories, minAbsenceSpins),
           stats: nextStats,
-
           statsChanged,
-
           flash,
-
         };
-
       }
 
-      const prepareActive = nextMachine.prepareActive;
-      if (prepareActive && entry && entry.tableId === pt) {
-        const outcome = evaluateDoisFatoresRound(resultNumber!, prepareActive);
-        const pickFromEntry = pickForTableByCategory(pt, hist, entry.axis, entry.category);
-        if (outcome === "W") {
-          if (nextMachine.recovery > 0 && tableIds.length > 1) {
-            return {
-              nextMachine: rotatePrepareAfterWinDuringPrepare(
-                nextMachine,
-                pt,
-                tableIds,
-                histories,
-                minAbsenceSpins,
-              ),
-              stats: nextStats,
-              statsChanged,
-              flash,
-            };
-          }
-          return {
-            nextMachine: clearPrepareState(nextMachine),
-            stats: nextStats,
-            statsChanged,
-            flash,
-          };
-        }
-        if (pickFromEntry) {
-          return {
-            nextMachine: armCycleFromActive(
-              { ...nextMachine, pendingQueueEntry: null },
-              pickFromEntry,
-              prepareActive,
-              histories,
-              nextMachine.recovery,
-              { lastEvaluatedHead: head },
-            ),
-            stats: nextStats,
-            statsChanged,
-            flash,
-          };
-        }
-      }
-
-      const live =
-        entry && entry.tableId === pt
-          ? pickForTableByCategory(pt, histories[pt] ?? [], entry.axis, entry.category)
-          : null;
-
-      if (absentPickMeetsAlertThreshold(live, minAbsenceSpins)) {
+      const freshPick = bestPickForTable(pt, hist, minAbsenceSpins);
+      if (freshPick) {
         return {
           nextMachine: armCycleFromPick(
-            { ...nextMachine, pendingQueueEntry: null },
-            live!,
+            clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: 0 }),
+            freshPick,
             histories,
             nextMachine.recovery,
           ),
-
           stats: nextStats,
-
           statsChanged,
-
           flash,
-
         };
-
       }
 
-      nextMachine = clearPrepareState(nextMachine);
+      const spinsWithout = nextMachine.prepareSpinsWithoutPattern + 1;
+      if (
+        spinsWithout >= ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS &&
+        tableIds.length > 1
+      ) {
+        return {
+          nextMachine: rotatePrepareToNextTable(
+            { ...nextMachine, prepareSpinsWithoutPattern: spinsWithout },
+            pt,
+            tableIds,
+            histories,
+            minAbsenceSpins,
+          ),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
 
+      nextMachine = clearPrepareState({ ...nextMachine, prepareSpinsWithoutPattern: spinsWithout });
     }
 
     return { nextMachine, stats: nextStats, statsChanged, flash };
@@ -1379,35 +1189,8 @@ export function tickRotatingRoomCrossingPlacar(
   const tableId = nextMachine.cycleTableId;
 
   if (tableId == null || !nextMachine.cycleActive) {
-
     return { nextMachine, stats: nextStats, statsChanged, flash };
-
   }
-
-  if (
-    nextMachine.lastEvaluatedHead === null &&
-    nextMachine.recovery === 0 &&
-    nextMachine.cycleMetricCategory &&
-    nextMachine.cycleActive
-  ) {
-    const axis = crossingAxisFromActive(nextMachine.cycleActive);
-    const live = pickForTableByCategory(
-      tableId,
-      histories[tableId] ?? [],
-      axis,
-      nextMachine.cycleMetricCategory,
-    );
-    if (!absentPickMeetsAlertThreshold(live, minAbsenceSpins)) {
-      return {
-        nextMachine: clearCycle(nextMachine),
-        stats: nextStats,
-        statsChanged,
-        flash,
-      };
-    }
-  }
-
-
 
   const history = histories[tableId] ?? [];
 

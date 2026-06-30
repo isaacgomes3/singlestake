@@ -2,7 +2,7 @@
 export type AppProfile = "backoffice" | "automation";
 
 /** Entrada por defeito no host de automação. */
-export const AUTOMATION_DEFAULT_ENTRY = "/sala-rotativa-um-fator";
+export const AUTOMATION_DEFAULT_ENTRY = "/sala-rotativa-dois-fatores";
 
 /** Hostnames que servem só automação (runtime no browser). */
 export const AUTOMATION_HOSTNAMES = [

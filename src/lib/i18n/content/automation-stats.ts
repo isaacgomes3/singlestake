@@ -1,7 +1,7 @@
 export const automationStatsContent = {
   pt: {
     title: "Estatísticas da automação",
-    subtitle: "Percentual de acerto por gatilho na sala rotativa (1 Fator e 2 Fatores · cruzamento).",
+    subtitle: "Percentual de acerto por gatilho na sala rotativa (2 Fatores por padrões; 1 Fator manual).",
     updatedAt: "Última actualização",
     source: "Fonte dos sinais",
     sourceExtension: "Extensão Chrome",
@@ -25,11 +25,12 @@ export const automationStatsContent = {
       twoFactors: "2 factores iguais",
       threeFactors: "3 factores iguais",
       crossingAbsence: "2 Fatores · cruzamento (≥18 giros)",
+      crossingPattern: "2 Fatores · padrões de cruzamento",
     },
   },
   en: {
     title: "Automation statistics",
-    subtitle: "Hit rate per 1 Factor trigger (global engine data).",
+    subtitle: "Hit rate per trigger in the rotating room (2 Factors patterns; 1 Factor manual).",
     updatedAt: "Last updated",
     source: "Signal source",
     sourceExtension: "Chrome extension",
@@ -53,11 +54,12 @@ export const automationStatsContent = {
       twoFactors: "2 equal factors",
       threeFactors: "3 equal factors",
       crossingAbsence: "2 Factors · crossing (≥18 spins)",
+      crossingPattern: "2 Factors · crossing patterns",
     },
   },
   es: {
     title: "Estadísticas de automatización",
-    subtitle: "Porcentaje de acierto por gatillo 1 Factor (datos del motor global).",
+    subtitle: "Porcentaje de acierto por gatillo en sala rotativa (2 Factores por patrones; 1 Factor manual).",
     updatedAt: "Última actualización",
     source: "Fuente de señales",
     sourceExtension: "Extensión Chrome",
@@ -81,6 +83,7 @@ export const automationStatsContent = {
       twoFactors: "2 factores iguales",
       threeFactors: "3 factores iguales",
       crossingAbsence: "2 Factores · cruce (≥18 giros)",
+      crossingPattern: "2 Factores · patrones de cruce",
     },
   },
 } as const;

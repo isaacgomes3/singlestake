@@ -1,6 +1,5 @@
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
-import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
 import type { RotatingRoomCrossingTableScan } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import {
   isRotatingRoomLobbyCooldownActive,
@@ -44,9 +43,9 @@ function crossingInCycle(session: RotatingRoomCrossingSession): boolean {
   );
 }
 
-function crossingHasQualifyingGap(session: RotatingRoomCrossingSession): boolean {
+function crossingHasQualifyingPattern(session: RotatingRoomCrossingSession): boolean {
   return session.crossingScan.some(
-    (row) => (row.bucketGap ?? 0) >= ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+    (row) => row.status === "alert" || row.status === "active" || row.status === "prepare",
   );
 }
 
@@ -117,7 +116,15 @@ export function mergeRotatingRoomRotativaSession(
     };
   }
 
-  if (crossingHasQualifyingGap(crossing) && crossing.prepareTableId != null) {
+  if (crossingHasQualifyingPattern(crossing) && crossing.prepareTableId != null) {
+    return {
+      ...crossing,
+      rotativaTrigger: "crossing",
+      umFatorScan: umFator.umFatorScan,
+    };
+  }
+
+  if (crossingEnabled) {
     return {
       ...crossing,
       rotativaTrigger: "crossing",
@@ -133,7 +140,7 @@ export function mergeRotatingRoomRotativaSession(
 }
 
 export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind): string {
-  if (kind === "crossing") return "2 Fatores · cruzamento";
+  if (kind === "crossing") return "2 Fatores · padrões";
   return "1 Fator";
 }
 
@@ -154,9 +161,9 @@ function crossingInCycleFromView(cross: StrategyGlobalCrossingClientView): boole
   );
 }
 
-function crossingHasQualifyingGapFromView(cross: StrategyGlobalCrossingClientView): boolean {
+function crossingHasQualifyingPatternFromView(cross: StrategyGlobalCrossingClientView): boolean {
   return cross.crossingScan.some(
-    (row) => (row.bucketGap ?? 0) >= ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+    (row) => row.status === "alert" || row.status === "active" || row.status === "prepare",
   );
 }
 
@@ -182,9 +189,11 @@ export function resolveRotativaTriggerFromSnapshot(
     return "umFator";
   }
 
-  if (crossingHasQualifyingGapFromView(crossing) && crossing.prepareTableId != null) {
+  if (crossingHasQualifyingPatternFromView(crossing) && crossing.prepareTableId != null) {
     return "crossing";
   }
+
+  if (crossingEnabled) return "crossing";
 
   return "umFator";
 }
