@@ -164,6 +164,8 @@ export function defaultDoisFatoresCrossingMachineState(): RotatingRoomCrossingMa
     prepareActive: null,
     pendingQueueEntry: null,
     cycleMetricCategory: null,
+    lastLostTableId: null,
+    prepareSpinsWithoutPattern: 0,
   };
 }
 

@@ -68,6 +68,8 @@ export type RotatingRoomCrossingSession = {
   sessionMode: RotatingRoomSessionMode;
   prepareCategory: string | null;
   crossingScan: RotatingRoomCrossingTableScan[];
+  cycleSpinsWithoutWin: number;
+  lastEvaluatedHead: string | null;
 };
 
 export function useRotatingRoomCrossingSession(
@@ -295,6 +297,8 @@ export function useRotatingRoomCrossingSession(
     return {
       ...globalView,
       roundFlash,
+      cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
+      lastEvaluatedHead: machine.lastEvaluatedHead,
     };
   }
 

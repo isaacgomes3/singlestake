@@ -59,6 +59,7 @@ export function defaultRotatingRoomCrossingMachineState(): RotatingRoomCrossingM
     prepareActive: null,
     pendingQueueEntry: null,
     cycleMetricCategory: null,
+    prepareSpinsWithoutPattern: 0,
   };
 }
 
