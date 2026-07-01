@@ -53,6 +53,7 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
   const { money, dateTime } = useFormat();
 
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>("profile");
   const [actionKey, setActionKey] = useState<string | null>(null);
@@ -68,14 +69,19 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
 
   const reload = useCallback(async () => {
     setLoading(true);
-    const row = await fetchAdminUserDetail(userId);
-    setDetail(row);
-    if (row) {
-      setName(row.name);
-      setEmail(row.email);
-      setCpf(row.cpf ?? "");
-      setQualification(row.qualification);
+    setLoadError(null);
+    const result = await fetchAdminUserDetail(userId);
+    if (!result.ok) {
+      setDetail(null);
+      setLoadError(result.error);
+      setLoading(false);
+      return;
     }
+    setDetail(result.detail);
+    setName(result.detail.name);
+    setEmail(result.detail.email);
+    setCpf(result.detail.cpf ?? "");
+    setQualification(result.detail.qualification);
     setLoading(false);
   }, [userId]);
 
@@ -111,7 +117,9 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
           <ArrowLeft className="size-4" />
           {t("admin.clientsBackToList")}
         </Button>
-        <p className="text-sm text-text-secondary">{t("admin.clientsProfileNotFound")}</p>
+        <p className="text-sm text-text-secondary">
+          {loadError ?? t("admin.clientsProfileNotFound")}
+        </p>
       </div>
     );
   }

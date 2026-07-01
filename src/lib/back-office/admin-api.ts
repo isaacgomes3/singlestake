@@ -178,11 +178,17 @@ export async function savePixKeyProfile(
   return { ok: true, profile: data.profile };
 }
 
-export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
-  const res = await fetch(`/api/back-office/admin/users/${userId}`, { credentials: "include" });
+export async function fetchAdminUserDetail(
+  userId: string,
+): Promise<{ ok: true; detail: AdminUserDetail } | { ok: false; error: string }> {
+  const res = await fetch(`/api/back-office/admin/user-detail/${userId}`, {
+    credentials: "include",
+  });
   const data = await parseJson<{ ok: boolean; detail?: AdminUserDetail; error?: string }>(res);
-  if (!res.ok || !data?.ok || !data.detail) return null;
-  return data.detail;
+  if (!res.ok || !data?.ok || !data.detail) {
+    return { ok: false, error: data?.error ?? "Não foi possível carregar o perfil." };
+  }
+  return { ok: true, detail: data.detail };
 }
 
 export async function updateAdminUserProfile(

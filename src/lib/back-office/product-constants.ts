@@ -17,6 +17,14 @@ export const SUBSCRIPTION_COMPANY_SHARE = 0.5;
 export const AUTOMATION_MAX_DAILY_YIELD_PCT = 1;
 export const AUTOMATION_YIELD_SETTING_KEY = "automation_daily_yield_pct";
 export const MAX_PROFIT_MULTIPLIER = 2;
+/** Lucro máximo por pacote/cota = 200% do valor investido (ex.: Start R$50 → até R$100 de lucro, R$150 no total). */
+export function computeMaxProfit(investedAmount: number): number {
+  return Math.round(investedAmount * MAX_PROFIT_MULTIPLIER * 100) / 100;
+}
+
+export function computeTotalReturnCap(investedAmount: number): number {
+  return Math.round((investedAmount + computeMaxProfit(investedAmount)) * 100) / 100;
+}
 /** Indicação directa na compra de automação — 10% do valor da cota (só nível 1). */
 export const AUTOMATION_DIRECT_REFERRAL_PCT = 10;
 /** Duração máxima de cada cota de automação (12 meses). */
@@ -90,7 +98,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "auto-250",
-    name: "Automação R$ 250",
+    name: "Cota automação R$ 250",
     minAmount: 250,
     maxAmount: 250,
     packageKind: "automation",
@@ -98,7 +106,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "auto-500",
-    name: "Automação R$ 500",
+    name: "Cota automação R$ 500",
     minAmount: 500,
     maxAmount: 500,
     packageKind: "automation",
@@ -106,7 +114,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "auto-1000",
-    name: "Automação R$ 1.000",
+    name: "Cota automação R$ 1.000",
     minAmount: 1000,
     maxAmount: 1000,
     packageKind: "automation",
@@ -114,7 +122,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "auto-2500",
-    name: "Automação R$ 2.500",
+    name: "Cota automação R$ 2.500",
     minAmount: 2500,
     maxAmount: 2500,
     packageKind: "automation",
@@ -122,7 +130,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "auto-5000",
-    name: "Automação R$ 5.000",
+    name: "Cota automação R$ 5.000",
     minAmount: 5000,
     maxAmount: 5000,
     packageKind: "automation",
@@ -130,7 +138,7 @@ export const PRODUCT_PACKAGES: ProductPackage[] = [
   },
   {
     id: "automacao",
-    name: "Depósito automação (valor livre)",
+    name: "Cota automação (valor livre)",
     minAmount: AUTOMATION_DEPOSIT_MIN,
     maxAmount: AUTOMATION_DEPOSIT_MAX,
     packageKind: "automation",

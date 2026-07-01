@@ -108,6 +108,7 @@ import { Route as ApiBackOfficeNetworkBinarySubtreeRouteImport } from './routes/
 import { Route as ApiBackOfficeNetworkBinaryPlaceDirectRouteImport } from './routes/api/back-office/network/binary.place-direct'
 import { Route as ApiBackOfficeNetworkBinaryNextDirectSideRouteImport } from './routes/api/back-office/network/binary.next-direct-side'
 import { Route as ApiBackOfficeAdminUsersUserIdRouteImport } from './routes/api/back-office/admin/users.$userId'
+import { Route as ApiBackOfficeAdminUserDetailUserIdRouteImport } from './routes/api/back-office/admin/user-detail.$userId'
 import { Route as ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport } from './routes/api/back-office/network/sub-accounts.$subAccountId.start'
 import { Route as ApiBackOfficeAdminUsersUserIdUnblockRouteImport } from './routes/api/back-office/admin/users.$userId.unblock'
 import { Route as ApiBackOfficeAdminUsersUserIdResetPasswordRouteImport } from './routes/api/back-office/admin/users.$userId.reset-password'
@@ -658,6 +659,12 @@ const ApiBackOfficeAdminUsersUserIdRoute =
     path: '/api/back-office/admin/users/$userId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiBackOfficeAdminUserDetailUserIdRoute =
+  ApiBackOfficeAdminUserDetailUserIdRouteImport.update({
+    id: '/api/back-office/admin/user-detail/$userId',
+    path: '/api/back-office/admin/user-detail/$userId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute =
   ApiBackOfficeNetworkSubAccountsSubAccountIdStartRouteImport.update({
     id: '/$subAccountId/start',
@@ -814,6 +821,7 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -922,6 +930,7 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -1034,6 +1043,7 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -1147,6 +1157,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/admin/user-detail/$userId'
     | '/api/back-office/admin/users/$userId'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
@@ -1255,6 +1266,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId'
+    | '/api/back-office/admin/user-detail/$userId'
     | '/api/back-office/admin/users/$userId'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
@@ -1366,6 +1378,7 @@ export interface FileRouteTypes {
     | '/mobile/roleta/$mesaId/dois2fatores'
     | '/mobile/roleta/$mesaId/um1fator'
     | '/mobile/roleta/$mesaId/'
+    | '/api/back-office/admin/user-detail/$userId'
     | '/api/back-office/admin/users/$userId'
     | '/api/back-office/network/binary/next-direct-side'
     | '/api/back-office/network/binary/place-direct'
@@ -1456,6 +1469,7 @@ export interface RootRouteChildren {
   ApiBackOfficeNetworkQualificationRoute: typeof ApiBackOfficeNetworkQualificationRoute
   ApiBackOfficeNetworkSubAccountsRoute: typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
   ApiBackOfficeProfilePixKeyRoute: typeof ApiBackOfficeProfilePixKeyRoute
+  ApiBackOfficeAdminUserDetailUserIdRoute: typeof ApiBackOfficeAdminUserDetailUserIdRoute
   ApiBackOfficeAdminUsersUserIdRoute: typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
 }
 
@@ -2154,6 +2168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminUsersUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/back-office/admin/user-detail/$userId': {
+      id: '/api/back-office/admin/user-detail/$userId'
+      path: '/api/back-office/admin/user-detail/$userId'
+      fullPath: '/api/back-office/admin/user-detail/$userId'
+      preLoaderRoute: typeof ApiBackOfficeAdminUserDetailUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/back-office/network/sub-accounts/$subAccountId/start': {
       id: '/api/back-office/network/sub-accounts/$subAccountId/start'
       path: '/$subAccountId/start'
@@ -2555,6 +2576,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBackOfficeNetworkSubAccountsRoute:
     ApiBackOfficeNetworkSubAccountsRouteWithChildren,
   ApiBackOfficeProfilePixKeyRoute: ApiBackOfficeProfilePixKeyRoute,
+  ApiBackOfficeAdminUserDetailUserIdRoute:
+    ApiBackOfficeAdminUserDetailUserIdRoute,
   ApiBackOfficeAdminUsersUserIdRoute:
     ApiBackOfficeAdminUsersUserIdRouteWithChildren,
 }

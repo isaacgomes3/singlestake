@@ -10,6 +10,7 @@ import {
   investmentPackages,
   ledgerEntries,
   packagePixOrders,
+  userPackages,
   users,
   withdrawals,
 } from "@/lib/server/db/schema";
@@ -29,12 +30,17 @@ export async function getAdminUserDetail(
   const row = await db.query.users.findFirst({
     where: eq(users.id, userId),
     with: {
-      packages: { with: { pkg: true }, orderBy: (t, { desc: d }) => [d(t.createdAt)] },
       subscription: true,
       sponsor: { columns: { id: true, name: true, email: true } },
     },
   });
   if (!row || row.accountStatus === "deleted") return null;
+
+  const packageRows = await db.query.userPackages.findMany({
+    where: eq(userPackages.userId, userId),
+    with: { pkg: true },
+    orderBy: [desc(userPackages.createdAt)],
+  });
 
   const [wallets, personalAutomacao, automationDepositedTotal, ledgerRows, depositRows, withdrawalRows, pixOrders] =
     await Promise.all([
@@ -76,7 +82,7 @@ export async function getAdminUserDetail(
     w.bucket === "automacao" ? { ...w, availableBalance: personalAutomacao } : w,
   );
 
-  const activePackages = row.packages.filter((p) => p.status === "active");
+  const activePackages = packageRows.filter((p) => p.status === "active");
 
   return {
     id: row.id,
@@ -90,8 +96,8 @@ export async function getAdminUserDetail(
     accountStatus: (row.accountStatus ?? "active") as AdminUserDetail["accountStatus"],
     accountActive:
       row.role === "admin" ||
-      activePackages.some((p) => p.packageId === "start" || p.pkg.packageKind === "start"),
-    automationActive: activePackages.some((p) => p.pkg.packageKind === "automation"),
+      activePackages.some((p) => p.packageId === "start" || p.pkg?.packageKind === "start"),
+    automationActive: activePackages.some((p) => p.pkg?.packageKind === "automation"),
     pixKey: row.pixKey,
     pixKeyMasked: maskPixKey(row.pixKey),
     pixKeySetAt: row.pixKeySetAt ? formatIso(row.pixKeySetAt) : null,
@@ -112,19 +118,21 @@ export async function getAdminUserDetail(
           renewsAt: row.subscription.renewsAt ? formatIso(row.subscription.renewsAt) : null,
         }
       : null,
-    packages: row.packages.map((p) => ({
-      id: p.id,
-      packageId: p.packageId,
-      packageName: p.pkg.name,
-      packageKind: p.pkg.packageKind,
-      amount: p.amount,
-      automationBase: p.automationBase,
-      totalEarned: p.totalEarned,
-      maxProfit: p.maxProfit,
-      status: p.status,
-      startedAt: formatIso(p.startedAt),
-      termEndsAt: formatIso(p.termEndsAt),
-    })),
+    packages: packageRows
+      .filter((p) => p.pkg != null)
+      .map((p) => ({
+        id: p.id,
+        packageId: p.packageId,
+        packageName: p.pkg!.name,
+        packageKind: p.pkg!.packageKind,
+        amount: p.amount,
+        automationBase: p.automationBase,
+        totalEarned: p.totalEarned,
+        maxProfit: p.maxProfit,
+        status: p.status,
+        startedAt: formatIso(p.startedAt),
+        termEndsAt: formatIso(p.termEndsAt),
+      })),
     wallets: walletRows,
     automationDepositedTotal,
     automationBalance: personalAutomacao,

@@ -68,10 +68,14 @@ export function BackOfficeBinaryBonusPanel() {
 
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("network.binaryBonus.profitCapTitle")}</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             { label: t("network.binaryBonus.invested"), value: points?.profitCap.invested ?? 0 },
-            { label: t("network.binaryBonus.annualCap"), value: points?.profitCap.cap ?? 0 },
+            { label: t("network.binaryBonus.profitCapMax"), value: points?.profitCap.cap ?? 0 },
+            {
+              label: t("network.binaryBonus.totalReturnCap"),
+              value: points?.profitCap.totalReturnCap ?? 0,
+            },
             { label: t("network.binaryBonus.earnedReceived"), value: points?.profitCap.earned ?? 0 },
             { label: t("network.binaryBonus.available"), value: points?.profitCap.remaining ?? 0 },
           ].map((item) => (

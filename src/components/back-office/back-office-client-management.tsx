@@ -24,8 +24,12 @@ export function BackOfficeClientManagement() {
   });
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("cliente");
-    setSelectedId(id);
+    const syncFromUrl = () => {
+      setSelectedId(new URLSearchParams(window.location.search).get("cliente"));
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
   }, []);
 
   const reload = useCallback(async () => {

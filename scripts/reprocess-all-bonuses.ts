@@ -10,7 +10,7 @@ import "dotenv/config";
 
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 
-import { MAX_PROFIT_MULTIPLIER } from "@/lib/back-office/product-constants";
+import { computeMaxProfit } from "@/lib/back-office/product-constants";
 import { getDb } from "@/lib/server/db/client";
 import {
   binaryLegPoints,
@@ -105,7 +105,7 @@ async function main() {
       .set({
         totalEarned: 0,
         automationBase: kind === "automation" ? row.amount : 0,
-        maxProfit: row.amount * MAX_PROFIT_MULTIPLIER,
+        maxProfit: computeMaxProfit(row.amount),
         status: "active",
       })
       .where(eq(userPackages.id, row.id));

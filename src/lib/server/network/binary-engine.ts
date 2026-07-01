@@ -382,25 +382,31 @@ export async function onPackagePurchaseBinary(input: {
   await settleBinaryMatchesForPurchase(input.buyerUserId);
 }
 
-/** Recalcula pontos a partir de todas as compras (sem liquidar bónus). */
+/** Recalcula pontos a partir de compras Start e cotas de automação (sem liquidar bónus). */
 export async function rebuildBinaryPointsFromHistory(): Promise<{ purchases: number; pointsRows: number }> {
   const db = getDb();
   await db.delete(binaryLegPoints);
 
   const purchases = await db.query.userPackages.findMany({
-    where: eq(userPackages.packageId, BINARY_START_PACKAGE_ID),
+    with: { pkg: true },
     orderBy: (t, { asc }) => [asc(t.createdAt)],
   });
 
+  let counted = 0;
   for (const purchase of purchases) {
+    if (!purchase.pkg) continue;
+    if (purchase.pkg.packageKind !== "start" && purchase.pkg.packageKind !== "automation") {
+      continue;
+    }
     const points = roundMoney(purchase.amount * POINTS_PER_REAL);
     if (points > 0) {
       await propagatePointsUpTree(purchase.userId, points);
+      counted++;
     }
   }
 
   const rows = await db.query.binaryLegPoints.findMany();
-  return { purchases: purchases.length, pointsRows: rows.length };
+  return { purchases: counted, pointsRows: rows.length };
 }
 
 /** Tenta liquidar binários pendentes para todos os utilizadores com pontos. */
@@ -454,6 +460,7 @@ export type BinaryPointsDashboard = {
   profitCap: {
     invested: number;
     cap: number;
+    totalReturnCap: number;
     earned: number;
     remaining: number;
   };

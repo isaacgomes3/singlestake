@@ -13,12 +13,17 @@ export const Route = createFileRoute("/api/back-office/admin/users/$userId")({
           return jsonResponse({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        const origin = new URL(request.url).origin;
-        const detail = await getAdminUserDetail(params.userId, origin);
-        if (!detail) {
-          return jsonResponse({ ok: false, error: "Utilizador não encontrado." }, { status: 404 });
+        try {
+          const origin = new URL(request.url).origin;
+          const detail = await getAdminUserDetail(params.userId, origin);
+          if (!detail) {
+            return jsonResponse({ ok: false, error: "Utilizador não encontrado." }, { status: 404 });
+          }
+          return jsonResponse({ ok: true, detail });
+        } catch (error) {
+          console.error("[admin/users] GET failed:", params.userId, error);
+          return jsonResponse({ ok: false, error: "Erro ao carregar perfil do cliente." }, { status: 500 });
         }
-        return jsonResponse({ ok: true, detail });
       },
       PATCH: async ({ request, params }) => {
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");

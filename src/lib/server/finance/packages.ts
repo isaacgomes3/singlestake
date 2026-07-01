@@ -5,7 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import {
   ADHESION_DAYS,
   CATALOG_EXCLUDED_PACKAGE_IDS,
-  MAX_PROFIT_MULTIPLIER,
+  computeMaxProfit,
   START_PACKAGE_ID,
   validateAutomationDepositAmount,
 } from "@/lib/back-office/product-constants";
@@ -228,7 +228,7 @@ export async function activatePackageAfterPayment(
     automationBase: kind === "automation" ? amount : 0,
     companyAmount: split.companyAmount,
     totalEarned: 0,
-    maxProfit: amount * MAX_PROFIT_MULTIPLIER,
+    maxProfit: computeMaxProfit(amount),
     status: "active",
     startedAt: now,
     termEndsAt: adhesionEnds,
@@ -260,7 +260,7 @@ export async function activatePackageAfterPayment(
     }
   }
 
-  if (!binaryPointsHandled && kind !== "automation") {
+  if (!binaryPointsHandled) {
     const { onPackagePurchaseBinary } = await import("@/lib/server/network/binary-engine");
     await onPackagePurchaseBinary({ buyerUserId: input.userId, amount });
   }
