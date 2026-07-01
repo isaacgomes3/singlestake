@@ -38,6 +38,8 @@ export const ROTATING_ROOM_EXTENSION_PING_TYPE = "game-odds-glow/rotating-room-e
 export const ROTATING_ROOM_EXTENSION_PONG_TYPE = "game-odds-glow/rotating-room-extension-pong" as const;
 export const ROTATING_ROOM_EXTENSION_ACK_TYPE = "game-odds-glow/rotating-room-extension-ack" as const;
 export const ROTATING_ROOM_EXTENSION_STATS_TYPE = "game-odds-glow/rotating-room-extension-stats" as const;
+export const ROTATING_ROOM_EXTENSION_CLOSE_MESA_TYPE =
+  "game-odds-glow/rotating-room-extension-close-mesa" as const;
 export const ROTATING_ROOM_EXTENSION_EMIT_EVENT = "singlestake-extension-emit" as const;
 export const ROTATING_ROOM_EXTENSION_PRESENT_EVENT = "singlestake-extension-present" as const;
 export const ROTATING_ROOM_EXTENSION_VERSION = 1 as const;
@@ -49,6 +51,8 @@ export type RotatingRoomExtensionPrefs = {
   recoveries?: number;
   executionMode?: "demo" | "real";
   bridgeEnabled?: boolean;
+  /** Fechar separador da mesa quando a indicação termina (predefinição: sim). */
+  closeMesaOnFinish?: boolean;
 };
 
 export type RotatingRoomExtensionContext = {
@@ -212,6 +216,62 @@ export function isRotatingRoomExtensionBridgePayload(
     Array.isArray(o.actions) &&
     o.context !== null &&
     typeof o.context === "object"
+  );
+}
+
+export type MesaTabTrack = {
+  tableId: number;
+  signalId: string;
+  recovery: number;
+};
+
+/** Mesa a fechar quando o ciclo da indicação termina (vitória, derrota final ou mudança de mesa). */
+export function resolveMesaTabCloseTableId(
+  prev: MesaTabTrack | null,
+  openBet: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
+  pendingSignal: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
+): number | null {
+  if (!prev) return null;
+
+  const active = openBet ?? pendingSignal;
+
+  if (active?.tableId === prev.tableId && active.recovery > prev.recovery) {
+    return null;
+  }
+
+  if (
+    openBet?.tableId === prev.tableId &&
+    openBet.signalId === prev.signalId &&
+    openBet.recovery === prev.recovery
+  ) {
+    return null;
+  }
+
+  if (openBet?.tableId != null && openBet.tableId !== prev.tableId) {
+    return prev.tableId;
+  }
+
+  if (!openBet) {
+    if (pendingSignal?.tableId === prev.tableId && pendingSignal.recovery > prev.recovery) {
+      return null;
+    }
+    if (!pendingSignal || pendingSignal.tableId !== prev.tableId) {
+      return prev.tableId;
+    }
+  }
+
+  return null;
+}
+
+export function emitRotatingRoomExtensionCloseMesa(tableId: number): void {
+  if (typeof window === "undefined" || tableId == null) return;
+  window.postMessage(
+    {
+      type: ROTATING_ROOM_EXTENSION_CLOSE_MESA_TYPE,
+      version: ROTATING_ROOM_EXTENSION_VERSION,
+      tableId,
+    },
+    window.location.origin,
   );
 }
 

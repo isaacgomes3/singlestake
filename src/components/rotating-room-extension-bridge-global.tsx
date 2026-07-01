@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
@@ -12,7 +12,14 @@ import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
 } from "@/lib/roulette/lobbyTables";
-import { buildRotatingRoomMesaCatalog, buildExtensionBridgeFromAutomationBet, emitRotatingRoomExtensionBridge } from "@/lib/roulette/rotatingRoomExtensionBridge";
+import {
+  buildRotatingRoomMesaCatalog,
+  buildExtensionBridgeFromAutomationBet,
+  emitRotatingRoomExtensionBridge,
+  emitRotatingRoomExtensionCloseMesa,
+  resolveMesaTabCloseTableId,
+  type MesaTabTrack,
+} from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
   alignRotatingRoomSessionWithAutomationBet,
   isRotatingRoomLobbyWait,
@@ -59,6 +66,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation, openBet, pendingSignal } = useRouletteAutomationSim();
+  const mesaTabTrackRef = useRef<MesaTabTrack | null>(null);
   const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
     observeOnly: true,
@@ -92,6 +100,33 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     if (!betKey) return;
     clearExtensionLastEmitKey();
   }, [bridgeActive, openBet?.signalId, pendingSignal?.signalId]);
+
+  useEffect(() => {
+    if (!bridgeActive) {
+      mesaTabTrackRef.current = null;
+      return;
+    }
+
+    const closeTableId = resolveMesaTabCloseTableId(
+      mesaTabTrackRef.current,
+      openBet,
+      pendingSignal,
+    );
+    if (closeTableId != null) {
+      emitRotatingRoomExtensionCloseMesa(closeTableId);
+      if (mesaTabTrackRef.current?.tableId === closeTableId) {
+        mesaTabTrackRef.current = null;
+      }
+    }
+
+    if (openBet?.tableId != null && openBet.signalId) {
+      mesaTabTrackRef.current = {
+        tableId: openBet.tableId,
+        signalId: openBet.signalId,
+        recovery: openBet.recovery,
+      };
+    }
+  }, [bridgeActive, openBet, pendingSignal]);
 
   useEffect(() => {
     if (!bridgeActive) return;

@@ -14,6 +14,7 @@ import {
 import {
   buildRotatingRoomExtensionContext,
   emitRotatingRoomExtensionBridge,
+  emitRotatingRoomExtensionCloseMesa,
   ROTATING_ROOM_EXTENSION_ACK_TYPE,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
@@ -172,6 +173,33 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
   const fingerprint = rotatingRoomClickBotSessionFingerprint(sessionSlice);
   const prevShowTapeteRef = useRef(false);
   const prevEmitKeyRef = useRef<string | null>(null);
+  const mesaTabTableIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (mode !== "extension" || !enabled) return;
+    if (sessionSlice.postResultHoldActive || sessionSlice.lobbyCooldownActive) return;
+
+    const wasActive = prevShowTapeteRef.current;
+    const isActive = sessionSlice.showTapeteSignal;
+    prevShowTapeteRef.current = isActive;
+
+    if (isActive && sessionSlice.currentTableId != null) {
+      mesaTabTableIdRef.current = sessionSlice.currentTableId;
+      return;
+    }
+
+    if (wasActive && !isActive && mesaTabTableIdRef.current != null) {
+      emitRotatingRoomExtensionCloseMesa(mesaTabTableIdRef.current);
+      mesaTabTableIdRef.current = null;
+    }
+  }, [
+    enabled,
+    mode,
+    sessionSlice.showTapeteSignal,
+    sessionSlice.currentTableId,
+    sessionSlice.postResultHoldActive,
+    sessionSlice.lobbyCooldownActive,
+  ]);
 
   useEffect(() => {
     if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;

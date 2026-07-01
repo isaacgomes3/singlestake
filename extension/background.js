@@ -17,8 +17,13 @@ let bridgeInFlightKey = null;
 /** Último gale/mesa — permite nova aposta quando recovery sobe. */
 let lastBridgeRecovery = null;
 let lastBridgeTableId = null;
+/** tableId da mesa → separador Chrome onde a aposta foi executada. */
+const mesaTabByTableId = new Map();
+/** Fechos agendados por mesa (evita duplicar). */
+const mesaTabCloseTimers = new Map();
 
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
+const CLOSE_MESA_DELAY_MS = GOG.CLOSE_MESA_DELAY_MS ?? 2500;
 
 chrome.runtime.onInstalled.addListener(() => {
   void setStoredMode(GOG.DEFAULT_MODE);
@@ -193,6 +198,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.kind === "bridge-close-mesa") {
+    const tableId = typeof message.tableId === "number" ? message.tableId : Number(message.tableId);
+    void scheduleCloseMesaTab(tableId).then(sendResponse);
+    return true;
+  }
+
   if (message.kind === "test-bet") {
     void testExteriorBet(message.tabId, message.betKey, message.label, message.mode).then(sendResponse);
     return true;
@@ -255,7 +266,7 @@ function normalizeBridgePayload(raw) {
   return null;
 }
 
-const DEFAULT_BRIDGE_PREFS = { maxRecovery: 5, wins: 0, losses: 0 };
+const DEFAULT_BRIDGE_PREFS = { maxRecovery: 5, wins: 0, losses: 0, closeMesaOnFinish: true };
 
 function clampBridgeMaxRecovery(value) {
   const n = typeof value === "number" ? value : Number(value);
@@ -275,6 +286,7 @@ async function readBridgePrefs() {
     maxRecovery: clampBridgeMaxRecovery(raw.maxRecovery ?? DEFAULT_BRIDGE_PREFS.maxRecovery),
     wins: Math.max(0, Number(raw.wins) || 0),
     losses: Math.max(0, Number(raw.losses) || 0),
+    closeMesaOnFinish: raw.closeMesaOnFinish !== false,
   };
 }
 
@@ -443,6 +455,9 @@ async function dispatchClickAction(action, context, sourceTabId) {
       return { target: action.target, ok: false, detail: "Sem URL da mesa no sinal" };
     }
     const tabId = await ensureMesaTab(context, sourceTabId);
+    if (tabId != null && context?.currentTableId != null) {
+      registerMesaTab(context.currentTableId, tabId);
+    }
     return {
       target: action.target,
       ok: tabId != null,
@@ -517,6 +532,10 @@ async function dispatchClickAction(action, context, sourceTabId) {
 
   await waitForFibonacciRecoverySettle(context);
 
+  if (targetTabId != null && context?.currentTableId != null) {
+    registerMesaTab(context.currentTableId, targetTabId);
+  }
+
   const clickResult = await executeBetWithChip(
     targetTabId,
     String(betKey),
@@ -536,6 +555,67 @@ async function dispatchClickAction(action, context, sourceTabId) {
     mode: dryRun ? "demo" : "real",
     ...clickResult,
   };
+}
+
+async function registerMesaTab(tableId, tabId) {
+  if (tableId == null || tabId == null) return;
+  mesaTabByTableId.set(tableId, tabId);
+}
+
+async function scheduleCloseMesaTab(tableId) {
+  const id = typeof tableId === "number" ? tableId : Number(tableId);
+  if (!Number.isFinite(id)) {
+    return { ok: false, detail: "tableId inválido" };
+  }
+
+  const prefs = await readBridgePrefs();
+  if (prefs.closeMesaOnFinish === false) {
+    return { ok: true, skipped: true, detail: "Fechar mesa desactivado" };
+  }
+
+  if (bridgeInFlightKey) {
+    await sleep(CLOSE_MESA_DELAY_MS);
+  }
+
+  const existing = mesaTabCloseTimers.get(id);
+  if (existing) clearTimeout(existing);
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      mesaTabCloseTimers.delete(id);
+      void closeMesaTabNow(id).then(resolve);
+    }, CLOSE_MESA_DELAY_MS);
+    mesaTabCloseTimers.set(id, timer);
+  });
+}
+
+async function closeMesaTabNow(tableId) {
+  let tabId = mesaTabByTableId.get(tableId) ?? null;
+  mesaTabByTableId.delete(tableId);
+
+  if (tabId == null) {
+    const tabs = await chrome.tabs.query({});
+    const slugMatch = tabs.find((t) => {
+      if (!t.url || !isCasinoPlayUrl(t.url)) return false;
+      return t.url.includes(String(tableId));
+    });
+    tabId = slugMatch?.id ?? null;
+  }
+
+  if (tabId == null) {
+    return { ok: true, skipped: true, detail: `Sem separador registado para mesa ${tableId}` };
+  }
+
+  if (cdpAttach?.tabId === tabId) {
+    await releaseCdpSession();
+  }
+
+  try {
+    await chrome.tabs.remove(tabId);
+    return { ok: true, tabId, tableId };
+  } catch {
+    return { ok: true, skipped: true, detail: `Separador ${tabId} já fechado` };
+  }
 }
 
 async function getSavedChipForTab(tabId) {

@@ -5,6 +5,7 @@ const GOG = {
   PONG_TYPE: "game-odds-glow/rotating-room-extension-pong",
   ACK_TYPE: "game-odds-glow/rotating-room-extension-ack",
   STATS_TYPE: "game-odds-glow/rotating-room-extension-stats",
+  CLOSE_MESA_TYPE: "game-odds-glow/rotating-room-extension-close-mesa",
   VERSION: 1,
 };
 
@@ -80,6 +81,16 @@ window.addEventListener("message", (event) => {
       kind: "bridge-stats-sync",
       wins: data.wins,
       losses: data.losses,
+    });
+    return;
+  }
+  if (data?.type === GOG.CLOSE_MESA_TYPE && data.version === GOG.VERSION) {
+    const tableId = typeof data.tableId === "number" ? data.tableId : Number(data.tableId);
+    if (!Number.isFinite(tableId)) return;
+    chrome.runtime.sendMessage({ kind: "bridge-close-mesa", tableId }, () => {
+      if (chrome.runtime.lastError) {
+        /* service worker inactivo */
+      }
     });
     return;
   }
