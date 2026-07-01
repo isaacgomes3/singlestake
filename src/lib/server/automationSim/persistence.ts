@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import {
   freshAutomationSimState,
   parseAutomationSimState,
+  recalculateAutomationRoundBalances,
   type RouletteAutomationSimState,
 } from "@/lib/back-office/rouletteAutomationSim";
 
@@ -73,9 +74,10 @@ export async function initAutomationSimState(): Promise<RouletteAutomationSimSta
     const raw = await readFile(path, "utf8");
     const parsed = parseAutomationSimState(JSON.parse(raw));
     if (parsed) {
-      globalThis.__automationSimPersisted = parsed;
+      const repaired = recalculateAutomationRoundBalances(parsed);
+      globalThis.__automationSimPersisted = repaired;
       bumpAutomationSimRevision();
-      return parsed;
+      return repaired;
     }
   } catch {
     /* ficheiro inexistente ou inválido */

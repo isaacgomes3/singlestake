@@ -77,12 +77,11 @@ export function useRotatingRoomHistories(tableIds: readonly number[]): Record<nu
         out[id] = local;
       } else if (local.length === 0) {
         out[id] = remote;
-      } else if (local.length > remote.length) {
-        out[id] = local;
-      } else if (remote.length > local.length) {
-        out[id] = remote;
+      } else if (local[0] === remote[0]) {
+        out[id] = local.length >= remote.length ? local : remote;
       } else {
-        out[id] = local[0] === remote[0] ? local : remote;
+        // Cabeçalho divergente — confiar no motor global (hub / extensão).
+        out[id] = remote;
       }
     }
     return out;

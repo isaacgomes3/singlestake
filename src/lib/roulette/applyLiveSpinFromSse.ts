@@ -288,6 +288,19 @@ export function applyPolledTableHistories(histories: Record<number, number[]>): 
     if (nums.length === 0) continue;
 
     const local = readLiveTableHistory(tableId);
+
+    // Hub Pragmatic no servidor é autoridade no poll — se o último número divergiu e a
+    // reconciliação conservadora não mexeu, adoptar o snapshot (localStorage desatualizado).
+    if (local.length > 0 && nums.length > 0 && local[0] !== nums[0]) {
+      const attempt = reconcileWithApiSnapshot(local, nums);
+      if (arraysEqual(local, attempt)) {
+        persistLiveTableHistory(tableId, nums, { suppressDispatch: true });
+        notifyLiveTableHistoryChanged(tableId);
+        changed = true;
+        continue;
+      }
+    }
+
     const reconciled = reconcileWithApiSnapshot(local, nums);
     if (!arraysEqual(local, reconciled)) {
       persistLiveTableHistory(tableId, reconciled, { suppressDispatch: true });

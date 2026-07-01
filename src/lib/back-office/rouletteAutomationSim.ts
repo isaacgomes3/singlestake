@@ -123,6 +123,21 @@ export function runningBalanceBefore(state: RouletteAutomationSimState): number 
   return state.balance;
 }
 
+/** Remove linhas repetidas do mesmo giro (mesa + resultado + gale + tipo). */
+export function dedupeAutomationSimRounds(
+  rounds: readonly AutomationSimRound[],
+): AutomationSimRound[] {
+  const seen = new Set<string>();
+  const deduped: AutomationSimRound[] = [];
+  const sorted = [...rounds].sort((a, b) => a.ts - b.ts);
+  for (const round of sorted) {
+    if (seen.has(round.id)) continue;
+    seen.add(round.id);
+    deduped.push(round);
+  }
+  return deduped.reverse();
+}
+
 /** Recalcula saldo após cada linha — vitórias e perdas sempre coerentes. */
 export function recalculateAutomationRoundBalances(
   state: RouletteAutomationSimState,
@@ -132,7 +147,7 @@ export function recalculateAutomationRoundBalances(
       ? state.cycleOpeningBalance
       : ROULETTE_AUTOMATION_INITIAL_BANK;
 
-  const sorted = [...state.rounds].sort((a, b) => a.ts - b.ts);
+  const sorted = [...dedupeAutomationSimRounds(state.rounds)].sort((a, b) => a.ts - b.ts);
   let running = opening;
   const fixed = sorted.map((round) => {
     running += round.net;
@@ -579,6 +594,7 @@ export function settleOpenBetEntry(
 
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
+  if (settleKey != null && state.rounds.some((round) => round.id === settleKey)) return state;
 
   const review = reviewMartingaleSettlement(state, entry, baseStake);
   if (!review.accepted) {

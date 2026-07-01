@@ -45,6 +45,17 @@ let initialized = false;
 let initPromise: Promise<void> | null = null;
 let replayedLedger = false;
 let capitalReady = false;
+let automationSimMutationChain: Promise<unknown> = Promise.resolve();
+
+/** Evita liquidações paralelas (SSE + extensão) duplicarem linhas no histórico. */
+function withAutomationSimMutationLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = automationSimMutationChain.then(fn, fn);
+  automationSimMutationChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 function combinedStrategyLedger(
   ledger: Pick<StrategyGlobalPersistedState["ledger"], "um1fator" | "dois2fatores" | "fibonacci">,
@@ -171,7 +182,7 @@ async function reconcileAutomationSimPendingLedger(): Promise<boolean> {
   return changed;
 }
 
-async function buildFinalizedSnapshotBody(
+async function buildFinalizedSnapshotBodyUnlocked(
   strategySnapshot: StrategyGlobalSnapshot,
 ): Promise<AutomationSimApiSnapshot> {
   await reconcileAutomationSimPendingLedger();
@@ -182,6 +193,14 @@ async function buildFinalizedSnapshotBody(
   replaceAutomationSimState(finalized);
   const configDto = await buildAutomationConfigDtoAsync(walletBalance);
   return buildSnapshotBody(strategySnapshot, configDto, finalized);
+}
+
+async function buildFinalizedSnapshotBody(
+  strategySnapshot: StrategyGlobalSnapshot,
+): Promise<AutomationSimApiSnapshot> {
+  return withAutomationSimMutationLock(() =>
+    buildFinalizedSnapshotBodyUnlocked(strategySnapshot),
+  );
 }
 
 export function buildAutomationSimSnapshot(
@@ -251,6 +270,7 @@ async function settleAutomationEntry(
 
   const settleKey = globalAutomationSettleKey(entry);
   if (settleKey != null && state.processedKeys.includes(settleKey)) return state;
+  if (settleKey != null && state.rounds.some((round) => round.id === settleKey)) return state;
 
   if (automationBlocksNewEntries(getAutomationConfig(), state.balance)) {
     return state;
@@ -269,18 +289,20 @@ async function settleAutomationEntry(
   const writeWallet = capitalReady && !isAutomationProfile();
 
   if (writeWallet) {
-    const ledgerResult = await settleGlobalAutomationInLedger({
-      settleKey: walletSettleKey,
-      won: entry.won,
-      stake: settleAmount,
-      tableLabel,
-      recovery: entry.recovery,
-      kind: entry.kind,
-      strategy: entry.strategy,
-      resultNumber: entry.resultNumber,
-    });
     const alreadyRecorded = await isGlobalAutomationSettleRecorded(walletSettleKey);
-    if (ledgerResult == null && !alreadyRecorded) return state;
+    if (!alreadyRecorded) {
+      const ledgerResult = await settleGlobalAutomationInLedger({
+        settleKey: walletSettleKey,
+        won: entry.won,
+        stake: settleAmount,
+        tableLabel,
+        recovery: entry.recovery,
+        kind: entry.kind,
+        strategy: entry.strategy,
+        resultNumber: entry.resultNumber,
+      });
+      if (ledgerResult == null) return state;
+    }
   }
 
   const next = settleOpenBetEntry(
@@ -373,24 +395,27 @@ export async function ingestAutomationSimLedgerEntry(
 ): Promise<AutomationSimApiSnapshot | null> {
   if (!initialized) return null;
 
-  await ensureCapitalAndSyncBalance();
+  return withAutomationSimMutationLock(async () => {
+    await ensureCapitalAndSyncBalance();
 
-  let state = getAutomationSimState();
-  const floorTs = globalAutomationLedgerFloorTs(state);
-  if (entry.ts < floorTs) return null;
+    let state = getAutomationSimState();
+    const floorTs = globalAutomationLedgerFloorTs(state);
+    if (entry.ts < floorTs) return null;
 
-  const key = ledgerEntryKey(entry);
-  if (state.processedKeys.includes(key)) return null;
-  if (entry.resultNumber != null) {
+    const key = ledgerEntryKey(entry);
+    if (state.processedKeys.includes(key)) return null;
     const settleKey = globalAutomationSettleKey(entry);
     if (settleKey != null && state.processedKeys.includes(settleKey)) return null;
-  }
+    if (settleKey != null && state.rounds.some((round) => round.id === settleKey)) return null;
 
-  state = await settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
-  replaceAutomationSimState(state);
+    state = await settleAutomationEntry(state, entry, lobbyTableDisplayName(entry.tableId));
+    replaceAutomationSimState(state);
 
-  if (options?.publish === false) return null;
-  return publish(strategySnapshot);
+    if (options?.publish === false) return null;
+    const snapshot = await buildFinalizedSnapshotBodyUnlocked(strategySnapshot);
+    broadcastAutomationSim(snapshot);
+    return snapshot;
+  });
 }
 
 export async function rebuildAutomationSimHistoryFromLedger(

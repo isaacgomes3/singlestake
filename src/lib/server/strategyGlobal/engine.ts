@@ -526,12 +526,10 @@ export function ingestStrategyGlobalSpin(
   if (tableId == null) return null;
   if (!rememberGameId(state, spin.gameId)) return null;
 
-  const extensionActive = isExtensionSourceActive();
-  if (!extensionActive) {
-    appendTableSpin(state, tableId, spin.number);
-  }
+  appendTableSpin(state, tableId, spin.number);
   const histories = historiesRecord(state);
 
+  const extensionActive = isExtensionSourceActive();
   const crossing = driveCrossing(state, histories);
   const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
   const fibonacci = driveFibonacci(state, histories);

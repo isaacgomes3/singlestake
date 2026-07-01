@@ -15,7 +15,7 @@ import {
 } from "@/lib/roulette/liveTableConfig";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
 
-const POLL_MS = 4_000;
+const POLL_MS = 2_000;
 
 function parseReadyTableId(x: unknown): number | null {
   if (typeof x === "number" && Number.isFinite(x) && x > 0) return Math.trunc(x);

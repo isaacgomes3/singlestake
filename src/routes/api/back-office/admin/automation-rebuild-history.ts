@@ -29,9 +29,14 @@ export const Route = createFileRoute("/api/back-office/admin/automation-rebuild-
 
         const globalState = getStrategyGlobalState();
         const strategySnapshot = getStrategyGlobalSnapshotOrThrow();
+        const fullLedger = [
+          ...globalState.ledger.um1fator,
+          ...globalState.ledger.dois2fatores,
+          ...globalState.ledger.fibonacci,
+        ].sort((a, b) => a.ts - b.ts);
         const snapshot = await rebuildAutomationSimHistoryFromLedger(strategySnapshot, {
           broadcast: true,
-          fullLedger: globalState.ledger.um1fator,
+          fullLedger,
         });
 
         return jsonResponse({
