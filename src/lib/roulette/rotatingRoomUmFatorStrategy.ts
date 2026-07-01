@@ -18,6 +18,8 @@ import {
 
   umFatorTriggerMatchTierFromActive,
 
+  applyUmFatorThreeTierAdaptiveAlert,
+
   UM_FATOR_MAX_RECOVERY,
 
   type UmFatorActive,
@@ -86,7 +88,9 @@ function detectUmFatorFormationForMachine(
     recovery: machine.recovery,
     lastActiveTriggerTier: machine.lastActive?.triggerMatchTier ?? null,
   });
-  return detectUmFatorActiveFromHistory(history, gate);
+  const formation = detectUmFatorActiveFromHistory(history, gate);
+  if (!formation) return null;
+  return applyUmFatorThreeTierAdaptiveAlert(formation, machine.threeTierAdaptiveInvert);
 }
 
 function mergeTriggerAutoSelectFields(
@@ -181,6 +185,12 @@ export type UmFatorMachineState = {
   /** Gatilho preservado durante sequência de recovery. */
   sequenceLockedTier: UmFatorTriggerAutoSelectFields["sequenceLockedTier"];
 
+  /**
+   * Modo adaptativo do gatilho 3 factores: quando true, a próxima indicação usa o factor oposto
+   * à leitura base. Alterna após cada derrota parcial até vitória ou derrota final.
+   */
+  threeTierAdaptiveInvert: boolean;
+
 };
 
 
@@ -264,6 +274,8 @@ export function defaultUmFatorMachineState(): UmFatorMachineState {
     postResultHoldTableId: null,
 
     ...defaultUmFatorTriggerAutoSelectFields(),
+
+    threeTierAdaptiveInvert: false,
 
   };
 
@@ -884,6 +896,8 @@ export function tickUmFatorPlacar(
 
         nextMachine.lastLostTableId = null;
 
+        nextMachine.threeTierAdaptiveInvert = false;
+
         nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
         nextMachine.lobbyArmingGateByTable = {};
         nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
@@ -922,6 +936,8 @@ export function tickUmFatorPlacar(
 
           nextMachine.lastLostTableId = tableId;
 
+          nextMachine.threeTierAdaptiveInvert = false;
+
           nextMachine.lobbyCooldownUntilMs = rotatingRoomLobbyCooldownUntilMs();
           nextMachine.lobbyArmingGateByTable = {};
           nextMachine = beginPostResultLobbyHold(nextMachine, tableId);
@@ -951,6 +967,9 @@ export function tickUmFatorPlacar(
           nextMachine.recovery = nextRecovery;
 
           nextMachine.lastLostTableId = tableId;
+          if (matchTier === "three") {
+            nextMachine.threeTierAdaptiveInvert = !nextMachine.threeTierAdaptiveInvert;
+          }
           nextMachine = mergeTriggerAutoSelectFields(
             nextMachine,
             applyUmFatorTriggerSwitchAfterPartialLoss(
@@ -1105,6 +1124,8 @@ export function seedUmFatorMachineAfterPlacarReset(
     postResultHoldTableId: null,
 
     sequenceLockedTier: null,
+
+    threeTierAdaptiveInvert: false,
 
   };
 
@@ -1318,6 +1339,8 @@ export function normalizeUmFatorMachineOnLoad(
 
       recovery: partialLosses > 0 ? partialLosses : 0,
 
+      threeTierAdaptiveInvert: false,
+
     };
 
   }
@@ -1358,6 +1381,8 @@ export function normalizeUmFatorMachineOnLoad(
         : null,
 
     lobbyCooldownUntilMs,
+
+    threeTierAdaptiveInvert: machine.threeTierAdaptiveInvert === true,
 
     tablePlacarLosses: {},
 

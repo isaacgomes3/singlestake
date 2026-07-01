@@ -3,6 +3,8 @@
  *
  * **Gatilho A (3 factores):** t1 e t2 coincidem nos 3 factores (cor, altura, paridade).
  * **Confirmação A:** t0 bate em exactamente 2 dos 3 → alerta = factor em falta.
+ * **Modo adaptativo (3f):** após derrota parcial, a próxima indicação usa o factor oposto;
+ *    se essa invertida falhar, volta à leitura normal — alterna assim até vitória ou derrota final.
  *
  * **Gatilho B (2 factores):** t1 e t2 coincidem em exactamente 2 factores (exclui 3).
  * **Confirmação B:** t0 bate em exactamente 1 desses 2 partilhados e só coincide
@@ -41,6 +43,8 @@ export type UmFatorActive = {
   resultNumber: number;
   /** Quantos factores coincidem entre t1 e t2 no gatilho. */
   triggerMatchTier: UmFatorTriggerMatchTier;
+  /** Indicação invertida (modo adaptativo — só gatilho 3 factores). */
+  adaptiveInverted?: boolean;
   armingDescription: string;
 };
 
@@ -114,6 +118,33 @@ function oppositeFactor(f: DoisFatoresFactor): DoisFatoresFactor {
     case "altura":
       return { kind: "altura", value: f.value === "Baixo" ? "Alto" : "Baixo" };
   }
+}
+
+/** Factor oposto (cor, altura ou paridade). */
+export function umFatorOppositeFactor(f: DoisFatoresFactor): DoisFatoresFactor {
+  return oppositeFactor(f);
+}
+
+/**
+ * Aplica modo adaptativo ao gatilho 3 factores: inverte o factor alertado em relação à leitura base.
+ */
+export function applyUmFatorThreeTierAdaptiveAlert(
+  active: UmFatorActive,
+  invert: boolean,
+): UmFatorActive {
+  if (!invert || active.triggerMatchTier !== "three") return active;
+  const baseAlert = active.alertFactor;
+  const alertFactor = oppositeFactor(baseAlert);
+  const sharedLabel = [active.triggerFactor1, active.triggerFactor2, active.triggerFactor3]
+    .map(doisFatoresFactorLabel)
+    .join(" · ");
+  const [n2, n1] = active.triggerNumbers;
+  return {
+    ...active,
+    alertFactor,
+    adaptiveInverted: true,
+    armingDescription: `1 Fator (3g adapt.): gatilho ${sharedLabel} (${n2}, ${n1}) → alerta ${doisFatoresFactorLabel(alertFactor)} (invertido de ${doisFatoresFactorLabel(baseAlert)}; aguarda próximo giro)`,
+  };
 }
 
 /** Factores em que dois números coincidem (cor, altura, paridade). */

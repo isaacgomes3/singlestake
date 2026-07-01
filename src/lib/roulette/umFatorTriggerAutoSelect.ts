@@ -98,8 +98,12 @@ export function applyUmFatorTriggerSwitchAfterPartialLoss(
 export function umFatorTriggerAutoSelectLabel(
   fields: UmFatorTriggerAutoSelectFields,
   recovery: number,
+  threeTierAdaptiveInvert = false,
 ): string | null {
   const locked = fields.sequenceLockedTier;
+  if (recovery > 0 && locked === "three" && threeTierAdaptiveInvert) {
+    return "3 factores (adaptativo)";
+  }
   if (recovery > 0 && locked != null) {
     return locked === "three" ? "3 factores (sequência)" : null;
   }
