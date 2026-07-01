@@ -3,10 +3,10 @@ import { getBackOfficeGroup, getBackOfficeModule } from "@/lib/back-office/navig
 import { isAdminUser, isBackOfficeAdminModule } from "@/lib/back-office/admin-access";
 import { getSession } from "@/lib/auth/session";
 import { BackOfficeCompanyFinancialPanel } from "@/components/back-office/back-office-company-financial-panel";
-import { BackOfficeAdminUsersPanel } from "@/components/back-office/back-office-admin-users-panel";
+import { BackOfficeAdminNotificationsPanel } from "@/components/back-office/back-office-admin-notifications-panel";
 import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-office-automation-config-panel";
 import { BackOfficeAutomationStatsPanel } from "@/components/back-office/back-office-automation-stats-panel";
-import { BackOfficeAdminNotificationsPanel } from "@/components/back-office/back-office-admin-notifications-panel";
+import { BackOfficeClientManagement } from "@/components/back-office/back-office-client-management";
 import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-office-payment-gateway-panel";
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
 import { BackOfficeSubscriptionsPanel } from "@/components/back-office/back-office-subscriptions-panel";
@@ -135,12 +135,14 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
     case "painel-financeiro":
       return <BackOfficeCompanyFinancialPanel />;
 
+    case "gestao-clientes":
+      return <BackOfficeClientManagement />;
+
     case "admin":
       return (
         <div className="space-y-6">
           <BackOfficePaymentGatewayPanel />
           <BackOfficeAdminNotificationsPanel />
-          <BackOfficeAdminUsersPanel />
         </div>
       );
 

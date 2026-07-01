@@ -23,7 +23,9 @@ export const navDescriptionsContent = {
         "Saldo operacional compartilhado da roleta, histórico de rodadas e extrato financeiro.",
       "relatorios-rede": "Rede direta, indireta e volume.",
       "central-qualificacao": "Acompanhamento de graduação do afiliado.",
-      admin: "Utilizadores, gateway PIX, notificações e activações.",
+      admin: "Gateway PIX e notificações globais.",
+      "gestao-clientes":
+        "Listagem, perfil completo, pacotes, carteiras e acções por utilizador.",
       "painel-financeiro":
         "Carteiras empresa, afiliados e automação — retiradas e movimentações.",
       "automacao-config": "Stake inicial, pausa manual e rendimento diário dos pacotes.",
@@ -59,7 +61,9 @@ export const navDescriptionsContent = {
         "Shared roulette operational balance, round history and financial statement.",
       "relatorios-rede": "Direct, indirect network and volume.",
       "central-qualificacao": "Affiliate rank progression tracking.",
-      admin: "Users, gateway, notifications and activations.",
+      admin: "Global PIX gateway and notifications.",
+      "gestao-clientes":
+        "Client list, full profile, packages, wallets and per-user actions.",
       "painel-financeiro":
         "Company, affiliate and automation wallets — withdrawals and movements.",
       "automacao-config": "Base stake, manual pause and package daily yield.",
@@ -95,7 +99,9 @@ export const navDescriptionsContent = {
         "Saldo operacional compartido de la ruleta, historial de rondas y extracto financiero.",
       "relatorios-rede": "Red directa, indirecta y volumen.",
       "central-qualificacao": "Seguimiento de graduación del afiliado.",
-      admin: "Usuarios, gateway, notificaciones y activaciones.",
+      admin: "Gateway PIX global y notificaciones.",
+      "gestao-clientes":
+        "Listado, perfil completo, paquetes, carteras y acciones por usuario.",
       "painel-financeiro":
         "Carteras empresa, afiliados y automatización — retiros y movimientos.",
       "automacao-config": "Stake inicial, pausa manual y rendimiento diario de paquetes.",

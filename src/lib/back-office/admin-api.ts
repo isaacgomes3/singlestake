@@ -1,8 +1,10 @@
 import type {
+  AdminUserDetail,
   AdminUserRecord,
   PendingActivationRecord,
   PendingAutomationPixRecord,
   PixKeyProfileDto,
+  UserQualification,
 } from "@/lib/back-office/admin-types";
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
@@ -174,6 +176,52 @@ export async function savePixKeyProfile(
     return { ok: false, error: data?.error ?? "Não foi possível guardar a chave PIX." };
   }
   return { ok: true, profile: data.profile };
+}
+
+export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
+  const res = await fetch(`/api/back-office/admin/users/${userId}`, { credentials: "include" });
+  const data = await parseJson<{ ok: boolean; detail?: AdminUserDetail; error?: string }>(res);
+  if (!res.ok || !data?.ok || !data.detail) return null;
+  return data.detail;
+}
+
+export async function updateAdminUserProfile(
+  userId: string,
+  patch: {
+    name?: string;
+    email?: string;
+    cpf?: string | null;
+    qualification?: UserQualification;
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`/api/back-office/admin/users/${userId}`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    credentials: "include",
+    body: JSON.stringify(patch),
+  });
+  const data = await parseJson<{ ok: boolean; error?: string }>(res);
+  if (!res.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "Não foi possível actualizar o perfil." };
+  }
+  return { ok: true };
+}
+
+export async function adminResetUserPassword(
+  userId: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`/api/back-office/admin/users/${userId}/reset-password`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    credentials: "include",
+    body: JSON.stringify({ password }),
+  });
+  const data = await parseJson<{ ok: boolean; error?: string }>(res);
+  if (!res.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "Não foi possível alterar a senha." };
+  }
+  return { ok: true };
 }
 
 export async function copyText(text: string): Promise<boolean> {

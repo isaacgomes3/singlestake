@@ -71,6 +71,7 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       "relatorios-rede": "Network reports",
       "central-qualificacao": "Qualification hub",
       admin: "Admin panel",
+      "gestao-clientes": "Client management",
       "painel-financeiro": "Financial panel",
       "automacao-config": "Global automation",
       "automacao-estatisticas": "Automation statistics",

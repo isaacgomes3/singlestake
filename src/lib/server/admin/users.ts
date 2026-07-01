@@ -30,7 +30,7 @@ function formatDate(value: Date): string {
   });
 }
 
-function maskPixKey(key: string | null | undefined): string | null {
+export function maskPixKey(key: string | null | undefined): string | null {
   if (!key?.trim()) return null;
   const trimmed = key.trim();
   if (trimmed.length <= 6) return "••••••";
