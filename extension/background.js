@@ -19,20 +19,41 @@ let lastBridgeRecovery = null;
 let lastBridgeTableId = null;
 /** tableId da mesa → separador Chrome onde a aposta foi executada. */
 const mesaTabByTableId = new Map();
-/** Fechos agendados por mesa (evita duplicar). */
-const mesaTabCloseTimers = new Map();
 
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 const CLOSE_MESA_DELAY_MS = GOG.CLOSE_MESA_DELAY_MS ?? 2500;
+const CLOSE_ALARM_PREFIX = "gog-close-mesa-";
+const MESA_TAB_STORAGE = "gogMesaTabRegistry";
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (!alarm.name.startsWith(CLOSE_ALARM_PREFIX)) return;
+  const tableId = Number(alarm.name.slice(CLOSE_ALARM_PREFIX.length));
+  if (!Number.isFinite(tableId)) return;
+  void runScheduledCloseMesa(tableId);
+});
+
+async function drainPendingCloseMesaAlarms() {
+  const alarms = await chrome.alarms.getAll();
+  const now = Date.now();
+  for (const alarm of alarms) {
+    if (!alarm.name.startsWith(CLOSE_ALARM_PREFIX)) continue;
+    if ((alarm.scheduledTime ?? 0) <= now + 500) {
+      const tableId = Number(alarm.name.slice(CLOSE_ALARM_PREFIX.length));
+      if (Number.isFinite(tableId)) await runScheduledCloseMesa(tableId);
+    }
+  }
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   void setStoredMode(GOG.DEFAULT_MODE);
   void chrome.storage.local.set({ gogAutopilotEnabled: false });
   void ensureContentBridgeOnAppTabs();
+  void drainPendingCloseMesaAlarms();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureContentBridgeOnAppTabs();
+  void drainPendingCloseMesaAlarms();
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -569,6 +590,24 @@ async function dispatchClickAction(action, context, sourceTabId) {
 async function registerMesaTab(tableId, tabId) {
   if (tableId == null || tabId == null) return;
   mesaTabByTableId.set(tableId, tabId);
+  const stored = await chrome.storage.local.get([MESA_TAB_STORAGE]);
+  const registry = { ...(stored[MESA_TAB_STORAGE] ?? {}), [String(tableId)]: { tabId, at: Date.now() } };
+  await chrome.storage.local.set({
+    [MESA_TAB_STORAGE]: registry,
+    gogLastMesaTab: { tableId, tabId, at: Date.now() },
+  });
+}
+
+async function runScheduledCloseMesa(tableId) {
+  const id = typeof tableId === "number" ? tableId : Number(tableId);
+  if (!Number.isFinite(id)) return { ok: false, detail: "tableId inválido" };
+
+  const storageKey = `gogCloseMesa:${id}`;
+  const stored = await chrome.storage.local.get([storageKey]);
+  const pending = stored[storageKey];
+  await chrome.alarms.clear(`${CLOSE_ALARM_PREFIX}${id}`);
+  await chrome.storage.local.remove(storageKey);
+  return closeMesaTabNow(id, pending?.mesaUrl ?? null);
 }
 
 async function scheduleCloseMesaTab(tableId, mesaUrl = null) {
@@ -582,34 +621,60 @@ async function scheduleCloseMesaTab(tableId, mesaUrl = null) {
     return { ok: true, skipped: true, detail: "Fechar mesa desactivado" };
   }
 
-  if (bridgeInFlightKey) {
-    await sleep(CLOSE_MESA_DELAY_MS);
-  }
-
-  const existing = mesaTabCloseTimers.get(id);
-  if (existing) clearTimeout(existing);
-
-  const resolvedUrl = mesaUrl;
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      mesaTabCloseTimers.delete(id);
-      void closeMesaTabNow(id, resolvedUrl).then(resolve);
-    }, CLOSE_MESA_DELAY_MS);
-    mesaTabCloseTimers.set(id, timer);
+  const storageKey = `gogCloseMesa:${id}`;
+  const when = Date.now() + CLOSE_MESA_DELAY_MS;
+  await chrome.storage.local.set({
+    [storageKey]: { tableId: id, mesaUrl, at: Date.now(), when },
   });
+  await chrome.alarms.clear(`${CLOSE_ALARM_PREFIX}${id}`);
+  await chrome.alarms.create(`${CLOSE_ALARM_PREFIX}${id}`, { when });
+
+  return { ok: true, scheduled: true, tableId: id, delayMs: CLOSE_MESA_DELAY_MS, when };
 }
 
 async function resolveMesaTabIdForClose(tableId, mesaUrl) {
-  const registered = mesaTabByTableId.get(tableId);
-  if (registered != null) return registered;
+  const inMemory = mesaTabByTableId.get(tableId);
+  if (inMemory != null) {
+    try {
+      await chrome.tabs.get(inMemory);
+      return inMemory;
+    } catch {
+      mesaTabByTableId.delete(tableId);
+    }
+  }
+
+  const stored = await chrome.storage.local.get([MESA_TAB_STORAGE, "gogLastMesaTab"]);
+  const registry = stored[MESA_TAB_STORAGE] ?? {};
+  const entry = registry[String(tableId)];
+  if (entry?.tabId != null) {
+    try {
+      await chrome.tabs.get(entry.tabId);
+      return entry.tabId;
+    } catch {
+      const nextRegistry = { ...registry };
+      delete nextRegistry[String(tableId)];
+      await chrome.storage.local.set({ [MESA_TAB_STORAGE]: nextRegistry });
+    }
+  }
+
+  const last = stored.gogLastMesaTab;
+  if (last?.tableId === tableId && last?.tabId != null) {
+    try {
+      await chrome.tabs.get(last.tabId);
+      return last.tabId;
+    } catch {
+      /* separador já fechado */
+    }
+  }
 
   let targetUrl = mesaUrl;
   if (!targetUrl) {
-    const stored = await chrome.storage.local.get(["gogLastContext"]);
-    const catalog = stored.gogLastContext?.mesaCatalog;
-    const entry = Array.isArray(catalog) ? catalog.find((e) => e?.tableId === tableId) : null;
-    targetUrl = entry?.url ?? null;
+    const ctxStored = await chrome.storage.local.get(["gogLastContext"]);
+    const catalog = ctxStored.gogLastContext?.mesaCatalog;
+    const catalogEntry = Array.isArray(catalog)
+      ? catalog.find((e) => e?.tableId === tableId)
+      : null;
+    targetUrl = catalogEntry?.url ?? null;
   }
 
   if (targetUrl) {
@@ -627,7 +692,11 @@ async function resolveMesaTabIdForClose(tableId, mesaUrl) {
       const slug = mesa.pathname.split("/").filter(Boolean).pop();
       if (slug && slug.length > 2) {
         const bySlug = tabs.find(
-          (t) => t.url && isCasinoPlayUrl(t.url) && t.url.toLowerCase().includes(slug.toLowerCase()),
+          (t) =>
+            t.url &&
+            isCasinoPlayUrl(t.url) &&
+            !isLobbyPokerUrl(t.url) &&
+            t.url.toLowerCase().includes(slug.toLowerCase()),
         );
         if (bySlug?.id != null) return bySlug.id;
       }
@@ -637,9 +706,21 @@ async function resolveMesaTabIdForClose(tableId, mesaUrl) {
   return null;
 }
 
-async function closeMesaTabNow(tableId, mesaUrl = null) {
-  let tabId = await resolveMesaTabIdForClose(tableId, mesaUrl);
+async function clearMesaTabRegistry(tableId, tabId) {
   mesaTabByTableId.delete(tableId);
+  const stored = await chrome.storage.local.get([MESA_TAB_STORAGE, "gogLastMesaTab"]);
+  const registry = { ...(stored[MESA_TAB_STORAGE] ?? {}) };
+  delete registry[String(tableId)];
+  const patch = { [MESA_TAB_STORAGE]: registry };
+  if (stored.gogLastMesaTab?.tableId === tableId) {
+    patch.gogLastMesaTab = null;
+  }
+  await chrome.storage.local.set(patch);
+  void tabId;
+}
+
+async function closeMesaTabNow(tableId, mesaUrl = null) {
+  const tabId = await resolveMesaTabIdForClose(tableId, mesaUrl);
 
   if (tabId == null) {
     return { ok: true, skipped: true, detail: `Sem separador registado para mesa ${tableId}` };
@@ -651,8 +732,10 @@ async function closeMesaTabNow(tableId, mesaUrl = null) {
 
   try {
     await chrome.tabs.remove(tabId);
+    await clearMesaTabRegistry(tableId, tabId);
     return { ok: true, tabId, tableId };
   } catch {
+    await clearMesaTabRegistry(tableId, tabId);
     return { ok: true, skipped: true, detail: `Separador ${tabId} já fechado` };
   }
 }

@@ -224,6 +224,39 @@ export type MesaTabTrack = {
   recovery: number;
 };
 
+/** Fecha separador da mesa quando openBet termina (vitória, derrota ou mudança de mesa). */
+export function mesaTabCloseAfterOpenBetChange(
+  prevOpenBet: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
+  openBet: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
+  pendingSignal: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
+): number | null {
+  if (!prevOpenBet?.tableId) return null;
+
+  if (
+    openBet?.tableId === prevOpenBet.tableId &&
+    openBet.signalId === prevOpenBet.signalId &&
+    openBet.recovery === prevOpenBet.recovery
+  ) {
+    return null;
+  }
+
+  if (openBet?.tableId != null && openBet.tableId !== prevOpenBet.tableId) {
+    return prevOpenBet.tableId;
+  }
+
+  if (!openBet) {
+    if (
+      pendingSignal?.tableId === prevOpenBet.tableId &&
+      pendingSignal.recovery > prevOpenBet.recovery
+    ) {
+      return null;
+    }
+    return prevOpenBet.tableId;
+  }
+
+  return null;
+}
+
 /** Mesa a fechar quando o ciclo da indicação termina (vitória, derrota final ou mudança de mesa). */
 export function resolveMesaTabCloseTableId(
   prev: MesaTabTrack | null,

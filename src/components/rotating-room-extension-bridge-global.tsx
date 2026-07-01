@@ -5,6 +5,7 @@ import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensio
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
+import type { AutomationOpenBet } from "@/lib/back-office/rouletteAutomationSim";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
 import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
@@ -14,13 +15,10 @@ import {
   buildExtensionBridgeFromAutomationBet,
   emitRotatingRoomExtensionBridge,
   emitRotatingRoomExtensionCloseMesa,
+  mesaTabCloseAfterOpenBetChange,
   mesaUrlForTableId,
-  resolveMesaTabCloseTableId,
-  type MesaTabTrack,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
-import {
-  alignRotatingRoomSessionWithAutomationBet,
-} from "@/lib/roulette/rotatingRoomLobbySignal";
+import { alignRotatingRoomSessionWithAutomationBet } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   clearExtensionLastEmitKey,
   readExtensionLastEmitKey,
@@ -61,9 +59,10 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { state: globalAutomation, openBet, pendingSignal } = useRouletteAutomationSim();
-  const mesaTabTrackRef = useRef<MesaTabTrack | null>(null);
+  const prevOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const mesaCloseDedupeRef = useRef<string | null>(null);
   const prevPostResultHoldRef = useRef(false);
+
   const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
     observeOnly: true,
@@ -92,7 +91,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   useEffect(() => {
     if (!bridgeActive) {
-      mesaTabTrackRef.current = null;
+      prevOpenBetRef.current = null;
       mesaCloseDedupeRef.current = null;
       prevPostResultHoldRef.current = false;
       return;
@@ -107,39 +106,31 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
         : null;
 
     if (postHoldActive && !prevPostResultHoldRef.current && postHoldTableId != null) {
-      const dedupeKey = `hold:${postHoldTableId}`;
-      if (mesaCloseDedupeRef.current !== dedupeKey) {
-        mesaCloseDedupeRef.current = dedupeKey;
-        emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
-        mesaTabTrackRef.current = null;
-      }
+      const dedupeKey = `hold:${postHoldTableId}:${Date.now()}`;
+      mesaCloseDedupeRef.current = dedupeKey;
+      emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
     }
     prevPostResultHoldRef.current = postHoldActive;
 
-    const closeTableId = resolveMesaTabCloseTableId(
-      mesaTabTrackRef.current,
+    const prevOpenBet = prevOpenBetRef.current;
+    const closeTableId = mesaTabCloseAfterOpenBetChange(
+      prevOpenBet,
       openBet,
       pendingSignal,
     );
     if (closeTableId != null) {
-      const dedupeKey = `bet:${closeTableId}`;
+      const dedupeKey = `open:${prevOpenBet?.signalId ?? closeTableId}`;
       if (mesaCloseDedupeRef.current !== dedupeKey) {
         mesaCloseDedupeRef.current = dedupeKey;
         emitRotatingRoomExtensionCloseMesa(closeTableId, mesaUrlForTableId(closeTableId));
-        if (mesaTabTrackRef.current?.tableId === closeTableId) {
-          mesaTabTrackRef.current = null;
-        }
       }
     }
 
-    const activeBet = openBet ?? pendingSignal;
-    if (activeBet?.tableId != null && activeBet.signalId) {
-      mesaTabTrackRef.current = {
-        tableId: activeBet.tableId,
-        signalId: activeBet.signalId,
-        recovery: activeBet.recovery,
-      };
+    if (openBet?.signalId && openBet.signalId !== prevOpenBet?.signalId) {
+      mesaCloseDedupeRef.current = null;
     }
+
+    prevOpenBetRef.current = openBet;
   }, [bridgeActive, openBet, pendingSignal, session]);
 
   useEffect(() => {
