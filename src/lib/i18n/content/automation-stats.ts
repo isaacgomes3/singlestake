@@ -31,6 +31,8 @@ export const automationStatsContent = {
       crossingSecondary: "2 Fatores · secundário x-x-y-x",
       crossingTertiary: "2 Fatores · terciário x-y-x-x",
       fibonacci: "Fibonacci · dúzias/colunas",
+      fibonacciDozen: "Fibonacci · dúzias",
+      fibonacciColumn: "Fibonacci · colunas",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
@@ -39,6 +41,7 @@ export const automationStatsContent = {
     fibonacciAbsenceConfirm: "Confirmar ausências",
     fibonacciAbsenceSaved: "Giros de ausência actualizados.",
     fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
+    fibonacciZoneStats: "Acerto por tipo",
   },
   en: {
     title: "Automation statistics",
@@ -72,6 +75,8 @@ export const automationStatsContent = {
       crossingSecondary: "2 Factors · secondary x-x-y-x",
       crossingTertiary: "2 Factors · tertiary x-y-x-x",
       fibonacci: "Fibonacci · dozens/columns",
+      fibonacciDozen: "Fibonacci · dozens",
+      fibonacciColumn: "Fibonacci · columns",
     },
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
@@ -80,6 +85,7 @@ export const automationStatsContent = {
     fibonacciAbsenceConfirm: "Confirm absence",
     fibonacciAbsenceSaved: "Absence spins updated.",
     fibonacciAbsenceInvalid: "Invalid value (3–99 spins).",
+    fibonacciZoneStats: "Hit rate by type",
   },
   es: {
     title: "Estadísticas de automatización",
@@ -113,6 +119,8 @@ export const automationStatsContent = {
       crossingSecondary: "2 Factores · secundario x-x-y-x",
       crossingTertiary: "2 Factores · terciario x-y-x-x",
       fibonacci: "Fibonacci · docenas/columnas",
+      fibonacciDozen: "Fibonacci · docenas",
+      fibonacciColumn: "Fibonacci · columnas",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
@@ -121,5 +129,6 @@ export const automationStatsContent = {
     fibonacciAbsenceConfirm: "Confirmar ausencias",
     fibonacciAbsenceSaved: "Giros de ausencia actualizados.",
     fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
+    fibonacciZoneStats: "Acierto por tipo",
   },
 } as const;

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
 import { useFibonacciGatilhoEnabled } from "@/hooks/useFibonacciGatilhoEnabled";
-import { useRotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
+import { useAutomationAlignedFibonacciSession } from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
@@ -75,7 +75,7 @@ function SalaRotativaFibonacciPage() {
 
   const histories = useRotatingRoomHistories(tableIds);
   const { enabled: fibonacciGatilhoOn } = useFibonacciGatilhoEnabled();
-  const session = useRotatingRoomFibonacciSession(tableIds, histories, {
+  const session = useAutomationAlignedFibonacciSession(tableIds, histories, {
     enabled: fibonacciGatilhoOn,
   });
 

@@ -3,7 +3,10 @@ import { useRouterState } from "@tanstack/react-router";
 
 import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
+import {
+  useAutomationAlignedBet,
+  useAutomationAlignedRotativaSession,
+} from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import type {
   AutomationOpenBet,
@@ -22,7 +25,6 @@ import {
   mesaTabCloseAfterOpenBetChange,
   mesaUrlForTableId,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
-import { alignRotatingRoomSessionWithAutomationBet } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   clearExtensionLastEmitKey,
   readExtensionLastEmitKey,
@@ -76,7 +78,9 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const { state: globalAutomation, openBet, pendingSignal } = useRouletteAutomationSim();
+  const { state: globalAutomation } = useRouletteAutomationSim();
+  const { openBet, pendingSignal } = useAutomationAlignedBet();
+  const session = useAutomationAlignedRotativaSession(tableIds, histories, { observeOnly: true });
   const prevOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const lastSettledOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const pendingSignalRef = useRef<AutomationPendingSignal | null>(null);
@@ -87,20 +91,6 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const sawOpenBetRef = useRef(false);
 
   pendingSignalRef.current = pendingSignal;
-
-  const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
-    preferLocalSession: false,
-    observeOnly: true,
-  });
-
-  const session = useMemo(
-    () =>
-      alignRotatingRoomSessionWithAutomationBet(
-        rawSession,
-        openBet ?? pendingSignal,
-      ),
-    [rawSession, openBet, pendingSignal],
-  );
 
   useEffect(() => {
     if (!bridgeActive) return;

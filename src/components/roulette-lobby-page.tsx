@@ -3,8 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DamasLobbyGrid } from "@/components/damas/DamasLobbyGrid";
 import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
-import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import {
+  useAutomationAlignedCrossingSession,
+  useAutomationAlignedRotativaSession,
+} from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { setStrategySoundSuppressed } from "@/lib/sound/strategySoundGate";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
@@ -860,13 +862,13 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
   }, [lobbyCardTableIds]);
 
   const rotatingRoomHistories = useRotatingRoomHistories(rotatingRoomTableIds);
-  const rotatingRoomSession = useRotatingRoomRotativaSession(
+  const rotatingRoomSession = useAutomationAlignedRotativaSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly },
   );
   const crossingEnabled = isCrossingGatilhoEnabled();
-  const crossingRoomSession = useRotatingRoomCrossingSession(
+  const crossingRoomSession = useAutomationAlignedCrossingSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly, enabled: crossingEnabled },

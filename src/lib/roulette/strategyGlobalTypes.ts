@@ -114,6 +114,8 @@ export type StrategyGlobalSnapshot = {
   fibonacciPrefs: {
     enabled: boolean;
     absenceSpins: number;
+    dozenEnabled: boolean;
+    columnEnabled: boolean;
   };
 };
 

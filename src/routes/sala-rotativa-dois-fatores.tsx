@@ -3,8 +3,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { BackOfficeWorkspaceNav } from "@/components/back-office/back-office-workspace-nav";
 import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
-import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
+import { useAutomationAlignedCrossingSession } from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
 import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
@@ -73,7 +73,7 @@ function SalaRotativaDoisFatoresPage() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const session = useRotatingRoomCrossingSession(tableIds, histories);
+  const session = useAutomationAlignedCrossingSession(tableIds, histories);
 
   return (
     <div

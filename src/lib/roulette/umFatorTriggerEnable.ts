@@ -9,6 +9,8 @@ export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   crossing: boolean;
   fibonacci: boolean;
+  fibonacciDozen: boolean;
+  fibonacciColumn: boolean;
 };
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
@@ -20,6 +22,8 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
   crossing: false,
   fibonacci: true,
+  fibonacciDozen: true,
+  fibonacciColumn: true,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
@@ -39,6 +43,8 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   }
   if (typeof o.crossing === "boolean") base.crossing = o.crossing;
   if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
+  if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
+  if (typeof o.fibonacciColumn === "boolean") base.fibonacciColumn = o.fibonacciColumn;
   base.two = false;
   return base;
 }
@@ -104,5 +110,29 @@ export function isCrossingGatilhoEnabled(): boolean {
 }
 
 export function isFibonacciGatilhoEnabled(): boolean {
-  return runtimeEnabled.fibonacci !== false;
+  return getEnabledFibonacciZoneKinds().length > 0;
 }
+
+export function isFibonacciDozenGatilhoEnabled(): boolean {
+  return runtimeEnabled.fibonacci !== false && runtimeEnabled.fibonacciDozen !== false;
+}
+
+export function isFibonacciColumnGatilhoEnabled(): boolean {
+  return runtimeEnabled.fibonacci !== false && runtimeEnabled.fibonacciColumn !== false;
+}
+
+export function getEnabledFibonacciZoneKinds(): FibonacciZoneKind[] {
+  return enabledFibonacciZoneKindsFromMap(runtimeEnabled);
+}
+
+export function enabledFibonacciZoneKindsFromMap(
+  map: Pick<RotatingRoomGatilhoEnableMap, "fibonacci" | "fibonacciDozen" | "fibonacciColumn">,
+): FibonacciZoneKind[] {
+  if (map.fibonacci === false) return [];
+  const kinds: FibonacciZoneKind[] = [];
+  if (map.fibonacciDozen !== false) kinds.push("dozen");
+  if (map.fibonacciColumn !== false) kinds.push("column");
+  return kinds;
+}
+
+type FibonacciZoneKind = import("@/lib/roulette/rotatingRoomFibonacciStrategy").FibonacciZoneKind;

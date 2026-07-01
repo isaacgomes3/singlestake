@@ -54,8 +54,10 @@ function triggerLabel(
 }
 
 function applyFibonacciPrefsFromDto(data: AutomationStatsDto): void {
-  syncFibonacciPrefsFromAutomationConfig(data.fibonacci.enabled, data.fibonacci.absenceSpins);
+  syncFibonacciPrefsFromAutomationConfig(data.fibonacci, data.fibonacci.absenceSpins);
 }
+
+type FibonacciZoneToggleId = "fibonacciDozen" | "fibonacciColumn";
 
 export function BackOfficeAutomationStatsPanel() {
   const { t, messages } = useI18n();
@@ -92,7 +94,10 @@ export function BackOfficeAutomationStatsPanel() {
     return <p className="text-sm text-text-secondary">{t("admin.forbidden")}</p>;
   }
 
-  async function handleToggleTrigger(id: "three" | "crossing" | "fibonacci", enabled: boolean) {
+  async function handleToggleTrigger(
+    id: "three" | "crossing" | "fibonacci" | FibonacciZoneToggleId,
+    enabled: boolean,
+  ) {
     setTogglingId(id);
     const result = await setAutomationTriggerEnabled(id, enabled);
     setTogglingId(null);
@@ -133,9 +138,51 @@ export function BackOfficeAutomationStatsPanel() {
         ? t("automationStats.sourceServer")
         : t("automationStats.sourceUnknown");
 
-  const fibonacciRow = data?.triggers.find((row) => row.id === "fibonacci");
   const absenceDirty =
     data != null && Number(absenceDraft) !== data.fibonacci.absenceSpins;
+
+  function renderFibonacciZoneRow(
+    id: FibonacciZoneToggleId,
+    labelKey: "fibonacciDozen" | "fibonacciColumn",
+    zone: AutomationStatsDto["fibonacci"]["dozen"],
+  ) {
+    return (
+      <div
+        key={id}
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-color bg-bg-secondary px-3 py-2.5",
+          !zone.enabled && "opacity-60",
+        )}
+      >
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-text-primary">
+            {triggerLabel(messages, labelKey)}
+          </p>
+          <p
+            className={cn(
+              "mt-0.5 text-lg font-bold tabular-nums",
+              accuracyTone(zone.accuracyPct),
+            )}
+          >
+            {loading ? "…" : formatAccuracy(zone.accuracyPct)}
+          </p>
+          {!loading && zone.total > 0 ? (
+            <p className="text-[11px] tabular-nums text-text-secondary">
+              {zone.wins}V / {zone.losses}D
+            </p>
+          ) : (
+            <p className="text-[11px] text-text-secondary">{t("automationStats.noData")}</p>
+          )}
+        </div>
+        <Switch
+          checked={zone.enabled}
+          disabled={loading || togglingId === id}
+          aria-label={triggerLabel(messages, labelKey)}
+          onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -201,26 +248,24 @@ export function BackOfficeAutomationStatsPanel() {
           >
             {savingAbsence ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
           </Button>
-          <div className="flex items-center gap-2 rounded-xl border border-border-color bg-bg-secondary px-3 py-2">
-            <span className="text-xs font-medium text-text-secondary">
-              {triggerLabel(messages, "fibonacci")}
-            </span>
-            <Switch
-              checked={fibonacciRow?.enabled ?? data?.fibonacci.enabled ?? true}
-              disabled={loading || togglingId === "fibonacci"}
-              aria-label={triggerLabel(messages, "fibonacci")}
-              onCheckedChange={(checked) => void handleToggleTrigger("fibonacci", checked)}
-            />
-          </div>
         </div>
         {!loading && data ? (
-          <p className="mt-2 text-[11px] text-text-secondary">
-            Activo: {data.fibonacci.enabled ? "sim" : "não"} · Ausências confirmadas:{" "}
-            <span className="font-semibold tabular-nums text-text-primary">
-              {data.fibonacci.absenceSpins}
-            </span>{" "}
-            giros
-          </p>
+          <div className="mt-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.fibonacciZoneStats")}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {renderFibonacciZoneRow("fibonacciDozen", "fibonacciDozen", data.fibonacci.dozen)}
+              {renderFibonacciZoneRow("fibonacciColumn", "fibonacciColumn", data.fibonacci.column)}
+            </div>
+            <p className="text-[11px] text-text-secondary">
+              Ausências confirmadas:{" "}
+              <span className="font-semibold tabular-nums text-text-primary">
+                {data.fibonacci.absenceSpins}
+              </span>{" "}
+              giros
+            </p>
+          </div>
         ) : null}
       </section>
 

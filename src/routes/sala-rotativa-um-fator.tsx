@@ -6,8 +6,8 @@ import { SalaRotativaWorkspace } from "@/components/sala-rotativa-workspace";
 import { useRotatingRoomIframeChrome } from "@/hooks/useRotatingRoomIframeChrome";
 import { requireAuth, guardAutomationWorkspaceRoute } from "@/lib/auth/guards";
 import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
+import { useAutomationAlignedRotativaSession } from "@/hooks/useAutomationAlignedRotatingSession";
 import {
   ROTATING_ROOM_UM_FATOR_MAX_RECOVERY,
   correctRotatingRoomUmFatorLastLossAsWin,
@@ -83,9 +83,7 @@ function SalaRotativaUmFatorPage() {
   }, [configTick]);
 
   const histories = useRotatingRoomHistories(tableIds);
-  const session = useRotatingRoomRotativaSession(tableIds, histories, {
-    preferLocalSession: false,
-  });
+  const session = useAutomationAlignedRotativaSession(tableIds, histories);
 
   return (
     <div

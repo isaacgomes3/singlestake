@@ -48,9 +48,26 @@ export function applyStrategyGlobalStreamMessage(msg: StrategyGlobalStreamMessag
     }
   }
   if (snapshot?.fibonacciPrefs) {
+    const prefs = snapshot.fibonacciPrefs;
     syncFibonacciPrefsFromAutomationConfig(
-      snapshot.fibonacciPrefs.enabled,
-      snapshot.fibonacciPrefs.absenceSpins,
+      {
+        enabled: prefs.enabled,
+        dozen: {
+          enabled: prefs.dozenEnabled,
+          wins: 0,
+          losses: 0,
+          total: 0,
+          accuracyPct: null,
+        },
+        column: {
+          enabled: prefs.columnEnabled,
+          wins: 0,
+          losses: 0,
+          total: 0,
+          accuracyPct: null,
+        },
+      },
+      prefs.absenceSpins,
     );
   }
   if (typeof window !== "undefined") {

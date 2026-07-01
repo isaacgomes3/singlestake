@@ -146,7 +146,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         return;
       }
-      void handleBridgePayload(payload, sender.tab?.id ?? null).then(sendResponse);
+      void SinglestakeSignalRunner.setAutopilotEnabled(false).then(() =>
+        handleBridgePayload(payload, sender.tab?.id ?? null).then(sendResponse),
+      );
     });
     return true;
   }
@@ -154,6 +156,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.kind === "set-bridge-enabled") {
     const enabled = message.enabled === true;
     void chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled }).then(async () => {
+      if (enabled) {
+        await SinglestakeSignalRunner.setAutopilotEnabled(false);
+      }
       await ensureContentBridgeOnAppTabs();
       sendResponse({ ok: true, enabled });
     });

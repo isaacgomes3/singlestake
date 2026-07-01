@@ -5,6 +5,7 @@ import {
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
 } from "@/lib/back-office/automation-config";
+import { enabledFibonacciZoneKindsFromMap } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
@@ -148,7 +149,8 @@ function buildSnapshotBody(
         baseStake: resolved.baseStake,
         blockNewEntries,
         crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
-        fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
+        fibonacciEnabled:
+          enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       },
     ),
     config: resolved,
@@ -363,7 +365,8 @@ export async function syncAutomationSimWithStrategy(
       baseStake: configDto.baseStake,
       blockNewEntries,
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
-      fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
+      fibonacciEnabled:
+        enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
     },
   );
   const openedHead =
@@ -501,7 +504,8 @@ export async function replayAutomationSimFromLedger(
       baseStake: getAutomationConfig().baseStake,
       blockNewEntries: configDtoForBalance(getAutomationSimState().balance).blocksNewEntries,
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
-      fibonacciEnabled: getAutomationConfig().enabledTriggers.fibonacci !== false,
+      fibonacciEnabled:
+        enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
     },
   );
   const openedHead =

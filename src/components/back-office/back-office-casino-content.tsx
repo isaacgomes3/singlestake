@@ -9,8 +9,10 @@ import {
   buildUmFatorLiveViewForTable,
   readUmFatorMachineState,
 } from "@/lib/roulette/umFatorCrossingStrategy";
-import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
-import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
+import {
+  useAutomationAlignedCrossingSession,
+  useAutomationAlignedRotativaSession,
+} from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useLiveSseStatus } from "@/hooks/useLiveSseStatus";
 import {
@@ -232,12 +234,16 @@ export function useBackOfficeCasinoLiveData() {
   }, [lobbyCardTableIds]);
 
   const rotatingRoomHistories = useRotatingRoomHistories(rotatingRoomTableIds);
-  const rotatingRoomSession = useRotatingRoomRotativaSession(rotatingRoomTableIds, rotatingRoomHistories, {
-    observeOnly: true,
-  });
-  const crossingSession = useRotatingRoomCrossingSession(rotatingRoomTableIds, rotatingRoomHistories, {
-    observeOnly: true,
-  });
+  const rotatingRoomSession = useAutomationAlignedRotativaSession(
+    rotatingRoomTableIds,
+    rotatingRoomHistories,
+    { observeOnly: true },
+  );
+  const crossingSession = useAutomationAlignedCrossingSession(
+    rotatingRoomTableIds,
+    rotatingRoomHistories,
+    { observeOnly: true },
+  );
 
   return { lobbyCardTableIds, histories, primaryId, rotatingRoomSession, crossingSession };
 }

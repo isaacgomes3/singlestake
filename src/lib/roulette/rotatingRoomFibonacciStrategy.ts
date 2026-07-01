@@ -13,6 +13,8 @@ import {
   recordRotatingRoomSessionWin,
   recordRotatingRoomSessionPartialLoss,
   recordRotatingRoomSessionFinalLoss,
+  recordFibonacciZoneKindWin,
+  recordFibonacciZoneKindLoss,
 } from "@/lib/roulette/entryWinBreakdown";
 
 export const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21] as const;
@@ -209,9 +211,19 @@ export function consecutiveZoneAbsence(
   return count;
 }
 
-function allZones(): FibonacciZone[] {
+const ALL_FIBONACCI_ZONE_KINDS: readonly FibonacciZoneKind[] = ["dozen", "column"];
+
+function resolveEnabledFibonacciZoneKinds(
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
+): readonly FibonacciZoneKind[] {
+  if (!enabledZoneKinds || enabledZoneKinds.length === 0) return ALL_FIBONACCI_ZONE_KINDS;
+  return enabledZoneKinds;
+}
+
+function allZones(enabledZoneKinds?: readonly FibonacciZoneKind[]): FibonacciZone[] {
+  const kinds = resolveEnabledFibonacciZoneKinds(enabledZoneKinds);
   const zones: FibonacciZone[] = [];
-  for (const kind of ["dozen", "column"] as const) {
+  for (const kind of kinds) {
     for (const id of [1, 2, 3] as const) {
       zones.push({ kind, id });
     }
@@ -223,8 +235,9 @@ function allZones(): FibonacciZone[] {
 export function tableQualifiesForFibonacci(
   historyNewestFirst: readonly number[],
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): boolean {
-  for (const zone of allZones()) {
+  for (const zone of allZones(enabledZoneKinds)) {
     if (consecutiveZoneAbsence(historyNewestFirst, zone) >= minAbsenceSpins) {
       return true;
     }
@@ -237,9 +250,10 @@ export function bestPickForTable(
   historyNewestFirst: readonly number[],
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
   _qualifyAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciPick | null {
   let best: RotatingRoomFibonacciPick | null = null;
-  for (const zone of allZones()) {
+  for (const zone of allZones(enabledZoneKinds)) {
     const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
     if (absenceGap < minAbsenceSpins) continue;
     if (!best || absenceGap > best.absenceGap || (absenceGap === best.absenceGap && tableId < best.tableId)) {
@@ -271,13 +285,14 @@ export function listAllFibonacciAlertPicks(
   histories: Record<number, readonly number[]>,
   excludeTableIds?: ReadonlySet<number>,
   minAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_MIN_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciPick[] {
   const out: RotatingRoomFibonacciPick[] = [];
   for (const tableId of tableIds) {
     if (excludeTableIds?.has(tableId)) continue;
     const history = histories[tableId] ?? [];
     if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
-    const pick = bestPickForTable(tableId, history, minAbsenceSpins);
+    const pick = bestPickForTable(tableId, history, minAbsenceSpins, undefined, enabledZoneKinds);
     if (pick) out.push(pick);
   }
   out.sort(comparePicks);
@@ -289,12 +304,14 @@ export function pickGlobalFibonacciPrepare(
   histories: Record<number, readonly number[]>,
   excludeTableIds?: ReadonlySet<number>,
   prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciPick | null {
   return listAllFibonacciAlertPicks(
     tableIds,
     histories,
     excludeTableIds,
     prepareAbsenceSpins,
+    enabledZoneKinds,
   )[0] ?? null;
 }
 
@@ -303,12 +320,14 @@ export function pickGlobalFibonacciAlert(
   histories: Record<number, readonly number[]>,
   excludeTableIds?: ReadonlySet<number>,
   alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciPick | null {
   return listAllFibonacciAlertPicks(
     tableIds,
     histories,
     excludeTableIds,
     alertAbsenceSpins,
+    enabledZoneKinds,
   )[0] ?? null;
 }
 
@@ -512,10 +531,17 @@ export function scanRotatingRoomFibonacciTables(
   activePick: RotatingRoomFibonacciPick | null,
   prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
   alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciTableScan[] {
   return tableIds.map((tableId) => {
     const history = histories[tableId] ?? [];
-    const pickPrepare = bestPickForTable(tableId, history, prepareAbsenceSpins, alertAbsenceSpins);
+    const pickPrepare = bestPickForTable(
+      tableId,
+      history,
+      prepareAbsenceSpins,
+      alertAbsenceSpins,
+      enabledZoneKinds,
+    );
     if (!pickPrepare) {
       return {
         tableId,
@@ -527,7 +553,13 @@ export function scanRotatingRoomFibonacciTables(
       };
     }
 
-    const pickAlert = bestPickForTable(tableId, history, alertAbsenceSpins, alertAbsenceSpins);
+    const pickAlert = bestPickForTable(
+      tableId,
+      history,
+      alertAbsenceSpins,
+      alertAbsenceSpins,
+      enabledZoneKinds,
+    );
     const isActive =
       activePick != null &&
       activePick.tableId === pickPrepare.tableId &&
@@ -557,6 +589,7 @@ export function buildRotatingRoomFibonacciLiveView(
   machine: RotatingRoomFibonacciMachineState,
   prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
   alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): RotatingRoomFibonacciLiveView {
   let activePick: RotatingRoomFibonacciPick | null = null;
   if (machine.cycleZone && machine.cycleTableId != null) {
@@ -575,7 +608,13 @@ export function buildRotatingRoomFibonacciLiveView(
     relaxed.recovery > 0 && relaxed.cycleTableId == null
       ? tablesExcludedFromRotation(relaxed)
       : undefined;
-  const globalPick = pickGlobalFibonacciAlert(tableIds, histories, excluded, alertAbsenceSpins);
+  const globalPick = pickGlobalFibonacciAlert(
+    tableIds,
+    histories,
+    excluded,
+    alertAbsenceSpins,
+    enabledZoneKinds,
+  );
 
   return {
     globalPick,
@@ -585,6 +624,7 @@ export function buildRotatingRoomFibonacciLiveView(
       activePick,
       prepareAbsenceSpins,
       alertAbsenceSpins,
+      enabledZoneKinds,
     ),
   };
 }
@@ -618,6 +658,7 @@ export function tickRotatingRoomFibonacciPlacar(
   allowNewArming = true,
   prepareAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_PREPARE_ABSENCE_SPINS,
   alertAbsenceSpins: number = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
+  enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): {
   nextMachine: RotatingRoomFibonacciMachineState;
   stats: RotatingRoomSessionStats;
@@ -655,7 +696,10 @@ export function tickRotatingRoomFibonacciPlacar(
     const outcome = evaluateFibonacciRound(resultNumber, zone);
 
     if (outcome === "W") {
-      nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
+      nextStats = recordFibonacciZoneKindWin(
+        recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery),
+        zone.kind,
+      );
       statsChanged = true;
       flash = {
         resultNumber,
@@ -673,6 +717,7 @@ export function tickRotatingRoomFibonacciPlacar(
           histories,
           undefined,
           prepareAbsenceSpins,
+          enabledZoneKinds,
         );
         if (prepare) {
           nextMachine = beginFibonacciPrepare(nextMachine, prepare, histories);
@@ -683,7 +728,10 @@ export function tickRotatingRoomFibonacciPlacar(
       const recovery = recoveryBefore + 1;
 
       if (recovery > maxRecovery) {
-        nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery);
+        nextStats = recordFibonacciZoneKindLoss(
+          recordRotatingRoomSessionFinalLoss(nextStats, recoveryBefore, maxRecovery),
+          zone.kind,
+        );
         statsChanged = true;
         flash = {
           resultNumber,
@@ -777,6 +825,7 @@ export function tickRotatingRoomFibonacciPlacar(
       histories,
       excluded,
       prepareAbsenceSpins,
+      enabledZoneKinds,
     );
     if (prepare) {
       return {

@@ -1,10 +1,12 @@
 import type {
   CrossingPatternKindStats,
+  FibonacciZoneKindStats,
   RotatingRoomSessionStats,
   UmFatorMatchTierStats,
 } from "@/lib/roulette/rotatingRoomStrategy";
 import type { CrossingPatternKind } from "@/lib/roulette/doisFatoresPatternCrossing";
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
+import type { FibonacciZoneKind } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 export type EntryWinBreakdown = {
   totalEntries: number;
@@ -15,6 +17,28 @@ export type EntryWinBreakdown = {
 
 export function emptyRecoveryLevelCounts(maxRecovery: number): number[] {
   return Array.from({ length: maxRecovery + 1 }, () => 0);
+}
+
+export function emptyFibonacciZoneKindStats(): FibonacciZoneKindStats {
+  return {
+    dozen: { wins: 0, losses: 0 },
+    column: { wins: 0, losses: 0 },
+  };
+}
+
+export function parseFibonacciZoneKindStats(raw: unknown): FibonacciZoneKindStats {
+  const o = (raw ?? {}) as { dozen?: unknown; column?: unknown };
+  return {
+    dozen: parseUmFatorMatchTierBucket(o.dozen),
+    column: parseUmFatorMatchTierBucket(o.column),
+  };
+}
+
+export function normalizeFibonacciZoneKindStats(
+  stats: FibonacciZoneKindStats | undefined,
+): FibonacciZoneKindStats {
+  if (!stats) return emptyFibonacciZoneKindStats();
+  return parseFibonacciZoneKindStats(stats);
 }
 
 export function emptyCrossingPatternKindStats(): CrossingPatternKindStats {
@@ -96,6 +120,7 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     lossesAtRecovery?: unknown;
     umFatorMatchTier?: unknown;
     crossingPatternKind?: unknown;
+    fibonacciZoneKind?: unknown;
   };
   const base = {
     wins: Number(o.wins) || 0,
@@ -111,6 +136,15 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     return {
       ...withUm,
       crossingPatternKind: parseCrossingPatternKindStats(o.crossingPatternKind),
+      ...(o.fibonacciZoneKind != null
+        ? { fibonacciZoneKind: parseFibonacciZoneKindStats(o.fibonacciZoneKind) }
+        : {}),
+    };
+  }
+  if (o.fibonacciZoneKind != null) {
+    return {
+      ...withUm,
+      fibonacciZoneKind: parseFibonacciZoneKindStats(o.fibonacciZoneKind),
     };
   }
   return withUm;
@@ -279,6 +313,40 @@ export function recordCrossingPatternKindLoss(
       [key]: {
         wins: crossingPatternKind[key].wins,
         losses: crossingPatternKind[key].losses + 1,
+      },
+    },
+  };
+}
+
+export function recordFibonacciZoneKindWin(
+  stats: RotatingRoomSessionStats,
+  kind: FibonacciZoneKind,
+): RotatingRoomSessionStats {
+  const fibonacciZoneKind = normalizeFibonacciZoneKindStats(stats.fibonacciZoneKind);
+  return {
+    ...stats,
+    fibonacciZoneKind: {
+      ...fibonacciZoneKind,
+      [kind]: {
+        wins: fibonacciZoneKind[kind].wins + 1,
+        losses: fibonacciZoneKind[kind].losses,
+      },
+    },
+  };
+}
+
+export function recordFibonacciZoneKindLoss(
+  stats: RotatingRoomSessionStats,
+  kind: FibonacciZoneKind,
+): RotatingRoomSessionStats {
+  const fibonacciZoneKind = normalizeFibonacciZoneKindStats(stats.fibonacciZoneKind);
+  return {
+    ...stats,
+    fibonacciZoneKind: {
+      ...fibonacciZoneKind,
+      [kind]: {
+        wins: fibonacciZoneKind[kind].wins,
+        losses: fibonacciZoneKind[kind].losses + 1,
       },
     },
   };

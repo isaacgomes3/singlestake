@@ -15,7 +15,7 @@ export async function fetchAutomationStats(): Promise<AutomationStatsDto | null>
 }
 
 export async function setAutomationTriggerEnabled(
-  id: "three" | "crossing" | "fibonacci",
+  id: "three" | "crossing" | "fibonacci" | "fibonacciDozen" | "fibonacciColumn",
   enabled: boolean,
 ): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/admin/automation-stats", {

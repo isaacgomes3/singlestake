@@ -1,6 +1,7 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
 import { getAutomationConfig } from "@/lib/server/automationSim/config";
 import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { enabledFibonacciZoneKindsFromMap } from "@/lib/roulette/umFatorTriggerEnable";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
@@ -240,7 +241,8 @@ function driveFibonacci(
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.fibonacci.machine.recovery;
   const config = getAutomationConfig();
-  const fibonacciTriggerOn = config.enabledTriggers.fibonacci !== false;
+  const fibonacciTriggerOn = enabledFibonacciZoneKindsFromMap(config.enabledTriggers).length > 0;
+  const enabledZoneKinds = enabledFibonacciZoneKindsFromMap(config.enabledTriggers);
   const allowNewArming =
     fibonacciTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
   const absenceSpins = readEffectiveFibonacciAbsenceSpins();
@@ -257,6 +259,7 @@ function driveFibonacci(
         allowNewArming,
         absenceSpins,
         absenceSpins,
+        enabledZoneKinds,
       ),
     fibonacciMachinePlacarStepProgressed,
   );
@@ -392,7 +395,13 @@ function buildFibonacciClientView(
           ),
         }
       : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, absenceSpins)
+        ? pickGlobalFibonacciPrepare(
+            tableIds,
+            histories,
+            undefined,
+            absenceSpins,
+            enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers),
+          )
         : null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   const alertCategory = activeFibonacci
@@ -455,8 +464,14 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
       autopilotRunning: extensionSource.autopilotRunning,
     },
     fibonacciPrefs: {
-      enabled: config.enabledTriggers.fibonacci !== false,
+      enabled: enabledFibonacciZoneKindsFromMap(config.enabledTriggers).length > 0,
       absenceSpins: config.fibonacciAbsenceSpins,
+      dozenEnabled:
+        config.enabledTriggers.fibonacci !== false &&
+        config.enabledTriggers.fibonacciDozen !== false,
+      columnEnabled:
+        config.enabledTriggers.fibonacci !== false &&
+        config.enabledTriggers.fibonacciColumn !== false,
     },
   };
 }

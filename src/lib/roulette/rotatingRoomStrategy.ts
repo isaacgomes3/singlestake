@@ -61,6 +61,8 @@ export type RotatingRoomSessionStats = {
   umFatorMatchTier?: UmFatorMatchTierStats;
   /** 2 Fatores — acerto por padrão primário / secundário / terciário. */
   crossingPatternKind?: CrossingPatternKindStats;
+  /** Fibonacci — acerto por dúzias vs colunas. */
+  fibonacciZoneKind?: FibonacciZoneKindStats;
 };
 
 export type UmFatorMatchTierBucket = {
@@ -78,6 +80,12 @@ export type CrossingPatternKindStats = {
   primary: UmFatorMatchTierBucket;
   secondary: UmFatorMatchTierBucket;
   tertiary: UmFatorMatchTierBucket;
+};
+
+/** Fibonacci — acerto por dúzias vs colunas. */
+export type FibonacciZoneKindStats = {
+  dozen: UmFatorMatchTierBucket;
+  column: UmFatorMatchTierBucket;
 };
 
 /** Metade alvo Ruas 9% por mesa (quadro da sala rotativa). */

@@ -57,12 +57,36 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         const id = body?.id;
         const enabled = body?.enabled;
-        if ((id !== "three" && id !== "crossing" && id !== "fibonacci") || typeof enabled !== "boolean") {
+        if (
+          (id !== "three" &&
+            id !== "crossing" &&
+            id !== "fibonacci" &&
+            id !== "fibonacciDozen" &&
+            id !== "fibonacciColumn") ||
+          typeof enabled !== "boolean"
+        ) {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
         }
 
+        const nextTriggers = { ...current.enabledTriggers, [id]: enabled };
+        if (id === "fibonacciDozen" || id === "fibonacciColumn") {
+          const dozenOn = nextTriggers.fibonacciDozen !== false;
+          const columnOn = nextTriggers.fibonacciColumn !== false;
+          nextTriggers.fibonacci = dozenOn || columnOn;
+        }
+        if (id === "fibonacci" && !enabled) {
+          nextTriggers.fibonacciDozen = false;
+          nextTriggers.fibonacciColumn = false;
+        }
+        if (id === "fibonacci" && enabled) {
+          if (nextTriggers.fibonacciDozen === false && nextTriggers.fibonacciColumn === false) {
+            nextTriggers.fibonacciDozen = true;
+            nextTriggers.fibonacciColumn = true;
+          }
+        }
+
         await saveAutomationConfig({
-          enabledTriggers: { ...current.enabledTriggers, [id]: enabled },
+          enabledTriggers: nextTriggers,
         });
 
         return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });

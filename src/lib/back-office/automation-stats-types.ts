@@ -1,6 +1,14 @@
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 
+export type AutomationStatsFibonacciZoneRow = {
+  wins: number;
+  losses: number;
+  total: number;
+  accuracyPct: number | null;
+  enabled: boolean;
+};
+
 export type AutomationStatsDto = {
   updatedAt: number;
   /** Fonte activa dos sinais (extensão Chrome ou motor do servidor). */
@@ -15,5 +23,7 @@ export type AutomationStatsDto = {
   fibonacci: {
     enabled: boolean;
     absenceSpins: number;
+    dozen: AutomationStatsFibonacciZoneRow;
+    column: AutomationStatsFibonacciZoneRow;
   };
 };
