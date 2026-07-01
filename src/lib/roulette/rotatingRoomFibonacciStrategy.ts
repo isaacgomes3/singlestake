@@ -65,6 +65,8 @@ export type RotatingRoomFibonacciTableScan = {
 
 export type RotatingRoomFibonacciMachineState = {
   recovery: number;
+  /** Incrementa a cada nova entrada activa — evita signalId duplicado após vitória. */
+  cycleSeq: number;
   cycleTableId: number | null;
   cycleZone: FibonacciZone | null;
   /** Mesa em preparação (ausência ≥12) — aguarda o próximo giro para indicar. */
@@ -119,6 +121,59 @@ export function fibonacciZoneLabel(zone: FibonacciZone): string {
     return `${zone.id}.ª Dúzia`;
   }
   return `Coluna ${zone.id}`;
+}
+
+export function fibonacciCategoryLabel(zone: FibonacciZone): string {
+  return zone.kind === "dozen" ? `Dúzia ${zone.id}` : `Coluna ${zone.id}`;
+}
+
+export function fibonacciSignalId(
+  tableId: number,
+  zone: FibonacciZone,
+  recovery: number,
+  cycleSeq: number,
+): string {
+  return `${tableId}:${zone.kind}:${zone.id}:${Math.max(0, Math.floor(recovery))}:c${Math.max(0, Math.floor(cycleSeq))}`;
+}
+
+export function parseFibonacciSignalId(signalId: string): {
+  tableId: number;
+  zone: FibonacciZone;
+  recovery: number;
+  cycleSeq: number;
+} | null {
+  const parts = signalId.trim().split(":");
+  if (parts.length < 4) return null;
+  const tableId = Number(parts[0]);
+  const zoneKind = parts[1];
+  const zoneId = Number(parts[2]);
+  if (!Number.isFinite(tableId) || (zoneKind !== "dozen" && zoneKind !== "column")) return null;
+  if (!Number.isFinite(zoneId) || zoneId < 1 || zoneId > 3) return null;
+  const recoveryRaw = Number(parts[3]);
+  const recovery = Number.isFinite(recoveryRaw) ? Math.max(0, Math.floor(recoveryRaw)) : 0;
+  const cyclePart = parts[4];
+  const cycleSeq =
+    typeof cyclePart === "string" && cyclePart.startsWith("c")
+      ? Math.max(0, Math.floor(Number(cyclePart.slice(1))))
+      : 0;
+  return {
+    tableId,
+    zone: { kind: zoneKind, id: zoneId as 1 | 2 | 3 },
+    recovery,
+    cycleSeq,
+  };
+}
+
+export function fibonacciActiveFromSignalId(
+  signalId: string,
+  absenceGap = 0,
+): RotatingRoomFibonacciActive | null {
+  const parsed = parseFibonacciSignalId(signalId);
+  if (!parsed) return null;
+  return buildFibonacciActiveFromPick(
+    { tableId: parsed.tableId, zone: parsed.zone, absenceGap },
+    parsed.recovery,
+  );
 }
 
 export function stakeUnitsAtRecovery(recovery: number): number {
@@ -285,6 +340,7 @@ export function evaluateFibonacciRound(resultNumber: number, zone: FibonacciZone
 export function defaultRotatingRoomFibonacciMachineState(): RotatingRoomFibonacciMachineState {
   return {
     recovery: 0,
+    cycleSeq: 0,
     cycleTableId: null,
     cycleZone: null,
     prepareTableId: null,
@@ -390,6 +446,7 @@ function armCycleFromPick(
     cycleTableId: pick.tableId,
     cycleZone: pick.zone,
     recovery,
+    cycleSeq: machine.cycleSeq + 1,
     armedAtHead: head,
     lastEvaluatedHead: null,
     awaitSwitchNoTable: false,

@@ -9,6 +9,7 @@ import {
 } from "@/lib/roulette/pragmaticExteriorBetMap";
 import { pragmaticFibonacciBetKeyFromZone } from "@/lib/roulette/pragmaticFibonacciBetMap";
 import type { PragmaticFibonacciBetKey } from "@/lib/roulette/pragmaticFibonacciBetMap";
+import { parseFibonacciSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 import {
   lobbyTableDisplayName,
@@ -275,21 +276,9 @@ export function buildExtensionBridgeFromAutomationBet(
   if (bet.tableId == null || !bet.signalId?.trim()) return null;
 
   if (bet.strategy === "fibonacci") {
-    const parts = bet.signalId.split(":");
-    const zoneKind = parts[1];
-    const zoneId = Number(parts[2]);
-    if (
-      (zoneKind !== "dozen" && zoneKind !== "column") ||
-      !Number.isFinite(zoneId) ||
-      zoneId < 1 ||
-      zoneId > 3
-    ) {
-      return null;
-    }
-    const betKey = pragmaticFibonacciBetKeyFromZone({
-      kind: zoneKind,
-      id: zoneId as 1 | 2 | 3,
-    });
+    const parsed = parseFibonacciSignalId(bet.signalId);
+    if (!parsed) return null;
+    const betKey = pragmaticFibonacciBetKeyFromZone(parsed.zone);
     const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
     const recovery = Math.max(0, Math.floor(bet.recovery));
     const context = buildRotatingRoomExtensionContext(

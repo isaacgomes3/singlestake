@@ -376,7 +376,6 @@ function buildFibonacciClientView(
   const currentTableId =
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
-  const alertPick = liveView.globalPick;
   const absenceSpins = readEffectiveFibonacciAbsenceSpins();
   const prepareTableId =
     machine.prepareTableId != null && allowed.has(machine.prepareTableId)
@@ -396,20 +395,27 @@ function buildFibonacciClientView(
         ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, absenceSpins)
         : null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
+  const alertCategory = activeFibonacci
+    ? activeFibonacci.zone.kind === "dozen"
+      ? `Dúzia ${activeFibonacci.zone.id}`
+      : `Coluna ${activeFibonacci.zone.id}`
+    : preparePick
+      ? preparePick.zone.kind === "dozen"
+        ? `Dúzia ${preparePick.zone.id}`
+        : `Coluna ${preparePick.zone.id}`
+      : null;
   return {
     phase: showTapeteSignal ? "active" : "waiting",
     sessionStats: state.fibonacci.stats,
     showTapeteSignal,
     fibonacciMode: true,
     currentRecovery: machine.recovery,
+    cycleSeq: machine.cycleSeq ?? 0,
     currentTableId: showTapeteSignal ? currentTableId : null,
     prepareTableId,
-    alertCategory: alertPick
-      ? alertPick.zone.kind === "dozen"
-        ? `Dúzia ${alertPick.zone.id}`
-        : `Coluna ${alertPick.zone.id}`
-      : null,
-    alertBucketGap: alertPick?.absenceGap ?? preparePick?.absenceGap ?? 0,
+    alertCategory,
+    alertBucketGap:
+      activeFibonacci?.absenceGap ?? preparePick?.absenceGap ?? 0,
     sessionMode,
     prepareCategory: preparePick
       ? preparePick.zone.kind === "dozen"

@@ -3,6 +3,7 @@ import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibona
 import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
+import { fibonacciActiveFromSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 
 export type RotatingRoomLobbySession = (
@@ -127,16 +128,31 @@ export function alignRotatingRoomSessionWithAutomationBet<
   if (!bet?.tableId) return session;
 
   if (bet.strategy === "fibonacci") {
+    const fibSession = session as T & {
+      fibonacciMode?: boolean;
+      showTapeteSignal?: boolean;
+      activeFibonacci?: import("@/lib/roulette/rotatingRoomFibonacciStrategy").RotatingRoomFibonacciActive | null;
+    };
+    if (
+      fibSession.fibonacciMode &&
+      fibSession.showTapeteSignal &&
+      fibSession.activeFibonacci != null
+    ) {
+      return session;
+    }
+    const activeFibonacci = bet.signalId ? fibonacciActiveFromSignalId(bet.signalId) : null;
+    if (!activeFibonacci) return session;
     return {
       ...session,
       currentTableId: bet.tableId,
       showTapeteSignal: true,
       prepareTableId: null,
       currentRecovery: bet.recovery,
+      activeFibonacci,
       activeCrossing: null,
       sessionMode: "active",
       rotativaTrigger: "fibonacci",
-    };
+    } as T;
   }
 
   const betCrossing = activeCrossingFromAutomationBet(bet);

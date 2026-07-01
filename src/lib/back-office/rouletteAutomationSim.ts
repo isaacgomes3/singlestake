@@ -10,6 +10,7 @@ import {
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
 import { doisFatoresFactorLabel, evaluateDoisFatoresRound, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { resolveRotativaTriggerFromSnapshot } from "@/lib/roulette/rotatingRoomRotativaMerge";
+import { fibonacciSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
@@ -333,7 +334,7 @@ export function pendingSignalFromUmFatorSession(
 export function pendingSignalFromFibonacciSession(
   session: Pick<
     StrategyGlobalSnapshot["fibonacci"],
-    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeFibonacci"
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeFibonacci" | "cycleSeq"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -354,7 +355,7 @@ export function pendingSignalFromFibonacciSession(
   const recovery = session.currentRecovery;
 
   return {
-    signalId: `${tableId}:${active.zone.kind}:${active.zone.id}:${recovery}`,
+    signalId: fibonacciSignalId(tableId, active.zone, recovery, session.cycleSeq ?? 0),
     tableId,
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
@@ -506,7 +507,16 @@ export function placeOpenBet(
   now = Date.now(),
 ): RouletteAutomationSimState {
   if (state.openBet?.signalId === pending.signalId) return state;
-  if (state.openBet && state.openBet.signalId !== pending.signalId) return state;
+  if (state.openBet && state.openBet.signalId !== pending.signalId) {
+    const head = histories?.[state.openBet.tableId]?.[0];
+    if (
+      head == null ||
+      !isSpinResultAlreadySettled(state, state.openBet.tableId, head)
+    ) {
+      return state;
+    }
+    state = { ...state, openBet: null };
+  }
   if (histories && pendingConflictsWithSettledHead(state, pending, histories)) return state;
   if (state.balance < pending.stake) return state;
 

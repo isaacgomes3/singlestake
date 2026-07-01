@@ -37,14 +37,20 @@ export function RouletteAutomationSimulatorPanel({
   const fibonacciSession = useRotatingRoomFibonacciSession(tableIds, histories, {
     observeOnly: true,
   });
-  const lobbySession = useMemo(
-    () =>
-      alignRotatingRoomSessionWithAutomationBet(
-        fibonacciSession,
-        openBet ?? pendingSignal,
-      ),
-    [fibonacciSession, openBet, pendingSignal],
-  );
+  const lobbySession = useMemo(() => {
+    const bet = openBet ?? pendingSignal;
+    if (
+      bet?.strategy === "fibonacci" &&
+      fibonacciSession.showTapeteSignal &&
+      fibonacciSession.activeFibonacci
+    ) {
+      return fibonacciSession;
+    }
+    if (bet?.strategy === "fibonacci") {
+      return alignRotatingRoomSessionWithAutomationBet(fibonacciSession, bet);
+    }
+    return fibonacciSession;
+  }, [fibonacciSession, openBet, pendingSignal]);
   const displayState = useMemo(() => {
     if (officialBalance == null) return state;
     return finalizeAutomationSimState(state, officialBalance);

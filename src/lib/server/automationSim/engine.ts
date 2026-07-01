@@ -311,10 +311,19 @@ export async function syncAutomationSimWithStrategy(
   await maybeAutoResumeAutomation();
   const configDto = configDtoForBalance(walletBalance);
   const blockNewEntries = configDto.blocksNewEntries;
-  const openBet = state.openBet;
+  let openBet = state.openBet;
   if (blockNewEntries && openBet) {
     state = { ...state, openBet: null };
     replaceAutomationSimState(state);
+    openBet = null;
+  }
+  if (
+    openBet?.strategy === "fibonacci" &&
+    !strategySnapshot.fibonacci.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
   }
   if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];

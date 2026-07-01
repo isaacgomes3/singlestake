@@ -80,6 +80,8 @@ export type StrategyGlobalFibonacciClientView = {
   showTapeteSignal: boolean;
   fibonacciMode: true;
   currentRecovery: number;
+  /** Sequência do ciclo activo — compõe o signalId único por entrada. */
+  cycleSeq: number;
   currentTableId: number | null;
   prepareTableId: number | null;
   alertCategory: string | null;

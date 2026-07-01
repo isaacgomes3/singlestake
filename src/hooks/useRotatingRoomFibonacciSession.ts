@@ -18,6 +18,7 @@ import {
 import {
   buildFibonacciActiveFromPick,
   consecutiveZoneAbsence,
+  fibonacciCategoryLabel,
   pickGlobalFibonacciPrepare,
   type RotatingRoomFibonacciMachineState,
   type RotatingRoomFibonacciTableScan,
@@ -66,6 +67,7 @@ export type RotatingRoomFibonacciSession = {
   roundFlash: RotatingRoomFibonacciRoundFlash;
   activeFibonacci: RotatingRoomFibonacciActive | null;
   currentRecovery: number;
+  cycleSeq: number;
   currentTableId: number | null;
   prepareTableId: number | null;
   alertCategory: string | null;
@@ -304,7 +306,6 @@ export function useRotatingRoomFibonacciSession(
       ? machine.cycleTableId
       : null;
 
-  const alertPick = liveView.globalPick;
   const prepareTableId =
     machine.prepareTableId != null && allowedTableIds.has(machine.prepareTableId)
       ? machine.prepareTableId
@@ -322,6 +323,14 @@ export function useRotatingRoomFibonacciSession(
       : !showTapeteSignal && machine.recovery === 0
         ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, effectiveAbsenceSpins)
         : null;
+  const alertPick =
+    activeFibonacci != null
+      ? {
+          tableId: currentTableId!,
+          zone: activeFibonacci.zone,
+          absenceGap: activeFibonacci.absenceGap,
+        }
+      : preparePick;
   const sessionMode: RotatingRoomSessionMode = showTapeteSignal
     ? "active"
     : prepareTableId != null
@@ -336,6 +345,7 @@ export function useRotatingRoomFibonacciSession(
       roundFlash,
       activeFibonacci: globalView.activeFibonacci,
       currentRecovery: globalView.currentRecovery,
+      cycleSeq: globalView.cycleSeq,
       currentTableId: globalView.currentTableId,
       prepareTableId: globalView.prepareTableId,
       alertCategory: globalView.alertCategory,
@@ -355,16 +365,13 @@ export function useRotatingRoomFibonacciSession(
     roundFlash,
     activeFibonacci: showTapeteSignal && currentTableId != null ? activeFibonacci : null,
     currentRecovery: machine.recovery,
+    cycleSeq: machine.cycleSeq,
     currentTableId,
     prepareTableId,
-    alertCategory: alertPick ? alertPick.zone.kind === "dozen" ? `Dúzia ${alertPick.zone.id}` : `Coluna ${alertPick.zone.id}` : null,
+    alertCategory: alertPick ? fibonacciCategoryLabel(alertPick.zone) : null,
     alertBucketGap: alertPick?.absenceGap ?? preparePick?.absenceGap ?? 0,
     sessionMode,
-    prepareCategory: preparePick
-      ? preparePick.zone.kind === "dozen"
-        ? `Dúzia ${preparePick.zone.id}`
-        : `Coluna ${preparePick.zone.id}`
-      : null,
+    prepareCategory: preparePick ? fibonacciCategoryLabel(preparePick.zone) : null,
     fibonacciScan: liveView.fibonacciScan,
     lastEvaluatedHead: machine.lastEvaluatedHead,
     fibonacciMode: true,

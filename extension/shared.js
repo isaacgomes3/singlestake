@@ -58,7 +58,7 @@ async function isDryRun(context) {
   return (await resolveExecutionMode(context)) === "demo";
 }
 
-/** Gale — lê recovery do contexto ou do sufixo do signalId (`mesa:num:fator:recovery`). */
+/** Gale — lê recovery do contexto ou do signalId (`mesa:kind:id:recovery:cN`). */
 function recoveryFromContext(context) {
   const explicit = context?.currentRecovery;
   if (typeof explicit === "number" && Number.isFinite(explicit)) {
@@ -66,7 +66,12 @@ function recoveryFromContext(context) {
   }
   const signalId = context?.signalId;
   if (typeof signalId === "string" && signalId.trim()) {
-    const part = signalId.trim().split(":").pop();
+    const parts = signalId.trim().split(":");
+    if (parts.length >= 4 && (parts[1] === "dozen" || parts[1] === "column")) {
+      const n = parseInt(parts[3] ?? "", 10);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
+    const part = parts[parts.length - 1];
     const n = parseInt(part ?? "", 10);
     if (Number.isFinite(n)) return Math.max(0, n);
   }
