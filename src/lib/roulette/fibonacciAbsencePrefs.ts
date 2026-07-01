@@ -1,4 +1,3 @@
-import { ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import type { FibonacciZoneKind } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import {
@@ -10,7 +9,8 @@ const FIBONACCI_GATILHO_LOCAL_KEY = "roulette.rotatingRoom.fibonacciGatilhoEnabl
 
 export const FIBONACCI_ABSENCE_SPINS_MIN = 3;
 export const FIBONACCI_ABSENCE_SPINS_MAX = 99;
-export const DEFAULT_FIBONACCI_ABSENCE_SPINS = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS;
+/** Alinhado com ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS — não importar da strategy (ciclo de módulos). */
+export const DEFAULT_FIBONACCI_ABSENCE_SPINS = 12;
 
 export type FibonacciZoneAbsenceSpins = {
   dozen: number;
