@@ -1,6 +1,5 @@
 /** Autopilot — capta giros na DGA, corre Um Fator e dispara apostas (sem localhost). */
 const STORAGE_AUTOPLAY = "gogAutopilotEnabled";
-const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_AUTO_STATUS = "gogAutopilotStatus";
 const STORAGE_AUTO_STATS = "gogAutopilotSessionStats";
@@ -37,11 +36,6 @@ function clearPendingBetTimers() {
     clearTimeout(timer);
   }
   pendingBetTimers.clear();
-}
-
-async function readBridgeEnabledForAutopilot() {
-  const data = await chrome.storage.local.get([STORAGE_BRIDGE_ENABLED]);
-  return data[STORAGE_BRIDGE_ENABLED] !== false;
 }
 
 async function readAutopilotEnabled() {
@@ -214,16 +208,6 @@ async function processEngineResult(result, mesaEmbedUrl, cfg) {
 
 async function startAutopilot(handleBridgePayload) {
   bridgeHandler = handleBridgePayload;
-  const bridgeOn = await readBridgeEnabledForAutopilot();
-  if (bridgeOn) {
-    stopAutopilot();
-    await writeAutopilotStatus({
-      running: false,
-      enabled: false,
-      reason: "Ponte activa — sinais vêm do painel (automação global)",
-    });
-    return;
-  }
   const enabled = await readAutopilotEnabled();
   if (!enabled) {
     await writeAutopilotStatus({ running: false, reason: "autopilot desligado" });
@@ -297,18 +281,6 @@ function stopAutopilot() {
 }
 
 async function setAutopilotEnabled(enabled) {
-  if (enabled === true) {
-    const bridgeOn = await readBridgeEnabledForAutopilot();
-    if (bridgeOn) {
-      await chrome.storage.local.set({ [STORAGE_AUTOPLAY]: false });
-      await writeAutopilotStatus({
-        running: false,
-        enabled: false,
-        reason: "Desligue a ponte ou use só os sinais do painel",
-      });
-      return { ok: false, reason: "bridge-active" };
-    }
-  }
   await chrome.storage.local.set({ [STORAGE_AUTOPLAY]: enabled === true });
   if (enabled) {
     if (bridgeHandler) await startAutopilot(bridgeHandler);
@@ -354,11 +326,6 @@ function initSignalRunner(handleBridgePayload) {
     if (changes[STORAGE_DGA_CONFIG] && bridgeHandler) {
       void readAutopilotEnabled().then((on) => {
         if (on) void startAutopilot(bridgeHandler);
-      });
-    }
-    if (changes[STORAGE_BRIDGE_ENABLED] && bridgeHandler) {
-      void readBridgeEnabledForAutopilot().then((bridgeOn) => {
-        if (bridgeOn) void setAutopilotEnabled(false);
       });
     }
   });
