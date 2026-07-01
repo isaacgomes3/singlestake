@@ -39,6 +39,8 @@ export const ROTATING_ROOM_EXTENSION_ACK_TYPE = "game-odds-glow/rotating-room-ex
 export const ROTATING_ROOM_EXTENSION_STATS_TYPE = "game-odds-glow/rotating-room-extension-stats" as const;
 export const ROTATING_ROOM_EXTENSION_CLOSE_MESA_TYPE =
   "game-odds-glow/rotating-room-extension-close-mesa" as const;
+export const ROTATING_ROOM_EXTENSION_CANCEL_CLOSE_MESA_TYPE =
+  "game-odds-glow/rotating-room-extension-cancel-close-mesa" as const;
 export const ROTATING_ROOM_EXTENSION_EMIT_EVENT = "singlestake-extension-emit" as const;
 export const ROTATING_ROOM_EXTENSION_PRESENT_EVENT = "singlestake-extension-present" as const;
 export const ROTATING_ROOM_EXTENSION_VERSION = 1 as const;
@@ -310,6 +312,19 @@ export function emitRotatingRoomExtensionCloseMesa(
       version: ROTATING_ROOM_EXTENSION_VERSION,
       tableId,
       mesaUrl: mesaUrl?.trim() || mesaUrlForTableId(tableId) || undefined,
+    },
+    window.location.origin,
+  );
+}
+
+/** Cancela fechos agendados (arranque do bridge / nova abertura de mesa). */
+export function emitRotatingRoomExtensionCancelCloseMesa(tableId?: number | null): void {
+  if (typeof window === "undefined") return;
+  window.postMessage(
+    {
+      type: ROTATING_ROOM_EXTENSION_CANCEL_CLOSE_MESA_TYPE,
+      version: ROTATING_ROOM_EXTENSION_VERSION,
+      ...(tableId != null ? { tableId } : {}),
     },
     window.location.origin,
   );

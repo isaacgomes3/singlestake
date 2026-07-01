@@ -14,6 +14,7 @@ import {
 import {
   buildExtensionBridgeFromAutomationBet,
   emitRotatingRoomExtensionBridge,
+  emitRotatingRoomExtensionCancelCloseMesa,
   emitRotatingRoomExtensionCloseMesa,
   mesaTabCloseAfterOpenBetChange,
   mesaUrlForTableId,
@@ -26,6 +27,11 @@ import {
   ROTATING_ROOM_EXTENSION_PREFS_EVENT,
   writeExtensionLastEmitKey,
 } from "@/lib/roulette/rotatingRoomExtensionPrefs";
+
+/** Evita fechar mesa logo ao ligar o bridge (alarmes antigos / API instável). */
+const BRIDGE_CLOSE_GRACE_MS = 10_000;
+/** openBet tem de estar vazio este tempo antes de fechar o separador. */
+const OPEN_BET_CLEAR_STABLE_MS = 2_000;
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
@@ -62,6 +68,9 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const prevOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const mesaCloseDedupeRef = useRef<string | null>(null);
   const prevPostResultHoldRef = useRef(false);
+  const bridgeArmedAtRef = useRef(0);
+  const openBetClearedAtRef = useRef(0);
+  const sawOpenBetRef = useRef(false);
 
   const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
@@ -79,7 +88,15 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   useEffect(() => {
     if (!bridgeActive) return;
+    emitRotatingRoomExtensionCancelCloseMesa();
     clearExtensionLastEmitKey();
+    bridgeArmedAtRef.current = Date.now();
+    prevOpenBetRef.current = openBet;
+    sawOpenBetRef.current = openBet != null;
+    openBetClearedAtRef.current = 0;
+    const postHoldActive =
+      "postResultHoldActive" in session && session.postResultHoldActive === true;
+    prevPostResultHoldRef.current = postHoldActive;
   }, [bridgeActive]);
 
   useEffect(() => {
@@ -94,8 +111,20 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
       prevOpenBetRef.current = null;
       mesaCloseDedupeRef.current = null;
       prevPostResultHoldRef.current = false;
+      bridgeArmedAtRef.current = 0;
+      openBetClearedAtRef.current = 0;
+      sawOpenBetRef.current = false;
       return;
     }
+
+    if (bridgeArmedAtRef.current === 0) {
+      bridgeArmedAtRef.current = Date.now();
+      prevOpenBetRef.current = openBet;
+      sawOpenBetRef.current = openBet != null;
+      return;
+    }
+
+    const inGrace = Date.now() - bridgeArmedAtRef.current < BRIDGE_CLOSE_GRACE_MS;
 
     const postHoldActive =
       "postResultHoldActive" in session && session.postResultHoldActive === true;
@@ -105,19 +134,50 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
         ? session.postResultHoldTableId
         : null;
 
-    if (postHoldActive && !prevPostResultHoldRef.current && postHoldTableId != null) {
-      const dedupeKey = `hold:${postHoldTableId}:${Date.now()}`;
-      mesaCloseDedupeRef.current = dedupeKey;
-      emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
+    if (
+      !inGrace &&
+      sawOpenBetRef.current &&
+      postHoldActive &&
+      !prevPostResultHoldRef.current &&
+      postHoldTableId != null &&
+      prevOpenBetRef.current?.tableId === postHoldTableId
+    ) {
+      const dedupeKey = `hold:${postHoldTableId}:${prevOpenBetRef.current?.signalId ?? ""}`;
+      if (mesaCloseDedupeRef.current !== dedupeKey) {
+        mesaCloseDedupeRef.current = dedupeKey;
+        emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
+      }
     }
     prevPostResultHoldRef.current = postHoldActive;
 
+    if (openBet) {
+      sawOpenBetRef.current = true;
+      openBetClearedAtRef.current = 0;
+    }
+
     const prevOpenBet = prevOpenBetRef.current;
-    const closeTableId = mesaTabCloseAfterOpenBetChange(
-      prevOpenBet,
-      openBet,
-      pendingSignal,
-    );
+    let closeTableId: number | null = null;
+
+    if (!inGrace && sawOpenBetRef.current && prevOpenBet?.tableId) {
+      if (!openBet) {
+        if (!openBetClearedAtRef.current) {
+          openBetClearedAtRef.current = Date.now();
+        } else if (Date.now() - openBetClearedAtRef.current >= OPEN_BET_CLEAR_STABLE_MS) {
+          closeTableId = mesaTabCloseAfterOpenBetChange(
+            prevOpenBet,
+            openBet,
+            pendingSignal,
+          );
+        }
+      } else {
+        closeTableId = mesaTabCloseAfterOpenBetChange(
+          prevOpenBet,
+          openBet,
+          pendingSignal,
+        );
+      }
+    }
+
     if (closeTableId != null) {
       const dedupeKey = `open:${prevOpenBet?.signalId ?? closeTableId}`;
       if (mesaCloseDedupeRef.current !== dedupeKey) {
@@ -128,6 +188,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
     if (openBet?.signalId && openBet.signalId !== prevOpenBet?.signalId) {
       mesaCloseDedupeRef.current = null;
+      emitRotatingRoomExtensionCancelCloseMesa(openBet.tableId);
     }
 
     prevOpenBetRef.current = openBet;
@@ -144,6 +205,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     const emitKey = payload.fingerprint;
     if (readExtensionLastEmitKey() === emitKey) return;
     writeExtensionLastEmitKey(emitKey);
+    emitRotatingRoomExtensionCancelCloseMesa(bet.tableId);
     emitRotatingRoomExtensionBridge(payload);
   }, [
     bridgeActive,

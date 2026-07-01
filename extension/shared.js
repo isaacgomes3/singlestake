@@ -7,6 +7,7 @@ const GOG = {
   ACK_TYPE: "game-odds-glow/rotating-room-extension-ack",
   STATS_TYPE: "game-odds-glow/rotating-room-extension-stats",
   CLOSE_MESA_TYPE: "game-odds-glow/rotating-room-extension-close-mesa",
+  CANCEL_CLOSE_MESA_TYPE: "game-odds-glow/rotating-room-extension-cancel-close-mesa",
   VERSION: 1,
   STORAGE_MODE: "gogExecutionMode",
   STORAGE_BRIDGE_PREFS: "gogBridgePrefs",

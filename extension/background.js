@@ -32,28 +32,28 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   void runScheduledCloseMesa(tableId);
 });
 
-async function drainPendingCloseMesaAlarms() {
+async function cancelPendingCloseMesa(tableId = null) {
   const alarms = await chrome.alarms.getAll();
-  const now = Date.now();
+  const keysToRemove = [];
   for (const alarm of alarms) {
     if (!alarm.name.startsWith(CLOSE_ALARM_PREFIX)) continue;
-    if ((alarm.scheduledTime ?? 0) <= now + 500) {
-      const tableId = Number(alarm.name.slice(CLOSE_ALARM_PREFIX.length));
-      if (Number.isFinite(tableId)) await runScheduledCloseMesa(tableId);
-    }
+    const id = Number(alarm.name.slice(CLOSE_ALARM_PREFIX.length));
+    if (tableId != null && id !== tableId) continue;
+    await chrome.alarms.clear(alarm.name);
+    if (Number.isFinite(id)) keysToRemove.push(`gogCloseMesa:${id}`);
   }
+  if (keysToRemove.length > 0) await chrome.storage.local.remove(keysToRemove);
 }
 
 chrome.runtime.onInstalled.addListener(() => {
   void setStoredMode(GOG.DEFAULT_MODE);
   void chrome.storage.local.set({ gogAutopilotEnabled: false });
   void ensureContentBridgeOnAppTabs();
-  void drainPendingCloseMesaAlarms();
+  void cancelPendingCloseMesa(null);
 });
 
 chrome.runtime.onStartup.addListener(() => {
   void ensureContentBridgeOnAppTabs();
-  void drainPendingCloseMesaAlarms();
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -223,6 +223,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tableId = typeof message.tableId === "number" ? message.tableId : Number(message.tableId);
     const mesaUrl = typeof message.mesaUrl === "string" ? message.mesaUrl.trim() : "";
     void scheduleCloseMesaTab(tableId, mesaUrl || null).then(sendResponse);
+    return true;
+  }
+
+  if (message.kind === "bridge-cancel-close-mesa") {
+    const tableId =
+      typeof message.tableId === "number"
+        ? message.tableId
+        : message.tableId != null
+          ? Number(message.tableId)
+          : null;
+    void cancelPendingCloseMesa(Number.isFinite(tableId) ? tableId : null).then(() =>
+      sendResponse({ ok: true }),
+    );
     return true;
   }
 
@@ -589,6 +602,7 @@ async function dispatchClickAction(action, context, sourceTabId) {
 
 async function registerMesaTab(tableId, tabId) {
   if (tableId == null || tabId == null) return;
+  await cancelPendingCloseMesa(tableId);
   mesaTabByTableId.set(tableId, tabId);
   const stored = await chrome.storage.local.get([MESA_TAB_STORAGE]);
   const registry = { ...(stored[MESA_TAB_STORAGE] ?? {}), [String(tableId)]: { tabId, at: Date.now() } };
@@ -603,8 +617,21 @@ async function runScheduledCloseMesa(tableId) {
   if (!Number.isFinite(id)) return { ok: false, detail: "tableId inválido" };
 
   const storageKey = `gogCloseMesa:${id}`;
-  const stored = await chrome.storage.local.get([storageKey]);
+  const stored = await chrome.storage.local.get([storageKey, "gogLastMesaTab"]);
   const pending = stored[storageKey];
+  const lastMesa = stored.gogLastMesaTab;
+
+  if (
+    pending?.at &&
+    lastMesa?.tableId === id &&
+    typeof lastMesa.at === "number" &&
+    lastMesa.at >= pending.at - 800
+  ) {
+    await chrome.alarms.clear(`${CLOSE_ALARM_PREFIX}${id}`);
+    await chrome.storage.local.remove(storageKey);
+    return { ok: true, skipped: true, detail: "Fecho obsoleto — mesa reaberta" };
+  }
+
   await chrome.alarms.clear(`${CLOSE_ALARM_PREFIX}${id}`);
   await chrome.storage.local.remove(storageKey);
   return closeMesaTabNow(id, pending?.mesaUrl ?? null);
