@@ -1,6 +1,6 @@
 import "@/lib/server/bootstrap";
 
-import { LOBBY_FIXED_TABLE_IDS, ROTATING_ROOM_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
+import { ROTATING_ROOM_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
 
 const WS_URL = process.env.ROULETTE_WS_URL ?? "wss://dga.pragmaticplaylive.net/ws";
 const CASINO_ID = process.env.ROULETTE_CASINO_ID ?? "ppcdk00000005148";
@@ -346,21 +346,13 @@ export const startRouletteSocket = (
 };
 
 /**
- * Garante que todas as mesas do lobby e da sala rotativa têm WebSocket — evita cartões no UI sem giros
- * quando `ROULETTE_TABLE_IDS` no servidor fica desactualizado.
- * Ordem: primeiro os IDs vindos do env (define mesa principal = 1.º), depois faltam lobby + sala rotativa.
+ * Mesas: `ROULETTE_TABLE_IDS` → fallback = mesas da sala rotativa (não o lobby completo).
  */
-function mergeEnvTableIdsWithLobby(envIds: readonly number[]): number[] {
+function mergeEnvTableIdsWithRotatingRoom(envIds: readonly number[]): number[] {
   const seen = new Set<number>();
   const out: number[] = [];
   for (const n of envIds) {
     if (Number.isFinite(n) && n > 0 && !seen.has(n)) {
-      seen.add(n);
-      out.push(n);
-    }
-  }
-  for (const n of LOBBY_FIXED_TABLE_IDS) {
-    if (!seen.has(n)) {
       seen.add(n);
       out.push(n);
     }
@@ -375,7 +367,7 @@ function mergeEnvTableIdsWithLobby(envIds: readonly number[]): number[] {
 }
 
 /**
- * Mesas: `ROULETTE_TABLE_IDS` (vírgula/espaço) → `ROULETTE_TABLE_ID` → todas do lobby.
+ * Mesas: `ROULETTE_TABLE_IDS` (vírgula/espaço) → `ROULETTE_TABLE_ID` → sala rotativa.
  */
 export function parseRouletteTableIdsFromEnv(): number[] {
   const raw = process.env.ROULETTE_TABLE_IDS?.trim();
@@ -392,12 +384,12 @@ export function parseRouletteTableIdsFromEnv(): number[] {
         out.push(n);
       }
     }
-    if (out.length > 0) return mergeEnvTableIdsWithLobby(out);
+    if (out.length > 0) return mergeEnvTableIdsWithRotatingRoom(out);
   }
   const rawSingle = process.env.ROULETTE_TABLE_ID?.trim();
   if (rawSingle) {
     const single = Number(rawSingle);
-    if (Number.isFinite(single) && single > 0) return mergeEnvTableIdsWithLobby([single]);
+    if (Number.isFinite(single) && single > 0) return mergeEnvTableIdsWithRotatingRoom([single]);
   }
-  return [...LOBBY_FIXED_TABLE_IDS];
+  return [...ROTATING_ROOM_FIXED_TABLE_IDS];
 }

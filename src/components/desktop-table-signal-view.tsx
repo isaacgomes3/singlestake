@@ -222,7 +222,7 @@ export function DesktopTableSignalView({
       <header className="sticky top-0 z-40 border-b border-cyan-950/30 bg-[#080d18]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Link
-            to={BACK_OFFICE_PATHS.casinoAoVivo}
+            to={BACK_OFFICE_PATHS.salaRotativa}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700/80 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan-500/40 hover:text-cyan-100"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />

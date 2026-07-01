@@ -8,7 +8,7 @@ import {
   normalizeGameId,
   type LiveSsePayload,
 } from "@/lib/roulette/applyLiveSpinFromSse";
-import { LOBBY_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
+import { ROTATING_ROOM_FIXED_TABLE_IDS } from "@/lib/roulette/lobbyTables";
 import {
   getLiveRouletteTableIds,
   setLiveRouletteTableConfigFromServer,
@@ -45,7 +45,7 @@ export function LiveRouletteSseBridge() {
     initLiveSpinDedupeFromStorage();
 
     if (getLiveRouletteTableIds().length === 0) {
-      setLiveRouletteTableConfigFromServer([...LOBBY_FIXED_TABLE_IDS]);
+      setLiveRouletteTableConfigFromServer([...ROTATING_ROOM_FIXED_TABLE_IDS]);
     }
 
     let closed = false;
@@ -87,7 +87,7 @@ export function LiveRouletteSseBridge() {
             if (ids.length > 0) {
               setLiveRouletteTableConfigFromServer(ids);
             } else if (o.tableIds.length > 0) {
-              setLiveRouletteTableConfigFromServer([...LOBBY_FIXED_TABLE_IDS]);
+              setLiveRouletteTableConfigFromServer([...ROTATING_ROOM_FIXED_TABLE_IDS]);
             }
           }
           if (import.meta.env.DEV) console.info("[Roleta/SSE] ready do servidor", o.tableIds);

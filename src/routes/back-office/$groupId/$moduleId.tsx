@@ -10,15 +10,15 @@ import {
 import { isBackOfficeAdminGroup, isBackOfficeAdminModule } from "@/lib/back-office/admin-access";
 import { requireActiveSubscription } from "@/lib/auth/subscription-gate";
 
-const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([
-  "operacoes",
-  "casino-ao-vivo",
-]);
+const SUBSCRIPTION_GATED_MODULES = new Set<BackOfficeModuleId>([]);
 
 export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
   beforeLoad: async ({ params }) => {
+    if (params.groupId === "operacoes" || params.moduleId === "casino-ao-vivo") {
+      throw redirect({ to: "/back-office" });
+    }
     if (params.moduleId === "operacoes") {
-      throw redirect({ to: "/back-office/operacoes/casino-ao-vivo" });
+      throw redirect({ to: "/back-office" });
     }
     if (params.moduleId === "relatorios-rede") {
       throw redirect({ to: "/back-office" });

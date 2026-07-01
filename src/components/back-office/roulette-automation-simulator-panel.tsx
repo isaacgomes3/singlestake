@@ -32,7 +32,7 @@ export function RouletteAutomationSimulatorPanel({
   const { t } = useI18n();
   const { money } = useFormat();
   const chart = AUTOMATION_CHART_THEME;
-  const { state, openBet, pendingSignal, config } = useRouletteAutomationSim();
+  const { state, openBet, pendingSignal, config, revision } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
   const fibonacciSession = useRotatingRoomFibonacciSession(tableIds, histories, {
     observeOnly: true,
@@ -145,6 +145,7 @@ export function RouletteAutomationSimulatorPanel({
           </div>
           <div className="h-[280px] w-full sm:h-[320px]">
             <AutomationCandlestickChart
+              key={`automation-chart-${revision}-${chartData.at(-1)?.ts ?? 0}-${chartData.length}`}
               chartData={chartData}
               chart={chart}
               formatMoney={money}

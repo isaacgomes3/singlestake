@@ -43,8 +43,8 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
         <Link to={BACK_OFFICE_PATHS.home} className={backLinkClass}>
           ← Back office
         </Link>
-        <Link to={BACK_OFFICE_PATHS.casinoAoVivo} className={backLinkClass}>
-          Cassino ao vivo
+        <Link to={BACK_OFFICE_PATHS.salaRotativa} className={backLinkClass}>
+          Sala rotativa
         </Link>
       </div>
       {rotatingRoom ? (

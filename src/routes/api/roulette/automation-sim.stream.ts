@@ -27,7 +27,6 @@ export const Route = createFileRoute("/api/roulette/automation-sim/stream")({
           "@/lib/server/automationSim/engine"
         );
         const { subscribeAutomationSimHub } = await import("@/lib/server/automationSim/broadcast");
-        const { subscribeStrategyGlobalHub } = await import("@/lib/server/strategyGlobal/broadcast");
 
         ensureRouletteHubDaemon();
         const tableIds = parseRouletteTableIdsFromEnv();
@@ -39,14 +38,6 @@ export const Route = createFileRoute("/api/roulette/automation-sim/stream")({
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
-            const push = () => {
-              void (async () => {
-                const strategySnapshot = getStrategyGlobalSnapshotOrThrow();
-                const snapshot = await getAutomationSimSnapshotOrThrow(strategySnapshot);
-                controller.enqueue(sseData({ type: "update", snapshot }));
-              })();
-            };
-
             controller.enqueue(
               sseData({
                 type: "sync",
@@ -62,13 +53,13 @@ export const Route = createFileRoute("/api/roulette/automation-sim/stream")({
               }
             }, SSE_KEEPALIVE_MS);
 
-            const unsubAutomation = subscribeAutomationSimHub(() => push());
-            const unsubStrategy = subscribeStrategyGlobalHub(() => push());
+            const unsubAutomation = subscribeAutomationSimHub((snapshot) => {
+              controller.enqueue(sseData({ type: "update", snapshot }));
+            });
 
             const onAbort = () => {
               clearInterval(keepaliveTimer);
               unsubAutomation();
-              unsubStrategy();
               try {
                 controller.close();
               } catch {

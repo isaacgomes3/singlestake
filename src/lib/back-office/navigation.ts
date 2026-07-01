@@ -14,7 +14,6 @@ import {
   Percent,
   ScrollText,
   Shield,
-  Sparkles,
   UserCog,
   Users,
   Wallet,
@@ -42,13 +41,11 @@ export type BackOfficeModuleId =
   | "painel-financeiro"
   | "automacao-config"
   | "automacao-estatisticas"
-  | "auditoria"
-  | "casino-ao-vivo";
+  | "auditoria";
 
 export type BackOfficeGroupId =
   | "produtos"
   | "rede"
-  | "operacoes"
   | "financeiro"
   | "administracao";
 
@@ -107,14 +104,6 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     icon: Network,
     description: "Afiliados, binário e bônus de equipe.",
     moduleIds: ["afiliados", "rede-binaria", "bonus-equipe"],
-  },
-  {
-    id: "operacoes",
-    label: "Operações",
-    path: "/back-office/operacoes",
-    icon: BarChart3,
-    description: "Casino ao vivo e sala rotativa.",
-    moduleIds: ["casino-ao-vivo"],
   },
   {
     id: "financeiro",
@@ -246,11 +235,6 @@ const MODULE_META: Record<
     icon: ScrollText,
     description: "Registro de bônus, alterações e logins.",
   },
-  "casino-ao-vivo": {
-    label: "Cassino ao vivo",
-    icon: Sparkles,
-    description: "Roletas ao vivo e sala rotativa 1 fator.",
-  },
 };
 
 function modulePath(groupId: BackOfficeGroupId, moduleId: BackOfficeModuleId): string {
@@ -339,7 +323,6 @@ export function getGroupSections(
   groupId: BackOfficeGroupId,
 ): BackOfficeGroupSection[] | null {
   if (groupId === "administracao") return ADMINISTRACAO_SECTIONS;
-  if (groupId === "operacoes" && OPERACOES_SECTIONS.length > 0) return OPERACOES_SECTIONS;
   return null;
 }
 

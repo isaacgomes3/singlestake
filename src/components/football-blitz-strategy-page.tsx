@@ -123,7 +123,7 @@ export function FootballBlitzStrategyPage({ config }: FootballBlitzStrategyPageP
 
         <p className="mt-4 text-center text-xs text-slate-500">
           <Link
-            to={BACK_OFFICE_PATHS.casinoAoVivo}
+            to={BACK_OFFICE_PATHS.home}
             className="font-semibold text-cyan-400 hover:text-cyan-300"
           >
             ← Voltar ao back office

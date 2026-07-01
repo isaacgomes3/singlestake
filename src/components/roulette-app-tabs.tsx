@@ -31,8 +31,7 @@ export function RouletteAppTabs({ children }: RouletteAppTabsProps) {
     onNums28 ||
     pathname === "/um-fator" ||
     onSalaRotativa ||
-    pathname === "/super-trunfo" ||
-    pathname === "/football-blitz"
+    pathname === "/um-fator"
   ) {
     return (
       <nav

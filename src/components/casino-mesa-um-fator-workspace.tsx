@@ -189,7 +189,7 @@ export function CasinoMesaUmFatorWorkspace({ tableId }: Props) {
       <header className="pointer-events-auto z-30 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 bg-[#0d1524]/95 px-3 py-2 backdrop-blur-md sm:px-4">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Link
-            to={BACK_OFFICE_PATHS.casinoAoVivo}
+            to={BACK_OFFICE_PATHS.salaRotativa}
             className="inline-flex shrink-0 items-center rounded-lg border border-slate-700/80 bg-slate-900/60 px-2 py-2 hover:bg-slate-800/80"
           >
             <SinglestakeLogo className="h-14 w-[min(376px,92vw)] sm:h-16" />

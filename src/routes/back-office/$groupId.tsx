@@ -14,6 +14,9 @@ import { isBackOfficeAdminGroup } from "@/lib/back-office/admin-access";
 
 export const Route = createFileRoute("/back-office/$groupId")({
   beforeLoad: async ({ params }) => {
+    if (params.groupId === "operacoes") {
+      throw redirect({ to: "/back-office" });
+    }
     if (params.groupId === "relatorios") {
       throw redirect({ to: "/back-office" });
     }

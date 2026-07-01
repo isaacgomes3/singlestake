@@ -35,9 +35,8 @@ const OPEN_BET_CLEAR_STABLE_MS = 2_000;
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
   return (
-    pathname.startsWith("/back-office") ||
-    pathname === "/casino-mesa" ||
-    pathname.startsWith("/casino-mesa") ||
+    pathname === "/back-office" ||
+    pathname === "/back-office/" ||
     pathname === "/sala-rotativa-um-fator" ||
     pathname.startsWith("/sala-rotativa")
   );

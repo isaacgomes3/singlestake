@@ -16,27 +16,19 @@ export function parseMesaIdParam(raw: string): number | undefined {
   return n;
 }
 
-/** Estruturas antigas do lobby / mobile → back office ou ferramenta operacional. */
+/** Estruturas antigas do lobby / mobile → back office ou sala rotativa. */
 export function throwLegacyTableRedirect(search: Record<string, unknown>): never {
-  const mesa = parseMesaSearch(search);
-  if (mesa != null) {
-    throw redirect({ to: "/casino-mesa", search: { mesa }, replace: true });
-  }
-  throw redirect({ to: BACK_OFFICE_PATHS.casinoAoVivo, replace: true });
+  throw redirect({ to: BACK_OFFICE_PATHS.salaRotativa, replace: true });
 }
 
 export function throwLegacyCassinoRedirect(): never {
-  throw redirect({ to: BACK_OFFICE_PATHS.casinoAoVivo, replace: true });
+  throw redirect({ to: BACK_OFFICE_PATHS.home, replace: true });
 }
 
 export function throwLegacyBackOfficeRedirect(): never {
   throw redirect({ to: BACK_OFFICE_PATHS.home, replace: true });
 }
 
-export function throwLegacyMobileMesaRedirect(mesaId: string): never {
-  const mesa = parseMesaIdParam(mesaId);
-  if (mesa != null) {
-    throw redirect({ to: "/casino-mesa", search: { mesa }, replace: true });
-  }
-  throw redirect({ to: BACK_OFFICE_PATHS.casinoAoVivo, replace: true });
+export function throwLegacyMobileMesaRedirect(_mesaId: string): never {
+  throw redirect({ to: BACK_OFFICE_PATHS.salaRotativa, replace: true });
 }

@@ -10,8 +10,6 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { Live24dSpinSseBridge } from "@/components/live-24d-spin-sse-bridge";
-import { LiveFootballBlitzSseBridge } from "@/components/live-football-blitz-sse-bridge";
 import { LiveRouletteSseBridge } from "@/components/live-roulette-sse-bridge";
 import { RouletteAutomationSimSseBridge } from "@/components/roulette-automation-sim-sse-bridge";
 import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
@@ -100,20 +98,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "singlestake — Painel" },
       {
         name: "description",
-        content: "Back office singlestake — rede MMN, financeiro, casino ao vivo e operações.",
+        content: "Back office singlestake — rede MMN, financeiro, automação e salas rotativas.",
       },
       { name: "author", content: "singlestake" },
       { property: "og:title", content: "singlestake — Painel" },
       {
         property: "og:description",
-        content: "Back office singlestake — rede MMN, financeiro, casino ao vivo e operações.",
+        content: "Back office singlestake — rede MMN, financeiro, automação e salas rotativas.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "singlestake — Painel" },
       {
         name: "twitter:description",
-        content: "Back office singlestake — rede MMN, financeiro, casino ao vivo e operações.",
+        content: "Back office singlestake — rede MMN, financeiro, automação e salas rotativas.",
       },
     ],
     links: [
@@ -170,44 +168,33 @@ function RootComponent() {
   const backOfficeApp = isBackOfficeAppPath(pathname);
   const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
-  const backOfficeAutomationView =
+  const backOfficeOverview =
     !isAutomation &&
     backOfficeApp &&
-    (pathname === "/back-office" ||
-      pathname === "/back-office/" ||
-      pathname.startsWith("/back-office/operacoes"));
-  /** SSE do motor global — visão geral (painéis) e sala rotativa. */
-  const needsGlobalAutomation =
-    isAutomation || backOfficeAutomationView || (!isAutomation && workspacePath);
-  /** Streams DGA / roleta ao vivo — só operações e workspace (não na visão geral). */
-  const needsCasinoStreams = isAutomation
-    ? workspacePath || pathname === "/casino-mesa"
-    : backOfficeApp &&
-      (pathname.startsWith("/back-office/operacoes") || workspacePath);
-  /** Ponte extensão — visão geral (painel automação) + operações + workspace. */
-  const needsExtensionBridge =
-    (isAutomation && workspacePath) ||
-    backOfficeAutomationView ||
-    (!isAutomation && workspacePath);
+    (pathname === "/back-office" || pathname === "/back-office/");
+  /** Motor global + automação — visão geral, salas rotativas e subdomínio automação. */
+  const needsGlobalAutomation = isAutomation || backOfficeOverview || workspacePath;
+  /** SSE roleta — mesas da sala rotativa (visão geral + salas + subdomínio automação). */
+  const needsRouletteStream = isAutomation || backOfficeOverview || workspacePath;
+  /** Ponte extensão — visão geral (painel automação) + salas + subdomínio automação. */
+  const needsExtensionBridge = isAutomation || backOfficeOverview || workspacePath;
 
   const outlet = <Outlet />;
   const automationBridges = needsGlobalAutomation ? (
-    <DeferredMount delayMs={backOfficeAutomationView ? 50 : 0}>
+    <DeferredMount delayMs={backOfficeOverview ? 50 : 0}>
       <StrategyGlobalSseBridge />
       <RouletteAutomationSimSseBridge />
     </DeferredMount>
   ) : null;
   const extensionBridge = needsExtensionBridge ? (
-    <DeferredMount delayMs={backOfficeAutomationView ? 100 : 0}>
+    <DeferredMount delayMs={backOfficeOverview ? 100 : 0}>
       <RotatingRoomExtensionBridgeGlobal />
     </DeferredMount>
   ) : null;
-  const casinoStreams = needsCasinoStreams ? (
+  const rouletteStream = needsRouletteStream ? (
     <>
       <RouteSoundGate />
       <LiveRouletteSseBridge />
-      <Live24dSpinSseBridge />
-      <LiveFootballBlitzSseBridge />
     </>
   ) : null;
 
@@ -223,7 +210,7 @@ function RootComponent() {
                 {outlet}
                 {automationBridges}
                 {extensionBridge}
-                {casinoStreams}
+                {rouletteStream}
               </RouletteLiveApiProvider>
             </div>
           ) : (
