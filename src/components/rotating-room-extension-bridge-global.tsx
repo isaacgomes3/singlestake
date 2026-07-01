@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
-import { useRotatingRoomClickBotLearning } from "@/hooks/useRotatingRoomClickBotLearning";
 import { useRotatingRoomExtensionPresent } from "@/hooks/useRotatingRoomExtensionPresent";
 import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
 import { useRotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativaSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
-import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
 import {
   ROTATING_ROOM_FIXED_TABLE_IDS,
   resolveRotatingRoomTableIds,
 } from "@/lib/roulette/lobbyTables";
 import {
-  buildRotatingRoomMesaCatalog,
   buildExtensionBridgeFromAutomationBet,
   emitRotatingRoomExtensionBridge,
   emitRotatingRoomExtensionCloseMesa,
@@ -23,8 +20,6 @@ import {
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
   alignRotatingRoomSessionWithAutomationBet,
-  isRotatingRoomLobbyWait,
-  rotatingRoomLobbyFocusTableId,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   clearExtensionLastEmitKey,
@@ -82,14 +77,6 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
       ),
     [rawSession, openBet, pendingSignal],
   );
-
-  const mesaEmbedUrl = useMemo(() => {
-    if (isRotatingRoomLobbyWait(session)) return null;
-    const focusId = rotatingRoomLobbyFocusTableId(session) ?? session.currentTableId;
-    if (focusId == null) return null;
-    const catalog = buildRotatingRoomMesaCatalog();
-    return catalog.find((e) => e.tableId === focusId)?.url ?? getCasinoEmbedUrlForTable(focusId);
-  }, [session]);
 
   useEffect(() => {
     if (!bridgeActive) return;
@@ -174,21 +161,10 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     globalAutomation.balance,
   ]);
 
-  const activeBet = openBet ?? pendingSignal;
-  const fibonacciBridgeOnly = activeBet?.strategy === "fibonacci";
-
-  useRotatingRoomClickBotLearning({
-    session,
-    enabled: bridgeActive && !fibonacciBridgeOnly,
-    mode: "extension",
-    mesaEmbedUrl,
-    automationBalance: globalAutomation.balance,
-  });
-
   return null;
 }
 
-/** Envia sinais da sala rotativa à extensão Chrome. */
+/** Envia sinais da sala rotativa à extensão Chrome — fonte única: automação global (openBet / pendingSignal). */
 export function RotatingRoomExtensionBridgeGlobal() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { present: extensionPresent, prefs: extensionPrefs } = useRotatingRoomExtensionPresent();

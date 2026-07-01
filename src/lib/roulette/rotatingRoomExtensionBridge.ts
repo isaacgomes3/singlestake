@@ -418,6 +418,41 @@ export function buildExtensionBridgeFromAutomationBet(
   const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
   const fingerprint = `${bet.signalId}|r${bet.recovery}`;
 
+  if (bet.strategy === "um1fator" && bet.umActive) {
+    const factor1Key = pragmaticExteriorBetKeyFromFactor(bet.umActive.alertFactor);
+    return {
+      fingerprint,
+      actions,
+      context: {
+        ...context,
+        factor1Label: bet.alertLabel,
+        factor1BetKey: factor1Key,
+        rotativaTrigger: "umFator",
+        strategy: "um1fator",
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+      },
+    };
+  }
+
+  if (bet.strategy === "dois2fatores" && bet.activeCrossing) {
+    return {
+      fingerprint,
+      actions,
+      context: {
+        ...context,
+        factor1Label: doisFatoresFactorLabel(bet.activeCrossing.factor1),
+        factor2Label: doisFatoresFactorLabel(bet.activeCrossing.factor2),
+        factor1BetKey: pragmaticExteriorBetKeyFromFactor(bet.activeCrossing.factor1),
+        factor2BetKey: pragmaticExteriorBetKeyFromFactor(bet.activeCrossing.factor2),
+        rotativaTrigger: "crossing",
+        strategy: "dois2fatores",
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+      },
+    };
+  }
+
   return { fingerprint, actions, context };
 }
 
