@@ -22,7 +22,6 @@ import {
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import {
   ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS,
-  ROTATING_ROOM_LOBBY_WAIT_EMBED_URL,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
@@ -147,7 +146,7 @@ export function buildRotatingRoomExtensionContext(
       ? mesaCatalog.find((e) => e.tableId === focusTableId)?.url ?? null
       : null;
   const mesaEmbedUrl = lobbyWait
-    ? ROTATING_ROOM_LOBBY_WAIT_EMBED_URL
+    ? null
     : (mesaEmbedUrlOverride && mesaEmbedUrlOverride.trim()) ||
       mesaFromCatalog ||
       (focusTableId != null ? getCasinoEmbedUrlForTable(focusTableId) : null);
@@ -255,21 +254,29 @@ export function resolveMesaTabCloseTableId(
     if (pendingSignal?.tableId === prev.tableId && pendingSignal.recovery > prev.recovery) {
       return null;
     }
-    if (!pendingSignal || pendingSignal.tableId !== prev.tableId) {
-      return prev.tableId;
-    }
+    return prev.tableId;
   }
 
   return null;
 }
 
-export function emitRotatingRoomExtensionCloseMesa(tableId: number): void {
+export function mesaUrlForTableId(tableId: number): string | null {
+  if (typeof window === "undefined") return null;
+  const catalog = buildRotatingRoomMesaCatalog();
+  return catalog.find((e) => e.tableId === tableId)?.url ?? getCasinoEmbedUrlForTable(tableId);
+}
+
+export function emitRotatingRoomExtensionCloseMesa(
+  tableId: number,
+  mesaUrl?: string | null,
+): void {
   if (typeof window === "undefined" || tableId == null) return;
   window.postMessage(
     {
       type: ROTATING_ROOM_EXTENSION_CLOSE_MESA_TYPE,
       version: ROTATING_ROOM_EXTENSION_VERSION,
       tableId,
+      mesaUrl: mesaUrl?.trim() || mesaUrlForTableId(tableId) || undefined,
     },
     window.location.origin,
   );

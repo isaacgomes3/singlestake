@@ -87,11 +87,15 @@ window.addEventListener("message", (event) => {
   if (data?.type === GOG.CLOSE_MESA_TYPE && data.version === GOG.VERSION) {
     const tableId = typeof data.tableId === "number" ? data.tableId : Number(data.tableId);
     if (!Number.isFinite(tableId)) return;
-    chrome.runtime.sendMessage({ kind: "bridge-close-mesa", tableId }, () => {
-      if (chrome.runtime.lastError) {
-        /* service worker inactivo */
-      }
-    });
+    const mesaUrl = typeof data.mesaUrl === "string" ? data.mesaUrl.trim() : "";
+    chrome.runtime.sendMessage(
+      { kind: "bridge-close-mesa", tableId, mesaUrl: mesaUrl || null },
+      () => {
+        if (chrome.runtime.lastError) {
+          /* service worker inactivo */
+        }
+      },
+    );
     return;
   }
 

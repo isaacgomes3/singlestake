@@ -75,17 +75,7 @@ export function planRotatingRoomClickBotActions(
   }
 
   if (session.lobbyCooldownActive && !session.showTapeteSignal) {
-    if (session.lobbyWait) {
-      return [
-        {
-          kind: "click",
-          target: "prepare-open",
-          label: "Lobby — Poker",
-          reason: "Aguarde no Lobby — abrir poker no operador",
-        },
-      ];
-    }
-    return [{ kind: "wait", reason: "Pós-resultado — aguardar lobby carregar" }];
+    return [{ kind: "wait", reason: "Pós-resultado — aguardar próxima indicação" }];
   }
 
   if (session.showTapeteSignal && session.activeCrossing && !session.lobbyCooldownActive) {
@@ -125,14 +115,7 @@ export function planRotatingRoomClickBotActions(
   }
 
   if (session.lobbyWait) {
-    return [
-      {
-        kind: "click",
-        target: "prepare-open",
-        label: "Lobby — Poker",
-        reason: "Aguarde no Lobby — abrir poker no operador",
-      },
-    ];
+    return [{ kind: "wait", reason: "Sem mesa em foco — aguardar indicação na sala" }];
   }
 
   return [{ kind: "wait", reason: "Sem sinal — aguardar indicação na sala rotativa" }];

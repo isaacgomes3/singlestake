@@ -200,7 +200,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.kind === "bridge-close-mesa") {
     const tableId = typeof message.tableId === "number" ? message.tableId : Number(message.tableId);
-    void scheduleCloseMesaTab(tableId).then(sendResponse);
+    const mesaUrl = typeof message.mesaUrl === "string" ? message.mesaUrl.trim() : "";
+    void scheduleCloseMesaTab(tableId, mesaUrl || null).then(sendResponse);
     return true;
   }
 
@@ -454,6 +455,14 @@ async function dispatchClickAction(action, context, sourceTabId) {
     if (!url) {
       return { target: action.target, ok: false, detail: "Sem URL da mesa no sinal" };
     }
+    if (isLobbyPokerUrl(url)) {
+      return {
+        target: action.target,
+        ok: true,
+        skipped: true,
+        detail: "Lobby poker ignorado — extensão só abre mesas de roleta",
+      };
+    }
     const tabId = await ensureMesaTab(context, sourceTabId);
     if (tabId != null && context?.currentTableId != null) {
       registerMesaTab(context.currentTableId, tabId);
@@ -562,7 +571,7 @@ async function registerMesaTab(tableId, tabId) {
   mesaTabByTableId.set(tableId, tabId);
 }
 
-async function scheduleCloseMesaTab(tableId) {
+async function scheduleCloseMesaTab(tableId, mesaUrl = null) {
   const id = typeof tableId === "number" ? tableId : Number(tableId);
   if (!Number.isFinite(id)) {
     return { ok: false, detail: "tableId inválido" };
@@ -580,27 +589,57 @@ async function scheduleCloseMesaTab(tableId) {
   const existing = mesaTabCloseTimers.get(id);
   if (existing) clearTimeout(existing);
 
+  const resolvedUrl = mesaUrl;
+
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       mesaTabCloseTimers.delete(id);
-      void closeMesaTabNow(id).then(resolve);
+      void closeMesaTabNow(id, resolvedUrl).then(resolve);
     }, CLOSE_MESA_DELAY_MS);
     mesaTabCloseTimers.set(id, timer);
   });
 }
 
-async function closeMesaTabNow(tableId) {
-  let tabId = mesaTabByTableId.get(tableId) ?? null;
-  mesaTabByTableId.delete(tableId);
+async function resolveMesaTabIdForClose(tableId, mesaUrl) {
+  const registered = mesaTabByTableId.get(tableId);
+  if (registered != null) return registered;
 
-  if (tabId == null) {
-    const tabs = await chrome.tabs.query({});
-    const slugMatch = tabs.find((t) => {
-      if (!t.url || !isCasinoPlayUrl(t.url)) return false;
-      return t.url.includes(String(tableId));
-    });
-    tabId = slugMatch?.id ?? null;
+  let targetUrl = mesaUrl;
+  if (!targetUrl) {
+    const stored = await chrome.storage.local.get(["gogLastContext"]);
+    const catalog = stored.gogLastContext?.mesaCatalog;
+    const entry = Array.isArray(catalog) ? catalog.find((e) => e?.tableId === tableId) : null;
+    targetUrl = entry?.url ?? null;
   }
+
+  if (targetUrl) {
+    const tabs = await chrome.tabs.query({});
+    const exact = tabs.find((t) => t.url && casinoPathsMatch(t.url, targetUrl));
+    if (exact?.id != null) return exact.id;
+
+    let mesa;
+    try {
+      mesa = new URL(targetUrl);
+    } catch {
+      mesa = null;
+    }
+    if (mesa) {
+      const slug = mesa.pathname.split("/").filter(Boolean).pop();
+      if (slug && slug.length > 2) {
+        const bySlug = tabs.find(
+          (t) => t.url && isCasinoPlayUrl(t.url) && t.url.toLowerCase().includes(slug.toLowerCase()),
+        );
+        if (bySlug?.id != null) return bySlug.id;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function closeMesaTabNow(tableId, mesaUrl = null) {
+  let tabId = await resolveMesaTabIdForClose(tableId, mesaUrl);
+  mesaTabByTableId.delete(tableId);
 
   if (tabId == null) {
     return { ok: true, skipped: true, detail: `Sem separador registado para mesa ${tableId}` };
@@ -1142,6 +1181,16 @@ async function ensureMesaTab(context, preferredTabId) {
 
 function isCasinoPlayUrl(url) {
   return /\/play\/(playtech|pragmatic)\//i.test(url);
+}
+
+function isLobbyPokerUrl(url) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return /\/play\/pragmatic\/poker\/?$/i.test(u.pathname);
+  } catch {
+    return /\/poker\/?$/i.test(url);
+  }
 }
 
 /** Prefer iframe Pragmatic/Playtech sobre a shell do operador (br4.bet). */

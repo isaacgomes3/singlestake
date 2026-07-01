@@ -15,6 +15,7 @@ import {
   buildRotatingRoomExtensionContext,
   emitRotatingRoomExtensionBridge,
   emitRotatingRoomExtensionCloseMesa,
+  mesaUrlForTableId,
   ROTATING_ROOM_EXTENSION_ACK_TYPE,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
@@ -175,6 +176,26 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
   const prevEmitKeyRef = useRef<string | null>(null);
   const mesaTabTableIdRef = useRef<number | null>(null);
 
+  const prevPostResultHoldRef = useRef(false);
+
+  useEffect(() => {
+    if (mode !== "extension" || !enabled) return;
+
+    const postHoldActive = sessionSlice.postResultHoldActive === true;
+    const postHoldTableId = sessionSlice.postResultHoldTableId ?? null;
+
+    if (postHoldActive && !prevPostResultHoldRef.current && postHoldTableId != null) {
+      emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
+      mesaTabTableIdRef.current = null;
+    }
+    prevPostResultHoldRef.current = postHoldActive;
+  }, [
+    enabled,
+    mode,
+    sessionSlice.postResultHoldActive,
+    sessionSlice.postResultHoldTableId,
+  ]);
+
   useEffect(() => {
     if (mode !== "extension" || !enabled) return;
     if (sessionSlice.postResultHoldActive || sessionSlice.lobbyCooldownActive) return;
@@ -189,7 +210,10 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
     }
 
     if (wasActive && !isActive && mesaTabTableIdRef.current != null) {
-      emitRotatingRoomExtensionCloseMesa(mesaTabTableIdRef.current);
+      emitRotatingRoomExtensionCloseMesa(
+        mesaTabTableIdRef.current,
+        mesaUrlForTableId(mesaTabTableIdRef.current),
+      );
       mesaTabTableIdRef.current = null;
     }
   }, [
