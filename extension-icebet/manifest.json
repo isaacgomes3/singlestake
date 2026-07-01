@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Singlestake — ice.bet",
+  "version": "0.1.0",
+  "description": "Automação Pragmatic no ice.bet.br com clique automático em «Jogar». Extensão separada da br4.bet para testes.",
+  "permissions": ["tabs", "storage", "scripting", "debugger", "windows", "alarms"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://ice.bet.br/*", "https://*.ice.bet.br/*"],
+      "js": ["operator-config.js", "operator-lobby.js", "content-casino.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "exclude_matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://localhost/*",
+        "https://127.0.0.1/*",
+        "https://ice.bet.br/*",
+        "https://*.ice.bet.br/*",
+        "https://br4.bet.br/*",
+        "https://*.br4.bet.br/*",
+        "https://singlestake.bet.br/*",
+        "https://www.singlestake.bet.br/*",
+        "https://stake37.com.br/*",
+        "https://www.stake37.com.br/*"
+      ],
+      "js": ["content-casino.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Singlestake ice.bet",
+    "default_popup": "popup.html"
+  }
+}

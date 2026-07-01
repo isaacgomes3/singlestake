@@ -1,8 +1,13 @@
 /**
  * URLs embutidas por defeito (operador br4.bet / Pragmatic).
+ * Com `VITE_CASINO_OPERATOR=ice` usa {@link ICE_CASINO_TABLE_EMBED_URLS}.
  * Sobrescritas por `VITE_CASINO_TABLE_EMBED_URLS` (build) ou URL guardada no browser (localStorage).
  */
-const DEFAULT_TABLE_EMBED_URLS: Record<number, string> = {
+import {
+  ICE_CASINO_TABLE_EMBED_URLS,
+} from "@/lib/roulette/casinoEmbedIceDefaults";
+
+const BR4_DEFAULT_TABLE_EMBED_URLS: Record<number, string> = {
   /** Sala rotativa + lobby — mesmos links do `.env.example` */
   227: "https://br4.bet.br/play/pragmatic/roulette-1",
   203: "https://br4.bet.br/play/pragmatic/speed-roulette-1",
@@ -12,6 +17,23 @@ const DEFAULT_TABLE_EMBED_URLS: Record<number, string> = {
   237: "https://br4.bet.br/play/pragmatic/roleta-brasileira",
   213: "https://br4.bet.br/play/pragmatic/korean-roulette",
 };
+
+function readCasinoOperator(): string | undefined {
+  const fromVite =
+    typeof import.meta !== "undefined" && typeof import.meta.env?.VITE_CASINO_OPERATOR === "string"
+      ? import.meta.env.VITE_CASINO_OPERATOR.trim()
+      : undefined;
+  if (fromVite) return fromVite;
+  return typeof process !== "undefined" && typeof process.env?.VITE_CASINO_OPERATOR === "string"
+    ? process.env.VITE_CASINO_OPERATOR.trim()
+    : undefined;
+}
+
+function defaultTableEmbedUrls(): Record<number, string> {
+  return readCasinoOperator() === "ice"
+    ? { ...ICE_CASINO_TABLE_EMBED_URLS }
+    : { ...BR4_DEFAULT_TABLE_EMBED_URLS };
+}
 
 const VITE_TABLE_EMBED = (() => {
   const fromVite =
@@ -102,13 +124,13 @@ export function getCasinoEmbedUrlForTable(tableId: number): string | null {
   if (user) return user;
   const fromEnv = parseEnvEmbedMap()[tableId];
   if (fromEnv && isAllowedHttpUrl(fromEnv)) return fromEnv;
-  const builtin = DEFAULT_TABLE_EMBED_URLS[tableId];
+  const builtin = defaultTableEmbedUrls()[tableId];
   return builtin && isAllowedHttpUrl(builtin) ? builtin : null;
 }
 
 /** Mapa mesa → URL (utilizador + env + defaults). */
 export function readAllCasinoEmbedUrlMap(): Record<number, string> {
-  const merged: Record<number, string> = { ...DEFAULT_TABLE_EMBED_URLS };
+  const merged: Record<number, string> = { ...defaultTableEmbedUrls() };
   for (const [k, v] of Object.entries(parseEnvEmbedMap())) {
     merged[Number(k)] = v;
   }

@@ -1,0 +1,47 @@
+EXTENSÃO CHROME — SINGLESTAKE ice.bet v0.1.0
+=============================================
+
+Pasta desta extensão (SEPARADA da br4.bet):
+  extension-icebet/
+
+IMPORTANTE
+----------
+• Não substitui a extensão em `extension/` (br4.bet).
+• Desactive a extensão br4.bet em chrome://extensions enquanto testa esta.
+• Cada extensão tem calibração e storage próprios.
+
+INSTALAR
+--------
+1. Chrome → chrome://extensions
+2. Modo de programador → LIGADO
+3. «Carregar sem compactação»
+4. Seleccionar a pasta `extension-icebet`
+5. Fixar o ícone na barra
+
+MESA DE TESTE
+-------------
+Roulette 1 (227):
+https://ice.bet.br/games/tag/roulette/rouletteazure-pragmaticexternal
+
+Catálogo completo em operator-config.js (ICE_MESA_CATALOG).
+
+Ao abrir a mesa (prepare-open ou sinal), a extensão tenta clicar automaticamente
+em «Jogar» e espera o iframe Pragmatic carregar antes de apostar.
+
+MODOS
+-----
+DEMO  — só destaca / simula
+REAL  — clique CDP na mesa (calibre Par/Ímpar, dúzias, etc.)
+
+FLUXO RECOMENDADO
+-----------------
+1. Instale só esta extensão (br4 desligada)
+2. Abra o link da mesa acima e faça login no ice.bet
+3. Popup → modo DEMO → calibrar apostas na mesa já em jogo
+4. Ligue ponte / autopilot na app Singlestake
+5. Passe a REAL quando a calibração estiver correcta
+
+PONTES COM A APP
+----------------
+A app Singlestake envia sinais pelo mesmo protocolo (`content-bridge.js`).
+Os URLs das mesas no admin devem apontar para ice.bet quando usar esta extensão.
