@@ -41,25 +41,44 @@ if [ "$DEPLOY_RC" -eq 0 ]; then
   exit 0
 fi
 
-echo "=== deploy.sh falhou (${DEPLOY_RC}) — quick-fix e verificação ==="
+echo "=== deploy.sh falhou (${DEPLOY_RC}) — diagnóstico e recuperação ==="
 bash deploy/github-actions-failure-diagnostics.sh || true
-bash deploy/quick-fix-site.sh || true
 
 PUB="${PUBLIC_APP_URL:-https://stake37.com.br}"
 LOCAL_CODE="000"
 PUB_CODE="000"
 
-for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  sleep 10
+check_site_http() {
   PUB_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 25 "${PUB}/entrar" 2>/dev/null || echo 000)"
   LOCAL_CODE="$(curl -sfL -o /dev/null -w '%{http_code}' --max-time 15 http://127.0.0.1:3000/entrar 2>/dev/null || echo 000)"
-  echo "=== Tentativa ${i}/12: local=${LOCAL_CODE} público=${PUB_CODE} ==="
-  if [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ]; then
+}
+
+site_responds() {
+  [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ] || [ "$PUB_CODE" = "200" ] || [ "$PUB_CODE" = "302" ]
+}
+
+# deploy.sh restaura o build anterior se npm run build falhar — o site pode já estar OK.
+for i in 1 2 3 4 5 6; do
+  check_site_http
+  echo "=== Pós-falha deploy.sh (${i}/6): local=${LOCAL_CODE} público=${PUB_CODE} ==="
+  if site_responds; then
     break
   fi
-  if [ "$PUB_CODE" = "200" ] || [ "$PUB_CODE" = "302" ]; then
+  sleep 10
+done
+
+if ! site_responds; then
+  echo "=== Site indisponível — quick-fix (build completo, pode demorar 5–8 min) ==="
+  bash deploy/quick-fix-site.sh || true
+fi
+
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+  check_site_http
+  echo "=== Tentativa ${i}/24: local=${LOCAL_CODE} público=${PUB_CODE} ==="
+  if site_responds; then
     break
   fi
+  sleep 10
 done
 
 if [ "$LOCAL_CODE" = "200" ] || [ "$LOCAL_CODE" = "302" ]; then

@@ -44,7 +44,11 @@ SSH_OPTS=(
 )
 
 ssh_run() {
+  set +e
   ssh "${SSH_OPTS[@]}" "${VPS_USER}@${VPS_HOST}" "$@" 2>&1 | tee -a "$LOG"
+  local rc=${PIPESTATUS[0]}
+  set -e
+  return "$rc"
 }
 
 REMOTE_PREP='APP_DIR=/var/www/stake37; [ -d "$APP_DIR" ] || APP_DIR=/var/www/singlestake; cd "$APP_DIR"'
