@@ -186,9 +186,9 @@ export function profitUnitsAtRecovery(recovery: number): number {
   return 2 * stakeUnitsAtRecovery(recovery);
 }
 
-/** Crédito/débito no extrato — vitória 2:1 devolve aposta + lucro (ex.: R$ 50 → +R$ 150). */
+/** Lucro líquido no extrato/saldo — aposta 2:1 (ex.: R$ 50 apostados → lucro +R$ 100). */
 export function fibonacciSettlementNet(won: boolean, stake: number): number {
-  return won ? stake * 3 : -stake;
+  return won ? stake * 2 : -stake;
 }
 
 function zoneHitOnSpin(spin: number, zone: FibonacciZone): boolean {
