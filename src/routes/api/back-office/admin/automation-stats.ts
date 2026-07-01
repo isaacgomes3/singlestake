@@ -52,6 +52,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
         if (typeof body?.fibonacciAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)));
           await saveAutomationConfig({ fibonacciAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
           return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
         }
 
@@ -88,6 +92,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
         await saveAutomationConfig({
           enabledTriggers: nextTriggers,
         });
+
+        const { publishAutomationConfigChange } = await import("@/lib/server/automationSim/engine");
+        await publishAutomationConfigChange();
 
         return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
       },

@@ -42,12 +42,12 @@ function fibonacciStatsFromState(
     dozen: fibonacciZoneStatsRow(
       fibonacciStats,
       "dozen",
-      masterOn && enabledTriggers.fibonacciDozen !== false,
+      enabledTriggers.fibonacciDozen !== false,
     ),
     column: fibonacciZoneStatsRow(
       fibonacciStats,
       "column",
-      masterOn && enabledTriggers.fibonacciColumn !== false,
+      enabledTriggers.fibonacciColumn !== false,
     ),
   };
 }

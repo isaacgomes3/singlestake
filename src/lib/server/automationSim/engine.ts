@@ -531,6 +531,13 @@ export async function getAutomationSimSnapshotOrThrow(
   return syncAutomationSimWithStrategy(strategySnapshot, { broadcast: false });
 }
 
+/** Propaga alterações de gatilhos/config para clientes SSE após gravação no admin. */
+export async function publishAutomationConfigChange(): Promise<void> {
+  const { getStrategyGlobalSnapshotOrThrow } = await import("@/lib/server/strategyGlobal/engine");
+  await ensureAutomationSimEngine();
+  await syncAutomationSimWithStrategy(getStrategyGlobalSnapshotOrThrow());
+}
+
 /** Após reset manual — evita reprocessar ledger antigo em memória. */
 export function resetAutomationSimEngineFlags(): void {
   replayedLedger = true;

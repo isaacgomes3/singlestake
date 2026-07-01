@@ -7,7 +7,10 @@ import {
   type GlobalAutomationConfig,
 } from "@/lib/back-office/automation-config";
 import { setServerFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
-import { setRotatingRoomGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import {
+  normalizeRotatingRoomGatilhoEnable,
+  setRotatingRoomGatilhoEnabled,
+} from "@/lib/roulette/umFatorTriggerEnable";
 
 function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setRotatingRoomGatilhoEnabled(config.enabledTriggers);
@@ -53,9 +56,16 @@ export async function saveAutomationConfig(
   patch: Partial<GlobalAutomationConfig>,
 ): Promise<GlobalAutomationConfig> {
   const current = getAutomationConfig();
+  const enabledTriggers = patch.enabledTriggers
+    ? normalizeRotatingRoomGatilhoEnable({
+        ...current.enabledTriggers,
+        ...patch.enabledTriggers,
+      })
+    : current.enabledTriggers;
   const next = normalizeGlobalAutomationConfig({
     ...current,
     ...patch,
+    enabledTriggers,
     updatedAt: Date.now(),
   });
   globalThis.__automationConfigCache = next;

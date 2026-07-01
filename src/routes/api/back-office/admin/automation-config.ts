@@ -82,6 +82,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
         };
         await saveAutomationConfig(next);
 
+        const { publishAutomationConfigChange } = await import("@/lib/server/automationSim/engine");
+        await publishAutomationConfigChange();
+
         const balance = await getGlobalAutomationWalletBalance();
 
         return jsonResponse({

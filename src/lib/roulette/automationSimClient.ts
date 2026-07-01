@@ -1,5 +1,8 @@
 import type { AutomationSimApiSnapshot, AutomationSimStreamMessage } from "@/lib/roulette/automationSimTypes";
-import { setRotatingRoomGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import {
+  getRotatingRoomGatilhoEnabled,
+  setRotatingRoomGatilhoEnabled,
+} from "@/lib/roulette/umFatorTriggerEnable";
 
 export const AUTOMATION_SIM_CHANGED_EVENT = "automation-sim-changed";
 
@@ -8,7 +11,10 @@ let connected = false;
 
 function syncClientTriggerEnableFromSnapshot(next: AutomationSimApiSnapshot): void {
   if (next.config?.enabledTriggers) {
-    setRotatingRoomGatilhoEnabled(next.config.enabledTriggers);
+    setRotatingRoomGatilhoEnabled({
+      ...getRotatingRoomGatilhoEnabled(),
+      ...next.config.enabledTriggers,
+    });
   }
 }
 

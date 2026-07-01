@@ -124,8 +124,19 @@ export function alignRotatingRoomSessionWithAutomationBet<
       }
     | null
     | undefined,
+  options?: {
+    /** Só alinha quando a aposta é desta estratégia (evita sinal de 1F/2F sobrepor Fibonacci). */
+    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci";
+  },
 ): T {
   if (!bet?.tableId) return session;
+
+  const roomStrategy = options?.roomStrategy;
+  if (roomStrategy) {
+    const betStrategy =
+      bet.strategy ?? (bet.umActive ? "um1fator" : bet.activeCrossing ? "dois2fatores" : null);
+    if (betStrategy && betStrategy !== roomStrategy) return session;
+  }
 
   if (bet.strategy === "fibonacci") {
     const fibSession = session as T & {

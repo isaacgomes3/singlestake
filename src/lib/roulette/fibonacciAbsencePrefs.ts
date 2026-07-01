@@ -3,8 +3,9 @@ import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-type
 import {
   getRotatingRoomGatilhoEnabled,
   setRotatingRoomGatilhoEnabled,
-  writeFibonacciGatilhoLocalEnabled,
 } from "@/lib/roulette/umFatorTriggerEnable";
+
+const FIBONACCI_GATILHO_LOCAL_KEY = "roulette.rotatingRoom.fibonacciGatilhoEnabled";
 
 export const FIBONACCI_ABSENCE_SPINS_MIN = 3;
 export const FIBONACCI_ABSENCE_SPINS_MAX = 99;
@@ -73,15 +74,20 @@ export function syncFibonacciPrefsFromAutomationConfig(
 ): void {
   const clamped = clampFibonacciAbsenceSpins(absenceSpins);
   writeFibonacciAbsenceSpinsLocal(clamped, { silent: true });
+  const masterOn = fibonacci.dozen.enabled || fibonacci.column.enabled;
   setRotatingRoomGatilhoEnabled({
     ...getRotatingRoomGatilhoEnabled(),
-    fibonacci: fibonacci.enabled,
+    fibonacci: masterOn,
     fibonacciDozen: fibonacci.dozen.enabled,
     fibonacciColumn: fibonacci.column.enabled,
   });
-  writeFibonacciGatilhoLocalEnabled(
-    fibonacci.enabled && (fibonacci.dozen.enabled || fibonacci.column.enabled),
-  );
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(FIBONACCI_GATILHO_LOCAL_KEY, masterOn ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT));
   }

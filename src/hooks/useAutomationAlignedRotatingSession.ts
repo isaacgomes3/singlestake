@@ -10,12 +10,15 @@ import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossin
 import type { RotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { alignRotatingRoomSessionWithAutomationBet } from "@/lib/roulette/rotatingRoomLobbySignal";
-import { isStrategyGlobalConnected, isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
 
 type BaseOptions = {
   /** Evita placar local paralelo quando o motor global SSE está ligado. */
   observeOnly?: boolean;
 };
+
+function useObserveOnly(explicit?: boolean): boolean {
+  return explicit ?? false;
+}
 
 /**
  * Fonte única de indicação: motor servidor (`openBet` / `pendingSignal`) alinhado sobre
@@ -27,17 +30,12 @@ function useAutomationBet() {
   return { openBet, pendingSignal, bet, revision };
 }
 
-function useServerObserveOnly(explicit?: boolean): boolean {
-  if (explicit != null) return explicit;
-  return isStrategyGlobalEnabled() && isStrategyGlobalConnected();
-}
-
 export function useAutomationAlignedRotativaSession(
   tableIds: readonly number[],
   histories: Record<number, number[]>,
   options: BaseOptions = {},
 ): RotatingRoomRotativaSession {
-  const observeOnly = useServerObserveOnly(options.observeOnly);
+  const observeOnly = useObserveOnly(options.observeOnly);
   const rawSession = useRotatingRoomRotativaSession(tableIds, histories, {
     preferLocalSession: false,
     observeOnly,
@@ -54,14 +52,14 @@ export function useAutomationAlignedCrossingSession(
   histories: Record<number, number[]>,
   options: BaseOptions & { enabled?: boolean } = {},
 ): RotatingRoomCrossingSession {
-  const observeOnly = useServerObserveOnly(options.observeOnly);
+  const observeOnly = useObserveOnly(options.observeOnly);
   const rawSession = useRotatingRoomCrossingSession(tableIds, histories, {
     observeOnly,
     enabled: options.enabled,
   });
   const { bet } = useAutomationBet();
   return useMemo(
-    () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet),
+    () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet, { roomStrategy: "dois2fatores" }),
     [rawSession, bet],
   );
 }
@@ -71,14 +69,14 @@ export function useAutomationAlignedFibonacciSession(
   histories: Record<number, number[]>,
   options: BaseOptions & { enabled?: boolean } = {},
 ): RotatingRoomFibonacciSession {
-  const observeOnly = useServerObserveOnly(options.observeOnly);
+  const observeOnly = useObserveOnly(options.observeOnly);
   const rawSession = useRotatingRoomFibonacciSession(tableIds, histories, {
     observeOnly,
     enabled: options.enabled,
   });
   const { bet } = useAutomationBet();
   return useMemo(
-    () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet),
+    () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet, { roomStrategy: "fibonacci" }),
     [rawSession, bet],
   );
 }
