@@ -191,6 +191,26 @@ export async function fetchAdminUserDetail(
   return { ok: true, detail: data.detail };
 }
 
+export async function fetchAdminUserPixOrderQr(
+  userId: string,
+  orderId: string,
+): Promise<{ qrCodeBase64: string | null; pixCopyPaste: string | null } | null> {
+  const res = await fetch(
+    `/api/back-office/admin/user-detail/${userId}/pix-orders/${orderId}`,
+    { credentials: "include" },
+  );
+  const data = await parseJson<{
+    ok: boolean;
+    qrCodeBase64?: string | null;
+    pixCopyPaste?: string | null;
+  }>(res);
+  if (!res.ok || !data?.ok) return null;
+  return {
+    qrCodeBase64: data.qrCodeBase64 ?? null,
+    pixCopyPaste: data.pixCopyPaste ?? null,
+  };
+}
+
 export async function updateAdminUserProfile(
   userId: string,
   patch: {

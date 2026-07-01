@@ -14,6 +14,7 @@ import {
   copyText,
   deleteUser,
   fetchAdminUserDetail,
+  fetchAdminUserPixOrderQr,
   unblockUser,
   updateAdminUserProfile,
 } from "@/lib/back-office/admin-api";
@@ -58,6 +59,7 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
   const [tab, setTab] = useState<TabId>("profile");
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [qrPreview, setQrPreview] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -88,6 +90,17 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const handleViewQr = async (orderId: string) => {
+    setQrLoading(true);
+    const qr = await fetchAdminUserPixOrderQr(userId, orderId);
+    setQrLoading(false);
+    if (!qr?.qrCodeBase64) {
+      toast.error(t("admin.actionFailed"));
+      return;
+    }
+    setQrPreview(qr.qrCodeBase64);
+  };
 
   const runAction = async (
     key: string,
@@ -638,7 +651,8 @@ export function BackOfficeClientProfile({ userId, onBack, onChanged }: Props) {
                               type="button"
                               size="sm"
                               variant="secondary"
-                              onClick={() => setQrPreview(o.qrCodeBase64)}
+                              disabled={qrLoading}
+                              onClick={() => void handleViewQr(o.id)}
                             >
                               {t("admin.clientsViewQr")}
                             </Button>

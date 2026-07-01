@@ -148,7 +148,7 @@ export async function getUserAutomationDepositedTotal(userId: string): Promise<n
     with: { pkg: true },
   });
   const total = rows
-    .filter((row) => row.pkg.packageKind === "automation")
+    .filter((row) => row.pkg?.packageKind === "automation")
     .reduce((sum, row) => sum + row.amount, 0);
   return Math.round(total * 100) / 100;
 }

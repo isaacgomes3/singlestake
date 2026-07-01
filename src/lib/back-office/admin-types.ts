@@ -116,8 +116,6 @@ export type AdminUserDetail = {
     amount: number;
     status: string;
     hasQrCode: boolean;
-    qrCodeBase64: string | null;
-    pixCopyPaste: string | null;
     createdAt: string;
     paidAt: string | null;
   }[];

@@ -119,6 +119,7 @@ import { Route as ApiBackOfficeAdminUsersUserIdAllowPixEditRouteImport } from '.
 import { Route as ApiBackOfficeAdminUsersUserIdActivateStartRouteImport } from './routes/api/back-office/admin/users.$userId.activate-start'
 import { Route as ApiBackOfficeAdminUsersUserIdActivateAutomationRouteImport } from './routes/api/back-office/admin/users.$userId.activate-automation'
 import { Route as ApiBackOfficeAdminPendingActivationsOrderIdApproveRouteImport } from './routes/api/back-office/admin/pending-activations.$orderId.approve'
+import { Route as ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRouteImport } from './routes/api/back-office/admin/user-detail.$userId.pix-orders.$orderId'
 
 const UmFatorRoute = UmFatorRouteImport.update({
   id: '/um-fator',
@@ -725,6 +726,12 @@ const ApiBackOfficeAdminPendingActivationsOrderIdApproveRoute =
     path: '/$orderId/approve',
     getParentRoute: () => ApiBackOfficeAdminPendingActivationsRoute,
   } as any)
+const ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute =
+  ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRouteImport.update({
+    id: '/pix-orders/$orderId',
+    path: '/pix-orders/$orderId',
+    getParentRoute: () => ApiBackOfficeAdminUserDetailUserIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -821,7 +828,7 @@ export interface FileRoutesByFullPath {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
-  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRouteWithChildren
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -837,6 +844,7 @@ export interface FileRoutesByFullPath {
   '/api/back-office/admin/users/$userId/reset-password': typeof ApiBackOfficeAdminUsersUserIdResetPasswordRoute
   '/api/back-office/admin/users/$userId/unblock': typeof ApiBackOfficeAdminUsersUserIdUnblockRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
+  '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId': typeof ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -930,7 +938,7 @@ export interface FileRoutesByTo {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId': typeof MobileRoletaMesaIdIndexRoute
-  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRouteWithChildren
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -946,6 +954,7 @@ export interface FileRoutesByTo {
   '/api/back-office/admin/users/$userId/reset-password': typeof ApiBackOfficeAdminUsersUserIdResetPasswordRoute
   '/api/back-office/admin/users/$userId/unblock': typeof ApiBackOfficeAdminUsersUserIdUnblockRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
+  '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId': typeof ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1043,7 +1052,7 @@ export interface FileRoutesById {
   '/mobile/roleta/$mesaId/dois2fatores': typeof MobileRoletaMesaIdDois2fatoresRoute
   '/mobile/roleta/$mesaId/um1fator': typeof MobileRoletaMesaIdUm1fatorRoute
   '/mobile/roleta/$mesaId/': typeof MobileRoletaMesaIdIndexRoute
-  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRoute
+  '/api/back-office/admin/user-detail/$userId': typeof ApiBackOfficeAdminUserDetailUserIdRouteWithChildren
   '/api/back-office/admin/users/$userId': typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
   '/api/back-office/network/binary/next-direct-side': typeof ApiBackOfficeNetworkBinaryNextDirectSideRoute
   '/api/back-office/network/binary/place-direct': typeof ApiBackOfficeNetworkBinaryPlaceDirectRoute
@@ -1059,6 +1068,7 @@ export interface FileRoutesById {
   '/api/back-office/admin/users/$userId/reset-password': typeof ApiBackOfficeAdminUsersUserIdResetPasswordRoute
   '/api/back-office/admin/users/$userId/unblock': typeof ApiBackOfficeAdminUsersUserIdUnblockRoute
   '/api/back-office/network/sub-accounts/$subAccountId/start': typeof ApiBackOfficeNetworkSubAccountsSubAccountIdStartRoute
+  '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId': typeof ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1173,6 +1183,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/users/$userId/reset-password'
     | '/api/back-office/admin/users/$userId/unblock'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
+    | '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1282,6 +1293,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/users/$userId/reset-password'
     | '/api/back-office/admin/users/$userId/unblock'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
+    | '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId'
   id:
     | '__root__'
     | '/'
@@ -1394,6 +1406,7 @@ export interface FileRouteTypes {
     | '/api/back-office/admin/users/$userId/reset-password'
     | '/api/back-office/admin/users/$userId/unblock'
     | '/api/back-office/network/sub-accounts/$subAccountId/start'
+    | '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1469,7 +1482,7 @@ export interface RootRouteChildren {
   ApiBackOfficeNetworkQualificationRoute: typeof ApiBackOfficeNetworkQualificationRoute
   ApiBackOfficeNetworkSubAccountsRoute: typeof ApiBackOfficeNetworkSubAccountsRouteWithChildren
   ApiBackOfficeProfilePixKeyRoute: typeof ApiBackOfficeProfilePixKeyRoute
-  ApiBackOfficeAdminUserDetailUserIdRoute: typeof ApiBackOfficeAdminUserDetailUserIdRoute
+  ApiBackOfficeAdminUserDetailUserIdRoute: typeof ApiBackOfficeAdminUserDetailUserIdRouteWithChildren
   ApiBackOfficeAdminUsersUserIdRoute: typeof ApiBackOfficeAdminUsersUserIdRouteWithChildren
 }
 
@@ -2245,6 +2258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBackOfficeAdminPendingActivationsOrderIdApproveRouteImport
       parentRoute: typeof ApiBackOfficeAdminPendingActivationsRoute
     }
+    '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId': {
+      id: '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId'
+      path: '/pix-orders/$orderId'
+      fullPath: '/api/back-office/admin/user-detail/$userId/pix-orders/$orderId'
+      preLoaderRoute: typeof ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRouteImport
+      parentRoute: typeof ApiBackOfficeAdminUserDetailUserIdRoute
+    }
   }
 }
 
@@ -2457,6 +2477,21 @@ const ApiBackOfficeNetworkSubAccountsRouteWithChildren =
     ApiBackOfficeNetworkSubAccountsRouteChildren,
   )
 
+interface ApiBackOfficeAdminUserDetailUserIdRouteChildren {
+  ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute: typeof ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute
+}
+
+const ApiBackOfficeAdminUserDetailUserIdRouteChildren: ApiBackOfficeAdminUserDetailUserIdRouteChildren =
+  {
+    ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute:
+      ApiBackOfficeAdminUserDetailUserIdPixOrdersOrderIdRoute,
+  }
+
+const ApiBackOfficeAdminUserDetailUserIdRouteWithChildren =
+  ApiBackOfficeAdminUserDetailUserIdRoute._addFileChildren(
+    ApiBackOfficeAdminUserDetailUserIdRouteChildren,
+  )
+
 interface ApiBackOfficeAdminUsersUserIdRouteChildren {
   ApiBackOfficeAdminUsersUserIdActivateAutomationRoute: typeof ApiBackOfficeAdminUsersUserIdActivateAutomationRoute
   ApiBackOfficeAdminUsersUserIdActivateStartRoute: typeof ApiBackOfficeAdminUsersUserIdActivateStartRoute
@@ -2577,20 +2612,10 @@ const rootRouteChildren: RootRouteChildren = {
     ApiBackOfficeNetworkSubAccountsRouteWithChildren,
   ApiBackOfficeProfilePixKeyRoute: ApiBackOfficeProfilePixKeyRoute,
   ApiBackOfficeAdminUserDetailUserIdRoute:
-    ApiBackOfficeAdminUserDetailUserIdRoute,
+    ApiBackOfficeAdminUserDetailUserIdRouteWithChildren,
   ApiBackOfficeAdminUsersUserIdRoute:
     ApiBackOfficeAdminUsersUserIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

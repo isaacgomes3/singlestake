@@ -72,7 +72,7 @@ export async function userHasActiveAutomationPack(userId: string): Promise<boole
     where: and(eq(userPackages.userId, userId), eq(userPackages.status, "active")),
     with: { pkg: true },
   });
-  return rows.some((row) => row.pkg.packageKind === "automation");
+  return rows.some((row) => row.pkg?.packageKind === "automation");
 }
 
 export async function listAdminUserRecords(origin: string): Promise<AdminUserRecord[]> {
@@ -92,7 +92,7 @@ export async function listAdminUserRecords(origin: string): Promise<AdminUserRec
     const accountActive =
       row.role === "admin" ||
       activePackages.some((pkg) => pkg.packageId === START_PACKAGE_ID);
-    const automationActive = activePackages.some((pkg) => pkg.pkg.packageKind === "automation");
+    const automationActive = activePackages.some((pkg) => pkg.pkg?.packageKind === "automation");
     const status = (row.accountStatus ?? "active") as UserAccountStatus;
 
     return {

@@ -420,7 +420,10 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   wallets: many(walletAccounts),
   ledgerEntries: many(ledgerEntries),
   packages: many(userPackages),
-  subscription: one(subscriptions),
+  subscription: one(subscriptions, {
+    fields: [users.id],
+    references: [subscriptions.userId],
+  }),
   binaryNode: one(binaryTreeNodes),
   deposits: many(deposits),
   packagePixOrders: many(packagePixOrders),
@@ -481,6 +484,10 @@ export const notificationReadsRelations = relations(notificationReads, ({ one })
     references: [notifications.id],
   }),
   user: one(users, { fields: [notificationReads.userId], references: [users.id] }),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
 }));
 
 export type User = typeof users.$inferSelect;

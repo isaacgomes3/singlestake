@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 import type { AdminUserDetail } from "@/lib/back-office/admin-types";
 import { buildReferralLink } from "@/lib/referral/build-link";
@@ -10,6 +10,7 @@ import {
   investmentPackages,
   ledgerEntries,
   packagePixOrders,
+  subscriptions,
   userPackages,
   users,
   withdrawals,
@@ -30,11 +31,14 @@ export async function getAdminUserDetail(
   const row = await db.query.users.findFirst({
     where: eq(users.id, userId),
     with: {
-      subscription: true,
       sponsor: { columns: { id: true, name: true, email: true } },
     },
   });
   if (!row || row.accountStatus === "deleted") return null;
+
+  const subscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.userId, userId),
+  });
 
   const packageRows = await db.query.userPackages.findMany({
     where: eq(userPackages.userId, userId),
@@ -72,9 +76,10 @@ export async function getAdminUserDetail(
   const packageIds = [...new Set(pixOrders.map((o) => o.packageId))];
   const packageMeta =
     packageIds.length > 0
-      ? await db.query.investmentPackages.findMany({
-          where: (t, { inArray: inn }) => inn(t.id, packageIds),
-        })
+      ? await db
+          .select({ id: investmentPackages.id, name: investmentPackages.name })
+          .from(investmentPackages)
+          .where(inArray(investmentPackages.id, packageIds))
       : [];
   const packageNameById = new Map(packageMeta.map((p) => [p.id, p.name]));
 
@@ -108,14 +113,14 @@ export async function getAdminUserDetail(
     sponsor: row.sponsor
       ? { id: row.sponsor.id, name: row.sponsor.name, email: row.sponsor.email }
       : null,
-    subscription: row.subscription
+    subscription: subscription
       ? {
-          status: row.subscription.status,
-          amount: row.subscription.amount,
-          graceEndsAt: row.subscription.graceEndsAt
-            ? formatIso(row.subscription.graceEndsAt)
+          status: subscription.status,
+          amount: subscription.amount,
+          graceEndsAt: subscription.graceEndsAt
+            ? formatIso(subscription.graceEndsAt)
             : null,
-          renewsAt: row.subscription.renewsAt ? formatIso(row.subscription.renewsAt) : null,
+          renewsAt: subscription.renewsAt ? formatIso(subscription.renewsAt) : null,
         }
       : null,
     packages: packageRows
@@ -165,11 +170,24 @@ export async function getAdminUserDetail(
       amount: o.amount,
       status: o.status,
       hasQrCode: !!o.qrCodeBase64,
-      qrCodeBase64: o.qrCodeBase64,
-      pixCopyPaste: o.pixCopyPaste,
       createdAt: formatIso(o.createdAt),
       paidAt: o.paidAt ? formatIso(o.paidAt) : null,
     })),
+  };
+}
+
+export async function getAdminUserPixOrderQr(
+  userId: string,
+  orderId: string,
+): Promise<{ qrCodeBase64: string | null; pixCopyPaste: string | null } | null> {
+  const db = getDb();
+  const order = await db.query.packagePixOrders.findFirst({
+    where: eq(packagePixOrders.id, orderId),
+  });
+  if (!order || order.userId !== userId) return null;
+  return {
+    qrCodeBase64: order.qrCodeBase64,
+    pixCopyPaste: order.pixCopyPaste,
   };
 }
 
