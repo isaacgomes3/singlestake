@@ -625,7 +625,7 @@ async function runScheduledCloseMesa(tableId) {
     pending?.at &&
     lastMesa?.tableId === id &&
     typeof lastMesa.at === "number" &&
-    lastMesa.at >= pending.at - 800
+    lastMesa.at > pending.at
   ) {
     await chrome.alarms.clear(`${CLOSE_ALARM_PREFIX}${id}`);
     await chrome.storage.local.remove(storageKey);
@@ -747,7 +747,22 @@ async function clearMesaTabRegistry(tableId, tabId) {
 }
 
 async function closeMesaTabNow(tableId, mesaUrl = null) {
-  const tabId = await resolveMesaTabIdForClose(tableId, mesaUrl);
+  let tabId = await resolveMesaTabIdForClose(tableId, mesaUrl);
+
+  if (tabId == null) {
+    const tabs = await chrome.tabs.query({});
+    const fallback = tabs.find(
+      (t) =>
+        t.id != null &&
+        t.url &&
+        isCasinoPlayUrl(t.url) &&
+        !isLobbyPokerUrl(t.url) &&
+        !isSinglestakeAppUrl(t.url),
+    );
+    if (fallback?.id != null) {
+      tabId = fallback.id;
+    }
+  }
 
   if (tabId == null) {
     return { ok: true, skipped: true, detail: `Sem separador registado para mesa ${tableId}` };
