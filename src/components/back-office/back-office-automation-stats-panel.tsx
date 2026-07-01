@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   fetchAutomationStats,
-  saveFibonacciAbsenceSpins,
+  saveFibonacciZoneAbsenceSpins,
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
@@ -54,10 +54,11 @@ function triggerLabel(
 }
 
 function applyFibonacciPrefsFromDto(data: AutomationStatsDto): void {
-  syncFibonacciPrefsFromAutomationConfig(data.fibonacci, data.fibonacci.absenceSpins);
+  syncFibonacciPrefsFromAutomationConfig(data.fibonacci);
 }
 
 type FibonacciZoneToggleId = "fibonacciDozen" | "fibonacciColumn";
+type FibonacciZoneKind = "dozen" | "column";
 
 export function BackOfficeAutomationStatsPanel() {
   const { t, messages } = useI18n();
@@ -66,8 +67,9 @@ export function BackOfficeAutomationStatsPanel() {
   const [data, setData] = useState<AutomationStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [absenceDraft, setAbsenceDraft] = useState("12");
-  const [savingAbsence, setSavingAbsence] = useState(false);
+  const [absenceDraftDozen, setAbsenceDraftDozen] = useState("12");
+  const [absenceDraftColumn, setAbsenceDraftColumn] = useState("12");
+  const [savingAbsenceZone, setSavingAbsenceZone] = useState<FibonacciZoneKind | null>(null);
 
   const reload = useCallback(async () => {
     if (!isAdmin) {
@@ -77,7 +79,8 @@ export function BackOfficeAutomationStatsPanel() {
     const row = await fetchAutomationStats();
     setData(row);
     if (row) {
-      setAbsenceDraft(String(row.fibonacci.absenceSpins));
+      setAbsenceDraftDozen(String(row.fibonacci.dozen.absenceSpins));
+      setAbsenceDraftColumn(String(row.fibonacci.column.absenceSpins));
       applyFibonacciPrefsFromDto(row);
     }
     setLoading(false);
@@ -112,21 +115,23 @@ export function BackOfficeAutomationStatsPanel() {
     );
   }
 
-  async function handleConfirmAbsence() {
-    const parsed = Number(absenceDraft);
+  async function handleConfirmZoneAbsence(zone: FibonacciZoneKind) {
+    const draft = zone === "dozen" ? absenceDraftDozen : absenceDraftColumn;
+    const parsed = Number(draft);
     if (!Number.isFinite(parsed) || parsed < FIBONACCI_ABSENCE_SPINS_MIN || parsed > FIBONACCI_ABSENCE_SPINS_MAX) {
       toast.error(t("automationStats.fibonacciAbsenceInvalid"));
       return;
     }
-    setSavingAbsence(true);
-    const result = await saveFibonacciAbsenceSpins(Math.floor(parsed));
-    setSavingAbsence(false);
+    setSavingAbsenceZone(zone);
+    const result = await saveFibonacciZoneAbsenceSpins(zone, Math.floor(parsed));
+    setSavingAbsenceZone(null);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
     setData(result.data);
-    setAbsenceDraft(String(result.data.fibonacci.absenceSpins));
+    setAbsenceDraftDozen(String(result.data.fibonacci.dozen.absenceSpins));
+    setAbsenceDraftColumn(String(result.data.fibonacci.column.absenceSpins));
     applyFibonacciPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
   }
@@ -138,48 +143,84 @@ export function BackOfficeAutomationStatsPanel() {
         ? t("automationStats.sourceServer")
         : t("automationStats.sourceUnknown");
 
-  const absenceDirty =
-    data != null && Number(absenceDraft) !== data.fibonacci.absenceSpins;
-
   function renderFibonacciZoneRow(
     id: FibonacciZoneToggleId,
+    zoneKind: FibonacciZoneKind,
     labelKey: "fibonacciDozen" | "fibonacciColumn",
     zone: AutomationStatsDto["fibonacci"]["dozen"],
   ) {
+    const draft = zoneKind === "dozen" ? absenceDraftDozen : absenceDraftColumn;
+    const setDraft = zoneKind === "dozen" ? setAbsenceDraftDozen : setAbsenceDraftColumn;
+    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const inputId = zoneKind === "dozen" ? "fib-absence-dozen" : "fib-absence-column";
+
     return (
       <div
         key={id}
         className={cn(
-          "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-color bg-bg-secondary px-3 py-2.5",
+          "rounded-xl border border-border-color bg-bg-secondary px-3 py-2.5",
           !zone.enabled && "opacity-60",
         )}
       >
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-text-primary">
-            {triggerLabel(messages, labelKey)}
-          </p>
-          <p
-            className={cn(
-              "mt-0.5 text-lg font-bold tabular-nums",
-              accuracyTone(zone.accuracyPct),
-            )}
-          >
-            {loading ? "…" : formatAccuracy(zone.accuracyPct)}
-          </p>
-          {!loading && zone.total > 0 ? (
-            <p className="text-[11px] tabular-nums text-text-secondary">
-              {zone.wins}V / {zone.losses}D
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-text-primary">
+              {triggerLabel(messages, labelKey)}
             </p>
-          ) : (
-            <p className="text-[11px] text-text-secondary">{t("automationStats.noData")}</p>
-          )}
+            <p
+              className={cn(
+                "mt-0.5 text-lg font-bold tabular-nums",
+                accuracyTone(zone.accuracyPct),
+              )}
+            >
+              {loading ? "…" : formatAccuracy(zone.accuracyPct)}
+            </p>
+            {!loading && zone.total > 0 ? (
+              <p className="text-[11px] tabular-nums text-text-secondary">
+                {zone.wins}V / {zone.losses}D
+              </p>
+            ) : (
+              <p className="text-[11px] text-text-secondary">{t("automationStats.noData")}</p>
+            )}
+          </div>
+          <Switch
+            checked={zone.enabled}
+            disabled={loading || togglingId === id}
+            aria-label={triggerLabel(messages, labelKey)}
+            onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
+          />
         </div>
-        <Switch
-          checked={zone.enabled}
-          disabled={loading || togglingId === id}
-          aria-label={triggerLabel(messages, labelKey)}
-          onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
-        />
+        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
+              {t("automationStats.fibonacciAbsenceLabel")}
+            </label>
+            <Input
+              id={inputId}
+              type="number"
+              min={FIBONACCI_ABSENCE_SPINS_MIN}
+              max={FIBONACCI_ABSENCE_SPINS_MAX}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-8 w-20 tabular-nums text-sm"
+              disabled={loading || savingAbsenceZone === zoneKind}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={absenceDirty ? "default" : "secondary"}
+            disabled={loading || savingAbsenceZone === zoneKind || !absenceDirty}
+            onClick={() => void handleConfirmZoneAbsence(zoneKind)}
+          >
+            {savingAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+          </Button>
+        </div>
+        {!loading ? (
+          <p className="mt-2 text-[11px] text-text-secondary">
+            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -224,49 +265,19 @@ export function BackOfficeAutomationStatsPanel() {
       <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("automationStats.fibonacciTitle")}</h2>
         <p className="mt-1 text-xs text-text-secondary">{t("automationStats.fibonacciHint")}</p>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text-secondary" htmlFor="fib-absence-spins">
-              {t("automationStats.fibonacciAbsenceLabel")}
-            </label>
-            <Input
-              id="fib-absence-spins"
-              type="number"
-              min={FIBONACCI_ABSENCE_SPINS_MIN}
-              max={FIBONACCI_ABSENCE_SPINS_MAX}
-              value={absenceDraft}
-              onChange={(e) => setAbsenceDraft(e.target.value)}
-              className="w-24 tabular-nums"
-              disabled={loading || savingAbsence}
-            />
-          </div>
-          <Button
-            type="button"
-            variant={absenceDirty ? "default" : "secondary"}
-            disabled={loading || savingAbsence || !absenceDirty}
-            onClick={() => void handleConfirmAbsence()}
-          >
-            {savingAbsence ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
-          </Button>
-        </div>
         {!loading && data ? (
           <div className="mt-4 space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
               {t("automationStats.fibonacciZoneStats")}
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {renderFibonacciZoneRow("fibonacciDozen", "fibonacciDozen", data.fibonacci.dozen)}
-              {renderFibonacciZoneRow("fibonacciColumn", "fibonacciColumn", data.fibonacci.column)}
+              {renderFibonacciZoneRow("fibonacciDozen", "dozen", "fibonacciDozen", data.fibonacci.dozen)}
+              {renderFibonacciZoneRow("fibonacciColumn", "column", "fibonacciColumn", data.fibonacci.column)}
             </div>
-            <p className="text-[11px] text-text-secondary">
-              Ausências confirmadas:{" "}
-              <span className="font-semibold tabular-nums text-text-primary">
-                {data.fibonacci.absenceSpins}
-              </span>{" "}
-              giros
-            </p>
           </div>
-        ) : null}
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
+        )}
       </section>
 
       <section className="theme-card rounded-2xl p-5">

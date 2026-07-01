@@ -45,7 +45,7 @@ import {
 } from "@/lib/roulette/strategyGlobalClient";
 import {
   FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT,
-  readEffectiveFibonacciAbsenceSpins,
+  readEffectiveFibonacciZoneAbsenceSpins,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export type RotatingRoomFibonacciRoundFlash = {
@@ -199,14 +199,14 @@ export function useRotatingRoomFibonacciSession(
     return () => window.removeEventListener(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT, onAbsenceChanged);
   }, []);
 
-  const effectiveAbsenceSpins = useMemo(
-    () => readEffectiveFibonacciAbsenceSpins(),
+  const effectiveAbsenceByZone = useMemo(
+    () => readEffectiveFibonacciZoneAbsenceSpins(),
     [absenceSpinsEpoch],
   );
 
   const liveView = useMemo(
     () => buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine),
-    [tableIds, histories, machine, effectiveAbsenceSpins],
+    [tableIds, histories, machine, effectiveAbsenceByZone],
   );
 
   const activeFibonacci =
@@ -265,7 +265,7 @@ export function useRotatingRoomFibonacciSession(
 
     applyMachine(placar.nextMachine);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, observeOnly, useGlobalSession, tableIds.join(","), historiesFingerprint, visibilityEpoch, effectiveAbsenceSpins]);
+  }, [enabled, observeOnly, useGlobalSession, tableIds.join(","), historiesFingerprint, visibilityEpoch, effectiveAbsenceByZone]);
 
   useEffect(() => {
     if (!useGlobalSession) return;
@@ -321,7 +321,7 @@ export function useRotatingRoomFibonacciSession(
           ),
         }
       : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, effectiveAbsenceSpins)
+        ? pickGlobalFibonacciPrepare(tableIds, histories, undefined, effectiveAbsenceByZone)
         : null;
   const alertPick =
     activeFibonacci != null

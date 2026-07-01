@@ -1,6 +1,6 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
 import { getAutomationConfig } from "@/lib/server/automationSim/config";
-import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { enabledFibonacciZoneKindsFromMap } from "@/lib/roulette/umFatorTriggerEnable";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
@@ -245,7 +245,7 @@ function driveFibonacci(
   const enabledZoneKinds = enabledFibonacciZoneKindsFromMap(config.enabledTriggers);
   const allowNewArming =
     fibonacciTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
-  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const result = drainPlacarSteps(
     state.fibonacci.machine,
     state.fibonacci.stats,
@@ -257,8 +257,7 @@ function driveFibonacci(
         stats,
         ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
         allowNewArming,
-        absenceSpins,
-        absenceSpins,
+        absenceByKind,
         enabledZoneKinds,
       ),
     fibonacciMachinePlacarStepProgressed,
@@ -379,7 +378,7 @@ function buildFibonacciClientView(
   const currentTableId =
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
-  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const prepareTableId =
     machine.prepareTableId != null && allowed.has(machine.prepareTableId)
       ? machine.prepareTableId
@@ -399,7 +398,7 @@ function buildFibonacciClientView(
             tableIds,
             histories,
             undefined,
-            absenceSpins,
+            absenceByKind,
             enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers),
           )
         : null;
@@ -465,7 +464,9 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     },
     fibonacciPrefs: {
       enabled: enabledFibonacciZoneKindsFromMap(config.enabledTriggers).length > 0,
-      absenceSpins: config.fibonacciAbsenceSpins,
+      absenceSpins: config.fibonacciDozenAbsenceSpins,
+      dozenAbsenceSpins: config.fibonacciDozenAbsenceSpins,
+      columnAbsenceSpins: config.fibonacciColumnAbsenceSpins,
       dozenEnabled:
         config.enabledTriggers.fibonacci !== false &&
         config.enabledTriggers.fibonacciDozen !== false,

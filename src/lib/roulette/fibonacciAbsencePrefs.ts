@@ -1,4 +1,5 @@
 import { ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import type { FibonacciZoneKind } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import {
   getRotatingRoomGatilhoEnabled,
@@ -11,11 +12,19 @@ export const FIBONACCI_ABSENCE_SPINS_MIN = 3;
 export const FIBONACCI_ABSENCE_SPINS_MAX = 99;
 export const DEFAULT_FIBONACCI_ABSENCE_SPINS = ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS;
 
-const LOCAL_KEY = "roulette.rotatingRoom.fibonacciAbsenceSpins";
+export type FibonacciZoneAbsenceSpins = {
+  dozen: number;
+  column: number;
+};
+
+const LOCAL_KEY_DOZEN = "roulette.rotatingRoom.fibonacciAbsenceSpins.dozen";
+const LOCAL_KEY_COLUMN = "roulette.rotatingRoom.fibonacciAbsenceSpins.column";
+/** @deprecated Migração — valor único antigo. */
+const LOCAL_KEY_LEGACY = "roulette.rotatingRoom.fibonacciAbsenceSpins";
 
 export const FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT = "fibonacci-absence-spins-changed";
 
-let serverEffectiveAbsenceSpins: number | null = null;
+let serverEffectiveAbsenceByZone: FibonacciZoneAbsenceSpins | null = null;
 
 export function clampFibonacciAbsenceSpins(
   value: unknown,
@@ -29,29 +38,79 @@ export function clampFibonacciAbsenceSpins(
   );
 }
 
-export function setServerFibonacciAbsenceSpins(spins: number | null): void {
-  serverEffectiveAbsenceSpins = spins == null ? null : clampFibonacciAbsenceSpins(spins);
+export function uniformFibonacciAbsenceSpins(spins: number): FibonacciZoneAbsenceSpins {
+  const clamped = clampFibonacciAbsenceSpins(spins);
+  return { dozen: clamped, column: clamped };
 }
 
-export function readFibonacciAbsenceSpinsLocal(): number {
-  if (typeof localStorage === "undefined") return DEFAULT_FIBONACCI_ABSENCE_SPINS;
+export function absenceSpinsForZoneKind(
+  kind: FibonacciZoneKind,
+  map: FibonacciZoneAbsenceSpins,
+): number {
+  return map[kind];
+}
+
+export function normalizeFibonacciZoneAbsenceSpins(raw?: {
+  fibonacciAbsenceSpins?: number;
+  fibonacciDozenAbsenceSpins?: number;
+  fibonacciColumnAbsenceSpins?: number;
+} | null): FibonacciZoneAbsenceSpins {
+  const legacy = clampFibonacciAbsenceSpins(raw?.fibonacciAbsenceSpins);
+  return {
+    dozen: clampFibonacciAbsenceSpins(raw?.fibonacciDozenAbsenceSpins, legacy),
+    column: clampFibonacciAbsenceSpins(raw?.fibonacciColumnAbsenceSpins, legacy),
+  };
+}
+
+export function setServerFibonacciZoneAbsenceSpins(spins: FibonacciZoneAbsenceSpins | null): void {
+  serverEffectiveAbsenceByZone =
+    spins == null
+      ? null
+      : {
+          dozen: clampFibonacciAbsenceSpins(spins.dozen),
+          column: clampFibonacciAbsenceSpins(spins.column),
+        };
+}
+
+/** @deprecated Use setServerFibonacciZoneAbsenceSpins */
+export function setServerFibonacciAbsenceSpins(spins: number | null): void {
+  setServerFibonacciZoneAbsenceSpins(spins == null ? null : uniformFibonacciAbsenceSpins(spins));
+}
+
+function readFibonacciZoneAbsenceSpinsLocal(): FibonacciZoneAbsenceSpins {
+  if (typeof localStorage === "undefined") {
+    return uniformFibonacciAbsenceSpins(DEFAULT_FIBONACCI_ABSENCE_SPINS);
+  }
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw == null) return DEFAULT_FIBONACCI_ABSENCE_SPINS;
-    return clampFibonacciAbsenceSpins(parseInt(raw, 10));
+    const legacyRaw = localStorage.getItem(LOCAL_KEY_LEGACY);
+    const legacy =
+      legacyRaw != null
+        ? clampFibonacciAbsenceSpins(parseInt(legacyRaw, 10))
+        : DEFAULT_FIBONACCI_ABSENCE_SPINS;
+    const dozenRaw = localStorage.getItem(LOCAL_KEY_DOZEN);
+    const columnRaw = localStorage.getItem(LOCAL_KEY_COLUMN);
+    return {
+      dozen: dozenRaw != null ? clampFibonacciAbsenceSpins(parseInt(dozenRaw, 10)) : legacy,
+      column: columnRaw != null ? clampFibonacciAbsenceSpins(parseInt(columnRaw, 10)) : legacy,
+    };
   } catch {
-    return DEFAULT_FIBONACCI_ABSENCE_SPINS;
+    return uniformFibonacciAbsenceSpins(DEFAULT_FIBONACCI_ABSENCE_SPINS);
   }
 }
 
-export function writeFibonacciAbsenceSpinsLocal(
-  spins: number,
+export function writeFibonacciZoneAbsenceSpinsLocal(
+  spins: FibonacciZoneAbsenceSpins,
   options?: { silent?: boolean },
 ): void {
-  const clamped = clampFibonacciAbsenceSpins(spins);
+  const clamped = {
+    dozen: clampFibonacciAbsenceSpins(spins.dozen),
+    column: clampFibonacciAbsenceSpins(spins.column),
+  };
   if (typeof localStorage !== "undefined") {
     try {
-      localStorage.setItem(LOCAL_KEY, String(clamped));
+      localStorage.setItem(LOCAL_KEY_DOZEN, String(clamped.dozen));
+      localStorage.setItem(LOCAL_KEY_COLUMN, String(clamped.column));
+      localStorage.removeItem(LOCAL_KEY_LEGACY);
     } catch {
       /* ignore */
     }
@@ -61,19 +120,37 @@ export function writeFibonacciAbsenceSpinsLocal(
   }
 }
 
-/** Giros de ausência efectivos (servidor, localStorage ou defeito 12). */
+/** @deprecated Use writeFibonacciZoneAbsenceSpinsLocal */
+export function writeFibonacciAbsenceSpinsLocal(
+  spins: number,
+  options?: { silent?: boolean },
+): void {
+  writeFibonacciZoneAbsenceSpinsLocal(uniformFibonacciAbsenceSpins(spins), options);
+}
+
+/** Giros de ausência por tipo (servidor, localStorage ou defeito 12). */
+export function readEffectiveFibonacciZoneAbsenceSpins(): FibonacciZoneAbsenceSpins {
+  if (serverEffectiveAbsenceByZone != null) return { ...serverEffectiveAbsenceByZone };
+  return readFibonacciZoneAbsenceSpinsLocal();
+}
+
+/** Valor único legado — máximo entre dúzia e coluna (textos genéricos). */
 export function readEffectiveFibonacciAbsenceSpins(): number {
-  if (serverEffectiveAbsenceSpins != null) return serverEffectiveAbsenceSpins;
-  return readFibonacciAbsenceSpinsLocal();
+  const map = readEffectiveFibonacciZoneAbsenceSpins();
+  return Math.max(map.dozen, map.column);
 }
 
 /** Alinha preferências locais com a configuração global (painel admin). */
 export function syncFibonacciPrefsFromAutomationConfig(
   fibonacci: Pick<AutomationStatsDto["fibonacci"], "enabled" | "dozen" | "column">,
-  absenceSpins: number,
 ): void {
-  const clamped = clampFibonacciAbsenceSpins(absenceSpins);
-  writeFibonacciAbsenceSpinsLocal(clamped, { silent: true });
+  writeFibonacciZoneAbsenceSpinsLocal(
+    {
+      dozen: fibonacci.dozen.absenceSpins,
+      column: fibonacci.column.absenceSpins,
+    },
+    { silent: true },
+  );
   const masterOn = fibonacci.dozen.enabled || fibonacci.column.enabled;
   setRotatingRoomGatilhoEnabled({
     ...getRotatingRoomGatilhoEnabled(),

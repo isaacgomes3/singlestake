@@ -52,6 +52,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
           stopWin?: number | null;
           stopLoss?: number | null;
           fibonacciAbsenceSpins?: number;
+          fibonacciDozenAbsenceSpins?: number;
+          fibonacciColumnAbsenceSpins?: number;
           enabledTriggers?: Partial<import("@/lib/roulette/umFatorTriggerEnable").RotatingRoomGatilhoEnableMap>;
         }>(request);
 
@@ -65,16 +67,33 @@ export const Route = createFileRoute("/api/back-office/admin/automation-config")
               ? { pauseReason: null, pausedAt: null }
               : {};
 
+        const fibonacciPatch: Partial<typeof current> = {};
+        if (typeof body?.fibonacciDozenAbsenceSpins === "number") {
+          fibonacciPatch.fibonacciDozenAbsenceSpins = Math.min(
+            99,
+            Math.max(3, Math.floor(body.fibonacciDozenAbsenceSpins)),
+          );
+        }
+        if (typeof body?.fibonacciColumnAbsenceSpins === "number") {
+          fibonacciPatch.fibonacciColumnAbsenceSpins = Math.min(
+            99,
+            Math.max(3, Math.floor(body.fibonacciColumnAbsenceSpins)),
+          );
+        }
+        if (typeof body?.fibonacciAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)));
+          fibonacciPatch.fibonacciAbsenceSpins = spins;
+          fibonacciPatch.fibonacciDozenAbsenceSpins = spins;
+          fibonacciPatch.fibonacciColumnAbsenceSpins = spins;
+        }
+
         const next = {
           ...current,
           paused: nextPaused,
           baseStake: body?.baseStake ?? current.baseStake,
           stopWin: null,
           stopLoss: null,
-          fibonacciAbsenceSpins:
-            typeof body?.fibonacciAbsenceSpins === "number"
-              ? Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)))
-              : current.fibonacciAbsenceSpins,
+          ...fibonacciPatch,
           enabledTriggers: body?.enabledTriggers
             ? { ...current.enabledTriggers, ...body.enabledTriggers }
             : current.enabledTriggers,

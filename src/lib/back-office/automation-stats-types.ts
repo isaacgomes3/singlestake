@@ -7,6 +7,7 @@ export type AutomationStatsFibonacciZoneRow = {
   total: number;
   accuracyPct: number | null;
   enabled: boolean;
+  absenceSpins: number;
 };
 
 export type AutomationStatsDto = {

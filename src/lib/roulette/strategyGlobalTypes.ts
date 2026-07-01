@@ -113,7 +113,10 @@ export type StrategyGlobalSnapshot = {
   /** Gatilho Fibonacci e giros de ausência (config global da automação). */
   fibonacciPrefs: {
     enabled: boolean;
+    /** @deprecated Use dozenAbsenceSpins / columnAbsenceSpins */
     absenceSpins: number;
+    dozenAbsenceSpins: number;
+    columnAbsenceSpins: number;
     dozenEnabled: boolean;
     columnEnabled: boolean;
   };

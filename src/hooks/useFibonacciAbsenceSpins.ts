@@ -1,29 +1,35 @@
 import { useEffect, useState } from "react";
 
 import {
-  clampFibonacciAbsenceSpins,
   FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT,
-  readEffectiveFibonacciAbsenceSpins,
-  writeFibonacciAbsenceSpinsLocal,
+  readEffectiveFibonacciZoneAbsenceSpins,
+  type FibonacciZoneAbsenceSpins,
+  writeFibonacciZoneAbsenceSpinsLocal,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export function useFibonacciAbsenceSpins(): {
   absenceSpins: number;
-  setAbsenceSpins: (next: number) => void;
+  absenceByZone: FibonacciZoneAbsenceSpins;
+  setAbsenceByZone: (next: FibonacciZoneAbsenceSpins) => void;
 } {
-  const [absenceSpins, setAbsenceSpinsState] = useState(() => readEffectiveFibonacciAbsenceSpins());
+  const [absenceByZone, setAbsenceByZoneState] = useState(() =>
+    readEffectiveFibonacciZoneAbsenceSpins(),
+  );
 
   useEffect(() => {
-    const sync = () => setAbsenceSpinsState(readEffectiveFibonacciAbsenceSpins());
+    const sync = () => setAbsenceByZoneState(readEffectiveFibonacciZoneAbsenceSpins());
     window.addEventListener(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT, sync);
     return () => window.removeEventListener(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT, sync);
   }, []);
 
-  const setAbsenceSpins = (next: number) => {
-    const clamped = clampFibonacciAbsenceSpins(next);
-    writeFibonacciAbsenceSpinsLocal(clamped);
-    setAbsenceSpinsState(clamped);
+  const setAbsenceByZone = (next: FibonacciZoneAbsenceSpins) => {
+    writeFibonacciZoneAbsenceSpinsLocal(next);
+    setAbsenceByZoneState(next);
   };
 
-  return { absenceSpins, setAbsenceSpins };
+  return {
+    absenceSpins: Math.max(absenceByZone.dozen, absenceByZone.column),
+    absenceByZone,
+    setAbsenceByZone,
+  };
 }

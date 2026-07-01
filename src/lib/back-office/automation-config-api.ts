@@ -22,7 +22,14 @@ export async function saveAutomationConfig(
   patch: Partial<
     Pick<
       GlobalAutomationConfig,
-      "paused" | "baseStake" | "stopWin" | "stopLoss" | "enabledTriggers" | "fibonacciAbsenceSpins"
+      | "paused"
+      | "baseStake"
+      | "stopWin"
+      | "stopLoss"
+      | "enabledTriggers"
+      | "fibonacciAbsenceSpins"
+      | "fibonacciDozenAbsenceSpins"
+      | "fibonacciColumnAbsenceSpins"
     >
   >,
 ): Promise<AutomationConfigApiResponse> {

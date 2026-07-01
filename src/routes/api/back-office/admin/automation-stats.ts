@@ -44,14 +44,40 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           id?: string;
           enabled?: boolean;
           fibonacciAbsenceSpins?: number;
+          fibonacciDozenAbsenceSpins?: number;
+          fibonacciColumnAbsenceSpins?: number;
         }>(request);
 
         await initAutomationConfig();
         const current = getAutomationConfig();
 
+        if (typeof body?.fibonacciDozenAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciDozenAbsenceSpins)));
+          await saveAutomationConfig({ fibonacciDozenAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.fibonacciColumnAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciColumnAbsenceSpins)));
+          await saveAutomationConfig({ fibonacciColumnAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
         if (typeof body?.fibonacciAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciAbsenceSpins)));
-          await saveAutomationConfig({ fibonacciAbsenceSpins: spins });
+          await saveAutomationConfig({
+            fibonacciAbsenceSpins: spins,
+            fibonacciDozenAbsenceSpins: spins,
+            fibonacciColumnAbsenceSpins: spins,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );

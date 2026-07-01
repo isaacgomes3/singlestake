@@ -22,7 +22,7 @@ import {
   reclassifyOneFinalLossAsWin,
 } from "@/lib/roulette/entryWinBreakdown";
 import { isStrategyGlobalEnabled } from "@/lib/roulette/strategyGlobalClient";
-import { readEffectiveFibonacciAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { isFibonacciGatilhoEnabled, getEnabledFibonacciZoneKinds } from "@/lib/roulette/umFatorTriggerEnable";
 
 export {
@@ -122,14 +122,13 @@ export function buildRotatingRoomFibonacciSessionLiveView(
   histories: Record<number, readonly number[]>,
   machine: RotatingRoomFibonacciMachineState,
 ) {
-  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const enabledZoneKinds = getEnabledFibonacciZoneKinds();
   return buildRotatingRoomFibonacciLiveView(
     tableIds,
     histories,
     machine,
-    absenceSpins,
-    absenceSpins,
+    absenceByKind,
     enabledZoneKinds,
   );
 }
@@ -145,7 +144,7 @@ export function tickRotatingRoomFibonacciSessionPlacar(
   statsChanged: boolean;
   flash: RotatingRoomFibonacciPlacarFlash;
 } {
-  const absenceSpins = readEffectiveFibonacciAbsenceSpins();
+  const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const allowNewArming = isFibonacciGatilhoEnabled();
   const enabledZoneKinds = getEnabledFibonacciZoneKinds();
   return tickRotatingRoomFibonacciPlacar(
@@ -155,8 +154,7 @@ export function tickRotatingRoomFibonacciSessionPlacar(
     stats,
     ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
     allowNewArming,
-    absenceSpins,
-    absenceSpins,
+    absenceByKind,
     enabledZoneKinds,
   );
 }

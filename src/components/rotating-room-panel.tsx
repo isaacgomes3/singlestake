@@ -546,7 +546,7 @@ function RotatingRoomStage({
   /** Modo iframe: só botões de indicação, sem textos de espera. */
   indicationOnly?: boolean;
 }) {
-  const { absenceSpins: fibonacciAbsenceSpins } = useFibonacciAbsenceSpins();
+  const { absenceByZone: fibonacciAbsenceByZone } = useFibonacciAbsenceSpins();
   const isPrepare =
     !isSingleFactorSession(session) &&
     (session.sessionMode === "prepare" ||
@@ -809,7 +809,7 @@ function RotatingRoomStage({
   const lobbyWaitIdle = isRotatingRoomLobbyWait(session) && !isAwaitingNextTable;
 
   const minAbsenceSpins = fibonacciSession
-    ? fibonacciAbsenceSpins
+    ? Math.max(fibonacciAbsenceByZone.dozen, fibonacciAbsenceByZone.column)
     : ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS;
 
   const waitingTitle = isAwaitingNextTable || isCrossingAwaitingNewTable
@@ -921,8 +921,8 @@ function RotatingRoomStage({
             </p>
           ) : fibonacciSession ? (
             <p className="mt-2 text-sm text-slate-500">
-              Posição na mesa com ausência ≥ {fibonacciAbsenceSpins} · sinal com ≥ {fibonacciAbsenceSpins}{" "}
-              (dúzia ou coluna)
+              Dúzias ≥ {fibonacciAbsenceByZone.dozen} · Colunas ≥ {fibonacciAbsenceByZone.column} giros
+              de ausência
             </p>
           ) : !singleFactor && maxBucketGap > 0 && maxBucketGap < ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS ? (
             <p className="mt-2 text-sm tabular-nums text-slate-500">

@@ -1,6 +1,7 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import { buildRotatingRoomGatilhoTriggerReport } from "@/lib/roulette/umFatorTriggerTiers";
 import { normalizeFibonacciZoneKindStats, umFatorMatchTierAproveitamentoPct } from "@/lib/roulette/entryWinBreakdown";
+import { normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -17,6 +18,7 @@ function fibonacciZoneStatsRow(
   stats: RotatingRoomSessionStats | undefined,
   kind: "dozen" | "column",
   enabled: boolean,
+  absenceSpins: number,
 ): AutomationStatsDto["fibonacci"]["dozen"] {
   const bucket = normalizeFibonacciZoneKindStats(stats?.fibonacciZoneKind)[kind];
   const wins = Math.max(0, bucket.wins);
@@ -27,27 +29,31 @@ function fibonacciZoneStatsRow(
     total: wins + losses,
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
     enabled,
+    absenceSpins,
   };
 }
 
 function fibonacciStatsFromState(
   fibonacciStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
-  absenceSpins: number,
+  config: ReturnType<typeof getAutomationConfig>,
 ): AutomationStatsDto["fibonacci"] {
   const masterOn = enabledTriggers.fibonacci !== false;
+  const absenceByZone = normalizeFibonacciZoneAbsenceSpins(config);
   return {
     enabled: masterOn,
-    absenceSpins,
+    absenceSpins: absenceByZone.dozen,
     dozen: fibonacciZoneStatsRow(
       fibonacciStats,
       "dozen",
       enabledTriggers.fibonacciDozen !== false,
+      absenceByZone.dozen,
     ),
     column: fibonacciZoneStatsRow(
       fibonacciStats,
       "column",
       enabledTriggers.fibonacciColumn !== false,
+      absenceByZone.column,
     ),
   };
 }
@@ -80,7 +86,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
     fibonacci: fibonacciStatsFromState(
       state.fibonacci.stats,
       enabledTriggers,
-      config.fibonacciAbsenceSpins,
+      config,
     ),
   };
 }
