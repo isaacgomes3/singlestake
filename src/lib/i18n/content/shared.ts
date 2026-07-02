@@ -38,8 +38,8 @@ export const sharedContent = {
     },
     buckets: {
       rendimentos: "Saldo (caixa)",
-      afiliados: "Afiliados (30%)",
-      automacao: "Automação (20%)",
+      afiliados: "Afiliados",
+      automacao: "Automação",
       empresa: "Empresa (50%)",
       binario: "Binário (legado)",
       residual: "Residual (legado)",
@@ -100,8 +100,8 @@ export const sharedContent = {
     },
     buckets: {
       rendimentos: "Cash balance",
-      afiliados: "Affiliates (30%)",
-      automacao: "Automation (20%)",
+      afiliados: "Affiliates",
+      automacao: "Automation",
       empresa: "Company (50%)",
       binario: "Binary (legacy)",
       residual: "Residual (legacy)",
@@ -162,8 +162,8 @@ export const sharedContent = {
     },
     buckets: {
       rendimentos: "Saldo (caja)",
-      afiliados: "Afiliados (30%)",
-      automacao: "Automatización (20%)",
+      afiliados: "Afiliados",
+      automacao: "Automatización",
       empresa: "Empresa (50%)",
       binario: "Binario (legado)",
       residual: "Residual (legado)",

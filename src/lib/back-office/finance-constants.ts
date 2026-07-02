@@ -26,8 +26,8 @@ export const FINANCE_DISPLAY_BUCKETS = ["rendimentos", "afiliados", "automacao"]
 
 export const WALLET_BUCKET_LABELS: Record<WalletBucket, string> = {
   rendimentos: "Saldo (caixa)",
-  afiliados: "Afiliados (30%)",
-  automacao: "Automação (20%)",
+  afiliados: "Afiliados",
+  automacao: "Automação",
   empresa: "Empresa (50%)",
   binario: "Binário (legado)",
   residual: "Residual (legado)",
