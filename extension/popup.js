@@ -1,5 +1,14 @@
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_BRIDGE_PREFS = "gogBridgePrefs";
+const EXT_VERSION = chrome.runtime.getManifest().version;
+
+function applyExtensionVersionLabel() {
+  const title = document.getElementById("extTitle");
+  const sub = document.getElementById("extSub");
+  if (title) title.textContent = `Singlestake · Playtech v${EXT_VERSION}`;
+  if (sub) sub.textContent = `Um Fator · sala rotativa via app · manifest ${EXT_VERSION}`;
+}
+applyExtensionVersionLabel();
 
 const DGA_CONFIG_DEFAULTS = {
   wsUrl: "wss://dga.pragmaticplaylive.net/ws",
@@ -297,6 +306,7 @@ function renderStatus(status) {
   setModeUi(mode);
 
   const lines = [];
+  lines.push(`Extensão: v${EXT_VERSION}`);
   lines.push(`Modo: ${mode === "real" ? "REAL (cliques)" : "DEMO (simulado)"}`);
   const bridgeOn = status?.bridgeEnabled !== false;
   lines.push(`Sala: ${bridgeOn ? "LIGADA" : "DESLIGADA"}`);
