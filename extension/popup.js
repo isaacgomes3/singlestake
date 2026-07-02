@@ -22,6 +22,9 @@ const bridgePrefsStatus = document.getElementById("bridgePrefsStatus");
 const bridgeStatus = document.getElementById("bridgeStatus");
 const bridgeOnBtn = document.getElementById("bridgeOn");
 const bridgeOffBtn = document.getElementById("bridgeOff");
+const rotacaoStatus = document.getElementById("rotacaoStatus");
+const rotacaoOnBtn = document.getElementById("rotacaoOn");
+const rotacaoOffBtn = document.getElementById("rotacaoOff");
 const dgaConfigStatus = document.getElementById("dgaConfigStatus");
 const dgaSaveBtn = document.getElementById("dgaSave");
 const dgaResetBtn = document.getElementById("dgaReset");
@@ -233,6 +236,18 @@ function renderBridgePrefs(prefs) {
     const label = maxRecovery === 0 ? "sem gales (só entrada)" : `máx ${maxRecovery} gales`;
     bridgePrefsStatus.textContent = `Gales: ${label} — sincronizado com a sala no app.`;
   }
+  setRotacaoUi(prefs?.rotacaoEnabled === true);
+}
+
+function setRotacaoUi(enabled) {
+  const on = enabled === true;
+  rotacaoOnBtn?.classList.toggle("active-real", on);
+  rotacaoOffBtn?.classList.toggle("active-demo", !on);
+  if (rotacaoStatus) {
+    rotacaoStatus.textContent = on
+      ? "Ligado — segue indicações Rotação (Roulette 1) do app."
+      : "Desligado — ignora sinais Rotação. Active também no back-office.";
+  }
 }
 
 function setBridgeUi(enabled) {
@@ -440,6 +455,20 @@ bridgeOnBtn?.addEventListener("click", () => {
 
 bridgeOffBtn?.addEventListener("click", () => {
   chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: false }, () => loadStatus());
+});
+
+rotacaoOnBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage(
+    { kind: "set-bridge-prefs", prefs: { rotacaoEnabled: true } },
+    () => loadBridgePrefsForm(),
+  );
+});
+
+rotacaoOffBtn?.addEventListener("click", () => {
+  chrome.runtime.sendMessage(
+    { kind: "set-bridge-prefs", prefs: { rotacaoEnabled: false } },
+    () => loadBridgePrefsForm(),
+  );
 });
 
 maxGales?.addEventListener("change", () => {

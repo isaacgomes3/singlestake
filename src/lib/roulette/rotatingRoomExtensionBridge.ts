@@ -54,6 +54,8 @@ export type RotatingRoomExtensionPrefs = {
   bridgeEnabled?: boolean;
   /** Fechar separador da mesa quando a indicação termina (predefinição: sim). */
   closeMesaOnFinish?: boolean;
+  /** Gatilho Rotação (altura/paridade/cor) — Roulette 1. */
+  rotacaoEnabled?: boolean;
 };
 
 export type RotatingRoomExtensionContext = {
@@ -79,8 +81,8 @@ export type RotatingRoomExtensionContext = {
   maxRecovery: number;
   /** demo | real — prioridade sobre o modo do popup da extensão. */
   executionMode: "demo" | "real";
-  rotativaTrigger?: "umFator" | "crossing" | "fibonacci";
-  strategy?: "um1fator" | "dois2fatores" | "fibonacci";
+  rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "rotacao";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
   /** Por rodada — re-aposta após empate (2F). */
   betAttemptKey?: string | null;
   /** Aguarde no Lobby — navegar para poker em vez de mesa de roleta. */
@@ -417,6 +419,57 @@ export function buildExtensionBridgeFromAutomationBet(
   automationBalance?: number | null,
 ): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
   if (bet.tableId == null || !bet.signalId?.trim()) return null;
+
+  if (bet.strategy === "rotacao" && bet.rotacaoActive) {
+    const factor1Key = pragmaticExteriorBetKeyFromFactor(bet.rotacaoActive.alertFactor);
+    const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
+    const recovery = Math.max(0, Math.floor(bet.recovery));
+    const activeCrossing = activeCrossingFromAutomationBet(bet);
+    if (!activeCrossing) return null;
+    const context = buildRotatingRoomExtensionContext(
+      {
+        sessionMode: "active",
+        showTapeteSignal: true,
+        prepareTableId: null,
+        currentTableId: bet.tableId,
+        activeCrossing,
+        singleFactorMode: true,
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+        rotativaTrigger: "rotacao",
+        currentRecovery: recovery,
+        lobbyWait: false,
+      },
+      mesaEmbedUrl,
+      automationBalance,
+    );
+    return {
+      fingerprint: `${bet.signalId}|r${recovery}`,
+      actions: [
+        {
+          kind: "click",
+          target: "prepare-open",
+          label: bet.tableLabel ?? lobbyTableDisplayName(bet.tableId),
+          reason: `Abrir ${bet.tableLabel ?? "mesa"} no operador`,
+        },
+        {
+          kind: "click",
+          target: "factor-1",
+          label: bet.alertLabel ?? factor1Key,
+          reason: `Rotação · ${bet.alertLabel ?? factor1Key} · gale ${recovery}`,
+        },
+      ],
+      context: {
+        ...context,
+        factor1Label: bet.alertLabel,
+        factor1BetKey: factor1Key,
+        rotativaTrigger: "rotacao",
+        strategy: "rotacao",
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+      },
+    };
+  }
 
   if (bet.strategy === "fibonacci") {
     const parsed = parseFibonacciSignalId(bet.signalId);

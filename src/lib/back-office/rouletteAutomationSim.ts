@@ -10,7 +10,11 @@ import {
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
 import { doisFatoresFactorLabel, evaluateDoisFatoresRound, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { resolveRotativaTriggerFromSnapshot } from "@/lib/roulette/rotatingRoomRotativaMerge";
-import { fibonacciSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import {
+  rotacaoSignalId,
+  rotacaoActiveToCrossing,
+  type RotacaoActive,
+} from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
@@ -53,9 +57,10 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
-  strategy?: "um1fator" | "dois2fatores" | "fibonacci";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
+  rotacaoActive?: RotacaoActive;
 };
 
 /** Aposta aberta — entrada em jogo à espera do giro. */
@@ -236,16 +241,19 @@ export function pendingSignalFromSnapshot(
     blockNewEntries?: boolean;
     crossingEnabled?: boolean;
     fibonacciEnabled?: boolean;
+    rotacaoEnabled?: boolean;
   },
 ): AutomationPendingSignal | null {
   if (options?.blockNewEntries) return null;
 
   const crossingEnabled = options?.crossingEnabled !== false;
   const fibonacciEnabled = options?.fibonacciEnabled !== false;
+  const rotacaoEnabled = options?.rotacaoEnabled === true;
   const trigger = resolveRotativaTriggerFromSnapshot(
     snapshot,
     crossingEnabled,
     fibonacciEnabled,
+    rotacaoEnabled,
   );
   if (trigger === "crossing") {
     return pendingSignalFromCrossingSession(
@@ -259,6 +267,15 @@ export function pendingSignalFromSnapshot(
   if (trigger === "fibonacci") {
     return pendingSignalFromFibonacciSession(
       snapshot.fibonacci,
+      balance,
+      histories,
+      options?.baseStake,
+    );
+  }
+
+  if (trigger === "rotacao") {
+    return pendingSignalFromRotacaoSession(
+      snapshot.rotacao,
       balance,
       histories,
       options?.baseStake,
@@ -377,6 +394,51 @@ export function pendingSignalFromFibonacciSession(
     recovery,
     stake: stakeForFibonacciRecovery(recovery, baseStake),
     strategy: "fibonacci",
+  };
+}
+
+/** Sinal activo Rotação — Roulette 1, altura/paridade/cor. */
+export function pendingSignalFromRotacaoSession(
+  session: Pick<
+    StrategyGlobalSnapshot["rotacao"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "rotacaoActive" | "cycleSeq"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.rotacaoActive) {
+    return null;
+  }
+
+  const tableId = session.currentTableId;
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
+    return null;
+  }
+  if (history.length > 0 && history[0] !== session.rotacaoActive.baseNumber) {
+    return null;
+  }
+
+  const active = session.rotacaoActive;
+  const alertLabel = active.alertLabel;
+  const recovery = session.currentRecovery;
+
+  return {
+    signalId: rotacaoSignalId(
+      active.baseNumber,
+      active.dimension,
+      recovery,
+      session.cycleSeq ?? 0,
+    ),
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel,
+    recovery,
+    stake: stakeForRecovery(recovery, balance, baseStake),
+    strategy: "rotacao",
+    rotacaoActive: active,
+    activeCrossing: rotacaoActiveToCrossing(active),
   };
 }
 
@@ -834,7 +896,7 @@ export function trySettleOpenBetFromSpin(
   ledger: readonly StrategyGlobalLedgerEntry[] = [],
 ): RouletteAutomationSimState {
   const bet = state.openBet;
-  if (!bet?.umActive && !bet?.activeCrossing) return state;
+  if (!bet?.umActive && !bet?.activeCrossing && !bet?.rotacaoActive) return state;
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;

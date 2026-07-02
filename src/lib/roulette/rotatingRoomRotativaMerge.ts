@@ -9,11 +9,12 @@ import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrateg
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalFibonacciClientView,
+  StrategyGlobalRotacaoClientView,
   StrategyGlobalSnapshot,
   StrategyGlobalUmFatorClientView,
 } from "@/lib/roulette/strategyGlobalTypes";
 
-export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci";
+export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci" | "rotacao";
 
 export type RotatingRoomRotativaSessionMeta = {
   /** Gatilho activo na indicação actual. */
@@ -150,6 +151,7 @@ export function mergeRotatingRoomRotativaSession(
 export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind): string {
   if (kind === "crossing") return "2 Fatores · padrões";
   if (kind === "fibonacci") return "Fibonacci";
+  if (kind === "rotacao") return "Rotação";
   return "1 Fator";
 }
 
@@ -190,15 +192,21 @@ function fibonacciHasPrepare(fib: StrategyGlobalFibonacciClientView): boolean {
   return fib.prepareTableId != null || fib.fibonacciScan.some((row) => row.status === "prepare");
 }
 
+function rotacaoInCycleFromView(rot: StrategyGlobalRotacaoClientView): boolean {
+  return rot.showTapeteSignal || rot.currentRecovery > 0;
+}
+
 /** Mesma prioridade do merge na sala rotativa — Fibonacci primeiro quando activo. */
 export function resolveRotativaTriggerFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
   crossingEnabled: boolean,
   fibonacciEnabled = true,
+  rotacaoEnabled = false,
 ): RotatingRoomRotativaTriggerKind {
   const um = snapshot.um1fator;
   const crossing = snapshot.dois2fatores;
   const fibonacci = snapshot.fibonacci;
+  const rotacao = snapshot.rotacao;
 
   if (fibonacciEnabled) {
     const fibBusy = fibonacciInCycleFromView(fibonacci);
@@ -206,6 +214,11 @@ export function resolveRotativaTriggerFromSnapshot(
     if (fibonacciHasQualifyingAlert(fibonacci) && fibonacci.showTapeteSignal) return "fibonacci";
     if (fibonacciHasPrepare(fibonacci)) return "fibonacci";
     if (fibonacciHasQualifyingAlert(fibonacci)) return "fibonacci";
+  }
+
+  if (rotacaoEnabled) {
+    if (rotacaoInCycleFromView(rotacao)) return "rotacao";
+    if (rotacao.showTapeteSignal) return "rotacao";
   }
 
   if (!crossingEnabled && !fibonacciEnabled) return "umFator";

@@ -4,6 +4,7 @@ import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativ
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { fibonacciActiveFromSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 
 export type RotatingRoomLobbySession = (
@@ -116,17 +117,18 @@ export function alignRotatingRoomSessionWithAutomationBet<
     | {
         tableId: number;
         recovery: number;
-        strategy?: "um1fator" | "dois2fatores" | "fibonacci";
+        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
         signalId?: string;
         alertLabel?: string;
         umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
+        rotacaoActive?: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoActive;
         activeCrossing?: DoisFatoresActive | null;
       }
     | null
     | undefined,
   options?: {
     /** Só alinha quando a aposta é desta estratégia (evita sinal de 1F/2F sobrepor Fibonacci). */
-    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci";
+    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
   },
 ): T {
   if (!bet?.tableId) return session;
@@ -163,6 +165,20 @@ export function alignRotatingRoomSessionWithAutomationBet<
       activeCrossing: null,
       sessionMode: "active",
       rotativaTrigger: "fibonacci",
+    } as T;
+  }
+
+  if (bet.strategy === "rotacao" && bet.rotacaoActive) {
+    const activeCrossing = rotacaoActiveToCrossing(bet.rotacaoActive);
+    return {
+      ...session,
+      currentTableId: bet.tableId,
+      showTapeteSignal: true,
+      prepareTableId: null,
+      currentRecovery: bet.recovery,
+      activeCrossing,
+      sessionMode: "active",
+      rotativaTrigger: "rotacao",
     } as T;
   }
 

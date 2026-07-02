@@ -322,6 +322,7 @@ async function readBridgePrefs() {
     wins: Math.max(0, Number(raw.wins) || 0),
     losses: Math.max(0, Number(raw.losses) || 0),
     closeMesaOnFinish: raw.closeMesaOnFinish !== false,
+    rotacaoEnabled: raw.rotacaoEnabled === true,
   };
 }
 
@@ -383,6 +384,23 @@ async function buildStatus() {
 
 async function handleBridgePayload(payload, sourceTabId) {
   const ctx = payload.context ?? {};
+  if (ctx?.strategy === "rotacao") {
+    const prefs = await readBridgePrefs();
+    if (prefs.rotacaoEnabled !== true) {
+      return {
+        ok: true,
+        results: [
+          {
+            target: "bridge",
+            ok: true,
+            skipped: true,
+            detail: "Gatilho Rotação desactivado na extensão",
+          },
+        ],
+        mode: await resolveExecutionMode(payload.context),
+      };
+    }
+  }
   const signalId =
     typeof ctx.signalId === "string" && ctx.signalId.trim() ? ctx.signalId.trim() : null;
   const recovery = recoveryFromContext(ctx);

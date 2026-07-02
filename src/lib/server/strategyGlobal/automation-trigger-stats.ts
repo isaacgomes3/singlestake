@@ -82,6 +82,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       crossingStats,
       enabledTriggers,
       state.fibonacci.stats,
+      state.rotacao.stats,
     ),
     fibonacci: fibonacciStatsFromState(
       state.fibonacci.stats,

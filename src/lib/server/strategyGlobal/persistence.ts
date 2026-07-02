@@ -11,6 +11,11 @@ import {
   type RotatingRoomCrossingMachineState,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import {
+  ROTACAO_MAX_RECOVERY,
+  defaultRotacaoMachineState,
+  type RotacaoMachineState,
+} from "@/lib/roulette/rotatingRoomRotacaoStrategy";
+import {
   ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
   defaultRotatingRoomFibonacciMachineState,
   type RotatingRoomFibonacciMachineState,
@@ -50,6 +55,10 @@ export type StrategyGlobalPersistedState = {
   };
   fibonacci: {
     machine: RotatingRoomFibonacciMachineState;
+    stats: RotatingRoomSessionStats;
+  };
+  rotacao: {
+    machine: RotacaoMachineState;
     stats: RotatingRoomSessionStats;
   };
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
@@ -94,6 +103,10 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
       machine: defaultRotatingRoomFibonacciMachineState(),
       stats: emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
     },
+    rotacao: {
+      machine: defaultRotacaoMachineState(),
+      stats: emptyRotatingRoomSessionStats(ROTACAO_MAX_RECOVERY),
+    },
     lifetime: {
       dois2fatores: { ...defaultLifetime(), since: now },
       um1fator: {
@@ -108,9 +121,19 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
         winsAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
         lossesAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
       },
+      rotacao: {
+        ...defaultLifetime(),
+        since: now,
+        winsAtRecovery: emptyRecoveryLevelCounts(ROTACAO_MAX_RECOVERY),
+        lossesAtRecovery: emptyRecoveryLevelCounts(ROTACAO_MAX_RECOVERY),
+      },
     },
-    ledger: { dois2fatores: [], um1fator: [], fibonacci: [] },
+    ledger: { dois2fatores: [], um1fator: [], fibonacci: [], rotacao: [] },
   };
+}
+
+function parseRotacaoMachine(raw: unknown): RotacaoMachineState {
+  return { ...defaultRotacaoMachineState(), ...(raw as object) };
 }
 
 function parseFibonacciMachine(raw: unknown): RotatingRoomFibonacciMachineState {
@@ -186,10 +209,15 @@ export function parsePersistedState(
         ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
       ),
     },
+    rotacao: {
+      machine: parseRotacaoMachine(o.rotacao?.machine),
+      stats: parseRotatingRoomSessionStats(o.rotacao?.stats, ROTACAO_MAX_RECOVERY),
+    },
     lifetime: {
       dois2fatores: parseLifetime(o.lifetime?.dois2fatores, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
       um1fator: parseLifetime(o.lifetime?.um1fator, UM_FATOR_MAX_RECOVERY),
       fibonacci: parseLifetime(o.lifetime?.fibonacci, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
+      rotacao: parseLifetime(o.lifetime?.rotacao, ROTACAO_MAX_RECOVERY),
     },
     ledger: {
       dois2fatores: Array.isArray(o.ledger?.dois2fatores)
@@ -200,6 +228,9 @@ export function parsePersistedState(
         : [],
       fibonacci: Array.isArray(o.ledger?.fibonacci)
         ? (o.ledger!.fibonacci as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
+        : [],
+      rotacao: Array.isArray(o.ledger?.rotacao)
+        ? (o.ledger!.rotacao as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
         : [],
     },
   };

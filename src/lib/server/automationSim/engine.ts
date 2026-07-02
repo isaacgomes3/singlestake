@@ -5,7 +5,7 @@ import {
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
 } from "@/lib/back-office/automation-config";
-import { enabledFibonacciZoneKindsFromMap } from "@/lib/roulette/umFatorTriggerEnable";
+import { enabledFibonacciZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
@@ -59,9 +59,12 @@ function withAutomationSimMutationLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function combinedStrategyLedger(
-  ledger: Pick<StrategyGlobalPersistedState["ledger"], "um1fator" | "dois2fatores" | "fibonacci">,
+  ledger: Pick<
+    StrategyGlobalPersistedState["ledger"],
+    "um1fator" | "dois2fatores" | "fibonacci" | "rotacao"
+  >,
 ): StrategyGlobalLedgerEntry[] {
-  return [...ledger.um1fator, ...ledger.dois2fatores, ...ledger.fibonacci].sort(
+  return [...ledger.um1fator, ...ledger.dois2fatores, ...ledger.fibonacci, ...ledger.rotacao].sort(
     (a, b) => a.ts - b.ts,
   );
 }
@@ -151,6 +154,7 @@ function buildSnapshotBody(
         crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
         fibonacciEnabled:
           enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+        rotacaoEnabled: isRotacaoGatilhoEnabled(),
       },
     ),
     config: resolved,
@@ -243,7 +247,8 @@ export async function ensureAutomationSimEngine(): Promise<void> {
         const hasLedger =
           globalState.ledger.um1fator.length > 0 ||
           globalState.ledger.dois2fatores.length > 0 ||
-          globalState.ledger.fibonacci.length > 0;
+          globalState.ledger.fibonacci.length > 0 ||
+          globalState.ledger.rotacao.length > 0;
         const hasSimHistory = sim.rounds.length > 0 || sim.processedKeys.length > 0;
         if (hasLedger && hasSimHistory) {
           const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
@@ -365,6 +370,14 @@ export async function syncAutomationSimWithStrategy(
     replaceAutomationSimState(state);
     openBet = null;
   }
+  if (
+    openBet?.strategy === "rotacao" &&
+    !strategySnapshot.rotacao.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
   if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
     if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
@@ -383,6 +396,7 @@ export async function syncAutomationSimWithStrategy(
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+      rotacaoEnabled: isRotacaoGatilhoEnabled(),
     },
   );
   const openedHead =
@@ -522,6 +536,7 @@ export async function replayAutomationSimFromLedger(
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+      rotacaoEnabled: isRotacaoGatilhoEnabled(),
     },
   );
   const openedHead =

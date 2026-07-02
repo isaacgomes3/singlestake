@@ -38,10 +38,11 @@ function accuracyTone(pct: number | null): string {
 
 function automationTriggerToggleId(
   rowId: UmFatorTriggerTierReportRow["id"],
-): "three" | "crossing" | "fibonacci" | null {
+): "three" | "crossing" | "fibonacci" | "rotacao" | null {
   if (rowId === "three") return "three";
   if (rowId === "crossing-primary") return "crossing";
   if (rowId === "fibonacci") return "fibonacci";
+  if (rowId === "rotacao") return "rotacao";
   return null;
 }
 
@@ -98,7 +99,7 @@ export function BackOfficeAutomationStatsPanel() {
   }
 
   async function handleToggleTrigger(
-    id: "three" | "crossing" | "fibonacci" | FibonacciZoneToggleId,
+    id: "three" | "crossing" | "fibonacci" | "rotacao" | FibonacciZoneToggleId,
     enabled: boolean,
   ) {
     setTogglingId(id);

@@ -33,6 +33,7 @@ export const automationStatsContent = {
       fibonacci: "Fibonacci · dúzias/colunas",
       fibonacciDozen: "Fibonacci · dúzias",
       fibonacciColumn: "Fibonacci · colunas",
+      rotacao: "Rotação · altura/paridade/cor (Roulette 1)",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
@@ -78,6 +79,7 @@ export const automationStatsContent = {
       fibonacci: "Fibonacci · dozens/columns",
       fibonacciDozen: "Fibonacci · dozens",
       fibonacciColumn: "Fibonacci · columns",
+      rotacao: "Rotation · high/parity/color (Roulette 1)",
     },
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
@@ -123,6 +125,7 @@ export const automationStatsContent = {
       fibonacci: "Fibonacci · docenas/columnas",
       fibonacciDozen: "Fibonacci · docenas",
       fibonacciColumn: "Fibonacci · columnas",
+      rotacao: "Rotación · altura/paridad/color (Roulette 1)",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:

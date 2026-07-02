@@ -2,7 +2,7 @@ import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
 /** Gatilhos activos na sala rotativa. 2 Fatores (padrões) activo por defeito; 1 Fator só manual. */
-export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci";
+export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "rotacao";
 
 export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 
@@ -11,6 +11,7 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   fibonacci: boolean;
   fibonacciDozen: boolean;
   fibonacciColumn: boolean;
+  rotacao: boolean;
 };
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
@@ -24,6 +25,7 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   fibonacci: true,
   fibonacciDozen: true,
   fibonacciColumn: true,
+  rotacao: false,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
@@ -45,6 +47,7 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
   if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
   if (typeof o.fibonacciColumn === "boolean") base.fibonacciColumn = o.fibonacciColumn;
+  if (typeof o.rotacao === "boolean") base.rotacao = o.rotacao;
   base.two = false;
   return base;
 }
@@ -119,6 +122,10 @@ export function isFibonacciDozenGatilhoEnabled(): boolean {
 
 export function isFibonacciColumnGatilhoEnabled(): boolean {
   return runtimeEnabled.fibonacci !== false && runtimeEnabled.fibonacciColumn !== false;
+}
+
+export function isRotacaoGatilhoEnabled(): boolean {
+  return runtimeEnabled.rotacao === true;
 }
 
 export function getEnabledFibonacciZoneKinds(): FibonacciZoneKind[] {

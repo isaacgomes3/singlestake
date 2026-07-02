@@ -37,7 +37,8 @@ export type CrossingPatternGatilhoId =
 export type RotatingRoomGatilhoReportId =
   | UmFatorTriggerMatchTier
   | CrossingPatternGatilhoId
-  | "fibonacci";
+  | "fibonacci"
+  | "rotacao";
 
 export type CrossingPatternKindDefinition = {
   id: CrossingPatternGatilhoId;
@@ -109,16 +110,33 @@ export function buildFibonacciGatilhoReportRow(
   );
 }
 
+export function buildRotacaoGatilhoReportRow(
+  stats: RotatingRoomSessionStats | undefined,
+  enabled: boolean,
+): UmFatorTriggerTierReportRow {
+  const wins = Math.max(0, stats?.wins ?? 0);
+  const losses = Math.max(0, stats?.losses ?? 0);
+  return rowFromBucket(
+    { id: "rotacao", labelKey: "rotacao" },
+    { wins, losses },
+    enabled,
+    true,
+  );
+}
+
 export function buildRotatingRoomGatilhoTriggerReport(
   umStats: RotatingRoomSessionStats | undefined,
   crossingStats: RotatingRoomSessionStats | undefined,
-  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing" | "fibonacci", boolean>>,
+  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "rotacao", boolean>>,
   fibonacciStats?: RotatingRoomSessionStats,
+  rotacaoStats?: RotatingRoomSessionStats,
 ): UmFatorTriggerTierReportRow[] {
   const crossingEnabled = enabledTriggers?.crossing !== false;
   const fibonacciEnabled = enabledTriggers?.fibonacci !== false;
+  const rotacaoEnabled = enabledTriggers?.rotacao === true;
   return [
     buildFibonacciGatilhoReportRow(fibonacciStats, fibonacciEnabled),
+    buildRotacaoGatilhoReportRow(rotacaoStats, rotacaoEnabled),
     ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),
     ...buildUmFatorTriggerTierReport(umStats, enabledTriggers),
   ];

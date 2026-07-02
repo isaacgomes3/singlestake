@@ -34,6 +34,17 @@ export function formatGlobalAutomationSettleDescription(
     return parts.join(" · ");
   }
 
+  if (input.strategy === "rotacao") {
+    const parts = [input.tableLabel, "Rotação"];
+    if (input.resultNumber != null) {
+      parts.push(`Giro ${input.resultNumber}`);
+    }
+    if (input.recovery > 0 || input.kind === "recovery" || input.kind === "loss") {
+      parts.push(`gale ${input.recovery}`);
+    }
+    return parts.join(" · ");
+  }
+
   const recoveryNote = input.recovery > 0 ? ` · gale ${input.recovery}` : "";
   const baseDesc = `Automação global — ${input.tableLabel}${recoveryNote}`;
 

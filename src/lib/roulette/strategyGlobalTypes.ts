@@ -9,7 +9,7 @@ import type { DoisFatoresActive, DoisFatoresFactor } from "@/lib/roulette/doisFa
 import type { UmFatorActive } from "@/lib/roulette/umFatorStrategy";
 import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 
-export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci";
+export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci" | "rotacao";
 
 export type StrategyGlobalLedgerEntry = {
   ts: number;
@@ -92,6 +92,21 @@ export type StrategyGlobalFibonacciClientView = {
   activeFibonacci: RotatingRoomFibonacciActive | null;
 };
 
+export type StrategyGlobalRotacaoClientView = {
+  phase: RotatingRoomPhase;
+  sessionStats: RotatingRoomSessionStats;
+  showTapeteSignal: boolean;
+  rotacaoMode: true;
+  currentRecovery: number;
+  cycleSeq: number;
+  currentTableId: number | null;
+  currentDimension: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoDimension | null;
+  alertCategory: string | null;
+  sessionMode: "scanning" | "active";
+  activeCrossing: DoisFatoresActive | null;
+  rotacaoActive: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoActive | null;
+};
+
 /** Snapshot servido a todos os clientes (fonte única de verdade). */
 export type StrategyGlobalSnapshot = {
   revision: number;
@@ -101,6 +116,7 @@ export type StrategyGlobalSnapshot = {
   dois2fatores: StrategyGlobalCrossingClientView;
   um1fator: StrategyGlobalUmFatorClientView;
   fibonacci: StrategyGlobalFibonacciClientView;
+  rotacao: StrategyGlobalRotacaoClientView;
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
   ledgerTail: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
@@ -136,6 +152,12 @@ export type StrategyGlobalFlashPayload = {
     kind: "win" | "loss" | "recovery";
   } | null;
   fibonacci: {
+    resultNumber: number;
+    won: boolean;
+    tableId: number;
+    kind: "win" | "loss" | "recovery";
+  } | null;
+  rotacao: {
     resultNumber: number;
     won: boolean;
     tableId: number;

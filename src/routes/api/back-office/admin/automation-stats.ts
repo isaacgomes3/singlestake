@@ -91,6 +91,7 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           (id !== "three" &&
             id !== "crossing" &&
             id !== "fibonacci" &&
+            id !== "rotacao" &&
             id !== "fibonacciDozen" &&
             id !== "fibonacciColumn") ||
           typeof enabled !== "boolean"

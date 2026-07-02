@@ -1,7 +1,7 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
 import { getAutomationConfig } from "@/lib/server/automationSim/config";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
-import { enabledFibonacciZoneKindsFromMap } from "@/lib/roulette/umFatorTriggerEnable";
+import { enabledFibonacciZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
@@ -42,6 +42,15 @@ import {
   tickRotatingRoomFibonacciPlacar,
   type RotatingRoomFibonacciPlacarFlash,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import {
+  ROTACAO_MAX_RECOVERY,
+  defaultRotacaoMachineState,
+  rotacaoActiveToCrossing,
+  rotacaoGlobalActive,
+  rotacaoShowTapeteSignal,
+  tickRotacaoPlacar,
+  type RotacaoPlacarFlash,
+} from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import { STRATEGY_PLACAR_DRAIN_MAX_STEPS, drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
@@ -55,6 +64,7 @@ import {
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalFibonacciClientView,
+  StrategyGlobalRotacaoClientView,
   StrategyGlobalKind,
   StrategyGlobalLedgerEntry,
   StrategyGlobalSnapshot,
@@ -126,6 +136,26 @@ function appendCrossingLedgerIfNeeded(
   }
   const ledgerEntry = ledgerFromFlash(crossing.flash, crossing.recoveryBefore, "dois2fatores");
   appendLedger(state, "dois2fatores", ledgerEntry, ROTATING_ROOM_CROSSING_MAX_RECOVERY);
+  return [ledgerEntry];
+}
+
+function appendRotacaoLedgerIfNeeded(
+  state: StrategyGlobalPersistedState,
+  rotacao: { flash: RotacaoPlacarFlash; recoveryBefore: number },
+): StrategyGlobalLedgerEntry[] {
+  if (automationBlocksNewEntries(getAutomationConfig(), 0)) {
+    return [];
+  }
+  if (
+    !rotacao.flash ||
+    (rotacao.flash.kind !== "win" &&
+      rotacao.flash.kind !== "loss" &&
+      rotacao.flash.kind !== "recovery")
+  ) {
+    return [];
+  }
+  const ledgerEntry = ledgerFromFlash(rotacao.flash, rotacao.recoveryBefore, "rotacao");
+  appendLedger(state, "rotacao", ledgerEntry, ROTACAO_MAX_RECOVERY);
   return [ledgerEntry];
 }
 
@@ -267,6 +297,26 @@ function driveFibonacci(
     tableIds,
   );
   state.fibonacci.stats = result.stats;
+  return { flash: result.flash, recoveryBefore };
+}
+
+function driveRotacao(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+): { flash: RotacaoPlacarFlash; recoveryBefore: number } {
+  const recoveryBefore = state.rotacao.machine.recovery;
+  const rotacaoTriggerOn = isRotacaoGatilhoEnabled();
+  const allowNewArming =
+    rotacaoTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+  const result = tickRotacaoPlacar(
+    histories,
+    state.rotacao.machine,
+    state.rotacao.stats,
+    ROTACAO_MAX_RECOVERY,
+    allowNewArming,
+  );
+  state.rotacao.machine = result.nextMachine;
+  state.rotacao.stats = result.stats;
   return { flash: result.flash, recoveryBefore };
 }
 
@@ -439,6 +489,31 @@ function buildFibonacciClientView(
   };
 }
 
+function buildRotacaoClientView(
+  state: StrategyGlobalPersistedState,
+): StrategyGlobalRotacaoClientView {
+  const machine = state.rotacao.machine;
+  const rotacaoActive = rotacaoGlobalActive(machine);
+  const showTapeteSignal = rotacaoShowTapeteSignal(machine);
+  const activeCrossing = rotacaoActive ? rotacaoActiveToCrossing(rotacaoActive) : null;
+  return {
+    phase: showTapeteSignal ? "active" : "waiting",
+    sessionStats: state.rotacao.stats,
+    showTapeteSignal,
+    rotacaoMode: true,
+    currentRecovery: machine.recovery,
+    cycleSeq: machine.cycleSeq,
+    currentTableId: showTapeteSignal ? rotacaoActive?.tableId ?? null : null,
+    currentDimension: machine.pendingDimension,
+    alertCategory: rotacaoActive
+      ? `${rotacaoActive.dimension} · ${rotacaoActive.alertLabel}`
+      : null,
+    sessionMode: showTapeteSignal ? "active" : "scanning",
+    activeCrossing,
+    rotacaoActive,
+  };
+}
+
 export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState): StrategyGlobalSnapshot {
   const histories = historiesRecord(state);
   const tableHistories: Record<number, number[]> = {};
@@ -455,11 +530,13 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     dois2fatores: buildCrossingClientView(state, histories),
     um1fator: buildUmFatorClientView(state, histories),
     fibonacci: buildFibonacciClientView(state, histories),
+    rotacao: buildRotacaoClientView(state),
     lifetime: state.lifetime,
     ledgerTail: {
       dois2fatores: state.ledger.dois2fatores.slice(-120),
       um1fator: state.ledger.um1fator.slice(-120),
       fibonacci: state.ledger.fibonacci.slice(-120),
+      rotacao: state.ledger.rotacao.slice(-120),
     },
     extensionSource: {
       active: extensionSource.active,
@@ -485,6 +562,7 @@ function toFlashPayload(
   crossing: RotatingRoomCrossingPlacarFlash,
   um: UmFatorPlacarFlash,
   fibonacci: RotatingRoomFibonacciPlacarFlash = null,
+  rotacao: RotacaoPlacarFlash = null,
 ): StrategyGlobalFlashPayload {
   return {
     dois2fatores: crossing
@@ -511,6 +589,14 @@ function toFlashPayload(
           kind: fibonacci.kind,
         }
       : null,
+    rotacao: rotacao
+      ? {
+          resultNumber: rotacao.resultNumber,
+          won: rotacao.won,
+          tableId: rotacao.tableId,
+          kind: rotacao.kind,
+        }
+      : null,
   };
 }
 
@@ -519,12 +605,13 @@ function bumpAndBroadcast(
   crossingFlash: RotatingRoomCrossingPlacarFlash,
   umFlash: UmFatorPlacarFlash,
   fibonacciFlash: RotatingRoomFibonacciPlacarFlash = null,
+  rotacaoFlash: RotacaoPlacarFlash = null,
 ): StrategyGlobalSnapshot {
   state.revision += 1;
   state.updatedAt = Date.now();
   schedulePersist(state);
   const snapshot = buildStrategyGlobalSnapshot(state);
-  const flashes = toFlashPayload(crossingFlash, umFlash, fibonacciFlash);
+  const flashes = toFlashPayload(crossingFlash, umFlash, fibonacciFlash, rotacaoFlash);
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
   void import("@/lib/server/automationSim/engine").then((m) => {
     void m.ensureAutomationSimEngine().then(() => {
@@ -554,10 +641,16 @@ export function ingestStrategyGlobalSpin(
   const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
   const fibonacci = driveFibonacci(state, histories);
   const fibonacciLedgerEntries = appendFibonacciLedgerIfNeeded(state, fibonacci);
+  const rotacao = driveRotacao(state, histories);
+  const rotacaoLedgerEntries = appendRotacaoLedgerIfNeeded(state, rotacao);
 
   if (extensionActive) {
-    const snapshot = bumpAndBroadcast(state, crossing.flash, null, fibonacci.flash);
-    const automationEntries = [...crossingLedgerEntries, ...fibonacciLedgerEntries];
+    const snapshot = bumpAndBroadcast(state, crossing.flash, null, fibonacci.flash, rotacao.flash);
+    const automationEntries = [
+      ...crossingLedgerEntries,
+      ...fibonacciLedgerEntries,
+      ...rotacaoLedgerEntries,
+    ];
     if (automationEntries.length > 0) {
       void pushAutomationSimSettlements(automationEntries, snapshot);
     }
@@ -572,8 +665,13 @@ export function ingestStrategyGlobalSpin(
     umLedgerEntries.push(ledgerEntry);
   }
 
-  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash, fibonacci.flash);
-  const automationEntries = [...crossingLedgerEntries, ...umLedgerEntries, ...fibonacciLedgerEntries];
+  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash, fibonacci.flash, rotacao.flash);
+  const automationEntries = [
+    ...crossingLedgerEntries,
+    ...umLedgerEntries,
+    ...fibonacciLedgerEntries,
+    ...rotacaoLedgerEntries,
+  ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
   }
@@ -645,6 +743,10 @@ export async function ingestStrategyGlobalExtensionSync(
     fibonacciLedgerEntries.push(...appendFibonacciLedgerIfNeeded(state, fibonacci));
   }
 
+  const rotacao = driveRotacao(state, histories);
+  const rotacaoLedgerEntries = appendRotacaoLedgerIfNeeded(state, rotacao);
+  let rotacaoFlash: RotacaoPlacarFlash = rotacao.flash;
+
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   const crossLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
   const fibLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
@@ -657,7 +759,9 @@ export async function ingestStrategyGlobalExtensionSync(
         ? "dois2fatores"
         : trigger === "fibonacci"
           ? "fibonacci"
-          : "um1fator";
+          : trigger === "rotacao"
+            ? "rotacao"
+            : "um1fator";
     const ledgerEntry = ledgerFromFlash(
       settlement.flash,
       settlement.recoveryBefore,
@@ -669,7 +773,9 @@ export async function ingestStrategyGlobalExtensionSync(
         ? ROTATING_ROOM_CROSSING_MAX_RECOVERY
         : kind === "fibonacci"
           ? ROTATING_ROOM_FIBONACCI_MAX_RECOVERY
-          : maxRecovery;
+          : kind === "rotacao"
+            ? ROTACAO_MAX_RECOVERY
+            : maxRecovery;
     appendLedger(state, kind, ledgerEntry, maxR);
     if (kind === "dois2fatores") {
       crossLedgerFromExtension.push(ledgerEntry);
@@ -683,13 +789,14 @@ export async function ingestStrategyGlobalExtensionSync(
     }
   }
 
-  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash, fibonacciFlash);
+  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash, fibonacciFlash, rotacaoFlash);
   const automationEntries = [
     ...crossingLedgerEntries,
     ...crossLedgerFromExtension,
     ...umLedgerEntries,
     ...fibonacciLedgerEntries,
     ...fibLedgerFromExtension,
+    ...rotacaoLedgerEntries,
   ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
@@ -721,7 +828,8 @@ export function ingestStrategyGlobalHistorySnapshot(
   driveCrossing(state, histories);
   driveUmFator(state, histories);
   driveFibonacci(state, histories);
-  bumpAndBroadcast(state, null, null, null);
+  driveRotacao(state, histories);
+  bumpAndBroadcast(state, null, null, null, null);
 }
 
 export function ingestStrategyGlobalReplayBatch(
@@ -748,7 +856,8 @@ export function ingestStrategyGlobalReplayBatch(
   driveCrossing(state, histories);
   driveUmFator(state, histories);
   driveFibonacci(state, histories);
-  bumpAndBroadcast(state, null, null, null);
+  driveRotacao(state, histories);
+  bumpAndBroadcast(state, null, null, null, null);
 }
 
 export function getStrategyGlobalSnapshotOrThrow(): StrategyGlobalSnapshot {
@@ -779,6 +888,9 @@ export function resetStrategyGlobalSession(
         tableIds,
         histories,
       );
+    } else if (k === "rotacao") {
+      state.rotacao.stats = emptyRotatingRoomSessionStats(ROTACAO_MAX_RECOVERY);
+      state.rotacao.machine = defaultRotacaoMachineState();
     } else {
       state.um1fator.stats = emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY);
       state.um1fator.machine = seedUmFatorMachineAfterPlacarReset(
@@ -793,6 +905,7 @@ export function resetStrategyGlobalSession(
     resetOne("dois2fatores");
     resetOne("um1fator");
     resetOne("fibonacci");
+    resetOne("rotacao");
   } else {
     resetOne(kind);
   }
