@@ -169,7 +169,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "get-status") {
-    void buildStatus().then(sendResponse);
+    void buildStatus()
+      .then((status) => sendResponse(status))
+      .catch((err) => {
+        sendResponse({
+          ok: false,
+          mode: "demo",
+          bridgeEnabled: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     return true;
   }
 
@@ -313,7 +322,10 @@ function clampBridgeMaxRecovery(value) {
 
 async function readBridgeEnabled() {
   const stored = await chrome.storage.local.get([STORAGE_BRIDGE_ENABLED]);
-  return stored[STORAGE_BRIDGE_ENABLED] !== false;
+  const v = stored[STORAGE_BRIDGE_ENABLED];
+  if (v === true) return true;
+  if (v === false) return false;
+  return true;
 }
 
 async function readAutopilotEnabled() {
@@ -367,8 +379,11 @@ async function buildStatus() {
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
   const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
-  const autopilot = await SinglestakeSignalRunner.getAutopilotStatus();
-  const dgaConfig = await SinglestakeSignalRunner.getDgaConfigForPopup();
+  const autopilot = await SinglestakeSignalRunner.getAutopilotStatus().catch(() => ({
+    enabled: false,
+    status: { running: false },
+  }));
+  const dgaConfig = await SinglestakeSignalRunner.getDgaConfigForPopup().catch(() => null);
   const bridgePrefs = await readBridgePrefs();
   const bridgeEnabled = await readBridgeEnabled();
   return {

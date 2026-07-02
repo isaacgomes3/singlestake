@@ -1,5 +1,7 @@
 const STORAGE_DGA_CONFIG = "gogDgaConfig";
 const STORAGE_BRIDGE_PREFS = "gogBridgePrefs";
+const STORAGE_MODE = "gogExecutionMode";
+const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 const EXT_VERSION = chrome.runtime.getManifest().version;
 
 function applyExtensionVersionLabel() {
@@ -196,8 +198,14 @@ const autopilotOffBtn = document.getElementById("autopilotOff");
 
 function setModeUi(mode) {
   const isDemo = mode !== "real";
-  modeDemoBtn?.classList.toggle("active-demo", isDemo);
-  modeRealBtn?.classList.toggle("active-real", !isDemo);
+  if (modeDemoBtn) {
+    modeDemoBtn.classList.toggle("active-demo", isDemo);
+    modeDemoBtn.classList.toggle("active-real", false);
+  }
+  if (modeRealBtn) {
+    modeRealBtn.classList.toggle("active-real", !isDemo);
+    modeRealBtn.classList.toggle("active-demo", false);
+  }
   if (modePill) {
     modePill.textContent = isDemo ? "DEMO" : "REAL";
     modePill.className = `pill ${isDemo ? "demo" : "real"}`;
@@ -285,14 +293,56 @@ function setRotacaoUi(enabled) {
 }
 
 function setBridgeUi(enabled) {
-  const on = enabled !== false;
-  bridgeOnBtn?.classList.toggle("active-real", on);
-  bridgeOffBtn?.classList.toggle("active-demo", !on);
+  const on = enabled === true;
+  if (bridgeOnBtn) {
+    bridgeOnBtn.classList.toggle("active-real", on);
+    bridgeOnBtn.classList.toggle("active-demo", false);
+  }
+  if (bridgeOffBtn) {
+    bridgeOffBtn.classList.toggle("active-demo", !on);
+    bridgeOffBtn.classList.toggle("active-real", false);
+  }
   if (bridgeStatus) {
     bridgeStatus.textContent = on
       ? "Ligada — segue sinais da sala rotativa no app."
       : "Desligada — ignora entradas da sala. Use «Ligar» para voltar a apostar.";
   }
+}
+
+function persistMode(mode) {
+  const next = mode === "real" ? "real" : "demo";
+  return new Promise((resolve) => {
+    chrome.storage.local.set(
+      {
+        [STORAGE_MODE]: next,
+        gogExteriorDryRun: next === "demo",
+        gogPragmaticDryRun: next === "demo",
+      },
+      () => resolve(next),
+    );
+  });
+}
+
+function persistBridgeEnabled(enabled) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [STORAGE_BRIDGE_ENABLED]: enabled === true }, () => resolve(enabled === true));
+  });
+}
+
+/** Lê modo/sala directamente do storage — não depende do service worker. */
+function bridgeEnabledFromStorageValue(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  return true;
+}
+
+function loadPrefsFromStorage() {
+  chrome.storage.local.get([STORAGE_MODE, STORAGE_BRIDGE_ENABLED], (data) => {
+    if (chrome.runtime.lastError) return;
+    const mode = data[STORAGE_MODE] === "real" ? "real" : "demo";
+    setModeUi(mode);
+    setBridgeUi(bridgeEnabledFromStorageValue(data[STORAGE_BRIDGE_ENABLED]));
+  });
 }
 
 function loadBridgePrefsForm() {
@@ -308,7 +358,7 @@ function renderStatus(status) {
   const lines = [];
   lines.push(`Extensão: v${EXT_VERSION}`);
   lines.push(`Modo: ${mode === "real" ? "REAL (cliques)" : "DEMO (simulado)"}`);
-  const bridgeOn = status?.bridgeEnabled !== false;
+  const bridgeOn = bridgeEnabledFromStorageValue(status?.bridgeEnabled);
   lines.push(`Sala: ${bridgeOn ? "LIGADA" : "DESLIGADA"}`);
   setBridgeUi(bridgeOn);
 
@@ -452,9 +502,33 @@ function renderStatus(status) {
 }
 
 function loadStatus() {
+  let settled = false;
+  const timeout = window.setTimeout(() => {
+    if (settled) return;
+    loadPrefsFromStorage();
+    if (out) {
+      out.textContent = [
+        `Extensão: v${EXT_VERSION}`,
+        "Modo e sala lidos do storage local.",
+        "",
+        "⚠ Service worker lento — em chrome://extensions clique em «service worker» se persistir.",
+      ].join("\n");
+    }
+  }, 3000);
+
   chrome.runtime.sendMessage({ kind: "get-status" }, (status) => {
+    settled = true;
+    window.clearTimeout(timeout);
     if (chrome.runtime.lastError) {
-      out.textContent = chrome.runtime.lastError.message;
+      loadPrefsFromStorage();
+      if (out) {
+        out.textContent = [
+          `Extensão: v${EXT_VERSION}`,
+          `Erro ao contactar background: ${chrome.runtime.lastError.message}`,
+          "",
+          "Modo REAL / Ligar gravam no storage mesmo assim — recarregue a extensão se necessário.",
+        ].join("\n");
+      }
       return;
     }
     renderStatus(status);
@@ -472,7 +546,17 @@ function loadStatus() {
 }
 
 function setMode(mode) {
-  chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
+  const next = mode === "real" ? "real" : "demo";
+  setModeUi(next);
+  void persistMode(next).then(() => {
+    chrome.runtime.sendMessage({ kind: "set-mode", mode: next }, () => {
+      if (chrome.runtime.lastError && out) {
+        out.textContent = `Modo ${next.toUpperCase()} gravado localmente.\n${chrome.runtime.lastError.message}`;
+        return;
+      }
+      loadStatus();
+    });
+  });
 }
 
 modeDemoBtn?.addEventListener("click", () => setMode("demo"));
@@ -490,11 +574,29 @@ autopilotOffBtn?.addEventListener("click", () => {
 });
 
 bridgeOnBtn?.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: true }, () => loadStatus());
+  setBridgeUi(true);
+  void persistBridgeEnabled(true).then(() => {
+    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: true }, () => {
+      if (chrome.runtime.lastError && out) {
+        out.textContent = `Sala LIGADA (gravado).\n${chrome.runtime.lastError.message}`;
+        return;
+      }
+      loadStatus();
+    });
+  });
 });
 
 bridgeOffBtn?.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: false }, () => loadStatus());
+  setBridgeUi(false);
+  void persistBridgeEnabled(false).then(() => {
+    chrome.runtime.sendMessage({ kind: "set-bridge-enabled", enabled: false }, () => {
+      if (chrome.runtime.lastError && out) {
+        out.textContent = `Sala DESLIGADA (gravado).\n${chrome.runtime.lastError.message}`;
+        return;
+      }
+      loadStatus();
+    });
+  });
 });
 
 rotacaoOnBtn?.addEventListener("click", () => {
@@ -521,8 +623,11 @@ maxGales?.addEventListener("change", () => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.gogBridgeEnabled) {
-    setBridgeUi(changes.gogBridgeEnabled.newValue !== false);
+  if (changes[STORAGE_BRIDGE_ENABLED]) {
+    setBridgeUi(bridgeEnabledFromStorageValue(changes[STORAGE_BRIDGE_ENABLED].newValue));
+  }
+  if (changes[STORAGE_MODE]) {
+    setModeUi(changes[STORAGE_MODE].newValue === "real" ? "real" : "demo");
   }
   if (changes[STORAGE_BRIDGE_PREFS]) {
     renderBridgePrefs(changes[STORAGE_BRIDGE_PREFS].newValue);
@@ -678,4 +783,6 @@ document.getElementById("primeFile")?.addEventListener("change", (ev) => {
   reader.readAsText(file);
 });
 
+loadPrefsFromStorage();
+chrome.runtime.sendMessage({ kind: "ping" }, () => {});
 loadStatus();

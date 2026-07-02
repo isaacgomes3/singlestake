@@ -1,6 +1,6 @@
 SINGLESTAKE — EXTENSÃO CHROME / EDGE
 ====================================
-Versão nesta pasta: 1.5.2
+Versão nesta pasta: 1.5.3
 
 CONFIRME antes de carregar:
   Abra manifest.json → deve ter "version": "1.5.2"
