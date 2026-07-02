@@ -1,7 +1,12 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
 import { getAutomationConfig } from "@/lib/server/automationSim/config";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
-import { enabledFibonacciZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { readEffectiveRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
+import {
+  enabledFibonacciZoneKindsFromMap,
+  enabledRepeticaoZoneKindsFromMap,
+  isRotacaoGatilhoEnabled,
+} from "@/lib/roulette/umFatorTriggerEnable";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
@@ -43,6 +48,22 @@ import {
   type RotatingRoomFibonacciPlacarFlash,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
+  buildRotatingRoomRepeticaoSessionLiveView,
+  tickRotatingRoomRepeticaoSessionPlacar,
+} from "@/lib/roulette/rotatingRoomRepeticaoSession";
+import {
+  ROTATING_ROOM_REPETICAO_MAX_RECOVERY,
+  buildRepeticaoActiveFromZone,
+  consecutiveNoRepeatStreak,
+  defaultRotatingRoomRepeticaoMachineState,
+  pickGlobalRepeticaoPrepare,
+  sanitizeRotatingRoomRepeticaoMachineForTableIds,
+  seedRotatingRoomRepeticaoMachineAfterPlacarReset,
+  tickRotatingRoomRepeticaoPlacar,
+  zoneFromHeadNumber,
+  type RotatingRoomRepeticaoPlacarFlash,
+} from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
+import {
   ROTACAO_MAX_RECOVERY,
   defaultRotacaoMachineState,
   rotacaoActiveToCrossing,
@@ -56,6 +77,7 @@ import { STRATEGY_PLACAR_DRAIN_MAX_STEPS, drainPlacarSteps } from "@/lib/roulett
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
 import { fibonacciMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomFibonacciPlacarDrive";
+import { repeticaoMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomRepeticaoPlacarDrive";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
 import {
   isRotatingRoomLobbyCooldownActive,
@@ -64,6 +86,7 @@ import {
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalFibonacciClientView,
+  StrategyGlobalRepeticaoClientView,
   StrategyGlobalRotacaoClientView,
   StrategyGlobalKind,
   StrategyGlobalLedgerEntry,
@@ -118,6 +141,10 @@ function syncRotatingTableIds(state: StrategyGlobalPersistedState, liveTableIds:
   state.um1fator.machine = sanitizeUmFatorMachineForTableIds(state.um1fator.machine, next);
   state.fibonacci.machine = sanitizeRotatingRoomFibonacciMachineForTableIds(
     state.fibonacci.machine,
+    next,
+  );
+  state.repeticao.machine = sanitizeRotatingRoomRepeticaoMachineForTableIds(
+    state.repeticao.machine,
     next,
   );
 }
@@ -297,6 +324,62 @@ function driveFibonacci(
     tableIds,
   );
   state.fibonacci.stats = result.stats;
+  return { flash: result.flash, recoveryBefore };
+}
+
+function appendRepeticaoLedgerIfNeeded(
+  state: StrategyGlobalPersistedState,
+  repeticao: { flash: RotatingRoomRepeticaoPlacarFlash; recoveryBefore: number },
+): StrategyGlobalLedgerEntry[] {
+  if (automationBlocksNewEntries(getAutomationConfig(), 0)) {
+    return [];
+  }
+  if (
+    !repeticao.flash ||
+    (repeticao.flash.kind !== "win" &&
+      repeticao.flash.kind !== "loss" &&
+      repeticao.flash.kind !== "recovery")
+  ) {
+    return [];
+  }
+  const ledgerEntry = ledgerFromFlash(repeticao.flash, repeticao.recoveryBefore, "repeticao");
+  appendLedger(state, "repeticao", ledgerEntry, ROTATING_ROOM_REPETICAO_MAX_RECOVERY);
+  return [ledgerEntry];
+}
+
+function driveRepeticao(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+): { flash: RotatingRoomRepeticaoPlacarFlash; recoveryBefore: number } {
+  const tableIds = state.rotatingRoomTableIds;
+  const recoveryBefore = state.repeticao.machine.recovery;
+  const config = getAutomationConfig();
+  const repeticaoTriggerOn = enabledRepeticaoZoneKindsFromMap(config.enabledTriggers).length > 0;
+  const enabledZoneKinds = enabledRepeticaoZoneKindsFromMap(config.enabledTriggers);
+  const allowNewArming =
+    repeticaoTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+  const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
+  const result = drainPlacarSteps(
+    state.repeticao.machine,
+    state.repeticao.stats,
+    (machine, stats) =>
+      tickRotatingRoomRepeticaoPlacar(
+        tableIds,
+        histories,
+        machine,
+        stats,
+        ROTATING_ROOM_REPETICAO_MAX_RECOVERY,
+        allowNewArming,
+        absenceByKind,
+        enabledZoneKinds,
+      ),
+    repeticaoMachinePlacarStepProgressed,
+  );
+  state.repeticao.machine = sanitizeRotatingRoomRepeticaoMachineForTableIds(
+    result.nextMachine,
+    tableIds,
+  );
+  state.repeticao.stats = result.stats;
   return { flash: result.flash, recoveryBefore };
 }
 
@@ -489,6 +572,97 @@ function buildFibonacciClientView(
   };
 }
 
+function buildRepeticaoClientView(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+): StrategyGlobalRepeticaoClientView {
+  const tableIds = state.rotatingRoomTableIds;
+  const machine = sanitizeRotatingRoomRepeticaoMachineForTableIds(state.repeticao.machine, tableIds);
+  const liveView = buildRotatingRoomRepeticaoSessionLiveView(tableIds, histories, machine);
+  const allowed = new Set(tableIds);
+  const activeRepeticao =
+    machine.cycleZone && machine.cycleTableId != null
+      ? buildRepeticaoActiveFromZone(
+          machine.cycleTableId,
+          machine.cycleZone,
+          consecutiveNoRepeatStreak(
+            histories[machine.cycleTableId] ?? [],
+            machine.cycleZone.kind,
+          ),
+          machine.recovery,
+        )
+      : null;
+  const currentTableId =
+    machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
+  const showTapeteSignal = activeRepeticao != null && currentTableId != null;
+  const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
+  const prepareTableId =
+    machine.prepareTableId != null && allowed.has(machine.prepareTableId)
+      ? machine.prepareTableId
+      : null;
+  const preparePick =
+    prepareTableId != null && machine.prepareZoneKind
+      ? {
+          tableId: prepareTableId,
+          zoneKind: machine.prepareZoneKind,
+          streakGap: consecutiveNoRepeatStreak(
+            histories[prepareTableId] ?? [],
+            machine.prepareZoneKind,
+          ),
+        }
+      : !showTapeteSignal && machine.recovery === 0
+        ? pickGlobalRepeticaoPrepare(
+            tableIds,
+            histories,
+            undefined,
+            absenceByKind,
+            enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers),
+          )
+        : null;
+  const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
+  const prepareZone =
+    prepareTableId != null && machine.prepareZoneKind
+      ? zoneFromHeadNumber(histories[prepareTableId] ?? [], machine.prepareZoneKind)
+      : null;
+  const alertCategory = activeRepeticao
+    ? activeRepeticao.zone.kind === "dozen"
+      ? `Dúzia ${activeRepeticao.zone.id}`
+      : `Coluna ${activeRepeticao.zone.id}`
+    : prepareZone
+      ? prepareZone.kind === "dozen"
+        ? `Dúzia ${prepareZone.id}`
+        : `Coluna ${prepareZone.id}`
+      : preparePick
+        ? preparePick.zoneKind === "dozen"
+          ? "Dúzia"
+          : "Coluna"
+        : null;
+  return {
+    phase: showTapeteSignal ? "active" : "waiting",
+    sessionStats: state.repeticao.stats,
+    showTapeteSignal,
+    repeticaoMode: true,
+    currentRecovery: machine.recovery,
+    cycleSeq: machine.cycleSeq ?? 0,
+    currentTableId: showTapeteSignal ? currentTableId : null,
+    prepareTableId,
+    alertCategory,
+    alertBucketGap: activeRepeticao?.streakGap ?? preparePick?.streakGap ?? 0,
+    sessionMode,
+    prepareCategory: prepareZone
+      ? prepareZone.kind === "dozen"
+        ? `Dúzia ${prepareZone.id}`
+        : `Coluna ${prepareZone.id}`
+      : preparePick
+        ? preparePick.zoneKind === "dozen"
+          ? "Dúzia"
+          : "Coluna"
+        : null,
+    repeticaoScan: liveView.repeticaoScan,
+    activeRepeticao: showTapeteSignal ? activeRepeticao : null,
+  };
+}
+
 function buildRotacaoClientView(
   state: StrategyGlobalPersistedState,
 ): StrategyGlobalRotacaoClientView {
@@ -530,12 +704,14 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     dois2fatores: buildCrossingClientView(state, histories),
     um1fator: buildUmFatorClientView(state, histories),
     fibonacci: buildFibonacciClientView(state, histories),
+    repeticao: buildRepeticaoClientView(state, histories),
     rotacao: buildRotacaoClientView(state),
     lifetime: state.lifetime,
     ledgerTail: {
       dois2fatores: state.ledger.dois2fatores.slice(-120),
       um1fator: state.ledger.um1fator.slice(-120),
       fibonacci: state.ledger.fibonacci.slice(-120),
+      repeticao: state.ledger.repeticao.slice(-120),
       rotacao: state.ledger.rotacao.slice(-120),
     },
     extensionSource: {
@@ -555,6 +731,18 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
         config.enabledTriggers.fibonacci !== false &&
         config.enabledTriggers.fibonacciColumn !== false,
     },
+    repeticaoPrefs: {
+      enabled: enabledRepeticaoZoneKindsFromMap(config.enabledTriggers).length > 0,
+      absenceSpins: config.repeticaoDozenAbsenceSpins,
+      dozenAbsenceSpins: config.repeticaoDozenAbsenceSpins,
+      columnAbsenceSpins: config.repeticaoColumnAbsenceSpins,
+      dozenEnabled:
+        config.enabledTriggers.repeticao !== false &&
+        config.enabledTriggers.repeticaoDozen !== false,
+      columnEnabled:
+        config.enabledTriggers.repeticao !== false &&
+        config.enabledTriggers.repeticaoColumn !== false,
+    },
   };
 }
 
@@ -562,6 +750,7 @@ function toFlashPayload(
   crossing: RotatingRoomCrossingPlacarFlash,
   um: UmFatorPlacarFlash,
   fibonacci: RotatingRoomFibonacciPlacarFlash = null,
+  repeticao: RotatingRoomRepeticaoPlacarFlash = null,
   rotacao: RotacaoPlacarFlash = null,
 ): StrategyGlobalFlashPayload {
   return {
@@ -589,6 +778,14 @@ function toFlashPayload(
           kind: fibonacci.kind,
         }
       : null,
+    repeticao: repeticao
+      ? {
+          resultNumber: repeticao.resultNumber,
+          won: repeticao.won,
+          tableId: repeticao.tableId,
+          kind: repeticao.kind,
+        }
+      : null,
     rotacao: rotacao
       ? {
           resultNumber: rotacao.resultNumber,
@@ -605,13 +802,14 @@ function bumpAndBroadcast(
   crossingFlash: RotatingRoomCrossingPlacarFlash,
   umFlash: UmFatorPlacarFlash,
   fibonacciFlash: RotatingRoomFibonacciPlacarFlash = null,
+  repeticaoFlash: RotatingRoomRepeticaoPlacarFlash = null,
   rotacaoFlash: RotacaoPlacarFlash = null,
 ): StrategyGlobalSnapshot {
   state.revision += 1;
   state.updatedAt = Date.now();
   schedulePersist(state);
   const snapshot = buildStrategyGlobalSnapshot(state);
-  const flashes = toFlashPayload(crossingFlash, umFlash, fibonacciFlash, rotacaoFlash);
+  const flashes = toFlashPayload(crossingFlash, umFlash, fibonacciFlash, repeticaoFlash, rotacaoFlash);
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
   void import("@/lib/server/automationSim/engine").then((m) => {
     void m.ensureAutomationSimEngine().then(() => {
@@ -641,14 +839,24 @@ export function ingestStrategyGlobalSpin(
   const crossingLedgerEntries = appendCrossingLedgerIfNeeded(state, crossing);
   const fibonacci = driveFibonacci(state, histories);
   const fibonacciLedgerEntries = appendFibonacciLedgerIfNeeded(state, fibonacci);
+  const repeticao = driveRepeticao(state, histories);
+  const repeticaoLedgerEntries = appendRepeticaoLedgerIfNeeded(state, repeticao);
   const rotacao = driveRotacao(state, histories);
   const rotacaoLedgerEntries = appendRotacaoLedgerIfNeeded(state, rotacao);
 
   if (extensionActive) {
-    const snapshot = bumpAndBroadcast(state, crossing.flash, null, fibonacci.flash, rotacao.flash);
+    const snapshot = bumpAndBroadcast(
+      state,
+      crossing.flash,
+      null,
+      fibonacci.flash,
+      repeticao.flash,
+      rotacao.flash,
+    );
     const automationEntries = [
       ...crossingLedgerEntries,
       ...fibonacciLedgerEntries,
+      ...repeticaoLedgerEntries,
       ...rotacaoLedgerEntries,
     ];
     if (automationEntries.length > 0) {
@@ -665,11 +873,19 @@ export function ingestStrategyGlobalSpin(
     umLedgerEntries.push(ledgerEntry);
   }
 
-  const snapshot = bumpAndBroadcast(state, crossing.flash, um.flash, fibonacci.flash, rotacao.flash);
+  const snapshot = bumpAndBroadcast(
+    state,
+    crossing.flash,
+    um.flash,
+    fibonacci.flash,
+    repeticao.flash,
+    rotacao.flash,
+  );
   const automationEntries = [
     ...crossingLedgerEntries,
     ...umLedgerEntries,
     ...fibonacciLedgerEntries,
+    ...repeticaoLedgerEntries,
     ...rotacaoLedgerEntries,
   ];
   if (automationEntries.length > 0) {
@@ -726,6 +942,14 @@ export async function ingestStrategyGlobalExtensionSync(
     );
   }
 
+  if (payload.repeticaoMachine && payload.repeticaoStats) {
+    state.repeticao.stats = payload.repeticaoStats;
+    state.repeticao.machine = sanitizeRotatingRoomRepeticaoMachineForTableIds(
+      payload.repeticaoMachine,
+      state.rotatingRoomTableIds,
+    );
+  }
+
   const histories = historiesRecord(state);
   let crossingFlash: RotatingRoomCrossingPlacarFlash = null;
   const crossingLedgerEntries: StrategyGlobalLedgerEntry[] = [];
@@ -743,6 +967,14 @@ export async function ingestStrategyGlobalExtensionSync(
     fibonacciLedgerEntries.push(...appendFibonacciLedgerIfNeeded(state, fibonacci));
   }
 
+  let repeticaoFlash: RotatingRoomRepeticaoPlacarFlash = null;
+  const repeticaoLedgerEntries: StrategyGlobalLedgerEntry[] = [];
+  if (!payload.repeticaoMachine) {
+    const repeticao = driveRepeticao(state, histories);
+    repeticaoFlash = repeticao.flash;
+    repeticaoLedgerEntries.push(...appendRepeticaoLedgerIfNeeded(state, repeticao));
+  }
+
   const rotacao = driveRotacao(state, histories);
   const rotacaoLedgerEntries = appendRotacaoLedgerIfNeeded(state, rotacao);
   let rotacaoFlash: RotacaoPlacarFlash = rotacao.flash;
@@ -750,6 +982,7 @@ export async function ingestStrategyGlobalExtensionSync(
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   const crossLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
   const fibLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
+  const repLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
   let umFlash: UmFatorPlacarFlash = null;
   for (const settlement of payload.settlements ?? []) {
     if (!rememberExtensionSettlementKey(settlement.dedupeKey)) continue;
@@ -759,9 +992,11 @@ export async function ingestStrategyGlobalExtensionSync(
         ? "dois2fatores"
         : trigger === "fibonacci"
           ? "fibonacci"
-          : trigger === "rotacao"
-            ? "rotacao"
-            : "um1fator";
+          : trigger === "repeticao"
+            ? "repeticao"
+            : trigger === "rotacao"
+              ? "rotacao"
+              : "um1fator";
     const ledgerEntry = ledgerFromFlash(
       settlement.flash,
       settlement.recoveryBefore,
@@ -773,9 +1008,11 @@ export async function ingestStrategyGlobalExtensionSync(
         ? ROTATING_ROOM_CROSSING_MAX_RECOVERY
         : kind === "fibonacci"
           ? ROTATING_ROOM_FIBONACCI_MAX_RECOVERY
-          : kind === "rotacao"
-            ? ROTACAO_MAX_RECOVERY
-            : maxRecovery;
+          : kind === "repeticao"
+            ? ROTATING_ROOM_REPETICAO_MAX_RECOVERY
+            : kind === "rotacao"
+              ? ROTACAO_MAX_RECOVERY
+              : maxRecovery;
     appendLedger(state, kind, ledgerEntry, maxR);
     if (kind === "dois2fatores") {
       crossLedgerFromExtension.push(ledgerEntry);
@@ -783,19 +1020,33 @@ export async function ingestStrategyGlobalExtensionSync(
     } else if (kind === "fibonacci") {
       fibLedgerFromExtension.push(ledgerEntry);
       fibonacciFlash = settlement.flash;
+    } else if (kind === "repeticao") {
+      repLedgerFromExtension.push(ledgerEntry);
+      repeticaoFlash = settlement.flash;
+    } else if (kind === "rotacao") {
+      rotacaoFlash = settlement.flash;
     } else {
       umLedgerEntries.push(ledgerEntry);
       umFlash = settlement.flash;
     }
   }
 
-  const snapshot = bumpAndBroadcast(state, crossingFlash, umFlash, fibonacciFlash, rotacaoFlash);
+  const snapshot = bumpAndBroadcast(
+    state,
+    crossingFlash,
+    umFlash,
+    fibonacciFlash,
+    repeticaoFlash,
+    rotacaoFlash,
+  );
   const automationEntries = [
     ...crossingLedgerEntries,
     ...crossLedgerFromExtension,
     ...umLedgerEntries,
     ...fibonacciLedgerEntries,
     ...fibLedgerFromExtension,
+    ...repeticaoLedgerEntries,
+    ...repLedgerFromExtension,
     ...rotacaoLedgerEntries,
   ];
   if (automationEntries.length > 0) {
@@ -828,8 +1079,9 @@ export function ingestStrategyGlobalHistorySnapshot(
   driveCrossing(state, histories);
   driveUmFator(state, histories);
   driveFibonacci(state, histories);
+  driveRepeticao(state, histories);
   driveRotacao(state, histories);
-  bumpAndBroadcast(state, null, null, null, null);
+  bumpAndBroadcast(state, null, null, null, null, null);
 }
 
 export function ingestStrategyGlobalReplayBatch(
@@ -856,8 +1108,9 @@ export function ingestStrategyGlobalReplayBatch(
   driveCrossing(state, histories);
   driveUmFator(state, histories);
   driveFibonacci(state, histories);
+  driveRepeticao(state, histories);
   driveRotacao(state, histories);
-  bumpAndBroadcast(state, null, null, null, null);
+  bumpAndBroadcast(state, null, null, null, null, null);
 }
 
 export function getStrategyGlobalSnapshotOrThrow(): StrategyGlobalSnapshot {
@@ -888,6 +1141,13 @@ export function resetStrategyGlobalSession(
         tableIds,
         histories,
       );
+    } else if (k === "repeticao") {
+      state.repeticao.stats = emptyRotatingRoomSessionStats(ROTATING_ROOM_REPETICAO_MAX_RECOVERY);
+      state.repeticao.machine = seedRotatingRoomRepeticaoMachineAfterPlacarReset(
+        defaultRotatingRoomRepeticaoMachineState(),
+        tableIds,
+        histories,
+      );
     } else if (k === "rotacao") {
       state.rotacao.stats = emptyRotatingRoomSessionStats(ROTACAO_MAX_RECOVERY);
       state.rotacao.machine = defaultRotacaoMachineState();
@@ -905,12 +1165,13 @@ export function resetStrategyGlobalSession(
     resetOne("dois2fatores");
     resetOne("um1fator");
     resetOne("fibonacci");
+    resetOne("repeticao");
     resetOne("rotacao");
   } else {
     resetOne(kind);
   }
 
-  return bumpAndBroadcast(state, null, null, null);
+  return bumpAndBroadcast(state, null, null, null, null, null);
 }
 
 export function wipeStrategyGlobalState(liveTableIds: readonly number[]): StrategyGlobalSnapshot {

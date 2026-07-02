@@ -63,6 +63,8 @@ export type RotatingRoomSessionStats = {
   crossingPatternKind?: CrossingPatternKindStats;
   /** Fibonacci — acerto por dúzias vs colunas. */
   fibonacciZoneKind?: FibonacciZoneKindStats;
+  /** Repetição — acerto por dúzias vs colunas. */
+  repeticaoZoneKind?: FibonacciZoneKindStats;
 };
 
 export type UmFatorMatchTierBucket = {

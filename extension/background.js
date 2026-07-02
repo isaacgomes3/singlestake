@@ -496,7 +496,7 @@ async function waitForBridgeBetDelay(context) {
       ? context.betDelayUntilMs
       : null;
 
-  if (until == null && strategy === "fibonacci" && recovery > 0) {
+  if (until == null && (strategy === "fibonacci" || strategy === "repeticao") && recovery > 0) {
     until = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
   }
   if (until == null && strategy === "rotacao" && recovery > 0) {
@@ -1113,11 +1113,14 @@ function stakeUnitsForContext(context, chip) {
   const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
   const stakeAmount =
     explicitStake ??
-    (context?.strategy === "fibonacci"
+    (context?.strategy === "fibonacci" || context?.strategy === "repeticao"
       ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
       : baseStake * 2 ** recovery);
   let units;
-  if (context?.strategy === "fibonacci" && Math.abs(chipValue - baseStake) < 0.001) {
+  if (
+    (context?.strategy === "fibonacci" || context?.strategy === "repeticao") &&
+    Math.abs(chipValue - baseStake) < 0.001
+  ) {
     units = Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]);
   } else if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);

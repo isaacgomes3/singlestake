@@ -5,11 +5,15 @@ import type {
   RotatingRoomFibonacciActive,
   RotatingRoomFibonacciTableScan,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import type {
+  RotatingRoomRepeticaoActive,
+  RotatingRoomRepeticaoTableScan,
+} from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
 import type { DoisFatoresActive, DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
 import type { UmFatorActive } from "@/lib/roulette/umFatorStrategy";
 import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 
-export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci" | "rotacao";
+export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci" | "repeticao" | "rotacao";
 
 export type StrategyGlobalLedgerEntry = {
   ts: number;
@@ -92,6 +96,23 @@ export type StrategyGlobalFibonacciClientView = {
   activeFibonacci: RotatingRoomFibonacciActive | null;
 };
 
+export type StrategyGlobalRepeticaoClientView = {
+  phase: RotatingRoomPhase;
+  sessionStats: RotatingRoomSessionStats;
+  showTapeteSignal: boolean;
+  repeticaoMode: true;
+  currentRecovery: number;
+  cycleSeq: number;
+  currentTableId: number | null;
+  prepareTableId: number | null;
+  alertCategory: string | null;
+  alertBucketGap: number;
+  sessionMode: "scanning" | "prepare" | "active";
+  prepareCategory: string | null;
+  repeticaoScan: RotatingRoomRepeticaoTableScan[];
+  activeRepeticao: RotatingRoomRepeticaoActive | null;
+};
+
 export type StrategyGlobalRotacaoClientView = {
   phase: RotatingRoomPhase;
   sessionStats: RotatingRoomSessionStats;
@@ -116,6 +137,7 @@ export type StrategyGlobalSnapshot = {
   dois2fatores: StrategyGlobalCrossingClientView;
   um1fator: StrategyGlobalUmFatorClientView;
   fibonacci: StrategyGlobalFibonacciClientView;
+  repeticao: StrategyGlobalRepeticaoClientView;
   rotacao: StrategyGlobalRotacaoClientView;
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
@@ -130,6 +152,14 @@ export type StrategyGlobalSnapshot = {
   fibonacciPrefs: {
     enabled: boolean;
     /** @deprecated Use dozenAbsenceSpins / columnAbsenceSpins */
+    absenceSpins: number;
+    dozenAbsenceSpins: number;
+    columnAbsenceSpins: number;
+    dozenEnabled: boolean;
+    columnEnabled: boolean;
+  };
+  repeticaoPrefs: {
+    enabled: boolean;
     absenceSpins: number;
     dozenAbsenceSpins: number;
     columnAbsenceSpins: number;
@@ -152,6 +182,12 @@ export type StrategyGlobalFlashPayload = {
     kind: "win" | "loss" | "recovery";
   } | null;
   fibonacci: {
+    resultNumber: number;
+    won: boolean;
+    tableId: number;
+    kind: "win" | "loss" | "recovery";
+  } | null;
+  repeticao: {
     resultNumber: number;
     won: boolean;
     tableId: number;

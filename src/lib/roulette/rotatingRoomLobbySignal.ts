@@ -4,6 +4,7 @@ import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativ
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { fibonacciActiveFromSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import { repeticaoActiveFromSignalId } from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
 import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 
@@ -117,25 +118,27 @@ export function lobbyTableHasRotatingRoomSignal(
 
 /** Alinha o cartão da sala com entrada em jogo da automação financeira (quando o motor ainda não expõe mesa). */
 export function alignRotatingRoomSessionWithAutomationBet<
-  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" },
+  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao" },
 >(
   session: T,
   bet:
     | {
         tableId: number;
         recovery: number;
-        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
+        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
         signalId?: string;
         alertLabel?: string;
         umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
         rotacaoActive?: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoActive;
         activeCrossing?: DoisFatoresActive | null;
+        activeFibonacci?: import("@/lib/roulette/rotatingRoomFibonacciStrategy").RotatingRoomFibonacciActive;
+        activeRepeticao?: import("@/lib/roulette/rotatingRoomRepeticaoStrategy").RotatingRoomRepeticaoActive;
       }
     | null
     | undefined,
   options?: {
     /** Só alinha quando a aposta é desta estratégia (evita sinal de 1F/2F sobrepor Fibonacci). */
-    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
+    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
   },
 ): T {
   if (!bet?.tableId) return session;
@@ -147,7 +150,7 @@ export function alignRotatingRoomSessionWithAutomationBet<
     if (betStrategy && betStrategy !== roomStrategy) return session;
   }
 
-  if (bet.strategy === "fibonacci") {
+  if (bet.strategy === "fibonacci" || bet.strategy === "repeticao") {
     const fibSession = session as T & {
       fibonacciMode?: boolean;
       showTapeteSignal?: boolean;
@@ -160,7 +163,16 @@ export function alignRotatingRoomSessionWithAutomationBet<
     ) {
       return session;
     }
-    const activeFibonacci = bet.signalId ? fibonacciActiveFromSignalId(bet.signalId) : null;
+    const activeFibonacci =
+      bet.activeFibonacci ??
+      (bet.activeRepeticao
+        ? { ...bet.activeRepeticao, absenceGap: bet.activeRepeticao.streakGap }
+        : null) ??
+      (bet.signalId
+        ? bet.strategy === "repeticao"
+          ? repeticaoActiveFromSignalId(bet.signalId)
+          : fibonacciActiveFromSignalId(bet.signalId)
+        : null);
     if (!activeFibonacci) return session;
     return {
       ...session,
@@ -171,7 +183,7 @@ export function alignRotatingRoomSessionWithAutomationBet<
       activeFibonacci,
       activeCrossing: null,
       sessionMode: "active",
-      rotativaTrigger: "fibonacci",
+      rotativaTrigger: bet.strategy,
     } as T;
   }
 

@@ -352,6 +352,40 @@ export function recordFibonacciZoneKindLoss(
   };
 }
 
+export function recordRepeticaoZoneKindWin(
+  stats: RotatingRoomSessionStats,
+  kind: FibonacciZoneKind,
+): RotatingRoomSessionStats {
+  const repeticaoZoneKind = normalizeFibonacciZoneKindStats(stats.repeticaoZoneKind);
+  return {
+    ...stats,
+    repeticaoZoneKind: {
+      ...repeticaoZoneKind,
+      [kind]: {
+        wins: repeticaoZoneKind[kind].wins + 1,
+        losses: repeticaoZoneKind[kind].losses,
+      },
+    },
+  };
+}
+
+export function recordRepeticaoZoneKindLoss(
+  stats: RotatingRoomSessionStats,
+  kind: FibonacciZoneKind,
+): RotatingRoomSessionStats {
+  const repeticaoZoneKind = normalizeFibonacciZoneKindStats(stats.repeticaoZoneKind);
+  return {
+    ...stats,
+    repeticaoZoneKind: {
+      ...repeticaoZoneKind,
+      [kind]: {
+        wins: repeticaoZoneKind[kind].wins,
+        losses: repeticaoZoneKind[kind].losses + 1,
+      },
+    },
+  };
+}
+
 export function umFatorMatchTierAproveitamentoPct(bucket: {
   wins: number;
   losses: number;

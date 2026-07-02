@@ -1,6 +1,7 @@
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 import { DEFAULT_FIBONACCI_ABSENCE_SPINS, normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
   DEFAULT_ROTATING_ROOM_GATILHO_ENABLE,
   normalizeRotatingRoomGatilhoEnable,
@@ -31,6 +32,9 @@ export type GlobalAutomationConfig = {
   fibonacciAbsenceSpins: number;
   fibonacciDozenAbsenceSpins: number;
   fibonacciColumnAbsenceSpins: number;
+  repeticaoAbsenceSpins: number;
+  repeticaoDozenAbsenceSpins: number;
+  repeticaoColumnAbsenceSpins: number;
   updatedAt: number;
 };
 
@@ -55,6 +59,9 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   fibonacciAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   fibonacciDozenAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   fibonacciColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  repeticaoAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  repeticaoDozenAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  repeticaoColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   updatedAt: 0,
 };
 
@@ -85,6 +92,7 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     pausedAt = null;
   }
   const absenceByZone = normalizeFibonacciZoneAbsenceSpins(o);
+  const repeticaoByZone = normalizeRepeticaoZoneAbsenceSpins(o);
   return {
     paused,
     pauseReason,
@@ -96,6 +104,9 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     fibonacciAbsenceSpins: absenceByZone.dozen,
     fibonacciDozenAbsenceSpins: absenceByZone.dozen,
     fibonacciColumnAbsenceSpins: absenceByZone.column,
+    repeticaoAbsenceSpins: repeticaoByZone.dozen,
+    repeticaoDozenAbsenceSpins: repeticaoByZone.dozen,
+    repeticaoColumnAbsenceSpins: repeticaoByZone.column,
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

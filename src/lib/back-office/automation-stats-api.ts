@@ -15,7 +15,16 @@ export async function fetchAutomationStats(): Promise<AutomationStatsDto | null>
 }
 
 export async function setAutomationTriggerEnabled(
-  id: "three" | "crossing" | "fibonacci" | "fibonacciDozen" | "fibonacciColumn",
+  id:
+    | "three"
+    | "crossing"
+    | "fibonacci"
+    | "repeticao"
+    | "rotacao"
+    | "fibonacciDozen"
+    | "fibonacciColumn"
+    | "repeticaoDozen"
+    | "repeticaoColumn",
   enabled: boolean,
 ): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/admin/automation-stats", {
@@ -39,6 +48,27 @@ export async function saveFibonacciZoneAbsenceSpins(
     zone === "dozen"
       ? { fibonacciDozenAbsenceSpins: absenceSpins }
       : { fibonacciColumnAbsenceSpins: absenceSpins };
+  const res = await fetch("/api/back-office/admin/automation-stats", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson<{ ok: boolean; data?: AutomationStatsDto; error?: string }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao guardar giros de ausência." };
+  }
+  return { ok: true, data: data.data };
+}
+
+export async function saveRepeticaoZoneAbsenceSpins(
+  zone: "dozen" | "column",
+  absenceSpins: number,
+): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
+  const body =
+    zone === "dozen"
+      ? { repeticaoDozenAbsenceSpins: absenceSpins }
+      : { repeticaoColumnAbsenceSpins: absenceSpins };
   const res = await fetch("/api/back-office/admin/automation-stats", {
     method: "POST",
     credentials: "include",

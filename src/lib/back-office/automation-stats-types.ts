@@ -27,4 +27,10 @@ export type AutomationStatsDto = {
     dozen: AutomationStatsFibonacciZoneRow;
     column: AutomationStatsFibonacciZoneRow;
   };
+  repeticao: {
+    enabled: boolean;
+    absenceSpins: number;
+    dozen: AutomationStatsFibonacciZoneRow;
+    column: AutomationStatsFibonacciZoneRow;
+  };
 };

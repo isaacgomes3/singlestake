@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   fetchAutomationStats,
   saveFibonacciZoneAbsenceSpins,
+  saveRepeticaoZoneAbsenceSpins,
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
@@ -18,6 +19,7 @@ import {
   FIBONACCI_ABSENCE_SPINS_MIN,
   syncFibonacciPrefsFromAutomationConfig,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { syncRepeticaoPrefsFromAutomationConfig } from "@/lib/roulette/repeticaoAbsencePrefs";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -38,10 +40,11 @@ function accuracyTone(pct: number | null): string {
 
 function automationTriggerToggleId(
   rowId: UmFatorTriggerTierReportRow["id"],
-): "three" | "crossing" | "fibonacci" | "rotacao" | null {
+): "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | null {
   if (rowId === "three") return "three";
   if (rowId === "crossing-primary") return "crossing";
   if (rowId === "fibonacci") return "fibonacci";
+  if (rowId === "repeticao") return "repeticao";
   if (rowId === "rotacao") return "rotacao";
   return null;
 }
@@ -56,9 +59,12 @@ function triggerLabel(
 
 function applyFibonacciPrefsFromDto(data: AutomationStatsDto): void {
   syncFibonacciPrefsFromAutomationConfig(data.fibonacci);
+  syncRepeticaoPrefsFromAutomationConfig(data.repeticao);
 }
 
 type FibonacciZoneToggleId = "fibonacciDozen" | "fibonacciColumn";
+type RepeticaoZoneToggleId = "repeticaoDozen" | "repeticaoColumn";
+type ZoneToggleId = FibonacciZoneToggleId | RepeticaoZoneToggleId;
 type FibonacciZoneKind = "dozen" | "column";
 
 export function BackOfficeAutomationStatsPanel() {
@@ -70,7 +76,10 @@ export function BackOfficeAutomationStatsPanel() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [absenceDraftDozen, setAbsenceDraftDozen] = useState("12");
   const [absenceDraftColumn, setAbsenceDraftColumn] = useState("12");
+  const [repAbsenceDraftDozen, setRepAbsenceDraftDozen] = useState("12");
+  const [repAbsenceDraftColumn, setRepAbsenceDraftColumn] = useState("12");
   const [savingAbsenceZone, setSavingAbsenceZone] = useState<FibonacciZoneKind | null>(null);
+  const [savingRepAbsenceZone, setSavingRepAbsenceZone] = useState<FibonacciZoneKind | null>(null);
 
   const reload = useCallback(async () => {
     if (!isAdmin) {
@@ -82,6 +91,8 @@ export function BackOfficeAutomationStatsPanel() {
     if (row) {
       setAbsenceDraftDozen(String(row.fibonacci.dozen.absenceSpins));
       setAbsenceDraftColumn(String(row.fibonacci.column.absenceSpins));
+      setRepAbsenceDraftDozen(String(row.repeticao.dozen.absenceSpins));
+      setRepAbsenceDraftColumn(String(row.repeticao.column.absenceSpins));
       applyFibonacciPrefsFromDto(row);
     }
     setLoading(false);
@@ -99,7 +110,7 @@ export function BackOfficeAutomationStatsPanel() {
   }
 
   async function handleToggleTrigger(
-    id: "three" | "crossing" | "fibonacci" | "rotacao" | FibonacciZoneToggleId,
+    id: "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | ZoneToggleId,
     enabled: boolean,
   ) {
     setTogglingId(id);
@@ -133,6 +144,27 @@ export function BackOfficeAutomationStatsPanel() {
     setData(result.data);
     setAbsenceDraftDozen(String(result.data.fibonacci.dozen.absenceSpins));
     setAbsenceDraftColumn(String(result.data.fibonacci.column.absenceSpins));
+    applyFibonacciPrefsFromDto(result.data);
+    toast.success(t("automationStats.fibonacciAbsenceSaved"));
+  }
+
+  async function handleConfirmRepeticaoZoneAbsence(zone: FibonacciZoneKind) {
+    const draft = zone === "dozen" ? repAbsenceDraftDozen : repAbsenceDraftColumn;
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed) || parsed < FIBONACCI_ABSENCE_SPINS_MIN || parsed > FIBONACCI_ABSENCE_SPINS_MAX) {
+      toast.error(t("automationStats.fibonacciAbsenceInvalid"));
+      return;
+    }
+    setSavingRepAbsenceZone(zone);
+    const result = await saveRepeticaoZoneAbsenceSpins(zone, Math.floor(parsed));
+    setSavingRepAbsenceZone(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setRepAbsenceDraftDozen(String(result.data.repeticao.dozen.absenceSpins));
+    setRepAbsenceDraftColumn(String(result.data.repeticao.column.absenceSpins));
     applyFibonacciPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
   }
@@ -226,6 +258,88 @@ export function BackOfficeAutomationStatsPanel() {
     );
   }
 
+  function renderRepeticaoZoneRow(
+    id: RepeticaoZoneToggleId,
+    zoneKind: FibonacciZoneKind,
+    labelKey: "repeticaoDozen" | "repeticaoColumn",
+    zone: AutomationStatsDto["repeticao"]["dozen"],
+  ) {
+    const draft = zoneKind === "dozen" ? repAbsenceDraftDozen : repAbsenceDraftColumn;
+    const setDraft = zoneKind === "dozen" ? setRepAbsenceDraftDozen : setRepAbsenceDraftColumn;
+    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const inputId = zoneKind === "dozen" ? "rep-absence-dozen" : "rep-absence-column";
+
+    return (
+      <div
+        key={id}
+        className={cn(
+          "rounded-xl border border-border-color bg-bg-secondary px-3 py-2.5",
+          !zone.enabled && "opacity-60",
+        )}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-text-primary">
+              {triggerLabel(messages, labelKey)}
+            </p>
+            <p
+              className={cn(
+                "mt-0.5 text-lg font-bold tabular-nums",
+                accuracyTone(zone.accuracyPct),
+              )}
+            >
+              {loading ? "…" : formatAccuracy(zone.accuracyPct)}
+            </p>
+            {!loading && zone.total > 0 ? (
+              <p className="text-[11px] tabular-nums text-text-secondary">
+                {zone.wins}V / {zone.losses}D
+              </p>
+            ) : (
+              <p className="text-[11px] text-text-secondary">{t("automationStats.noData")}</p>
+            )}
+          </div>
+          <Switch
+            checked={zone.enabled}
+            disabled={loading || togglingId === id}
+            aria-label={triggerLabel(messages, labelKey)}
+            onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
+              {t("automationStats.fibonacciAbsenceLabel")}
+            </label>
+            <Input
+              id={inputId}
+              type="number"
+              min={FIBONACCI_ABSENCE_SPINS_MIN}
+              max={FIBONACCI_ABSENCE_SPINS_MAX}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-8 w-20 tabular-nums text-sm"
+              disabled={loading || savingRepAbsenceZone === zoneKind}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={absenceDirty ? "default" : "secondary"}
+            disabled={loading || savingRepAbsenceZone === zoneKind || !absenceDirty}
+            onClick={() => void handleConfirmRepeticaoZoneAbsence(zoneKind)}
+          >
+            {savingRepAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+          </Button>
+        </div>
+        {!loading ? (
+          <p className="mt-2 text-[11px] text-text-secondary">
+            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
@@ -274,6 +388,24 @@ export function BackOfficeAutomationStatsPanel() {
             <div className="grid gap-2 sm:grid-cols-2">
               {renderFibonacciZoneRow("fibonacciDozen", "dozen", "fibonacciDozen", data.fibonacci.dozen)}
               {renderFibonacciZoneRow("fibonacciColumn", "column", "fibonacciColumn", data.fibonacci.column)}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
+        )}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("automationStats.repeticaoTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("automationStats.repeticaoHint")}</p>
+        {!loading && data ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.repeticaoZoneStats")}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {renderRepeticaoZoneRow("repeticaoDozen", "dozen", "repeticaoDozen", data.repeticao.dozen)}
+              {renderRepeticaoZoneRow("repeticaoColumn", "column", "repeticaoColumn", data.repeticao.column)}
             </div>
           </div>
         ) : (

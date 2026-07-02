@@ -5,7 +5,7 @@ import {
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
 } from "@/lib/back-office/automation-config";
-import { enabledFibonacciZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { enabledFibonacciZoneKindsFromMap, enabledRepeticaoZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
@@ -61,12 +61,16 @@ function withAutomationSimMutationLock<T>(fn: () => Promise<T>): Promise<T> {
 function combinedStrategyLedger(
   ledger: Pick<
     StrategyGlobalPersistedState["ledger"],
-    "um1fator" | "dois2fatores" | "fibonacci" | "rotacao"
+    "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao"
   >,
 ): StrategyGlobalLedgerEntry[] {
-  return [...ledger.um1fator, ...ledger.dois2fatores, ...ledger.fibonacci, ...ledger.rotacao].sort(
-    (a, b) => a.ts - b.ts,
-  );
+  return [
+    ...ledger.um1fator,
+    ...ledger.dois2fatores,
+    ...ledger.fibonacci,
+    ...ledger.repeticao,
+    ...ledger.rotacao,
+  ].sort((a, b) => a.ts - b.ts);
 }
 
 async function ensureCapitalAndSyncBalance(): Promise<void> {
@@ -154,6 +158,8 @@ function buildSnapshotBody(
         crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
         fibonacciEnabled:
           enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+        repeticaoEnabled:
+          enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
         rotacaoEnabled: isRotacaoGatilhoEnabled(),
       },
     ),
@@ -356,6 +362,15 @@ export async function syncAutomationSimWithStrategy(
     openBet = null;
   }
   if (
+    openBet?.strategy === "repeticao" &&
+    !strategySnapshot.repeticao.showTapeteSignal &&
+    strategySnapshot.repeticao.currentRecovery === 0
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
+  if (
     openBet?.strategy === "um1fator" &&
     !strategySnapshot.um1fator.showTapeteSignal
   ) {
@@ -397,6 +412,8 @@ export async function syncAutomationSimWithStrategy(
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+      repeticaoEnabled:
+        enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       rotacaoEnabled: isRotacaoGatilhoEnabled(),
     },
   );
@@ -537,6 +554,8 @@ export async function replayAutomationSimFromLedger(
       crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
+      repeticaoEnabled:
+        enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       rotacaoEnabled: isRotacaoGatilhoEnabled(),
     },
   );

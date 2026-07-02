@@ -20,6 +20,11 @@ import {
   defaultRotatingRoomFibonacciMachineState,
   type RotatingRoomFibonacciMachineState,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import {
+  ROTATING_ROOM_REPETICAO_MAX_RECOVERY,
+  defaultRotatingRoomRepeticaoMachineState,
+  type RotatingRoomRepeticaoMachineState,
+} from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
 import { defaultRotatingRoomCrossingMachineState } from "@/lib/roulette/rotatingRoomCrossingSession";
 import {
   UM_FATOR_MAX_RECOVERY,
@@ -55,6 +60,10 @@ export type StrategyGlobalPersistedState = {
   };
   fibonacci: {
     machine: RotatingRoomFibonacciMachineState;
+    stats: RotatingRoomSessionStats;
+  };
+  repeticao: {
+    machine: RotatingRoomRepeticaoMachineState;
     stats: RotatingRoomSessionStats;
   };
   rotacao: {
@@ -103,6 +112,10 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
       machine: defaultRotatingRoomFibonacciMachineState(),
       stats: emptyRotatingRoomSessionStats(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
     },
+    repeticao: {
+      machine: defaultRotatingRoomRepeticaoMachineState(),
+      stats: emptyRotatingRoomSessionStats(ROTATING_ROOM_REPETICAO_MAX_RECOVERY),
+    },
     rotacao: {
       machine: defaultRotacaoMachineState(),
       stats: emptyRotatingRoomSessionStats(ROTACAO_MAX_RECOVERY),
@@ -121,6 +134,12 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
         winsAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
         lossesAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
       },
+      repeticao: {
+        ...defaultLifetime(),
+        since: now,
+        winsAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_REPETICAO_MAX_RECOVERY),
+        lossesAtRecovery: emptyRecoveryLevelCounts(ROTATING_ROOM_REPETICAO_MAX_RECOVERY),
+      },
       rotacao: {
         ...defaultLifetime(),
         since: now,
@@ -128,7 +147,7 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
         lossesAtRecovery: emptyRecoveryLevelCounts(ROTACAO_MAX_RECOVERY),
       },
     },
-    ledger: { dois2fatores: [], um1fator: [], fibonacci: [], rotacao: [] },
+    ledger: { dois2fatores: [], um1fator: [], fibonacci: [], repeticao: [], rotacao: [] },
   };
 }
 
@@ -138,6 +157,10 @@ function parseRotacaoMachine(raw: unknown): RotacaoMachineState {
 
 function parseFibonacciMachine(raw: unknown): RotatingRoomFibonacciMachineState {
   return { ...defaultRotatingRoomFibonacciMachineState(), ...(raw as object) };
+}
+
+function parseRepeticaoMachine(raw: unknown): RotatingRoomRepeticaoMachineState {
+  return { ...defaultRotatingRoomRepeticaoMachineState(), ...(raw as object) };
 }
 
 function parseMachine(raw: unknown): RotatingRoomCrossingMachineState {
@@ -209,6 +232,13 @@ export function parsePersistedState(
         ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
       ),
     },
+    repeticao: {
+      machine: parseRepeticaoMachine(o.repeticao?.machine),
+      stats: parseRotatingRoomSessionStats(
+        o.repeticao?.stats,
+        ROTATING_ROOM_REPETICAO_MAX_RECOVERY,
+      ),
+    },
     rotacao: {
       machine: parseRotacaoMachine(o.rotacao?.machine),
       stats: parseRotatingRoomSessionStats(o.rotacao?.stats, ROTACAO_MAX_RECOVERY),
@@ -217,6 +247,7 @@ export function parsePersistedState(
       dois2fatores: parseLifetime(o.lifetime?.dois2fatores, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
       um1fator: parseLifetime(o.lifetime?.um1fator, UM_FATOR_MAX_RECOVERY),
       fibonacci: parseLifetime(o.lifetime?.fibonacci, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
+      repeticao: parseLifetime(o.lifetime?.repeticao, ROTATING_ROOM_REPETICAO_MAX_RECOVERY),
       rotacao: parseLifetime(o.lifetime?.rotacao, ROTACAO_MAX_RECOVERY),
     },
     ledger: {
@@ -228,6 +259,9 @@ export function parsePersistedState(
         : [],
       fibonacci: Array.isArray(o.ledger?.fibonacci)
         ? (o.ledger!.fibonacci as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
+        : [],
+      repeticao: Array.isArray(o.ledger?.repeticao)
+        ? (o.ledger!.repeticao as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
         : [],
       rotacao: Array.isArray(o.ledger?.rotacao)
         ? (o.ledger!.rotacao as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)

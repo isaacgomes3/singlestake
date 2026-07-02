@@ -46,6 +46,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           fibonacciAbsenceSpins?: number;
           fibonacciDozenAbsenceSpins?: number;
           fibonacciColumnAbsenceSpins?: number;
+          repeticaoDozenAbsenceSpins?: number;
+          repeticaoColumnAbsenceSpins?: number;
         }>(request);
 
         await initAutomationConfig();
@@ -85,15 +87,38 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
         }
 
+        if (typeof body?.repeticaoDozenAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.repeticaoDozenAbsenceSpins)));
+          await saveAutomationConfig({ repeticaoDozenAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.repeticaoColumnAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.repeticaoColumnAbsenceSpins)));
+          await saveAutomationConfig({ repeticaoColumnAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
         const id = body?.id;
         const enabled = body?.enabled;
         if (
           (id !== "three" &&
             id !== "crossing" &&
             id !== "fibonacci" &&
+            id !== "repeticao" &&
             id !== "rotacao" &&
             id !== "fibonacciDozen" &&
-            id !== "fibonacciColumn") ||
+            id !== "fibonacciColumn" &&
+            id !== "repeticaoDozen" &&
+            id !== "repeticaoColumn") ||
           typeof enabled !== "boolean"
         ) {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
@@ -113,6 +138,21 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           if (nextTriggers.fibonacciDozen === false && nextTriggers.fibonacciColumn === false) {
             nextTriggers.fibonacciDozen = true;
             nextTriggers.fibonacciColumn = true;
+          }
+        }
+        if (id === "repeticaoDozen" || id === "repeticaoColumn") {
+          const dozenOn = nextTriggers.repeticaoDozen !== false;
+          const columnOn = nextTriggers.repeticaoColumn !== false;
+          nextTriggers.repeticao = dozenOn || columnOn;
+        }
+        if (id === "repeticao" && !enabled) {
+          nextTriggers.repeticaoDozen = false;
+          nextTriggers.repeticaoColumn = false;
+        }
+        if (id === "repeticao" && enabled) {
+          if (nextTriggers.repeticaoDozen === false && nextTriggers.repeticaoColumn === false) {
+            nextTriggers.repeticaoDozen = true;
+            nextTriggers.repeticaoColumn = true;
           }
         }
 

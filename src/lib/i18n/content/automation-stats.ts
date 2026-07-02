@@ -33,6 +33,9 @@ export const automationStatsContent = {
       fibonacci: "Fibonacci · dúzias/colunas",
       fibonacciDozen: "Fibonacci · dúzias",
       fibonacciColumn: "Fibonacci · colunas",
+      repeticao: "Repetição · dúzias/colunas",
+      repeticaoDozen: "Repetição · dúzias",
+      repeticaoColumn: "Repetição · colunas",
       rotacao: "Rotação · altura/paridade/cor (Roulette 1)",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
@@ -44,6 +47,10 @@ export const automationStatsContent = {
     fibonacciAbsenceSaved: "Giros de ausência actualizados.",
     fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
     fibonacciZoneStats: "Acerto por tipo",
+    repeticaoTitle: "Repetição — sala rotativa",
+    repeticaoHint:
+      "Variação Fibonacci: ausência de repetição consecutiva de dúzia ou coluna; aposta na repetição da zona do número mais recente.",
+    repeticaoZoneStats: "Acerto por tipo",
   },
   en: {
     title: "Automation statistics",

@@ -9,12 +9,13 @@ import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrateg
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalFibonacciClientView,
+  StrategyGlobalRepeticaoClientView,
   StrategyGlobalRotacaoClientView,
   StrategyGlobalSnapshot,
   StrategyGlobalUmFatorClientView,
 } from "@/lib/roulette/strategyGlobalTypes";
 
-export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci" | "rotacao";
+export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao";
 
 export type RotatingRoomRotativaSessionMeta = {
   /** Gatilho activo na indicação actual. */
@@ -151,6 +152,7 @@ export function mergeRotatingRoomRotativaSession(
 export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind): string {
   if (kind === "crossing") return "2 Fatores · padrões";
   if (kind === "fibonacci") return "Fibonacci";
+  if (kind === "repeticao") return "Repetição";
   if (kind === "rotacao") return "Rotação";
   return "1 Fator";
 }
@@ -192,6 +194,20 @@ function fibonacciHasPrepare(fib: StrategyGlobalFibonacciClientView): boolean {
   return fib.prepareTableId != null || fib.fibonacciScan.some((row) => row.status === "prepare");
 }
 
+function repeticaoInCycleFromView(rep: StrategyGlobalRepeticaoClientView): boolean {
+  return rep.showTapeteSignal || rep.currentRecovery > 0;
+}
+
+function repeticaoHasQualifyingAlert(rep: StrategyGlobalRepeticaoClientView): boolean {
+  return rep.repeticaoScan.some(
+    (row) => row.status === "alert" || row.status === "active",
+  );
+}
+
+function repeticaoHasPrepare(rep: StrategyGlobalRepeticaoClientView): boolean {
+  return rep.prepareTableId != null || rep.repeticaoScan.some((row) => row.status === "prepare");
+}
+
 function rotacaoInCycleFromView(rot: StrategyGlobalRotacaoClientView): boolean {
   return rot.showTapeteSignal || rot.currentRecovery > 0;
 }
@@ -202,10 +218,12 @@ export function resolveRotativaTriggerFromSnapshot(
   crossingEnabled: boolean,
   fibonacciEnabled = true,
   rotacaoEnabled = false,
+  repeticaoEnabled = false,
 ): RotatingRoomRotativaTriggerKind {
   const um = snapshot.um1fator;
   const crossing = snapshot.dois2fatores;
   const fibonacci = snapshot.fibonacci;
+  const repeticao = snapshot.repeticao;
   const rotacao = snapshot.rotacao;
 
   if (fibonacciEnabled) {
@@ -217,6 +235,17 @@ export function resolveRotativaTriggerFromSnapshot(
     if (fibonacciHasQualifyingAlert(fibonacci) && fibonacci.showTapeteSignal) return "fibonacci";
     if (fibonacciHasPrepare(fibonacci)) return "fibonacci";
     if (fibonacciHasQualifyingAlert(fibonacci)) return "fibonacci";
+  }
+
+  if (repeticaoEnabled) {
+    const repBusy = repeticaoInCycleFromView(repeticao);
+    if (repBusy) return "repeticao";
+    if (repeticao.activeRepeticao != null && repeticao.currentTableId != null) {
+      return "repeticao";
+    }
+    if (repeticaoHasQualifyingAlert(repeticao) && repeticao.showTapeteSignal) return "repeticao";
+    if (repeticaoHasPrepare(repeticao)) return "repeticao";
+    if (repeticaoHasQualifyingAlert(repeticao)) return "repeticao";
   }
 
   if (rotacaoEnabled) {

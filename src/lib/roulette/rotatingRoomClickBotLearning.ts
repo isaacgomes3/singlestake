@@ -32,7 +32,7 @@ export type RotatingRoomClickBotSessionSlice = {
   singleFactorMode?: boolean;
   /** Chave por rodada — permite re-aposta após empate (2F). */
   betAttemptKey?: string | null;
-  rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "rotacao";
+  rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao";
   /** Evita repetir aposta no mesmo sinal (extensão). */
   signalId?: string | null;
   /** Nível de recuperação (gale) — define valor da ficha na extensão. */

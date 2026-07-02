@@ -2,6 +2,7 @@ import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-type
 import { buildRotatingRoomGatilhoTriggerReport } from "@/lib/roulette/umFatorTriggerTiers";
 import { normalizeFibonacciZoneKindStats, umFatorMatchTierAproveitamentoPct } from "@/lib/roulette/entryWinBreakdown";
 import { normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -58,6 +59,50 @@ function fibonacciStatsFromState(
   };
 }
 
+function repeticaoZoneStatsRow(
+  stats: RotatingRoomSessionStats | undefined,
+  kind: "dozen" | "column",
+  enabled: boolean,
+  absenceSpins: number,
+): AutomationStatsDto["repeticao"]["dozen"] {
+  const bucket = normalizeFibonacciZoneKindStats(stats?.repeticaoZoneKind)[kind];
+  const wins = Math.max(0, bucket.wins);
+  const losses = Math.max(0, bucket.losses);
+  return {
+    wins,
+    losses,
+    total: wins + losses,
+    accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
+    enabled,
+    absenceSpins,
+  };
+}
+
+function repeticaoStatsFromState(
+  repeticaoStats: RotatingRoomSessionStats | undefined,
+  enabledTriggers: RotatingRoomGatilhoEnableMap,
+  config: ReturnType<typeof getAutomationConfig>,
+): AutomationStatsDto["repeticao"] {
+  const masterOn = enabledTriggers.repeticao === true;
+  const absenceByZone = normalizeRepeticaoZoneAbsenceSpins(config);
+  return {
+    enabled: masterOn,
+    absenceSpins: absenceByZone.dozen,
+    dozen: repeticaoZoneStatsRow(
+      repeticaoStats,
+      "dozen",
+      enabledTriggers.repeticaoDozen !== false && masterOn,
+      absenceByZone.dozen,
+    ),
+    column: repeticaoZoneStatsRow(
+      repeticaoStats,
+      "column",
+      enabledTriggers.repeticaoColumn !== false && masterOn,
+      absenceByZone.column,
+    ),
+  };
+}
+
 export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const state = getStrategyGlobalState();
   const stats = state.um1fator.stats;
@@ -83,9 +128,15 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       enabledTriggers,
       state.fibonacci.stats,
       state.rotacao.stats,
+      state.repeticao.stats,
     ),
     fibonacci: fibonacciStatsFromState(
       state.fibonacci.stats,
+      enabledTriggers,
+      config,
+    ),
+    repeticao: repeticaoStatsFromState(
+      state.repeticao.stats,
       enabledTriggers,
       config,
     ),

@@ -11,6 +11,10 @@ import {
   setServerFibonacciZoneAbsenceSpins,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
 import {
+  normalizeRepeticaoZoneAbsenceSpins,
+  setServerRepeticaoZoneAbsenceSpins,
+} from "@/lib/roulette/repeticaoAbsencePrefs";
+import {
   normalizeRotatingRoomGatilhoEnable,
   setRotatingRoomGatilhoEnabled,
 } from "@/lib/roulette/umFatorTriggerEnable";
@@ -18,6 +22,7 @@ import {
 function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setRotatingRoomGatilhoEnabled(config.enabledTriggers);
   setServerFibonacciZoneAbsenceSpins(normalizeFibonacciZoneAbsenceSpins(config));
+  setServerRepeticaoZoneAbsenceSpins(normalizeRepeticaoZoneAbsenceSpins(config));
 }
 
 declare global {

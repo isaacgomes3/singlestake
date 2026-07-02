@@ -2,7 +2,7 @@ import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
 /** Gatilhos activos na sala rotativa. 2 Fatores (padrões) activo por defeito; 1 Fator só manual. */
-export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "rotacao";
+export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "repeticao" | "rotacao";
 
 export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 
@@ -11,6 +11,9 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   fibonacci: boolean;
   fibonacciDozen: boolean;
   fibonacciColumn: boolean;
+  repeticao: boolean;
+  repeticaoDozen: boolean;
+  repeticaoColumn: boolean;
   rotacao: boolean;
 };
 
@@ -25,6 +28,9 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   fibonacci: true,
   fibonacciDozen: true,
   fibonacciColumn: true,
+  repeticao: false,
+  repeticaoDozen: true,
+  repeticaoColumn: true,
   rotacao: false,
 };
 
@@ -47,6 +53,9 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
   if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
   if (typeof o.fibonacciColumn === "boolean") base.fibonacciColumn = o.fibonacciColumn;
+  if (typeof o.repeticao === "boolean") base.repeticao = o.repeticao;
+  if (typeof o.repeticaoDozen === "boolean") base.repeticaoDozen = o.repeticaoDozen;
+  if (typeof o.repeticaoColumn === "boolean") base.repeticaoColumn = o.repeticaoColumn;
   if (typeof o.rotacao === "boolean") base.rotacao = o.rotacao;
   base.two = false;
   return base;
@@ -126,6 +135,32 @@ export function isFibonacciColumnGatilhoEnabled(): boolean {
 
 export function isRotacaoGatilhoEnabled(): boolean {
   return runtimeEnabled.rotacao === true;
+}
+
+export function isRepeticaoGatilhoEnabled(): boolean {
+  return getEnabledRepeticaoZoneKinds().length > 0;
+}
+
+export function isRepeticaoDozenGatilhoEnabled(): boolean {
+  return runtimeEnabled.repeticao !== false && runtimeEnabled.repeticaoDozen !== false;
+}
+
+export function isRepeticaoColumnGatilhoEnabled(): boolean {
+  return runtimeEnabled.repeticao !== false && runtimeEnabled.repeticaoColumn !== false;
+}
+
+export function getEnabledRepeticaoZoneKinds(): FibonacciZoneKind[] {
+  return enabledRepeticaoZoneKindsFromMap(runtimeEnabled);
+}
+
+export function enabledRepeticaoZoneKindsFromMap(
+  map: Pick<RotatingRoomGatilhoEnableMap, "repeticao" | "repeticaoDozen" | "repeticaoColumn">,
+): FibonacciZoneKind[] {
+  if (map.repeticao === false) return [];
+  const kinds: FibonacciZoneKind[] = [];
+  if (map.repeticaoDozen !== false) kinds.push("dozen");
+  if (map.repeticaoColumn !== false) kinds.push("column");
+  return kinds;
 }
 
 export function getEnabledFibonacciZoneKinds(): FibonacciZoneKind[] {

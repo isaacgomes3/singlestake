@@ -21,13 +21,14 @@ function formatLedgerStake(stake: number): string {
 export function formatGlobalAutomationSettleDescription(
   input: GlobalAutomationSettleLabelInput,
 ): string {
-  if (input.strategy === "fibonacci") {
+  if (input.strategy === "fibonacci" || input.strategy === "repeticao") {
     const parts = [input.tableLabel];
     if (input.resultNumber != null) {
       parts.push(`Giro ${input.resultNumber}`);
     }
+    const tag = input.strategy === "repeticao" ? "Rep" : "Fibo";
     if (input.kind === "recovery" || input.recovery > 0 || input.kind === "loss") {
-      parts.push(`Fibo ${input.recovery + 1}`);
+      parts.push(`${tag} ${input.recovery + 1}`);
     } else {
       parts.push("Sinal");
     }
@@ -71,14 +72,14 @@ export function formatAutomationRoundDescription(input: {
           ? "recovery"
           : "win";
 
-  if (input.strategy === "fibonacci") {
+  if (input.strategy === "fibonacci" || input.strategy === "repeticao") {
     return formatGlobalAutomationSettleDescription({
       tableLabel: input.tableLabel,
       recovery: input.recovery,
       kind,
       won: kind === "win",
       stake: 0,
-      strategy: "fibonacci",
+      strategy: input.strategy,
       resultNumber: input.resultNumber,
     });
   }

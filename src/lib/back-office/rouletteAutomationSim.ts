@@ -22,6 +22,12 @@ import {
   type RotatingRoomFibonacciActive,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
+  evaluateRepeticaoRound,
+  repeticaoActiveFromSignalId,
+  repeticaoSignalId,
+  type RotatingRoomRepeticaoActive,
+} from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
+import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
   UM_FATOR_MAX_RECOVERY,
@@ -63,10 +69,11 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
-  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
   activeFibonacci?: RotatingRoomFibonacciActive;
+  activeRepeticao?: RotatingRoomRepeticaoActive;
   rotacaoActive?: RotacaoActive;
 };
 
@@ -248,6 +255,7 @@ export function pendingSignalFromSnapshot(
     blockNewEntries?: boolean;
     crossingEnabled?: boolean;
     fibonacciEnabled?: boolean;
+    repeticaoEnabled?: boolean;
     rotacaoEnabled?: boolean;
   },
 ): AutomationPendingSignal | null {
@@ -255,12 +263,14 @@ export function pendingSignalFromSnapshot(
 
   const crossingEnabled = options?.crossingEnabled !== false;
   const fibonacciEnabled = options?.fibonacciEnabled !== false;
+  const repeticaoEnabled = options?.repeticaoEnabled === true;
   const rotacaoEnabled = options?.rotacaoEnabled === true;
   const trigger = resolveRotativaTriggerFromSnapshot(
     snapshot,
     crossingEnabled,
     fibonacciEnabled,
     rotacaoEnabled,
+    repeticaoEnabled,
   );
   if (trigger === "crossing") {
     return pendingSignalFromCrossingSession(
@@ -274,6 +284,15 @@ export function pendingSignalFromSnapshot(
   if (trigger === "fibonacci") {
     return pendingSignalFromFibonacciSession(
       snapshot.fibonacci,
+      balance,
+      histories,
+      options?.baseStake,
+    );
+  }
+
+  if (trigger === "repeticao") {
+    return pendingSignalFromRepeticaoSession(
+      snapshot.repeticao,
       balance,
       histories,
       options?.baseStake,
@@ -405,6 +424,45 @@ export function pendingSignalFromFibonacciSession(
     stake: stakeForFibonacciRecovery(recovery, baseStake),
     strategy: "fibonacci",
     activeFibonacci: active,
+  };
+}
+
+/** Sinal activo Repetição (dúzia/coluna do número mais recente). */
+export function pendingSignalFromRepeticaoSession(
+  session: Pick<
+    StrategyGlobalSnapshot["repeticao"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeRepeticao" | "cycleSeq"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  const tableId = session.currentTableId;
+  const active = session.activeRepeticao;
+  const recovery = session.currentRecovery;
+  const inPlay =
+    tableId != null &&
+    active != null &&
+    (session.showTapeteSignal || recovery > 0);
+
+  if (!inPlay) return null;
+
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
+    return null;
+  }
+
+  const alertLabel = active.zoneLabel;
+
+  return {
+    signalId: repeticaoSignalId(tableId, active.zone, recovery, session.cycleSeq ?? 0),
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel,
+    recovery,
+    stake: stakeForFibonacciRecovery(recovery, baseStake),
+    strategy: "repeticao",
+    activeRepeticao: active,
   };
 }
 
@@ -631,7 +689,7 @@ export function pendingConflictsWithSettledHead(
   histories: Record<number, readonly number[]>,
 ): boolean {
   // Fibonacci/Rotação apostam no giro seguinte — o head actual é o resultado já liquidado.
-  if (pending.strategy === "fibonacci" || pending.strategy === "rotacao") {
+  if (pending.strategy === "fibonacci" || pending.strategy === "repeticao" || pending.strategy === "rotacao") {
     return false;
   }
 
@@ -916,7 +974,8 @@ export function trySettleOpenBetFromSpin(
     !bet?.umActive &&
     !bet?.activeCrossing &&
     !bet?.rotacaoActive &&
-    bet?.strategy !== "fibonacci"
+    bet?.strategy !== "fibonacci" &&
+    bet?.strategy !== "repeticao"
   ) {
     return state;
   }
@@ -943,6 +1002,18 @@ export function trySettleOpenBetFromSpin(
       bet.activeFibonacci ?? fibonacciActiveFromSignalId(bet.signalId);
     if (!active) return state;
     const won = evaluateFibonacciRound(resultNumber, active.zone) === "W";
+    localProcessed.add(key);
+    const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
+    const next = settleOpenBetEntry(state, entry, bet.tableLabel);
+    if (next !== state) onSettled?.(entry);
+    return next;
+  }
+
+  if (bet.strategy === "repeticao") {
+    const active =
+      bet.activeRepeticao ?? repeticaoActiveFromSignalId(bet.signalId);
+    if (!active) return state;
+    const won = evaluateRepeticaoRound(resultNumber, active.zone) === "W";
     localProcessed.add(key);
     const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
     const next = settleOpenBetEntry(state, entry, bet.tableLabel);

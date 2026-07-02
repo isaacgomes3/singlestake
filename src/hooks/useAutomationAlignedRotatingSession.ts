@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { useRotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import { useRotatingRoomFibonacciSession } from "@/hooks/useRotatingRoomFibonacciSession";
+import { useRotatingRoomRepeticaoSession } from "@/hooks/useRotatingRoomRepeticaoSession";
 import {
   useRotatingRoomRotativaSession,
   type RotatingRoomRotativaSession,
@@ -77,6 +78,22 @@ export function useAutomationAlignedFibonacciSession(
   const { bet } = useAutomationBet();
   return useMemo(
     () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet, { roomStrategy: "fibonacci" }),
+    [rawSession, bet],
+  );
+}
+
+export function useAutomationAlignedRepeticaoSession(
+  tableIds: readonly number[],
+  histories: Record<number, number[]>,
+  options: BaseOptions & { enabled?: boolean } = {},
+): RotatingRoomFibonacciSession {
+  const observeOnly = useObserveOnly(options.observeOnly);
+  const rawSession = useRotatingRoomRepeticaoSession(tableIds, histories, {
+    enabled: options.enabled,
+  });
+  const { bet } = useAutomationBet();
+  return useMemo(
+    () => alignRotatingRoomSessionWithAutomationBet(rawSession, bet, { roomStrategy: "repeticao" }),
     [rawSession, bet],
   );
 }
