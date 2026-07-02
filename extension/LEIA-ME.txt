@@ -1,4 +1,4 @@
-EXTENSÃO CHROME — SINGLESTAKE PLAYTECH v1.5.1
+EXTENSÃO CHROME — SINGLESTAKE PLAYTECH v1.4.5 (estável)
 ==========================================
 
 Pasta desta extensão:

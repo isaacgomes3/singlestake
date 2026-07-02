@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Singlestake — Playtech v1.5.3",
-  "version": "1.5.3",
+  "name": "Singlestake — Playtech Um Fator",
+  "version": "1.4.5",
   "description": "Executa entradas Um Fator no operador Playtech/Pragmatic. Modos Demo (simulado) e Real (clique CDP na mesa).",
-  "permissions": ["tabs", "storage", "scripting", "debugger", "windows", "alarms"],
+  "permissions": ["tabs", "storage", "scripting", "debugger", "windows"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js"

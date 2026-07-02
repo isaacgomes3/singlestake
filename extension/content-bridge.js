@@ -6,7 +6,6 @@ const GOG = {
   ACK_TYPE: "game-odds-glow/rotating-room-extension-ack",
   STATS_TYPE: "game-odds-glow/rotating-room-extension-stats",
   CLOSE_MESA_TYPE: "game-odds-glow/rotating-room-extension-close-mesa",
-  CANCEL_CLOSE_MESA_TYPE: "game-odds-glow/rotating-room-extension-cancel-close-mesa",
   VERSION: 1,
 };
 
@@ -91,26 +90,6 @@ window.addEventListener("message", (event) => {
     const mesaUrl = typeof data.mesaUrl === "string" ? data.mesaUrl.trim() : "";
     chrome.runtime.sendMessage(
       { kind: "bridge-close-mesa", tableId, mesaUrl: mesaUrl || null },
-      () => {
-        if (chrome.runtime.lastError) {
-          /* service worker inactivo */
-        }
-      },
-    );
-    return;
-  }
-  if (data?.type === GOG.CANCEL_CLOSE_MESA_TYPE && data.version === GOG.VERSION) {
-    const tableId =
-      typeof data.tableId === "number"
-        ? data.tableId
-        : data.tableId != null
-          ? Number(data.tableId)
-          : null;
-    chrome.runtime.sendMessage(
-      {
-        kind: "bridge-cancel-close-mesa",
-        tableId: Number.isFinite(tableId) ? tableId : null,
-      },
       () => {
         if (chrome.runtime.lastError) {
           /* service worker inactivo */
