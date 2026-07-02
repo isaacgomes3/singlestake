@@ -14,6 +14,8 @@ const GOG = {
   DEFAULT_MODE: "demo",
   /** Após resultado na mesma mesa — aguardar UI da roleta antes de nova ficha (Fibonacci). */
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
+  /** Rotação — aguardar após o giro antes do próximo clique na ficha. */
+  ROTACAO_BET_DELAY_MS: 5000,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
 };

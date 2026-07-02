@@ -22,6 +22,7 @@ import {
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import {
   ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS,
+  ROTATING_ROOM_ROTACAO_BET_DELAY_MS,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
@@ -467,6 +468,7 @@ export function buildExtensionBridgeFromAutomationBet(
         strategy: "rotacao",
         signalId: bet.signalId,
         betAttemptKey: bet.signalId,
+        betDelayUntilMs: Date.now() + ROTATING_ROOM_ROTACAO_BET_DELAY_MS,
       },
     };
   }

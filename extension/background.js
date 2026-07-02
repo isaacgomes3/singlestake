@@ -487,14 +487,19 @@ async function runBridgePlan(payload, sourceTabId) {
   return results;
 }
 
-async function waitForFibonacciRecoverySettle(context) {
-  if (context?.strategy !== "fibonacci") return;
+async function waitForBridgeBetDelay(context) {
+  const strategy = context?.strategy;
   const recovery = recoveryFromContext(context);
-  if (recovery <= 0) return;
-  const until =
-    typeof context.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
+  let until =
+    typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
       ? context.betDelayUntilMs
-      : Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+      : null;
+
+  if (until == null && strategy === "fibonacci" && recovery > 0) {
+    until = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+  }
+  if (until == null) return;
+
   const waitMs = Math.max(0, until - Date.now());
   if (waitMs > 0) {
     await sleep(waitMs);
@@ -591,7 +596,7 @@ async function dispatchClickAction(action, context, sourceTabId) {
     };
   }
 
-  await waitForFibonacciRecoverySettle(context);
+  await waitForBridgeBetDelay(context);
 
   if (targetTabId != null && context?.currentTableId != null) {
     registerMesaTab(context.currentTableId, targetTabId);
