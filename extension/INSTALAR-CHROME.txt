@@ -1,0 +1,26 @@
+SINGLESTAKE — EXTENSÃO CHROME / EDGE
+====================================
+Versão nesta pasta: 1.5.2
+
+CONFIRME antes de carregar:
+  Abra manifest.json → deve ter "version": "1.5.2"
+  Nome: "Singlestake — Playtech v1.5.2"
+
+PASTA CORRECTA (copie no explorador):
+  C:\Users\PC\Documents\GitHub\singlestake\extension
+
+OU cópia no Ambiente de Trabalho:
+  C:\Users\PC\Desktop\singlestake-extension
+
+INSTALAÇÃO LIMPA (obrigatório se ainda vê 1.4.8):
+  1. chrome://extensions  (ou edge://extensions)
+  2. Remova TODAS as entradas "Singlestake"
+  3. Feche o Chrome/Edge completamente (todas as janelas)
+  4. Abra de novo → Carregar sem compactação
+  5. Seleccione a pasta "extension" (não singlestake, não extension-icebet)
+
+DEVE APARECER:
+  Nome: Singlestake — Playtech v1.5.2
+  Versão: 1.5.2
+
+Se ainda mostrar 1.4.8, está a apontar para outra pasta antiga.
