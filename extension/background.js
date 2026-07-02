@@ -3,6 +3,7 @@ importScripts("shared.js", "um-fator-engine.js", "dga-hub.js", "signal-runner.js
 const CLICK_STAGGER_MS = 450;
 const DEFAULT_CHIP_VALUE = 0.5;
 const FIBONACCI_RECOVERY_SETTLE_MS = GOG.FIBONACCI_RECOVERY_SETTLE_MS ?? 5000;
+const ROTACAO_RECOVERY_BET_DELAY_MS = GOG.ROTACAO_RECOVERY_BET_DELAY_MS ?? 8000;
 /** Espera a barra «A depurar» estabilizar o viewport antes de calcular coordenadas. */
 const CDP_BAR_SETTLE_MS = 220;
 
@@ -497,6 +498,9 @@ async function waitForBridgeBetDelay(context) {
 
   if (until == null && strategy === "fibonacci" && recovery > 0) {
     until = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+  }
+  if (until == null && strategy === "rotacao" && recovery > 0) {
+    until = Date.now() + ROTACAO_RECOVERY_BET_DELAY_MS;
   }
   if (until == null) return;
 

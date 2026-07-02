@@ -16,6 +16,8 @@ const GOG = {
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
   /** Rotação — aguardar após o giro antes do próximo clique na ficha. */
   ROTACAO_BET_DELAY_MS: 5000,
+  /** Rotação com aba aberta (gale) — base + 3s extra. */
+  ROTACAO_RECOVERY_BET_DELAY_MS: 8000,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
 };
