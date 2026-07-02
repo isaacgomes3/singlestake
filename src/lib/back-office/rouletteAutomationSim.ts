@@ -16,6 +16,12 @@ import {
   type RotacaoActive,
 } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import {
+  evaluateFibonacciRound,
+  fibonacciActiveFromSignalId,
+  fibonacciSignalId,
+  type RotatingRoomFibonacciActive,
+} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
   UM_FATOR_MAX_RECOVERY,
@@ -60,6 +66,7 @@ export type AutomationPendingSignal = {
   strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "rotacao";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
+  activeFibonacci?: RotatingRoomFibonacciActive;
   rotacaoActive?: RotacaoActive;
 };
 
@@ -372,19 +379,22 @@ export function pendingSignalFromFibonacciSession(
   histories?: Record<number, readonly number[]>,
   baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): AutomationPendingSignal | null {
-  if (!session.showTapeteSignal || session.currentTableId == null || !session.activeFibonacci) {
-    return null;
-  }
-
   const tableId = session.currentTableId;
+  const active = session.activeFibonacci;
+  const recovery = session.currentRecovery;
+  const inPlay =
+    tableId != null &&
+    active != null &&
+    (session.showTapeteSignal || recovery > 0);
+
+  if (!inPlay) return null;
+
   const history = histories?.[tableId] ?? [];
   if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
     return null;
   }
 
-  const active = session.activeFibonacci;
   const alertLabel = active.zoneLabel;
-  const recovery = session.currentRecovery;
 
   return {
     signalId: fibonacciSignalId(tableId, active.zone, recovery, session.cycleSeq ?? 0),
@@ -394,6 +404,7 @@ export function pendingSignalFromFibonacciSession(
     recovery,
     stake: stakeForFibonacciRecovery(recovery, baseStake),
     strategy: "fibonacci",
+    activeFibonacci: active,
   };
 }
 
@@ -619,6 +630,11 @@ export function pendingConflictsWithSettledHead(
   pending: AutomationPendingSignal,
   histories: Record<number, readonly number[]>,
 ): boolean {
+  // Fibonacci/Rotação apostam no giro seguinte — o head actual é o resultado já liquidado.
+  if (pending.strategy === "fibonacci" || pending.strategy === "rotacao") {
+    return false;
+  }
+
   const history = histories[pending.tableId];
   const head = history?.[0];
   if (head == null) return false;
@@ -896,7 +912,14 @@ export function trySettleOpenBetFromSpin(
   ledger: readonly StrategyGlobalLedgerEntry[] = [],
 ): RouletteAutomationSimState {
   const bet = state.openBet;
-  if (!bet?.umActive && !bet?.activeCrossing && !bet?.rotacaoActive) return state;
+  if (
+    !bet?.umActive &&
+    !bet?.activeCrossing &&
+    !bet?.rotacaoActive &&
+    bet?.strategy !== "fibonacci"
+  ) {
+    return state;
+  }
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;
@@ -912,6 +935,18 @@ export function trySettleOpenBetFromSpin(
     localProcessed.add(key);
     const next = settleOpenBetEntry(state, ledgerEntry, bet.tableLabel);
     if (next !== state) onSettled?.(ledgerEntry);
+    return next;
+  }
+
+  if (bet.strategy === "fibonacci") {
+    const active =
+      bet.activeFibonacci ?? fibonacciActiveFromSignalId(bet.signalId);
+    if (!active) return state;
+    const won = evaluateFibonacciRound(resultNumber, active.zone) === "W";
+    localProcessed.add(key);
+    const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
+    const next = settleOpenBetEntry(state, entry, bet.tableLabel);
+    if (next !== state) onSettled?.(entry);
     return next;
   }
 

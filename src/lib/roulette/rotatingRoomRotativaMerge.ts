@@ -211,6 +211,9 @@ export function resolveRotativaTriggerFromSnapshot(
   if (fibonacciEnabled) {
     const fibBusy = fibonacciInCycleFromView(fibonacci);
     if (fibBusy) return "fibonacci";
+    if (fibonacci.activeFibonacci != null && fibonacci.currentTableId != null) {
+      return "fibonacci";
+    }
     if (fibonacciHasQualifyingAlert(fibonacci) && fibonacci.showTapeteSignal) return "fibonacci";
     if (fibonacciHasPrepare(fibonacci)) return "fibonacci";
     if (fibonacciHasQualifyingAlert(fibonacci)) return "fibonacci";

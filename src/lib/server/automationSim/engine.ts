@@ -348,7 +348,8 @@ export async function syncAutomationSimWithStrategy(
   }
   if (
     openBet?.strategy === "fibonacci" &&
-    !strategySnapshot.fibonacci.showTapeteSignal
+    !strategySnapshot.fibonacci.showTapeteSignal &&
+    strategySnapshot.fibonacci.currentRecovery === 0
   ) {
     state = { ...state, openBet: null };
     replaceAutomationSimState(state);
