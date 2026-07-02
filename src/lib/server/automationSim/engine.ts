@@ -349,6 +349,22 @@ export async function syncAutomationSimWithStrategy(
     replaceAutomationSimState(state);
     openBet = null;
   }
+  if (
+    openBet?.strategy === "um1fator" &&
+    !strategySnapshot.um1fator.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
+  if (
+    openBet?.strategy === "dois2fatores" &&
+    !strategySnapshot.dois2fatores.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
   if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
     if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {

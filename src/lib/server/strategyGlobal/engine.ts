@@ -340,7 +340,11 @@ function buildUmFatorClientView(
     showTapeteSignal,
     singleFactorMode: true,
     currentRecovery: machine.recovery,
-    currentTableId: showTapeteSignal ? currentTableId : null,
+    currentTableId: showTapeteSignal
+      ? currentTableId
+      : postResultHoldActive && postResultHoldTableId != null
+        ? postResultHoldTableId
+        : null,
     alertCategory: umActive?.armingDescription ?? null,
     alertBucketGap: 0,
     sessionMode: showTapeteSignal ? "active" : "scanning",

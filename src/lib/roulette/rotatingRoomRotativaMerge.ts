@@ -89,6 +89,13 @@ export function mergeRotatingRoomRotativaSession(
   }
 
   if (crossBusy && umBusy) {
+    if (umFator.postResultHoldActive === true) {
+      return {
+        ...umFator,
+        rotativaTrigger: "umFator",
+        crossingScan: crossing.crossingScan,
+      };
+    }
     if (crossing.showTapeteSignal || crossing.sessionMode === "prepare") {
       return {
         ...crossing,

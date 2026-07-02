@@ -24,6 +24,7 @@ import {
   emitRotatingRoomExtensionCloseMesa,
   mesaTabCloseAfterOpenBetChange,
   mesaUrlForTableId,
+  shouldDeferMesaCloseForUmFatorRecovery,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
   clearExtensionLastEmitKey,
@@ -46,6 +47,21 @@ function emitMesaCloseOnce(
   if (dedupeRef.current === dedupeKey) return;
   dedupeRef.current = dedupeKey;
   emitRotatingRoomExtensionCloseMesa(tableId, mesaUrlForTableId(tableId));
+}
+
+function resolveMesaCloseTableId(
+  settled: AutomationOpenBet,
+  openBet: AutomationOpenBet | null,
+  pendingSignal: AutomationPendingSignal | null,
+  session: {
+    currentRecovery?: number;
+    currentTableId?: number | null;
+    postResultHoldActive?: boolean;
+    postResultHoldTableId?: number | null;
+  },
+): number | null {
+  if (shouldDeferMesaCloseForUmFatorRecovery(settled, session)) return null;
+  return mesaTabCloseAfterOpenBetChange(settled, openBet, pendingSignal);
 }
 
 function isRotatingRoomBridgePath(pathname: string): boolean {
@@ -84,6 +100,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const prevOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const lastSettledOpenBetRef = useRef<AutomationOpenBet | null>(null);
   const pendingSignalRef = useRef<AutomationPendingSignal | null>(null);
+  const sessionRef = useRef(session);
   const mesaCloseDedupeRef = useRef<string | null>(null);
   const prevPostResultHoldRef = useRef(false);
   const bridgeArmedAtRef = useRef(0);
@@ -91,6 +108,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
   const sawOpenBetRef = useRef(false);
 
   pendingSignalRef.current = pendingSignal;
+  sessionRef.current = session;
 
   useEffect(() => {
     if (!bridgeActive) return;
@@ -152,7 +170,6 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
     if (
       !inGrace &&
-      sawOpenBetRef.current &&
       postHoldActive &&
       !prevPostResultHoldRef.current &&
       postHoldTableId != null &&
@@ -166,10 +183,11 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
     if (
       !inGrace &&
-      sawOpenBetRef.current &&
       prevPostResultHoldRef.current &&
       !postHoldActive &&
-      postHoldTableId != null
+      postHoldTableId != null &&
+      (lastSettledOpenBetRef.current?.tableId === postHoldTableId ||
+        sawOpenBetRef.current)
     ) {
       emitMesaCloseOnce(
         mesaCloseDedupeRef,
@@ -189,11 +207,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     }
 
     if (!inGrace && sawOpenBetRef.current && prevOpenBet?.tableId && openBet) {
-      const closeTableId = mesaTabCloseAfterOpenBetChange(
-        prevOpenBet,
-        openBet,
-        pendingSignal,
-      );
+      const closeTableId = resolveMesaCloseTableId(prevOpenBet, openBet, pendingSignal, session);
       if (closeTableId != null) {
         emitMesaCloseOnce(
           mesaCloseDedupeRef,
@@ -235,10 +249,11 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
     openBetClearTimerRef.current = setTimeout(() => {
       openBetClearTimerRef.current = null;
-      const closeTableId = mesaTabCloseAfterOpenBetChange(
+      const closeTableId = resolveMesaCloseTableId(
         settled,
         null,
         pendingSignalRef.current,
+        sessionRef.current,
       );
       if (closeTableId == null) return;
       emitMesaCloseOnce(

@@ -226,6 +226,34 @@ export type MesaTabTrack = {
   recovery: number;
 };
 
+/** Mantém mesa aberta entre gales do 1 Fator enquanto o ciclo de recuperação continua. */
+export function shouldDeferMesaCloseForUmFatorRecovery(
+  settled: Pick<AutomationPendingSignal, "tableId" | "recovery" | "strategy">,
+  session: {
+    currentRecovery?: number;
+    currentTableId?: number | null;
+    postResultHoldActive?: boolean;
+    postResultHoldTableId?: number | null;
+  },
+  maxRecovery = readEffectiveUmFatorMaxRecovery(),
+): boolean {
+  if (settled.strategy !== "um1fator" || settled.tableId == null) return false;
+  if (session.postResultHoldActive === true) return false;
+
+  const sessionRecovery =
+    typeof session.currentRecovery === "number" && Number.isFinite(session.currentRecovery)
+      ? Math.max(0, Math.floor(session.currentRecovery))
+      : 0;
+  if (sessionRecovery <= settled.recovery) return false;
+
+  const focusTableId =
+    session.currentTableId ??
+    (session.postResultHoldTableId != null ? session.postResultHoldTableId : null);
+  if (focusTableId != null && focusTableId !== settled.tableId) return false;
+
+  return settled.recovery < maxRecovery;
+}
+
 /** Fecha separador da mesa quando openBet termina (vitória, derrota ou mudança de mesa). */
 export function mesaTabCloseAfterOpenBetChange(
   prevOpenBet: Pick<AutomationPendingSignal, "tableId" | "signalId" | "recovery"> | null,
@@ -445,6 +473,56 @@ export function buildExtensionBridgeFromAutomationBet(
   if (!activeCrossing) return null;
 
   const singleFactorMode = bet.strategy !== "dois2fatores";
+  const recovery = Math.max(0, Math.floor(bet.recovery));
+  const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
+
+  if (bet.strategy === "um1fator" && bet.umActive) {
+    const factor1Key = pragmaticExteriorBetKeyFromFactor(bet.umActive.alertFactor);
+    const context = buildRotatingRoomExtensionContext(
+      {
+        sessionMode: "active",
+        showTapeteSignal: true,
+        prepareTableId: null,
+        currentTableId: bet.tableId,
+        activeCrossing,
+        singleFactorMode: true,
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+        rotativaTrigger: "umFator",
+        currentRecovery: recovery,
+        lobbyWait: false,
+      },
+      mesaEmbedUrl,
+      automationBalance,
+    );
+    return {
+      fingerprint: `${bet.signalId}|r${recovery}`,
+      actions: [
+        {
+          kind: "click",
+          target: "prepare-open",
+          label: bet.tableLabel ?? lobbyTableDisplayName(bet.tableId),
+          reason: `Abrir ${bet.tableLabel ?? "mesa"} no operador`,
+        },
+        {
+          kind: "click",
+          target: "factor-1",
+          label: bet.alertLabel ?? factor1Key,
+          reason: `Um Fator · ${bet.alertLabel ?? factor1Key} · gale ${recovery}`,
+        },
+      ],
+      context: {
+        ...context,
+        factor1Label: bet.alertLabel,
+        factor1BetKey: factor1Key,
+        rotativaTrigger: "umFator",
+        strategy: "um1fator",
+        signalId: bet.signalId,
+        betAttemptKey: bet.signalId,
+      },
+    };
+  }
+
   const sessionSlice: RotatingRoomClickBotSessionSlice = {
     sessionMode: "active",
     showTapeteSignal: true,
@@ -462,26 +540,8 @@ export function buildExtensionBridgeFromAutomationBet(
   const actions = planRotatingRoomClickBotActions(sessionSlice);
   if (!actions.some((a) => a.kind === "click")) return null;
 
-  const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
   const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
   const fingerprint = `${bet.signalId}|r${bet.recovery}`;
-
-  if (bet.strategy === "um1fator" && bet.umActive) {
-    const factor1Key = pragmaticExteriorBetKeyFromFactor(bet.umActive.alertFactor);
-    return {
-      fingerprint,
-      actions,
-      context: {
-        ...context,
-        factor1Label: bet.alertLabel,
-        factor1BetKey: factor1Key,
-        rotativaTrigger: "umFator",
-        strategy: "um1fator",
-        signalId: bet.signalId,
-        betAttemptKey: bet.signalId,
-      },
-    };
-  }
 
   if (bet.strategy === "dois2fatores" && bet.activeCrossing) {
     return {

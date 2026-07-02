@@ -187,7 +187,7 @@ export function alignRotatingRoomSessionWithAutomationBet<
     currentRecovery: bet.recovery,
     activeCrossing: alignedCrossing,
     ...(bet.umActive ? { umActive: bet.umActive } : {}),
-    sessionMode: isCrossing ? "active" : session.sessionMode,
+    sessionMode: "active",
     ...(isCrossing ? { rotativaTrigger: "crossing" as const } : { rotativaTrigger: "umFator" as const }),
   };
 }
