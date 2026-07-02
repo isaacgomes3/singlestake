@@ -279,6 +279,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.kind === "ice-start-session") {
+    void startIceBetSession({ mesaUrl: message.mesaUrl }).then(sendResponse);
+    return true;
+  }
+
   if (message.kind === "set-click-chip-before-bet") {
     void chrome.storage.local
       .set({ gogClickChipBeforeBet: message.enabled === true })
@@ -470,7 +475,7 @@ async function runBridgePlan(payload, sourceTabId) {
 }
 
 async function waitForFibonacciRecoverySettle(context) {
-  if (context?.strategy !== "fibonacci") return;
+  if (context?.strategy !== "fibonacci" && context?.strategy !== "repeticao") return;
   const recovery = recoveryFromContext(context);
   if (recovery <= 0) return;
   const until =
@@ -1084,14 +1089,17 @@ function stakeUnitsForContext(context, chip) {
       ? context.stakeAmount
       : null;
   const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const stakeAmount =
-    explicitStake ??
-    (context?.strategy === "fibonacci"
-      ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
-      : baseStake * 2 ** recovery);
+  const useFibonacci =
+    context?.strategy === "fibonacci" || context?.strategy === "repeticao";
+  const fibonacciUnits = useFibonacci
+    ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
+    : null;
+  const stakeAmount = useFibonacci
+    ? baseStake * fibonacciUnits
+    : explicitStake ?? baseStake * 2 ** recovery;
   let units;
-  if (context?.strategy === "fibonacci" && Math.abs(chipValue - baseStake) < 0.001) {
-    units = Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]);
+  if (useFibonacci && Math.abs(chipValue - baseStake) < 0.001) {
+    units = fibonacciUnits;
   } else if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);
   } else {
@@ -1404,6 +1412,69 @@ function rankFrameResult(result) {
   if (result?.method === "saved") bonus += 120;
   if (result?.method === "saved" && result?.isTop === true) bonus += 40;
   return (result?.score ?? 0) + bonus;
+}
+
+async function readIceDefaultMesaUrl() {
+  const stored = await chrome.storage.local.get(["gogDgaConfig"]);
+  const fromDga = stored.gogDgaConfig?.mesaEmbedUrl;
+  if (typeof fromDga === "string" && fromDga.trim() && isIceCasinoGameUrl(fromDga.trim())) {
+    return fromDga.trim();
+  }
+  return ICE_OPERATOR.defaultMesaUrl;
+}
+
+async function findIceBetGamesTab() {
+  const tabs = await chrome.tabs.query({});
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const active = activeTabs[0];
+  if (active?.id != null && active.url && isIceCasinoGameUrl(active.url)) {
+    return active.id;
+  }
+  const match = tabs.find((t) => t.url && isIceCasinoGameUrl(t.url));
+  return match?.id ?? null;
+}
+
+/** Abre mesa ice.bet (se necessário) e clica em «Jogar» até o Pragmatic carregar. */
+async function startIceBetSession(options = {}) {
+  const mesaUrl =
+    typeof options.mesaUrl === "string" && options.mesaUrl.trim()
+      ? options.mesaUrl.trim()
+      : await readIceDefaultMesaUrl();
+
+  let tabId = await findIceBetGamesTab();
+  let opened = false;
+
+  if (tabId == null) {
+    if (!mesaUrl || !isIceCasinoGameUrl(mesaUrl)) {
+      return {
+        ok: false,
+        detail: "Nenhuma mesa ice.bet aberta — configure o URL da mesa no popup.",
+      };
+    }
+    const tab = await chrome.tabs.create({ url: mesaUrl, active: true });
+    tabId = tab.id ?? null;
+    opened = true;
+    if (tabId == null) {
+      return { ok: false, detail: `Falha ao abrir ${mesaUrl}` };
+    }
+    await sleep(ICE_OPERATOR.initialDomWaitMs);
+  } else {
+    await chrome.tabs.update(tabId, { active: true });
+  }
+
+  const tab = await chrome.tabs.get(tabId);
+  const pageUrl = tab.url && isIceCasinoGameUrl(tab.url) ? tab.url : mesaUrl;
+  const gate = await waitForIceLobbyGate(tabId, pageUrl);
+
+  return {
+    ok: gate.ok !== false,
+    opened,
+    tabId,
+    ready: gate.ready === true,
+    detail:
+      gate.detail ??
+      (gate.ready ? "Sessão iniciada — jogo Pragmatic pronto." : "Lobby ice.bet processado."),
+  };
 }
 
 async function openMesaTabAndWait(url) {

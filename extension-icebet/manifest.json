@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Singlestake — ice.bet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automação Pragmatic no ice.bet.br com clique automático em «Jogar». Extensão separada da br4.bet para testes.",
   "permissions": ["tabs", "storage", "scripting", "debugger", "windows", "alarms"],
   "host_permissions": ["http://*/*", "https://*/*"],

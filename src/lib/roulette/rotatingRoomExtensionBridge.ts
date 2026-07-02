@@ -1,6 +1,7 @@
 import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import {
   formatStakeBrl,
+  stakeForFibonacciRecovery,
   stakeForRecovery,
 } from "@/lib/back-office/rouletteAutomationSim";
 import {
@@ -243,6 +244,35 @@ export function shouldDeferMesaCloseForUmFatorRecovery(
   maxRecovery = readEffectiveUmFatorMaxRecovery(),
 ): boolean {
   if (settled.strategy !== "um1fator" || settled.tableId == null) return false;
+  if (session.postResultHoldActive === true) return false;
+
+  const sessionRecovery =
+    typeof session.currentRecovery === "number" && Number.isFinite(session.currentRecovery)
+      ? Math.max(0, Math.floor(session.currentRecovery))
+      : 0;
+  if (sessionRecovery <= settled.recovery) return false;
+
+  const focusTableId =
+    session.currentTableId ??
+    (session.postResultHoldTableId != null ? session.postResultHoldTableId : null);
+  if (focusTableId != null && focusTableId !== settled.tableId) return false;
+
+  return settled.recovery < maxRecovery;
+}
+
+/** Mantém mesa aberta entre gales Fibonacci/Repetição na mesma mesa. */
+export function shouldDeferMesaCloseForFibonacciRecovery(
+  settled: Pick<AutomationPendingSignal, "tableId" | "recovery" | "strategy">,
+  session: {
+    currentRecovery?: number;
+    currentTableId?: number | null;
+    postResultHoldActive?: boolean;
+    postResultHoldTableId?: number | null;
+  },
+  maxRecovery = readEffectiveUmFatorMaxRecovery(),
+): boolean {
+  if (settled.strategy !== "fibonacci" && settled.strategy !== "repeticao") return false;
+  if (settled.tableId == null) return false;
   if (session.postResultHoldActive === true) return false;
 
   const sessionRecovery =
@@ -529,6 +559,7 @@ export function buildExtensionBridgeFromAutomationBet(
         factor1BetKey: betKey,
         rotativaTrigger: trigger,
         strategy: trigger,
+        stakeAmount: bet.stake ?? stakeForFibonacciRecovery(recovery),
         betDelayUntilMs:
           recovery > 0 ? Date.now() + ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS : null,
       },

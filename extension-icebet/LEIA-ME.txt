@@ -28,6 +28,9 @@ Catálogo completo em operator-config.js (ICE_MESA_CATALOG).
 Ao abrir a mesa (prepare-open ou sinal), a extensão tenta clicar automaticamente
 em «Jogar» e espera o iframe Pragmatic carregar antes de apostar.
 
+No popup: botão **▶ Jogar** (secção «Sessão ice.bet») — abre a mesa configurada
+ou clica em Jogar no separador ice.bet já aberto.
+
 MODOS
 -----
 DEMO  — só destaca / simula

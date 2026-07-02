@@ -420,6 +420,43 @@ function setMode(mode) {
   chrome.runtime.sendMessage({ kind: "set-mode", mode }, () => loadStatus());
 }
 
+const iceStartSessionBtn = document.getElementById("iceStartSession");
+const iceSessionStatus = document.getElementById("iceSessionStatus");
+
+function setIceSessionUi(loading, message) {
+  if (iceStartSessionBtn instanceof HTMLButtonElement) {
+    iceStartSessionBtn.disabled = loading === true;
+    iceStartSessionBtn.textContent = loading ? "A iniciar…" : "▶ Jogar";
+  }
+  if (iceSessionStatus && message) {
+    iceSessionStatus.textContent = message;
+  }
+}
+
+iceStartSessionBtn?.addEventListener("click", () => {
+  setIceSessionUi(true, "A abrir mesa e clicar em Jogar…");
+  const mesaUrl =
+    dgaMesaUrl instanceof HTMLInputElement ? dgaMesaUrl.value.trim() : "";
+  chrome.runtime.sendMessage(
+    { kind: "ice-start-session", mesaUrl: mesaUrl || undefined },
+    (resp) => {
+      if (chrome.runtime.lastError) {
+        setIceSessionUi(false, chrome.runtime.lastError.message);
+        return;
+      }
+      const ok = resp?.ok === true;
+      const detail = resp?.detail ?? (ok ? "Sessão iniciada." : "Falha ao iniciar sessão.");
+      setIceSessionUi(
+        false,
+        ok
+          ? `${detail}${resp?.opened ? " (mesa aberta)" : ""}`
+          : detail,
+      );
+      void loadStatus();
+    },
+  );
+});
+
 modeDemoBtn?.addEventListener("click", () => setMode("demo"));
 modeRealBtn?.addEventListener("click", () => {
   if (!window.confirm("Modo REAL envia cliques na mesa. Confirma?")) return;

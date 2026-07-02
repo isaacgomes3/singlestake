@@ -466,6 +466,29 @@ function armCycleFromZone(
   };
 }
 
+/** Após derrota parcial: segue a dúzia/coluna do head; zero mantém a zona da aposta. */
+function rearmRepeticaoAfterPartialLoss(
+  machine: RotatingRoomRepeticaoMachineState,
+  tableId: number,
+  zone: FibonacciZone,
+  histories: Record<number, readonly number[]>,
+  recovery: number,
+): RotatingRoomRepeticaoMachineState {
+  const history = histories[tableId] ?? [];
+  const kind = machine.cycleZoneKind ?? zone.kind;
+  const head = history[0];
+  const nextZone =
+    head != null && head !== 0 ? (zoneFromHeadNumber(history, kind) ?? zone) : zone;
+  return armCycleFromZone(
+    machine,
+    tableId,
+    nextZone,
+    histories,
+    recovery,
+    consecutiveNoRepeatStreak(history, kind),
+  );
+}
+
 function syncSpinHeads(
   machine: RotatingRoomRepeticaoMachineState,
   tableIds: readonly number[],
@@ -723,20 +746,13 @@ export function tickRotatingRoomRepeticaoPlacar(
           stakeUnits: active.stakeUnits,
           profitUnits: active.profitUnits,
         };
-        const kind = nextMachine.cycleZoneKind ?? zone.kind;
-        const nextZone = zoneFromHeadNumber(history, kind);
-        if (!nextZone) {
-          nextMachine = finishCycle(nextMachine);
-        } else {
-          nextMachine = armCycleFromZone(
-            { ...nextMachine, recovery },
-            tableId,
-            nextZone,
-            histories,
-            recovery,
-            consecutiveNoRepeatStreak(history, kind),
-          );
-        }
+        nextMachine = rearmRepeticaoAfterPartialLoss(
+          { ...nextMachine, recovery },
+          tableId,
+          zone,
+          histories,
+          recovery,
+        );
       }
     }
 

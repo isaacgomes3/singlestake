@@ -1111,17 +1111,17 @@ function stakeUnitsForContext(context, chip) {
       ? context.stakeAmount
       : null;
   const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const stakeAmount =
-    explicitStake ??
-    (context?.strategy === "fibonacci" || context?.strategy === "repeticao"
-      ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
-      : baseStake * 2 ** recovery);
+  const useFibonacci =
+    context?.strategy === "fibonacci" || context?.strategy === "repeticao";
+  const fibonacciUnits = useFibonacci
+    ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
+    : null;
+  const stakeAmount = useFibonacci
+    ? baseStake * fibonacciUnits
+    : explicitStake ?? baseStake * 2 ** recovery;
   let units;
-  if (
-    (context?.strategy === "fibonacci" || context?.strategy === "repeticao") &&
-    Math.abs(chipValue - baseStake) < 0.001
-  ) {
-    units = Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]);
+  if (useFibonacci && Math.abs(chipValue - baseStake) < 0.001) {
+    units = fibonacciUnits;
   } else if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);
   } else {

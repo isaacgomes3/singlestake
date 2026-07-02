@@ -117,6 +117,26 @@
         background: #15803d;
         color: #dcfce7;
       }
+      .play-session {
+        width: 100%;
+        margin-top: 8px;
+        padding: 11px 12px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%);
+        color: #042f2e;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+      }
+      .play-session:hover {
+        filter: brightness(1.05);
+      }
+      .play-session:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
       .field {
         margin-top: 8px;
       }
@@ -211,8 +231,14 @@
     </style>
   </head>
   <body>
-    <h1>Singlestake · ice.bet v0.1.0</h1>
+    <h1>Singlestake · ice.bet v0.1.1</h1>
     <p class="sub">Pragmatic · clique automático em «Jogar» · separado da br4.bet</p>
+
+    <h2>Sessão ice.bet</h2>
+    <p id="iceSessionStatus" class="muted" style="margin-top:0">
+      Abra a mesa no ice.bet (ou use o URL abaixo) e clique em Jogar para iniciar o jogo.
+    </p>
+    <button type="button" id="iceStartSession" class="play-session">▶ Jogar</button>
 
     <h2>Modo de execução</h2>
     <div class="modes" style="margin-top:6px">

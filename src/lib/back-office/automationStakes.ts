@@ -33,7 +33,7 @@ export function resolveLedgerEntryStake(
   if (typeof entry.stake === "number" && entry.stake > 0 && Number.isFinite(entry.stake)) {
     return entry.stake;
   }
-  if (entry.strategy === "fibonacci") {
+  if (entry.strategy === "fibonacci" || entry.strategy === "repeticao") {
     return stakeForFibonacciRecovery(entry.recovery, baseStake);
   }
   return stakeForRecovery(entry.recovery, undefined, baseStake);
