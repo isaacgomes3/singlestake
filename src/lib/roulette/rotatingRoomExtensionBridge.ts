@@ -12,6 +12,11 @@ import { pragmaticFibonacciBetKeyFromZone } from "@/lib/roulette/pragmaticFibona
 import type { PragmaticFibonacciBetKey } from "@/lib/roulette/pragmaticFibonacciBetMap";
 import { parseFibonacciSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { parseRepeticaoSignalId } from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
+import {
+  isZoneFibonacciStrategy,
+  ZONE_FIBONACCI_MAX_RECOVERY,
+  zoneFibonacciStepLabel,
+} from "@/lib/roulette/zoneFibonacciFamily";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 import {
   lobbyTableDisplayName,
@@ -269,9 +274,9 @@ export function shouldDeferMesaCloseForFibonacciRecovery(
     postResultHoldActive?: boolean;
     postResultHoldTableId?: number | null;
   },
-  maxRecovery = readEffectiveUmFatorMaxRecovery(),
+  maxRecovery = ZONE_FIBONACCI_MAX_RECOVERY,
 ): boolean {
-  if (settled.strategy !== "fibonacci" && settled.strategy !== "repeticao") return false;
+  if (!isZoneFibonacciStrategy(settled.strategy)) return false;
   if (settled.tableId == null) return false;
   if (session.postResultHoldActive === true) return false;
 
@@ -508,17 +513,16 @@ export function buildExtensionBridgeFromAutomationBet(
     };
   }
 
-  if (bet.strategy === "fibonacci" || bet.strategy === "repeticao") {
+  if (isZoneFibonacciStrategy(bet.strategy)) {
+    const strategy = bet.strategy;
     const parsed =
-      bet.strategy === "repeticao"
+      strategy === "repeticao"
         ? parseRepeticaoSignalId(bet.signalId)
         : parseFibonacciSignalId(bet.signalId);
     if (!parsed) return null;
     const betKey = pragmaticFibonacciBetKeyFromZone(parsed.zone);
     const mesaEmbedUrl = getCasinoEmbedUrlForTable(bet.tableId);
     const recovery = Math.max(0, Math.floor(bet.recovery));
-    const trigger: "fibonacci" | "repeticao" =
-      bet.strategy === "repeticao" ? "repeticao" : "fibonacci";
     const context = buildRotatingRoomExtensionContext(
       {
         sessionMode: "active",
@@ -529,14 +533,19 @@ export function buildExtensionBridgeFromAutomationBet(
         singleFactorMode: true,
         signalId: bet.signalId,
         betAttemptKey: bet.signalId,
-        rotativaTrigger: trigger,
+        rotativaTrigger: strategy,
         currentRecovery: recovery,
         lobbyWait: false,
       },
       mesaEmbedUrl,
       automationBalance,
     );
-    const labelPrefix = trigger === "repeticao" ? "Repetição" : "Fibonacci";
+    const labelPrefix = strategy === "repeticao" ? "Repetição" : "Fibonacci";
+    const stepLabel = zoneFibonacciStepLabel(
+      strategy,
+      recovery,
+      recovery > 0 ? "recovery" : "win",
+    );
     return {
       fingerprint: `${bet.signalId}|r${recovery}`,
       actions: [
@@ -550,15 +559,15 @@ export function buildExtensionBridgeFromAutomationBet(
           kind: "click",
           target: "factor-1",
           label: bet.alertLabel ?? betKey,
-          reason: `${labelPrefix} · ${bet.alertLabel ?? betKey} · gale ${recovery}`,
+          reason: `${labelPrefix} · ${bet.alertLabel ?? betKey} · ${stepLabel}`,
         },
       ],
       context: {
         ...context,
         factor1Label: bet.alertLabel,
         factor1BetKey: betKey,
-        rotativaTrigger: trigger,
-        strategy: trigger,
+        rotativaTrigger: strategy,
+        strategy,
         stakeAmount: bet.stake ?? stakeForFibonacciRecovery(recovery),
         betDelayUntilMs:
           recovery > 0 ? Date.now() + ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS : null,

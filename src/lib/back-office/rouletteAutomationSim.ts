@@ -16,17 +16,22 @@ import {
   type RotacaoActive,
 } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import {
-  evaluateFibonacciRound,
-  fibonacciActiveFromSignalId,
   fibonacciSignalId,
   type RotatingRoomFibonacciActive,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
-  evaluateRepeticaoRound,
-  repeticaoActiveFromSignalId,
   repeticaoSignalId,
   type RotatingRoomRepeticaoActive,
 } from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
+import {
+  activeFibonacciViewFromBet,
+  evaluateZoneFibonacciRound,
+  isZoneFibonacciStrategy,
+  ledgerKindForZoneFibonacciLoss,
+  repeticaoActiveAsFibonacci,
+  type ZoneFibonacciSessionSlice,
+  type ZoneFibonacciStrategyKind,
+} from "@/lib/roulette/zoneFibonacciFamily";
 import {
   evaluateUmFatorRound,
   umFatorAlertLabel,
@@ -388,6 +393,47 @@ export function pendingSignalFromUmFatorSession(
   };
 }
 
+/** Sinal activo Fibonacci / Repetição (dúzia/coluna, mesma família operacional). */
+function pendingSignalFromZoneFibonacciSession(
+  session: ZoneFibonacciSessionSlice,
+  strategy: ZoneFibonacciStrategyKind,
+  active: RotatingRoomFibonacciActive | RotatingRoomRepeticaoActive | null,
+  signalId: string,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  const tableId = session.currentTableId;
+  const recovery = session.currentRecovery;
+  const inPlay =
+    tableId != null && active != null && (session.showTapeteSignal || recovery > 0);
+
+  if (!inPlay) return null;
+
+  const history = histories?.[tableId] ?? [];
+  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
+    return null;
+  }
+
+  const fibView =
+    strategy === "repeticao" && active
+      ? repeticaoActiveAsFibonacci(active as RotatingRoomRepeticaoActive)
+      : (active as RotatingRoomFibonacciActive | null);
+
+  return {
+    signalId,
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel: active!.zoneLabel,
+    recovery,
+    stake: stakeForFibonacciRecovery(recovery, baseStake),
+    strategy,
+    activeFibonacci: fibView ?? undefined,
+    ...(strategy === "repeticao"
+      ? { activeRepeticao: active as RotatingRoomRepeticaoActive }
+      : {}),
+  };
+}
+
 /** Sinal activo Fibonacci (dúzia/coluna). */
 export function pendingSignalFromFibonacciSession(
   session: Pick<
@@ -398,33 +444,16 @@ export function pendingSignalFromFibonacciSession(
   histories?: Record<number, readonly number[]>,
   baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): AutomationPendingSignal | null {
-  const tableId = session.currentTableId;
   const active = session.activeFibonacci;
-  const recovery = session.currentRecovery;
-  const inPlay =
-    tableId != null &&
-    active != null &&
-    (session.showTapeteSignal || recovery > 0);
-
-  if (!inPlay) return null;
-
-  const history = histories?.[tableId] ?? [];
-  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
-    return null;
-  }
-
-  const alertLabel = active.zoneLabel;
-
-  return {
-    signalId: fibonacciSignalId(tableId, active.zone, recovery, session.cycleSeq ?? 0),
-    tableId,
-    tableLabel: lobbyTableDisplayName(tableId),
-    alertLabel,
-    recovery,
-    stake: stakeForFibonacciRecovery(recovery, baseStake),
-    strategy: "fibonacci",
-    activeFibonacci: active,
-  };
+  if (!active || session.currentTableId == null) return null;
+  return pendingSignalFromZoneFibonacciSession(
+    session,
+    "fibonacci",
+    active,
+    fibonacciSignalId(session.currentTableId, active.zone, session.currentRecovery, session.cycleSeq ?? 0),
+    histories,
+    baseStake,
+  );
 }
 
 /** Sinal activo Repetição (dúzia/coluna do número mais recente). */
@@ -437,33 +466,16 @@ export function pendingSignalFromRepeticaoSession(
   histories?: Record<number, readonly number[]>,
   baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): AutomationPendingSignal | null {
-  const tableId = session.currentTableId;
   const active = session.activeRepeticao;
-  const recovery = session.currentRecovery;
-  const inPlay =
-    tableId != null &&
-    active != null &&
-    (session.showTapeteSignal || recovery > 0);
-
-  if (!inPlay) return null;
-
-  const history = histories?.[tableId] ?? [];
-  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
-    return null;
-  }
-
-  const alertLabel = active.zoneLabel;
-
-  return {
-    signalId: repeticaoSignalId(tableId, active.zone, recovery, session.cycleSeq ?? 0),
-    tableId,
-    tableLabel: lobbyTableDisplayName(tableId),
-    alertLabel,
-    recovery,
-    stake: stakeForFibonacciRecovery(recovery, baseStake),
-    strategy: "repeticao",
-    activeRepeticao: active,
-  };
+  if (!active || session.currentTableId == null) return null;
+  return pendingSignalFromZoneFibonacciSession(
+    session,
+    "repeticao",
+    active,
+    repeticaoSignalId(session.currentTableId, active.zone, session.currentRecovery, session.cycleSeq ?? 0),
+    histories,
+    baseStake,
+  );
 }
 
 /** Sinal activo Rotação — Roulette 1, altura/paridade/cor. */
@@ -604,6 +616,7 @@ export function ledgerEntryFromFlashSettlement(
     recovery: bet.recovery,
     kind: flash.kind,
     resultNumber: flash.resultNumber,
+    strategy: bet.strategy,
   };
 }
 
@@ -618,12 +631,19 @@ export function ledgerEntryFromSpinSettlement(
     tableId: bet.tableId,
     won,
     recovery: bet.recovery,
-    kind: won ? "win" : ledgerKindForSpinLoss(bet.recovery),
+    kind: won ? "win" : ledgerKindForSpinLoss(bet.recovery, bet.strategy),
     resultNumber,
+    strategy: bet.strategy,
   };
 }
 
-function ledgerKindForSpinLoss(recovery: number): StrategyGlobalLedgerEntry["kind"] {
+function ledgerKindForSpinLoss(
+  recovery: number,
+  strategy?: StrategyGlobalKind,
+): StrategyGlobalLedgerEntry["kind"] {
+  if (isZoneFibonacciStrategy(strategy)) {
+    return ledgerKindForZoneFibonacciLoss(recovery);
+  }
   return recovery >= UM_FATOR_MAX_RECOVERY ? "loss" : "recovery";
 }
 
@@ -688,8 +708,11 @@ export function pendingConflictsWithSettledHead(
   pending: AutomationPendingSignal,
   histories: Record<number, readonly number[]>,
 ): boolean {
-  // Fibonacci/Rotação apostam no giro seguinte — o head actual é o resultado já liquidado.
-  if (pending.strategy === "fibonacci" || pending.strategy === "repeticao" || pending.strategy === "rotacao") {
+  // Fibonacci/Repetição/Rotação apostam no giro seguinte — o head actual é o resultado já liquidado.
+  if (
+    isZoneFibonacciStrategy(pending.strategy) ||
+    pending.strategy === "rotacao"
+  ) {
     return false;
   }
 
@@ -974,8 +997,7 @@ export function trySettleOpenBetFromSpin(
     !bet?.umActive &&
     !bet?.activeCrossing &&
     !bet?.rotacaoActive &&
-    bet?.strategy !== "fibonacci" &&
-    bet?.strategy !== "repeticao"
+    !isZoneFibonacciStrategy(bet?.strategy)
   ) {
     return state;
   }
@@ -997,23 +1019,10 @@ export function trySettleOpenBetFromSpin(
     return next;
   }
 
-  if (bet.strategy === "fibonacci") {
-    const active =
-      bet.activeFibonacci ?? fibonacciActiveFromSignalId(bet.signalId);
+  if (isZoneFibonacciStrategy(bet.strategy)) {
+    const active = activeFibonacciViewFromBet(bet);
     if (!active) return state;
-    const won = evaluateFibonacciRound(resultNumber, active.zone) === "W";
-    localProcessed.add(key);
-    const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
-    const next = settleOpenBetEntry(state, entry, bet.tableLabel);
-    if (next !== state) onSettled?.(entry);
-    return next;
-  }
-
-  if (bet.strategy === "repeticao") {
-    const active =
-      bet.activeRepeticao ?? repeticaoActiveFromSignalId(bet.signalId);
-    if (!active) return state;
-    const won = evaluateRepeticaoRound(resultNumber, active.zone) === "W";
+    const won = evaluateZoneFibonacciRound(resultNumber, active.zone) === "W";
     localProcessed.add(key);
     const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);
     const next = settleOpenBetEntry(state, entry, bet.tableLabel);

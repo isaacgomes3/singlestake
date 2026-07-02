@@ -26,6 +26,11 @@ import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
 import type { StrategyGlobalLedgerEntry, StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
 import {
+  isZoneFibonacciStrategy,
+  zoneFibonacciSessionEnded,
+  zoneFibonacciSnapshotFromGlobal,
+} from "@/lib/roulette/zoneFibonacciFamily";
+import {
   ensureGlobalAutomationCapitalRegistered,
   getGlobalAutomationWalletBalance,
   isGlobalAutomationSettleRecorded,
@@ -353,18 +358,10 @@ export async function syncAutomationSimWithStrategy(
     openBet = null;
   }
   if (
-    openBet?.strategy === "fibonacci" &&
-    !strategySnapshot.fibonacci.showTapeteSignal &&
-    strategySnapshot.fibonacci.currentRecovery === 0
-  ) {
-    state = { ...state, openBet: null };
-    replaceAutomationSimState(state);
-    openBet = null;
-  }
-  if (
-    openBet?.strategy === "repeticao" &&
-    !strategySnapshot.repeticao.showTapeteSignal &&
-    strategySnapshot.repeticao.currentRecovery === 0
+    isZoneFibonacciStrategy(openBet?.strategy) &&
+    zoneFibonacciSessionEnded(
+      zoneFibonacciSnapshotFromGlobal(strategySnapshot, openBet!.strategy!),
+    )
   ) {
     state = { ...state, openBet: null };
     replaceAutomationSimState(state);

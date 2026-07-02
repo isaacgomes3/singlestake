@@ -7,6 +7,7 @@ import type {
 } from "@/lib/back-office/rouletteAutomationSim";
 import { formatAutomationRoundDescription } from "@/lib/back-office/automation-ledger-labels";
 import { recoveryLevelForRound } from "@/lib/back-office/rouletteAutomationSim";
+import { isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,7 @@ function formatRoundDescription(
   round: AutomationSimRound,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): string {
-  if (round.strategy === "fibonacci") {
+  if (isZoneFibonacciStrategy(round.strategy)) {
     return formatAutomationRoundDescription(round);
   }
 
@@ -52,6 +53,15 @@ function formatOpenBetDescription(
   bet: AutomationOpenBet,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): string {
+  if (isZoneFibonacciStrategy(bet.strategy)) {
+    return formatAutomationRoundDescription({
+      tableLabel: bet.tableLabel,
+      recovery: bet.recovery,
+      badge: "EM JOGO",
+      strategy: bet.strategy,
+    });
+  }
+
   const parts = [bet.tableLabel];
   if (bet.recovery > 0) {
     parts.push(t("shared.rounds.gale", { n: bet.recovery }));

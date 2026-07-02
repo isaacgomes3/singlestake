@@ -1,4 +1,8 @@
 import type { StrategyGlobalKind } from "@/lib/roulette/strategyGlobalTypes";
+import {
+  isZoneFibonacciStrategy,
+  zoneFibonacciStepLabel,
+} from "@/lib/roulette/zoneFibonacciFamily";
 
 export type GlobalAutomationSettleLabelInput = {
   tableLabel: string;
@@ -21,17 +25,12 @@ function formatLedgerStake(stake: number): string {
 export function formatGlobalAutomationSettleDescription(
   input: GlobalAutomationSettleLabelInput,
 ): string {
-  if (input.strategy === "fibonacci" || input.strategy === "repeticao") {
+  if (isZoneFibonacciStrategy(input.strategy)) {
     const parts = [input.tableLabel];
     if (input.resultNumber != null) {
       parts.push(`Giro ${input.resultNumber}`);
     }
-    const tag = input.strategy === "repeticao" ? "Rep" : "Fibo";
-    if (input.kind === "recovery" || input.recovery > 0 || input.kind === "loss") {
-      parts.push(`${tag} ${input.recovery + 1}`);
-    } else {
-      parts.push("Sinal");
-    }
+    parts.push(zoneFibonacciStepLabel(input.strategy, input.recovery, input.kind));
     return parts.join(" · ");
   }
 
@@ -72,7 +71,7 @@ export function formatAutomationRoundDescription(input: {
           ? "recovery"
           : "win";
 
-  if (input.strategy === "fibonacci" || input.strategy === "repeticao") {
+  if (isZoneFibonacciStrategy(input.strategy)) {
     return formatGlobalAutomationSettleDescription({
       tableLabel: input.tableLabel,
       recovery: input.recovery,

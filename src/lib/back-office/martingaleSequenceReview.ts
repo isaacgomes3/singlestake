@@ -1,6 +1,7 @@
 import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTypes";
 import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
 import { ROTATING_ROOM_FIBONACCI_MAX_RECOVERY } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
+import { isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
 
 import {
   resolveLedgerEntryStake,
@@ -106,7 +107,7 @@ export function reviewMartingaleSettlement(
   entry: StrategyGlobalLedgerEntry,
   baseStake: number = ROULETTE_AUTOMATION_BASE_STAKE,
 ): MartingaleReviewResult {
-  if (entry.strategy === "fibonacci") {
+  if (isZoneFibonacciStrategy(entry.strategy)) {
     const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
     const recovery = Math.max(0, Math.floor(entry.recovery));
     const maxR = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY;

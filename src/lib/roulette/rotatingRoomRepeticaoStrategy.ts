@@ -7,7 +7,6 @@
  */
 
 import type { BetKey } from "@/lib/roulette/betSimulator";
-import { payoutMultiplier } from "@/lib/roulette/betSimulator";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import { tableAcceptableForRotatingRoomEntry } from "@/lib/roulette/liveTableBettingWindow";
 import {
@@ -21,6 +20,7 @@ import type { RepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsenceP
 import { uniformRepeticaoAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
   FIBONACCI_LEVELS,
+  evaluateFibonacciRound,
   fibonacciCategoryLabel,
   fibonacciZoneLabel,
   profitUnitsAtRecovery,
@@ -208,10 +208,8 @@ export function repeticaoActiveFromSignalId(
   );
 }
 
-export function evaluateRepeticaoRound(resultNumber: number, zone: FibonacciZone): "W" | "L" {
-  const key = zoneBetKey(zone);
-  return payoutMultiplier(key, resultNumber) > 0 ? "W" : "L";
-}
+/** Mesma liquidação 2:1 que Fibonacci — só o gatilho de leitura difere. */
+export { evaluateFibonacciRound as evaluateRepeticaoRound } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 const ALL_ZONE_KINDS: readonly FibonacciZoneKind[] = ["dozen", "column"];
 
@@ -681,7 +679,7 @@ export function tickRotatingRoomRepeticaoPlacar(
     );
 
     nextMachine = { ...nextMachine, lastEvaluatedHead: head };
-    const outcome = evaluateRepeticaoRound(resultNumber, zone);
+    const outcome = evaluateFibonacciRound(resultNumber, zone);
 
     if (outcome === "W") {
       nextStats = recordRepeticaoZoneKindWin(
