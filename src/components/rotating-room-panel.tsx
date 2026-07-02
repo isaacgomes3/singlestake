@@ -267,6 +267,8 @@ function IndicationFibonacciRow({
 
 const INDICATION_SHELL_DENSE = "min-h-[5.25rem] sm:min-h-[5.75rem]";
 const INDICATION_SHELL_DEFAULT = "min-h-[7.5rem] sm:min-h-[9rem]";
+/** Cartão embedded na página inicial / automação — quadro «aguardando» + iframe. */
+const EMBEDDED_LOBBY_FRAME_CLASS = "aspect-[16/9] min-h-[6rem]";
 
 function RoundFlashOverlay({
   flash,
@@ -1273,7 +1275,7 @@ export function RotatingRoomLobbyCard({
           <div
             className={cn(
               "relative flex w-full shrink-0 items-center justify-center overflow-hidden",
-              embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]",
+              embedded ? EMBEDDED_LOBBY_FRAME_CLASS : "aspect-[16/10]",
             )}
             style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
           >
@@ -1300,7 +1302,7 @@ export function RotatingRoomLobbyCard({
         ) : (
           <RotatingRoomLobbyWaitFrame
             embedded={embedded}
-            aspectClassName={embedded ? "aspect-[16/9] min-h-[7rem]" : "aspect-[16/10]"}
+            aspectClassName={embedded ? EMBEDDED_LOBBY_FRAME_CLASS : "aspect-[16/10]"}
           />
         )}
 
