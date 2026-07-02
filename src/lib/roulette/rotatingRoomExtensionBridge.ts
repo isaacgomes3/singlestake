@@ -16,6 +16,7 @@ import {
   isZoneFibonacciStrategy,
   ZONE_FIBONACCI_MAX_RECOVERY,
   zoneFibonacciStepLabel,
+  type ZoneFibonacciStrategyKind,
 } from "@/lib/roulette/zoneFibonacciFamily";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
 import {
@@ -172,6 +173,16 @@ export function buildRotatingRoomExtensionContext(
     typeof automationBalance === "number" && Number.isFinite(automationBalance) && automationBalance > 0
       ? automationBalance
       : null;
+  const rotativaTrigger =
+    session.rotativaTrigger ??
+    (session.singleFactorMode ? "umFator" : "crossing");
+  const strategy = isZoneFibonacciStrategy(rotativaTrigger)
+    ? rotativaTrigger
+    : rotativaTrigger === "rotacao"
+      ? "rotacao"
+      : session.singleFactorMode
+        ? "um1fator"
+        : "dois2fatores";
   return {
     sessionMode: session.sessionMode,
     prepareTableId: lobbyWait ? null : session.prepareTableId,
@@ -187,12 +198,14 @@ export function buildRotatingRoomExtensionContext(
         ? pragmaticExteriorBetKeyFromFactor(crossing.factor2)
         : null,
     singleFactorMode: session.singleFactorMode === true,
-    rotativaTrigger: session.rotativaTrigger ?? (session.singleFactorMode ? "umFator" : "crossing"),
-    strategy: session.singleFactorMode ? "um1fator" : "dois2fatores",
+    rotativaTrigger,
+    strategy,
     signalId: session.signalId ?? null,
     betAttemptKey: session.betAttemptKey ?? session.signalId ?? null,
     automationBalance: balance,
-    stakeAmount: stakeForRecovery(recovery),
+    stakeAmount: isZoneFibonacciStrategy(strategy)
+      ? stakeForFibonacciRecovery(recovery)
+      : stakeForRecovery(recovery),
     currentRecovery: recovery,
     baseStake: null,
     maxRecovery: readEffectiveUmFatorMaxRecovery(),
@@ -451,12 +464,24 @@ export function isRotatingRoomExtensionPong(
 
 export { isLikelyExtensionBridgeOrigin } from "@/lib/app-domains";
 
+function resolveZoneFibonacciStrategyFromBet(
+  bet: AutomationPendingSignal,
+): ZoneFibonacciStrategyKind | null {
+  if (isZoneFibonacciStrategy(bet.strategy)) return bet.strategy;
+  const signalId = bet.signalId?.trim() ?? "";
+  if (signalId.startsWith("rep:")) return "repeticao";
+  if (parseFibonacciSignalId(signalId)) return "fibonacci";
+  return null;
+}
+
 /** Payload directo a partir de «Em jogo» / pending da automação global. */
 export function buildExtensionBridgeFromAutomationBet(
   bet: AutomationPendingSignal,
   automationBalance?: number | null,
 ): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
   if (bet.tableId == null || !bet.signalId?.trim()) return null;
+
+  const zoneFibStrategy = resolveZoneFibonacciStrategyFromBet(bet);
 
   if (bet.strategy === "rotacao" && bet.rotacaoActive) {
     const factor1Key = pragmaticExteriorBetKeyFromFactor(bet.rotacaoActive.alertFactor);
@@ -513,8 +538,8 @@ export function buildExtensionBridgeFromAutomationBet(
     };
   }
 
-  if (isZoneFibonacciStrategy(bet.strategy)) {
-    const strategy = bet.strategy;
+  if (zoneFibStrategy) {
+    const strategy = zoneFibStrategy;
     const parsed =
       strategy === "repeticao"
         ? parseRepeticaoSignalId(bet.signalId)

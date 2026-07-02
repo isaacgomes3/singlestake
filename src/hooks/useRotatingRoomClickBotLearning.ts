@@ -54,48 +54,58 @@ type Options = {
   automationBalance?: number | null;
 };
 
+function zoneFibonacciSessionToSlice(
+  session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession,
+  rotativaTrigger: "fibonacci" | "repeticao",
+) {
+  return {
+    sessionMode: session.sessionMode,
+    showTapeteSignal: false,
+    prepareTableId: session.prepareTableId,
+    currentTableId: session.currentTableId,
+    activeCrossing: null,
+    singleFactorMode: true,
+    signalId: null,
+    betAttemptKey: null,
+    rotativaTrigger,
+    currentRecovery: session.currentRecovery,
+    lobbyWait:
+      !isRotatingRoomPostResultHoldActive(
+        "postResultHoldUntilMs" in session ? session.postResultHoldUntilMs : null,
+      ) && isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
+    lobbyCooldownActive:
+      "lobbyCooldownActive" in session && session.lobbyCooldownActive === true,
+    postResultHoldActive:
+      "postResultHoldActive" in session && session.postResultHoldActive === true,
+    postResultHoldUntilMs:
+      "postResultHoldUntilMs" in session &&
+      typeof session.postResultHoldUntilMs === "number" &&
+      Number.isFinite(session.postResultHoldUntilMs)
+        ? session.postResultHoldUntilMs
+        : null,
+    postResultHoldTableId:
+      "postResultHoldTableId" in session &&
+      typeof session.postResultHoldTableId === "number" &&
+      Number.isFinite(session.postResultHoldTableId)
+        ? session.postResultHoldTableId
+        : null,
+    lobbyCooldownUntilMs:
+      "lobbyCooldownUntilMs" in session &&
+      typeof session.lobbyCooldownUntilMs === "number" &&
+      Number.isFinite(session.lobbyCooldownUntilMs)
+        ? session.lobbyCooldownUntilMs
+        : null,
+  };
+}
+
 function sessionToSlice(
   session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession,
 ) {
   if ("rotativaTrigger" in session && session.rotativaTrigger === "fibonacci") {
-    return {
-      sessionMode: session.sessionMode,
-      showTapeteSignal: false,
-      prepareTableId: session.prepareTableId,
-      currentTableId: session.currentTableId,
-      activeCrossing: null,
-      singleFactorMode: true,
-      signalId: null,
-      betAttemptKey: null,
-      rotativaTrigger: "fibonacci" as const,
-      currentRecovery: session.currentRecovery,
-      lobbyWait:
-        !isRotatingRoomPostResultHoldActive(
-          "postResultHoldUntilMs" in session ? session.postResultHoldUntilMs : null,
-        ) && isRotatingRoomLobbyWait(session as RotatingRoomLobbySession),
-      lobbyCooldownActive:
-        "lobbyCooldownActive" in session && session.lobbyCooldownActive === true,
-      postResultHoldActive:
-        "postResultHoldActive" in session && session.postResultHoldActive === true,
-      postResultHoldUntilMs:
-        "postResultHoldUntilMs" in session &&
-        typeof session.postResultHoldUntilMs === "number" &&
-        Number.isFinite(session.postResultHoldUntilMs)
-          ? session.postResultHoldUntilMs
-          : null,
-      postResultHoldTableId:
-        "postResultHoldTableId" in session &&
-        typeof session.postResultHoldTableId === "number" &&
-        Number.isFinite(session.postResultHoldTableId)
-          ? session.postResultHoldTableId
-          : null,
-      lobbyCooldownUntilMs:
-        "lobbyCooldownUntilMs" in session &&
-        typeof session.lobbyCooldownUntilMs === "number" &&
-        Number.isFinite(session.lobbyCooldownUntilMs)
-          ? session.lobbyCooldownUntilMs
-          : null,
-    };
+    return zoneFibonacciSessionToSlice(session, "fibonacci");
+  }
+  if ("rotativaTrigger" in session && session.rotativaTrigger === "repeticao") {
+    return zoneFibonacciSessionToSlice(session, "repeticao");
   }
 
   const rotativaTrigger =

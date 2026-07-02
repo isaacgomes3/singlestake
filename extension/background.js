@@ -489,17 +489,18 @@ async function runBridgePlan(payload, sourceTabId) {
 }
 
 async function waitForBridgeBetDelay(context) {
-  const strategy = context?.strategy;
+  const strategy = strategyFromContext(context);
   const recovery = recoveryFromContext(context);
   let until =
     typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
       ? context.betDelayUntilMs
       : null;
 
-  if (until == null && (strategy === "fibonacci" || strategy === "repeticao") && recovery > 0) {
-    until = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
-  }
-  if (until == null && strategy === "rotacao" && recovery > 0) {
+  if (isZoneFibonacciContext(context) && recovery > 0) {
+    // Garante settle mínimo mesmo se betDelayUntilMs já expirou no transporte.
+    const minUntil = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+    until = until != null ? Math.max(until, minUntil) : minUntil;
+  } else if (until == null && strategy === "rotacao" && recovery > 0) {
     until = Date.now() + ROTACAO_RECOVERY_BET_DELAY_MS;
   }
   if (until == null) return;
@@ -1111,8 +1112,7 @@ function stakeUnitsForContext(context, chip) {
       ? context.stakeAmount
       : null;
   const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const useFibonacci =
-    context?.strategy === "fibonacci" || context?.strategy === "repeticao";
+  const useFibonacci = isZoneFibonacciContext(context);
   const fibonacciUnits = useFibonacci
     ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
     : null;
@@ -1172,13 +1172,26 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
       if (!clickResult.ok) break;
     }
 
-    const galeNote = recovery > 0 ? ` · gale ${recovery}` : "";
-    const stakeNote =
-      units > 1
-        ? ` · R$${stakeAmount} (${units}× R$${chipValue})${galeNote}`
-        : stakeAmount
-          ? ` · R$${stakeAmount}${galeNote}`
-          : galeNote;
+    let stakeNote = "";
+    if (isZoneFibonacciContext(context ?? {})) {
+      const stepLabel = zoneFibonacciStepLabelFromContext(context ?? {}, recovery);
+      stakeNote =
+        units > 1
+          ? ` · R$${stakeAmount} (${units}× R$${chipValue}) · ${stepLabel}`
+          : stakeAmount
+            ? ` · R$${stakeAmount} · ${stepLabel}`
+            : recovery > 0
+              ? ` · ${stepLabel}`
+              : "";
+    } else {
+      const galeNote = recovery > 0 ? ` · gale ${recovery}` : "";
+      stakeNote =
+        units > 1
+          ? ` · R$${stakeAmount} (${units}× R$${chipValue})${galeNote}`
+          : stakeAmount
+            ? ` · R$${stakeAmount}${galeNote}`
+            : galeNote;
+    }
     const chipNote =
       chipResult?.ok && !chipResult.skipped ? `Ficha R$${chipValue} → ` : "";
 

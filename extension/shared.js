@@ -66,7 +66,7 @@ async function isDryRun(context) {
   return (await resolveExecutionMode(context)) === "demo";
 }
 
-/** Gale — lê recovery do contexto ou do signalId (`mesa:kind:id:recovery:cN`). */
+/** Gale / recuperação — lê currentRecovery ou extrai do signalId (Fibonacci e Repetição). */
 function recoveryFromContext(context) {
   const explicit = context?.currentRecovery;
   if (typeof explicit === "number" && Number.isFinite(explicit)) {
@@ -75,6 +75,12 @@ function recoveryFromContext(context) {
   const signalId = context?.signalId;
   if (typeof signalId === "string" && signalId.trim()) {
     const parts = signalId.trim().split(":");
+    // rep:tableId:kind:id:recovery:cN
+    if (parts[0] === "rep" && parts.length >= 5) {
+      const n = parseInt(parts[4] ?? "", 10);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
+    // tableId:kind:id:recovery:cN (Fibonacci)
     if (parts.length >= 4 && (parts[1] === "dozen" || parts[1] === "column")) {
       const n = parseInt(parts[3] ?? "", 10);
       if (Number.isFinite(n)) return Math.max(0, n);
@@ -84,6 +90,33 @@ function recoveryFromContext(context) {
     if (Number.isFinite(n)) return Math.max(0, n);
   }
   return 0;
+}
+
+/** Estratégia efectiva — strategy, rotativaTrigger ou prefixo do signalId (Fibonacci/Repetição). */
+function strategyFromContext(context) {
+  const s = context?.strategy;
+  if (s === "fibonacci" || s === "repeticao") return s;
+  const t = context?.rotativaTrigger;
+  if (t === "fibonacci" || t === "repeticao") return t;
+  const signalId = context?.signalId;
+  if (typeof signalId === "string" && signalId.trim().startsWith("rep:")) return "repeticao";
+  if (typeof signalId === "string" && signalId.trim()) {
+    const parts = signalId.trim().split(":");
+    if (parts.length >= 4 && (parts[1] === "dozen" || parts[1] === "column")) return "fibonacci";
+  }
+  return s ?? null;
+}
+
+function isZoneFibonacciContext(context) {
+  const s = strategyFromContext(context);
+  return s === "fibonacci" || s === "repeticao";
+}
+
+function zoneFibonacciStepLabelFromContext(context, recovery) {
+  const strategy = strategyFromContext(context);
+  const tag = strategy === "repeticao" ? "Rep" : "Fibo";
+  if (recovery > 0) return `${tag} ${recovery + 1}`;
+  return "Sinal";
 }
 
 async function setStoredMode(mode) {
@@ -111,6 +144,19 @@ function panelSignalToBridge(data) {
       ? data.signalId.trim()
       : `${Date.now()}:${betKey}`;
   const recovery = recoveryFromContext(data);
+  const strategy = strategyFromContext(data);
+  const useFibonacci = strategy === "fibonacci" || strategy === "repeticao";
+  const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
+  const fibUnits = useFibonacci
+    ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
+    : null;
+  const baseStake =
+    typeof data.baseStake === "number" && data.baseStake > 0 ? data.baseStake : 0.5;
+  const stakeAmount = useFibonacci
+    ? baseStake * fibUnits
+    : recovery > 0
+      ? baseStake * 2 ** recovery
+      : baseStake;
 
   if (!betKey) return null;
 
@@ -147,9 +193,15 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount: recovery > 0 ? 0.5 * 2 ** recovery : 0.5,
+      strategy: strategy ?? undefined,
+      rotativaTrigger: strategy ?? undefined,
+      stakeAmount,
       currentRecovery: recovery,
-      baseStake: 0.5,
+      baseStake,
+      betDelayUntilMs:
+        useFibonacci && recovery > 0
+          ? Date.now() + GOG.FIBONACCI_RECOVERY_SETTLE_MS
+          : null,
       executionMode: data.mode ?? data.executionMode ?? null,
     },
   };

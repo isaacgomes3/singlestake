@@ -40,6 +40,30 @@ function formatTableIdsInput(ids) {
   return (ids ?? []).join(", ");
 }
 
+function isZoneFibonacciCtx(ctx) {
+  const s = ctx?.strategy;
+  if (s === "fibonacci" || s === "repeticao") return true;
+  const t = ctx?.rotativaTrigger;
+  if (t === "fibonacci" || t === "repeticao") return true;
+  const signalId = ctx?.signalId;
+  if (typeof signalId === "string" && signalId.trim().startsWith("rep:")) return true;
+  if (typeof signalId === "string" && signalId.trim()) {
+    const parts = signalId.trim().split(":");
+    if (parts.length >= 4 && (parts[1] === "dozen" || parts[1] === "column")) return true;
+  }
+  return false;
+}
+
+function recoveryStepLabel(ctx, recovery) {
+  const strategy = ctx?.strategy ?? ctx?.rotativaTrigger;
+  const tag =
+    strategy === "repeticao" ||
+    (typeof ctx?.signalId === "string" && ctx.signalId.startsWith("rep:"))
+      ? "Rep"
+      : "Fibo";
+  return recovery > 0 ? `${tag} ${recovery + 1}` : "Sinal";
+}
+
 function mergeDgaConfig(stored) {
   const base = { ...DGA_CONFIG_DEFAULTS };
   if (!stored || typeof stored !== "object") return base;
@@ -300,9 +324,14 @@ function renderStatus(status) {
       ctx.stakeAmount >= 1
         ? `R$ ${ctx.stakeAmount.toFixed(0)}`
         : `R$ ${ctx.stakeAmount.toFixed(2).replace(".", ",")}`;
-    lines.push(
-      `Stake: ${stake}${ctx.currentRecovery > 0 ? ` (gale ${ctx.currentRecovery}/${ctx.maxRecovery ?? "?"})` : ""}`,
-    );
+    const recovery = typeof ctx.currentRecovery === "number" ? Math.max(0, ctx.currentRecovery) : 0;
+    const recoveryNote =
+      recovery > 0
+        ? isZoneFibonacciCtx(ctx)
+          ? ` (${recoveryStepLabel(ctx, recovery)})`
+          : ` (gale ${recovery}/${ctx.maxRecovery ?? "?"})`
+        : "";
+    lines.push(`Stake: ${stake}${recoveryNote}`);
   }
   if (ctx?.executionMode === "real") lines.push("Execução: REAL (sinal da app)");
   else if (ctx?.executionMode === "demo" && mode === "real") {
