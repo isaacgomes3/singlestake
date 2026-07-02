@@ -26,7 +26,11 @@ type NodeRow = typeof binaryTreeNodes.$inferSelect;
 export const BINARY_TREE_INITIAL_DEPTH = 3;
 export const BINARY_TREE_EXPAND_DEPTH = 3;
 
-type UserRow = { id: string; name: string; email: string; createdAt: Date };
+type UserRow = { id: string; name: string; email: string; createdAt: Date; accountStatus: string | null };
+
+function isDeletedUser(userId: string, deletedUsers: Set<string>): boolean {
+  return deletedUsers.has(userId);
+}
 
 function normalizeBinarySide(value: string | null | undefined): BinarySide | null {
   if (value === "left" || value === "right") return value;
@@ -102,26 +106,32 @@ function buildTreeNode(
   packageByUser: Map<string, number>,
   startUsers: Set<string>,
   childIndex: Map<string, { left?: string; right?: string }>,
+  deletedUsers: Set<string>,
   depth: number,
   maxDepth: number,
 ): BinaryTreeNodeView {
-  const isEmpty = !userId;
+  const isDeleted = userId != null && isDeletedUser(userId, deletedUsers);
+  const isEmpty = !userId || isDeleted;
   const childrenInDb = userId ? (childIndex.get(userId) ?? {}) : {};
   const atMaxDepth = depth >= maxDepth;
   const canExpand = Boolean(userId && atMaxDepth && hasDescendantsInDb(userId, childIndex));
 
   const node: BinaryTreeNodeView = {
-    userId,
-    name: userId ? (names.get(userId) ?? "—") : "",
+    userId: isDeleted ? null : userId,
+    treeUserId: isDeleted ? userId : undefined,
+    name: userId && !isDeleted ? (names.get(userId) ?? "—") : "",
     side,
     level: depth,
     isEmpty,
     canExpand,
     children: [],
-    details: userId ? buildNodeDetails(userId, usersById, packageByUser, startUsers) : undefined,
+    details:
+      userId && !isDeleted
+        ? buildNodeDetails(userId, usersById, packageByUser, startUsers)
+        : undefined,
   };
 
-  if (isEmpty || atMaxDepth) return node;
+  if (!userId || atMaxDepth) return node;
 
   for (const childSide of ["left", "right"] as const) {
     const childId = childrenInDb[childSide];
@@ -134,6 +144,7 @@ function buildTreeNode(
         packageByUser,
         startUsers,
         childIndex,
+        deletedUsers,
         depth + 1,
         maxDepth,
       ),
@@ -168,7 +179,15 @@ export async function buildBinarySubtree(input: {
 
   const [nodes, allUsers, activePackages, startRows] = await Promise.all([
     db.query.binaryTreeNodes.findMany(),
-    db.select({ id: users.id, name: users.name, email: users.email, createdAt: users.createdAt }).from(users),
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+        accountStatus: users.accountStatus,
+      })
+      .from(users),
     db
       .select({ userId: userPackages.userId, amount: userPackages.amount })
       .from(userPackages)
@@ -193,6 +212,11 @@ export async function buildBinarySubtree(input: {
   }
   const startUsers = new Set(startRows.map((r) => r.userId));
   const childIndex = buildChildIndex(nodes);
+  const deletedUsers = new Set(
+    allUsers
+      .filter((u) => (u.accountStatus ?? "active") === "deleted")
+      .map((u) => u.id),
+  );
 
   return buildTreeNode(
     input.rootUserId,
@@ -202,6 +226,7 @@ export async function buildBinarySubtree(input: {
     packageByUser,
     startUsers,
     childIndex,
+    deletedUsers,
     0,
     maxDepth,
   );
@@ -218,7 +243,15 @@ export async function buildBinaryNetworkData(
 
   const [nodes, allUsers, activePackages, myNode, startRows] = await Promise.all([
     db.query.binaryTreeNodes.findMany(),
-    db.select({ id: users.id, name: users.name, email: users.email, createdAt: users.createdAt }).from(users),
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+        accountStatus: users.accountStatus,
+      })
+      .from(users),
     db
       .select({ userId: userPackages.userId, amount: userPackages.amount })
       .from(userPackages)
@@ -241,6 +274,11 @@ export async function buildBinaryNetworkData(
     packageByUser.set(row.userId, (packageByUser.get(row.userId) ?? 0) + row.amount);
   }
   const startUsers = new Set(startRows.map((r) => r.userId));
+  const deletedUsers = new Set(
+    allUsers
+      .filter((u) => (u.accountStatus ?? "active") === "deleted")
+      .map((u) => u.id),
+  );
 
   const childIndex = buildChildIndex(nodes);
   const myChildren = childIndex.get(userId) ?? {};
@@ -285,6 +323,7 @@ export async function buildBinaryNetworkData(
       packageByUser,
       startUsers,
       childIndex,
+      deletedUsers,
       0,
       BINARY_TREE_INITIAL_DEPTH,
     ),

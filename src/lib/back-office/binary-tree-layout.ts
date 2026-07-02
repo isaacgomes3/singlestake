@@ -28,8 +28,13 @@ export type BinaryTreeLayout = {
   height: number;
 };
 
+function binaryTreeNodeId(node: BinaryTreeNodeView): string | null {
+  return node.userId ?? node.treeUserId ?? null;
+}
+
 function nodeKey(node: BinaryTreeNodeView, parentKey: string): string {
-  if (node.userId) return node.userId;
+  const id = binaryTreeNodeId(node);
+  if (id) return id;
   return `empty:${parentKey}:${node.side ?? "x"}:${node.level}`;
 }
 
@@ -133,14 +138,14 @@ export function mergeBinarySubtree(
   targetUserId: string,
   subtree: BinaryTreeNodeView,
 ): BinaryTreeNodeView {
-  if (root.userId === targetUserId) {
+  if (binaryTreeNodeId(root) === targetUserId) {
     return renumberTreeLevels({ ...subtree, side: root.side }, root.level);
   }
 
   return {
     ...root,
     children: root.children.map((child) =>
-      child.userId === targetUserId || hasDescendant(child, targetUserId)
+      binaryTreeNodeId(child) === targetUserId || hasDescendant(child, targetUserId)
         ? mergeBinarySubtree(child, targetUserId, subtree)
         : child,
     ),
@@ -148,7 +153,7 @@ export function mergeBinarySubtree(
 }
 
 function hasDescendant(node: BinaryTreeNodeView, userId: string): boolean {
-  if (node.userId === userId) return true;
+  if (binaryTreeNodeId(node) === userId) return true;
   return node.children.some((c) => hasDescendant(c, userId));
 }
 
@@ -156,7 +161,7 @@ export function findBinaryTreeNode(
   root: BinaryTreeNodeView,
   userId: string,
 ): BinaryTreeNodeView | null {
-  if (root.userId === userId) return root;
+  if (binaryTreeNodeId(root) === userId) return root;
   for (const child of root.children) {
     const found = findBinaryTreeNode(child, userId);
     if (found) return found;

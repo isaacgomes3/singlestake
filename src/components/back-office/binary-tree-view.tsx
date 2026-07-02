@@ -30,6 +30,10 @@ function truncateName(name: string, max = 18): string {
   return `${name.slice(0, max - 1)}…`;
 }
 
+function treeNodeId(node: BinaryTreeNodeView): string | null {
+  return node.userId ?? node.treeUserId ?? null;
+}
+
 function TreeNodeCard({
   positioned,
   isRoot,
@@ -55,6 +59,7 @@ function TreeNodeCard({
 }) {
   const { node } = positioned;
   const isEmpty = node.isEmpty;
+  const nodeId = treeNodeId(node);
   const sideBadge =
     node.side === "left" ? sideLeftLabel : node.side === "right" ? sideRightLabel : null;
 
@@ -72,7 +77,7 @@ function TreeNodeCard({
     >
       <button
         type="button"
-        disabled={isEmpty}
+        disabled={isEmpty && !node.canExpand}
         title={hoverTitle}
         onClick={onSelect}
         className={cn(
@@ -94,7 +99,29 @@ function TreeNodeCard({
         )}
       >
         {isEmpty ? (
-          <span className="text-[11px] font-medium">{emptyLabel}</span>
+          <>
+            <span className="text-[11px] font-medium">{emptyLabel}</span>
+            {node.canExpand && nodeId ? (
+              <span
+                role="presentation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExpand();
+                }}
+                className={cn(
+                  "mt-1 inline-flex items-center gap-0.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold text-primary",
+                  isExpanding && "opacity-60",
+                )}
+              >
+                {isExpanding ? (
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-2.5 w-2.5" aria-hidden />
+                )}
+                {expandLabel}
+              </span>
+            ) : null}
+          </>
         ) : (
           <>
             <span className="line-clamp-2 text-[11px] font-semibold leading-tight">
@@ -193,7 +220,7 @@ export function BinaryTreeView({ root }: Props) {
               positioned={positioned}
               isRoot={positioned.node.level === 0}
               isSelected={selected?.node.userId === positioned.node.userId}
-              isExpanding={expandingId === positioned.node.userId}
+              isExpanding={expandingId === treeNodeId(positioned.node)}
               emptyLabel={t("network.binary.empty")}
               sideLeftLabel={sideLeftShort}
               sideRightLabel={sideRightShort}
@@ -207,8 +234,9 @@ export function BinaryTreeView({ root }: Props) {
                 });
               }}
               onExpand={() => {
-                if (positioned.node.userId && positioned.node.canExpand) {
-                  void handleExpand(positioned.node.userId);
+                const expandId = treeNodeId(positioned.node);
+                if (expandId && positioned.node.canExpand) {
+                  void handleExpand(expandId);
                 }
               }}
             />

@@ -43,6 +43,8 @@ export type BinaryTreeNodeDetails = {
 
 export type BinaryTreeNodeView = {
   userId: string | null;
+  /** Id na árvore binária quando o slot aparece vazio (ex.: conta removida). */
+  treeUserId?: string | null;
   name: string;
   side: "left" | "right" | null;
   level: number;
