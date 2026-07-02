@@ -211,22 +211,34 @@
     </style>
   </head>
   <body>
-    <h1>Singlestake · Pragmatic v1.4.7</h1>
+    <h1>Singlestake · Pragmatic v1.4.6</h1>
     <p class="sub">Um Fator · sala rotativa via app (iframe)</p>
 
-    <h2>Modo de execução</h2>
-    <div class="modes" style="margin-top:6px">
-      <button type="button" class="mode" id="modeDemo" data-mode="demo">
-        DEMO
-        <small>Só destaca — não aposta</small>
-      </button>
-      <button type="button" class="mode" id="modeReal" data-mode="real">
-        REAL
-        <small>Clica na mesa</small>
-      </button>
+    <h2>Testar mesa (aba activa)</h2>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Vermelho</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
     </div>
-    <div>
-      Modo activo: <span id="modePill" class="pill demo">DEMO</span>
+    <div class="row">
+      <button type="button" data-bet="low" data-label="Baixo 1–18">Baixo 1–18</button>
+      <button type="button" data-bet="high" data-label="Alto 19–36">Alto 19–36</button>
+    </div>
+    <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">DÚZIAS / COLUNAS</p>
+    <div class="row">
+      <button type="button" data-bet="doz:1" data-label="1.ª Dúzia">1.ª Dúzia</button>
+      <button type="button" data-bet="doz:2" data-label="2.ª Dúzia">2.ª Dúzia</button>
+      <button type="button" data-bet="doz:3" data-label="3.ª Dúzia">3.ª Dúzia</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="col:1" data-label="Coluna 1">Col. 1</button>
+      <button type="button" data-bet="col:2" data-label="Coluna 2">Col. 2</button>
+      <button type="button" data-bet="col:3" data-label="Coluna 3">Col. 3</button>
+    </div>
+    <div class="row">
+      <button type="button" id="scan">Varredura 6 apostas</button>
+      <button type="button" id="refresh">Actualizar</button>
     </div>
 
     <pre id="out">A carregar…</pre>
@@ -324,32 +336,9 @@
       <button type="button" id="calChip">📍 Gravar ficha</button>
     </div>
 
-    <h2>Testar mesa (aba activa)</h2>
-    <div class="row">
-      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
-      <button type="button" data-bet="even" data-label="Par">Par</button>
-      <button type="button" data-bet="red" data-label="Vermelho">Vermelho</button>
-      <button type="button" data-bet="black" data-label="Preto">Preto</button>
-    </div>
-    <div class="row">
-      <button type="button" data-bet="low" data-label="Baixo 1–18">Baixo 1–18</button>
-      <button type="button" data-bet="high" data-label="Alto 19–36">Alto 19–36</button>
-    </div>
-    <p class="muted" style="margin:8px 0 4px;font-size:9px;font-weight:700;color:#94a3b8">DÚZIAS / COLUNAS</p>
-    <div class="row">
-      <button type="button" data-bet="doz:1" data-label="1.ª Dúzia">1.ª Dúzia</button>
-      <button type="button" data-bet="doz:2" data-label="2.ª Dúzia">2.ª Dúzia</button>
-      <button type="button" data-bet="doz:3" data-label="3.ª Dúzia">3.ª Dúzia</button>
-    </div>
-    <div class="row">
-      <button type="button" data-bet="col:1" data-label="Coluna 1">Col. 1</button>
-      <button type="button" data-bet="col:2" data-label="Coluna 2">Col. 2</button>
-      <button type="button" data-bet="col:3" data-label="Coluna 3">Col. 3</button>
-    </div>
-    <div class="row">
-      <button type="button" id="scan">Varredura 6 apostas</button>
-      <button type="button" id="refresh">Actualizar</button>
-    </div>
+    <h2>Backup .prime</h2>
+    <input type="file" id="primeFile" accept=".prime" style="font-size:10px;width:100%" />
+    <p id="primeStatus" class="muted" style="margin-top:4px">Importar backup do painel (EXPORTAR CONFIG)</p>
 
     <details class="config-advanced">
       <summary>Autopilot DGA (directo, sem app)</summary>
@@ -405,9 +394,20 @@
       </div>
     </details>
 
-    <h2>Backup .prime</h2>
-    <input type="file" id="primeFile" accept=".prime" style="font-size:10px;width:100%" />
-    <p id="primeStatus" class="muted" style="margin-top:4px">Importar backup do painel (EXPORTAR CONFIG)</p>
+    <h2>Modo de execução</h2>
+    <div class="modes" style="margin-top:6px">
+      <button type="button" class="mode" id="modeDemo" data-mode="demo">
+        DEMO
+        <small>Só destaca — não aposta</small>
+      </button>
+      <button type="button" class="mode" id="modeReal" data-mode="real">
+        REAL
+        <small>Clica na mesa</small>
+      </button>
+    </div>
+    <div>
+      Modo activo: <span id="modePill" class="pill demo">DEMO</span>
+    </div>
 
     <p class="muted" id="hint">
       <strong>REAL</strong> usa CDP (barra «A depurar» no topo — normal). Gale = vários cliques no mesmo tapete com a mesma sessão CDP. Não cancele a barra durante a aposta.

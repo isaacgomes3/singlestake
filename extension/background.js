@@ -439,13 +439,14 @@ async function runBridgePlan(payload, sourceTabId) {
 }
 
 async function waitForFibonacciRecoverySettle(context) {
-  if (context?.strategy !== "fibonacci") return;
+  if (!isZoneFibonacciFamily(context)) return;
   const recovery = recoveryFromContext(context);
   if (recovery <= 0) return;
+  const minUntil = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
   const until =
-    typeof context.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
-      ? context.betDelayUntilMs
-      : Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
+    typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
+      ? Math.max(context.betDelayUntilMs, minUntil)
+      : minUntil;
   const waitMs = Math.max(0, until - Date.now());
   if (waitMs > 0) {
     await sleep(waitMs);
@@ -953,22 +954,36 @@ function stakeUnitsForContext(context, chip) {
         ? context.baseStake
         : DEFAULT_CHIP_VALUE;
   const recovery = recoveryFromContext(context);
-  const baseStake =
-    typeof context?.baseStake === "number" && context.baseStake > 0
-      ? context.baseStake
-      : DEFAULT_CHIP_VALUE;
   const explicitStake =
     typeof context?.stakeAmount === "number" && context.stakeAmount > 0
       ? context.stakeAmount
       : null;
+
+  // Stake e recovery vêm da automação — extensão só traduz em cliques na ficha.
+  if (explicitStake != null) {
+    const stakeBase =
+      typeof context?.baseStake === "number" && context.baseStake >= 1
+        ? context.baseStake
+        : explicitStake >= 1
+          ? GOG.REAL_BASE_STAKE
+          : chipValue;
+    const units =
+      chipValue > 0
+        ? Math.max(1, Math.round(explicitStake / stakeBase))
+        : 1;
+    return { stakeAmount: explicitStake, chipValue, units, recovery };
+  }
+
+  const baseStake =
+    typeof context?.baseStake === "number" && context.baseStake > 0
+      ? context.baseStake
+      : DEFAULT_CHIP_VALUE;
   const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const stakeAmount =
-    explicitStake ??
-    (context?.strategy === "fibonacci"
-      ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
-      : baseStake * 2 ** recovery);
+  const stakeAmount = isZoneFibonacciFamily(context)
+    ? baseStake * FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]
+    : baseStake * 2 ** recovery;
   let units;
-  if (context?.strategy === "fibonacci" && Math.abs(chipValue - baseStake) < 0.001) {
+  if (isZoneFibonacciFamily(context) && Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)]);
   } else if (Math.abs(chipValue - baseStake) < 0.001) {
     units = Math.max(1, 2 ** recovery);
@@ -1020,13 +1035,19 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
       if (!clickResult.ok) break;
     }
 
-    const galeNote = recovery > 0 ? ` · gale ${recovery}` : "";
+    const recoveryNote = isZoneFibonacciFamily(context ?? {})
+      ? recovery > 0
+        ? ` · ${zoneFibStepLabel(context ?? {}, recovery)}`
+        : ""
+      : recovery > 0
+        ? ` · gale ${recovery}`
+        : "";
     const stakeNote =
       units > 1
-        ? ` · R$${stakeAmount} (${units}× R$${chipValue})${galeNote}`
+        ? ` · R$${stakeAmount} (${units}× R$${chipValue})${recoveryNote}`
         : stakeAmount
-          ? ` · R$${stakeAmount}${galeNote}`
-          : galeNote;
+          ? ` · R$${stakeAmount}${recoveryNote}`
+          : recoveryNote;
     const chipNote =
       chipResult?.ok && !chipResult.skipped ? `Ficha R$${chipValue} → ` : "";
 

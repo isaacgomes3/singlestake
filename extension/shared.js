@@ -11,8 +11,10 @@ const GOG = {
   STORAGE_MODE: "gogExecutionMode",
   STORAGE_BRIDGE_PREFS: "gogBridgePrefs",
   DEFAULT_MODE: "demo",
-  /** Após resultado na mesma mesa — aguardar UI da roleta antes de nova ficha (Fibonacci). */
+  /** Após resultado na mesma mesa — aguardar UI da roleta antes de nova ficha (Fibonacci/Repetição). */
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
+  /** Stake base real (R$) — enviado pela automação global. */
+  REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
 };
@@ -61,7 +63,7 @@ async function isDryRun(context) {
   return (await resolveExecutionMode(context)) === "demo";
 }
 
-/** Gale — lê recovery do contexto ou do signalId (`mesa:kind:id:recovery:cN`). */
+/** Gale / recuperação — lê currentRecovery ou extrai do signalId (Fibonacci e Repetição). */
 function recoveryFromContext(context) {
   const explicit = context?.currentRecovery;
   if (typeof explicit === "number" && Number.isFinite(explicit)) {
@@ -70,6 +72,11 @@ function recoveryFromContext(context) {
   const signalId = context?.signalId;
   if (typeof signalId === "string" && signalId.trim()) {
     const parts = signalId.trim().split(":");
+    // rep:tableId:kind:id:recovery:cN
+    if (parts[0] === "rep" && parts.length >= 5) {
+      const n = parseInt(parts[4] ?? "", 10);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
     if (parts.length >= 4 && (parts[1] === "dozen" || parts[1] === "column")) {
       const n = parseInt(parts[3] ?? "", 10);
       if (Number.isFinite(n)) return Math.max(0, n);
@@ -79,6 +86,27 @@ function recoveryFromContext(context) {
     if (Number.isFinite(n)) return Math.max(0, n);
   }
   return 0;
+}
+
+/** Fibonacci / Repetição — mesma família operacional (stakes vindos da automação). */
+function isZoneFibonacciFamily(context) {
+  if (context?.zoneFibonacciMode === true) return true;
+  const s = context?.strategy;
+  if (s === "fibonacci" || s === "repeticao") return true;
+  const t = context?.rotativaTrigger;
+  if (t === "fibonacci" || t === "repeticao") return true;
+  const signalId = context?.signalId;
+  return typeof signalId === "string" && signalId.trim().startsWith("rep:");
+}
+
+function zoneFibStepLabel(context, recovery) {
+  const tag =
+    context?.strategy === "repeticao" ||
+    context?.rotativaTrigger === "repeticao" ||
+    (typeof context?.signalId === "string" && context.signalId.startsWith("rep:"))
+      ? "Rep"
+      : "Fibo";
+  return recovery > 0 ? `${tag} ${recovery + 1}` : "Sinal";
 }
 
 async function setStoredMode(mode) {
