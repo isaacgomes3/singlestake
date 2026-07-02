@@ -22,6 +22,7 @@ let lastBridgeTableId = null;
 const mesaTabByTableId = new Map();
 
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
+const STORAGE_AUTOPLAY = "gogAutopilotEnabled";
 const CLOSE_MESA_DELAY_MS = GOG.CLOSE_MESA_DELAY_MS ?? 2500;
 const CLOSE_ALARM_PREFIX = "gog-close-mesa-";
 const MESA_TAB_STORAGE = "gogMesaTabRegistry";
@@ -315,6 +316,11 @@ async function readBridgeEnabled() {
   return stored[STORAGE_BRIDGE_ENABLED] !== false;
 }
 
+async function readAutopilotEnabled() {
+  const stored = await chrome.storage.local.get([STORAGE_AUTOPLAY]);
+  return stored[STORAGE_AUTOPLAY] === true;
+}
+
 async function readBridgePrefs() {
   const stored = await chrome.storage.local.get([GOG.STORAGE_BRIDGE_PREFS]);
   const raw = stored[GOG.STORAGE_BRIDGE_PREFS] ?? {};
@@ -384,6 +390,41 @@ async function buildStatus() {
 }
 
 async function handleBridgePayload(payload, sourceTabId) {
+  const fromAppPage = sourceTabId != null;
+  if (fromAppPage) {
+    const bridgeOn = await readBridgeEnabled();
+    if (!bridgeOn) {
+      return {
+        ok: true,
+        results: [
+          {
+            target: "bridge",
+            ok: true,
+            skipped: true,
+            detail: "Extensão desligada — active «Ligar» no popup",
+          },
+        ],
+        mode: await resolveExecutionMode(payload.context),
+      };
+    }
+  } else {
+    const autopilotOn = await readAutopilotEnabled();
+    if (!autopilotOn) {
+      return {
+        ok: true,
+        results: [
+          {
+            target: "bridge",
+            ok: true,
+            skipped: true,
+            detail: "Autopilot desligado",
+          },
+        ],
+        mode: await resolveExecutionMode(payload.context),
+      };
+    }
+  }
+
   const ctx = payload.context ?? {};
   if (ctx?.strategy === "rotacao") {
     const prefs = await readBridgePrefs();
@@ -491,13 +532,13 @@ async function runBridgePlan(payload, sourceTabId) {
 async function waitForBridgeBetDelay(context) {
   const strategy = strategyFromContext(context);
   const recovery = recoveryFromContext(context);
+  const zoneFib = context?.zoneFibonacciMode === true || isZoneFibonacciContext(context);
   let until =
     typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
       ? context.betDelayUntilMs
       : null;
 
-  if (isZoneFibonacciContext(context) && recovery > 0) {
-    // Garante settle mínimo mesmo se betDelayUntilMs já expirou no transporte.
+  if (zoneFib && recovery > 0) {
     const minUntil = Date.now() + FIBONACCI_RECOVERY_SETTLE_MS;
     until = until != null ? Math.max(until, minUntil) : minUntil;
   } else if (until == null && strategy === "rotacao" && recovery > 0) {
@@ -1092,42 +1133,6 @@ async function selectChipOnTab(tabId, dryRun, options = {}) {
       detail: e instanceof Error ? e.message : String(e),
     };
   }
-}
-
-function stakeUnitsForContext(context, chip) {
-  const rawChip = chip?.value === 50 ? DEFAULT_CHIP_VALUE : chip?.value;
-  const chipValue =
-    typeof rawChip === "number" && rawChip > 0
-      ? rawChip
-      : typeof context?.baseStake === "number" && context.baseStake > 0
-        ? context.baseStake
-        : DEFAULT_CHIP_VALUE;
-  const recovery = recoveryFromContext(context);
-  const baseStake =
-    typeof context?.baseStake === "number" && context.baseStake > 0
-      ? context.baseStake
-      : DEFAULT_CHIP_VALUE;
-  const explicitStake =
-    typeof context?.stakeAmount === "number" && context.stakeAmount > 0
-      ? context.stakeAmount
-      : null;
-  const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const useFibonacci = isZoneFibonacciContext(context);
-  const fibonacciUnits = useFibonacci
-    ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
-    : null;
-  const stakeAmount = useFibonacci
-    ? baseStake * fibonacciUnits
-    : explicitStake ?? baseStake * 2 ** recovery;
-  let units;
-  if (useFibonacci && Math.abs(chipValue - baseStake) < 0.001) {
-    units = fibonacciUnits;
-  } else if (Math.abs(chipValue - baseStake) < 0.001) {
-    units = Math.max(1, 2 ** recovery);
-  } else {
-    units = chipValue > 0 ? Math.max(1, Math.ceil(stakeAmount / chipValue)) : 1;
-  }
-  return { stakeAmount, chipValue, units, recovery };
 }
 
 async function executeBetWithChip(tabId, betKey, label, dryRun, context) {

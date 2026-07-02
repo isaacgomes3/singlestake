@@ -1,4 +1,4 @@
-# Extensão Chrome — Singlestake Playtech v1.4.9
+# Extensão Chrome — Singlestake Playtech v1.5.0
 
 Executa entradas **Um Fator** na mesa do operador (Playtech / Pragmatic). Pensada para teste prático com o **teu painel Playtech** — independente da app DGA Pragmatic.
 

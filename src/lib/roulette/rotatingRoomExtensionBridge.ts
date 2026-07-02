@@ -1,6 +1,7 @@
 import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import {
   formatStakeBrl,
+  ROULETTE_AUTOMATION_BASE_STAKE,
   stakeForFibonacciRecovery,
   stakeForRecovery,
 } from "@/lib/back-office/rouletteAutomationSim";
@@ -13,9 +14,11 @@ import type { PragmaticFibonacciBetKey } from "@/lib/roulette/pragmaticFibonacci
 import { parseFibonacciSignalId } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { parseRepeticaoSignalId } from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
 import {
+  isZoneFibonacciBet,
   isZoneFibonacciStrategy,
   ZONE_FIBONACCI_MAX_RECOVERY,
   zoneFibonacciStepLabel,
+  zoneFibonacciStrategyFromSignalId,
   type ZoneFibonacciStrategyKind,
 } from "@/lib/roulette/zoneFibonacciFamily";
 import { getLiveRouletteTableIds } from "@/lib/roulette/liveTableConfig";
@@ -104,6 +107,8 @@ export type RotatingRoomExtensionContext = {
   postResultHoldTableId?: number | null;
   /** Fibonacci em gale — não apostar antes deste timestamp (ms). */
   betDelayUntilMs?: number | null;
+  /** Fibonacci/Repetição — stakes 1-1-2-3… (nunca martingale 2^gale). */
+  zoneFibonacciMode?: boolean;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -183,6 +188,7 @@ export function buildRotatingRoomExtensionContext(
       : session.singleFactorMode
         ? "um1fator"
         : "dois2fatores";
+  const zoneFibonacciMode = isZoneFibonacciStrategy(strategy);
   return {
     sessionMode: session.sessionMode,
     prepareTableId: lobbyWait ? null : session.prepareTableId,
@@ -203,12 +209,15 @@ export function buildRotatingRoomExtensionContext(
     signalId: session.signalId ?? null,
     betAttemptKey: session.betAttemptKey ?? session.signalId ?? null,
     automationBalance: balance,
-    stakeAmount: isZoneFibonacciStrategy(strategy)
+    stakeAmount: zoneFibonacciMode
       ? stakeForFibonacciRecovery(recovery)
       : stakeForRecovery(recovery),
     currentRecovery: recovery,
-    baseStake: null,
-    maxRecovery: readEffectiveUmFatorMaxRecovery(),
+    baseStake: zoneFibonacciMode ? ROULETTE_AUTOMATION_BASE_STAKE : null,
+    maxRecovery: zoneFibonacciMode
+      ? ZONE_FIBONACCI_MAX_RECOVERY
+      : readEffectiveUmFatorMaxRecovery(),
+    zoneFibonacciMode,
     executionMode: realMode ? "real" : "demo",
     lobbyWait,
     mesaCatalog,
@@ -289,7 +298,7 @@ export function shouldDeferMesaCloseForFibonacciRecovery(
   },
   maxRecovery = ZONE_FIBONACCI_MAX_RECOVERY,
 ): boolean {
-  if (!isZoneFibonacciStrategy(settled.strategy)) return false;
+  if (!isZoneFibonacciBet(settled)) return false;
   if (settled.tableId == null) return false;
   if (session.postResultHoldActive === true) return false;
 
@@ -468,10 +477,9 @@ function resolveZoneFibonacciStrategyFromBet(
   bet: AutomationPendingSignal,
 ): ZoneFibonacciStrategyKind | null {
   if (isZoneFibonacciStrategy(bet.strategy)) return bet.strategy;
-  const signalId = bet.signalId?.trim() ?? "";
-  if (signalId.startsWith("rep:")) return "repeticao";
-  if (parseFibonacciSignalId(signalId)) return "fibonacci";
-  return null;
+  if (bet.activeRepeticao) return "repeticao";
+  if (bet.activeFibonacci) return "fibonacci";
+  return zoneFibonacciStrategyFromSignalId(bet.signalId);
 }
 
 /** Payload directo a partir de «Em jogo» / pending da automação global. */
@@ -593,6 +601,9 @@ export function buildExtensionBridgeFromAutomationBet(
         factor1BetKey: betKey,
         rotativaTrigger: strategy,
         strategy,
+        zoneFibonacciMode: true,
+        baseStake: ROULETTE_AUTOMATION_BASE_STAKE,
+        maxRecovery: ZONE_FIBONACCI_MAX_RECOVERY,
         stakeAmount: bet.stake ?? stakeForFibonacciRecovery(recovery),
         betDelayUntilMs:
           recovery > 0 ? Date.now() + ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS : null,

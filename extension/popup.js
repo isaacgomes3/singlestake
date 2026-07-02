@@ -41,6 +41,7 @@ function formatTableIdsInput(ids) {
 }
 
 function isZoneFibonacciCtx(ctx) {
+  if (ctx?.zoneFibonacciMode === true) return true;
   const s = ctx?.strategy;
   if (s === "fibonacci" || s === "repeticao") return true;
   const t = ctx?.rotativaTrigger;

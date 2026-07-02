@@ -30,6 +30,34 @@ export function isZoneFibonacciStrategy(
   return strategy === "fibonacci" || strategy === "repeticao";
 }
 
+/** Inferir estratégia Fib/Repetição só pelo signalId (ex.: `rep:227:…` ou `227:column:…`). */
+export function zoneFibonacciStrategyFromSignalId(
+  signalId?: string | null,
+): ZoneFibonacciStrategyKind | null {
+  const id = signalId?.trim() ?? "";
+  if (!id) return null;
+  if (id.startsWith("rep:")) return "repeticao";
+  if (fibonacciActiveFromSignalId(id)) return "fibonacci";
+  return null;
+}
+
+export function isZoneFibonacciSignalId(signalId?: string | null): boolean {
+  return zoneFibonacciStrategyFromSignalId(signalId) != null;
+}
+
+/** Aposta aberta / liquidação — strategy explícita ou inferida do signalId. */
+export function isZoneFibonacciBet(bet: {
+  strategy?: StrategyGlobalKind | string | null;
+  signalId?: string | null;
+  activeFibonacci?: unknown;
+  activeRepeticao?: unknown;
+}): bet is { strategy: ZoneFibonacciStrategyKind } {
+  if (isZoneFibonacciStrategy(bet.strategy)) return true;
+  if (bet.activeRepeticao != null) return true;
+  if (bet.activeFibonacci != null) return true;
+  return isZoneFibonacciSignalId(bet.signalId);
+}
+
 export function zoneFibonacciLedgerTag(strategy: ZoneFibonacciStrategyKind): "Fibo" | "Rep" {
   return strategy === "repeticao" ? "Rep" : "Fibo";
 }

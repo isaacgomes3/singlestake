@@ -20,6 +20,9 @@ const GOG = {
   ROTACAO_RECOVERY_BET_DELAY_MS: 8000,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
+  /** Stake base real (R$) — automação global. */
+  REAL_BASE_STAKE: 50,
+  FIBONACCI_STAKE_LEVELS: [1, 1, 2, 3, 5, 8, 13, 21],
 };
 
 /** Hostnames da app em produção (content-bridge + painel). */
@@ -108,8 +111,63 @@ function strategyFromContext(context) {
 }
 
 function isZoneFibonacciContext(context) {
+  if (context?.zoneFibonacciMode === true) return true;
   const s = strategyFromContext(context);
   return s === "fibonacci" || s === "repeticao";
+}
+
+function fibonacciUnitsForRecovery(recovery) {
+  const levels = GOG.FIBONACCI_STAKE_LEVELS;
+  const idx = Math.max(0, Math.min(Math.floor(recovery), levels.length - 1));
+  return Math.max(1, levels[idx]);
+}
+
+/** Resolve chip efectivo (popup grava 50 → demo 0,5). */
+function resolveChipValue(chip, context) {
+  const rawChip = chip?.value === 50 ? 0.5 : chip?.value;
+  if (typeof rawChip === "number" && rawChip > 0) return rawChip;
+  if (typeof context?.baseStake === "number" && context.baseStake > 0) return context.baseStake;
+  return 0.5;
+}
+
+/**
+ * Fibonacci/Repetição: cliques = nível Fibonacci (1-1-2-3…).
+ * Um Fator / 2F: cliques = 2^gale.
+ */
+function stakeUnitsForContext(context, chip) {
+  const recovery = recoveryFromContext(context);
+  const useFibonacci = isZoneFibonacciContext(context);
+  const fibonacciUnits = useFibonacci ? fibonacciUnitsForRecovery(recovery) : null;
+  const chipValue = resolveChipValue(chip, context);
+
+  const explicitStake =
+    typeof context?.stakeAmount === "number" && context.stakeAmount > 0
+      ? context.stakeAmount
+      : null;
+
+  const realBase =
+    typeof context?.baseStake === "number" && context.baseStake >= 1
+      ? context.baseStake
+      : explicitStake && fibonacciUnits
+        ? explicitStake / fibonacciUnits
+        : explicitStake && recovery >= 0 && !useFibonacci
+          ? explicitStake / Math.max(1, 2 ** recovery)
+          : GOG.REAL_BASE_STAKE;
+
+  if (useFibonacci) {
+    const stakeAmount = explicitStake ?? realBase * fibonacciUnits;
+    return { stakeAmount, chipValue, units: fibonacciUnits, recovery };
+  }
+
+  const baseStake = typeof context?.baseStake === "number" && context.baseStake > 0 ? context.baseStake : chipValue;
+  const stakeAmount = explicitStake ?? baseStake * 2 ** recovery;
+  let units;
+  if (Math.abs(chipValue - baseStake) < 0.001) {
+    units = Math.max(1, 2 ** recovery);
+  } else {
+    units = chipValue > 0 ? Math.max(1, Math.ceil(stakeAmount / chipValue)) : 1;
+  }
+  return { stakeAmount, chipValue, units, recovery };
 }
 
 function zoneFibonacciStepLabelFromContext(context, recovery) {
@@ -146,12 +204,13 @@ function panelSignalToBridge(data) {
   const recovery = recoveryFromContext(data);
   const strategy = strategyFromContext(data);
   const useFibonacci = strategy === "fibonacci" || strategy === "repeticao";
-  const FIBONACCI_LEVELS = [1, 1, 2, 3, 5, 8, 13, 21];
-  const fibUnits = useFibonacci
-    ? Math.max(1, FIBONACCI_LEVELS[Math.min(recovery, FIBONACCI_LEVELS.length - 1)])
-    : null;
+  const fibUnits = useFibonacci ? fibonacciUnitsForRecovery(recovery) : null;
   const baseStake =
-    typeof data.baseStake === "number" && data.baseStake > 0 ? data.baseStake : 0.5;
+    typeof data.baseStake === "number" && data.baseStake > 0
+      ? data.baseStake
+      : useFibonacci
+        ? GOG.REAL_BASE_STAKE
+        : 0.5;
   const stakeAmount = useFibonacci
     ? baseStake * fibUnits
     : recovery > 0
@@ -195,6 +254,7 @@ function panelSignalToBridge(data) {
       signalId,
       strategy: strategy ?? undefined,
       rotativaTrigger: strategy ?? undefined,
+      zoneFibonacciMode: useFibonacci,
       stakeAmount,
       currentRecovery: recovery,
       baseStake,
