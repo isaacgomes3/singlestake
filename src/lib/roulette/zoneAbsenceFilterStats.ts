@@ -132,7 +132,7 @@ function bestFibonacciExactAtSpin(
   for (const zone of ALL_ZONES) {
     const absenceNow = consecutiveZoneAbsence(historyNow, zone);
     if (absenceNow !== exactAbsence) continue;
-    if (!best || zone.kind === "dozen" ? zone.id < best.zone.id : zone.id <= best.zone.id) {
+    if (!best || (zone.kind === "dozen" ? zone.id < best.zone.id : zone.id <= best.zone.id)) {
       best = { zone, absence: absenceNow };
     }
   }
