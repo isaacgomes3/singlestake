@@ -40,7 +40,7 @@ export const automationStatsContent = {
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
-      "Cada tipo (dúzia ou coluna) tem o seu próprio limiar de giros ausentes. Confirme após alterar o valor em cada cartão.",
+      "Cada tipo (dúzia ou coluna) tem o seu limiar de giros ausentes. A indicação dispara só com ausência exactamente igual ao valor confirmado (ex.: 3 giros = exactamente 3, não 4+).",
     fibonacciAbsenceLabel: "Giros ausentes",
     fibonacciAbsenceConfirm: "Confirmar",
     fibonacciAbsenceConfirmed: "Confirmado: {{spins}} giros",
@@ -49,10 +49,10 @@ export const automationStatsContent = {
     fibonacciZoneStats: "Acerto por tipo",
     repeticaoTitle: "Repetição — sala rotativa",
     repeticaoHint:
-      "Variação Fibonacci: ausência de repetição consecutiva de dúzia ou coluna; aposta na repetição da zona do número mais recente.",
+      "Variação Fibonacci: ausência de repetição consecutiva; indica só quando a sequência tem exactamente N giros (ex.: filtro 3 = exactamente 3, não 4+).",
     repeticaoZoneStats: "Acerto por tipo",
     absenceFilterHint:
-      "Simulação independente do gatilho — base: últimos 50 números por mesa, até 50 gatilhos por filtro. Conta vitórias após N giros desde o gatilho.",
+      "Simulação independente do gatilho — base: últimos 50 números por mesa. Cada filtro exige ausência exactamente igual ao valor (ex.: 3 = só 3 giros, não 4 ou 5).",
     absenceFilterTitle: "Estatística por filtro de ausência",
     absenceFilterMaxInWindow: "Máx. ausência na janela",
     absenceFilterColFilter: "Filtro (giros)",

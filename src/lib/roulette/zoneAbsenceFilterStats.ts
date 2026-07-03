@@ -124,38 +124,47 @@ function historyNewestFirstAt(chronological: readonly number[], endIndex: number
   return chronological.slice(0, endIndex + 1).reverse();
 }
 
-function bestFibonacciCrossing(
-  historyPrev: readonly number[],
+function bestFibonacciExactAtSpin(
   historyNow: readonly number[],
-  minAbsence: number,
+  exactAbsence: number,
 ): { zone: FibonacciZone; absence: number } | null {
   let best: { zone: FibonacciZone; absence: number } | null = null;
   for (const zone of ALL_ZONES) {
     const absenceNow = consecutiveZoneAbsence(historyNow, zone);
-    if (absenceNow < minAbsence) continue;
-    const absencePrev = consecutiveZoneAbsence(historyPrev, zone);
-    if (absencePrev >= minAbsence) continue;
-    if (!best || absenceNow > best.absence) {
+    if (absenceNow !== exactAbsence) continue;
+    if (!best || zone.kind === "dozen" ? zone.id < best.zone.id : zone.id <= best.zone.id) {
       best = { zone, absence: absenceNow };
     }
   }
   return best;
 }
 
+function bestRepeticaoExactAtSpin(
+  historyNow: readonly number[],
+  exactAbsence: number,
+): { kind: FibonacciZoneKind; streak: number } | null {
+  let bestKind: FibonacciZoneKind | null = null;
+  for (const kind of ZONE_KINDS) {
+    const streakNow = consecutiveNoRepeatStreak(historyNow, kind);
+    if (streakNow !== exactAbsence) continue;
+    if (!bestKind || kind === "dozen") bestKind = kind;
+  }
+  return bestKind ? { kind: bestKind, streak: exactAbsence } : null;
+}
+
 function scanFibonacciTable(
   tableId: number,
   chronological: readonly number[],
-  minAbsence: number,
+  exactAbsence: number,
 ): TriggerEvent[] {
   const events: TriggerEvent[] = [];
-  if (chronological.length < 2) return events;
+  if (chronological.length < 1) return events;
 
-  let cursor = 1;
+  let cursor = 0;
   while (cursor < chronological.length) {
-    const prev = historyNewestFirstAt(chronological, cursor - 1);
     const now = historyNewestFirstAt(chronological, cursor);
-    const crossing = bestFibonacciCrossing(prev, now, minAbsence);
-    if (!crossing) {
+    const match = bestFibonacciExactAtSpin(now, exactAbsence);
+    if (!match) {
       cursor++;
       continue;
     }
@@ -163,7 +172,7 @@ function scanFibonacciTable(
     const triggerIndex = cursor;
     let winAfter: number | null = null;
     for (let j = cursor + 1; j < chronological.length; j++) {
-      if (zoneHitOnSpin(chronological[j]!, crossing.zone)) {
+      if (zoneHitOnSpin(chronological[j]!, match.zone)) {
         winAfter = j - triggerIndex;
         cursor = j + 1;
         break;
@@ -174,8 +183,8 @@ function scanFibonacciTable(
     events.push({
       tableId,
       spinIndex: triggerIndex,
-      filterSpins: minAbsence,
-      absenceAtTrigger: crossing.absence,
+      filterSpins: exactAbsence,
+      absenceAtTrigger: match.absence,
       winAfterSpins: winAfter,
     });
 
@@ -188,35 +197,21 @@ function scanFibonacciTable(
 function scanRepeticaoTable(
   tableId: number,
   chronological: readonly number[],
-  minAbsence: number,
+  exactAbsence: number,
 ): TriggerEvent[] {
   const events: TriggerEvent[] = [];
-  if (chronological.length < 2) return events;
+  if (chronological.length < 1) return events;
 
-  let cursor = 1;
+  let cursor = 0;
   while (cursor < chronological.length) {
-    const prev = historyNewestFirstAt(chronological, cursor - 1);
     const now = historyNewestFirstAt(chronological, cursor);
-
-    let bestKind: FibonacciZoneKind | null = null;
-    let bestStreak = 0;
-    for (const kind of ZONE_KINDS) {
-      const streakNow = consecutiveNoRepeatStreak(now, kind);
-      if (streakNow < minAbsence) continue;
-      const streakPrev = consecutiveNoRepeatStreak(prev, kind);
-      if (streakPrev >= minAbsence) continue;
-      if (!bestKind || streakNow > bestStreak) {
-        bestKind = kind;
-        bestStreak = streakNow;
-      }
-    }
-
-    if (!bestKind) {
+    const match = bestRepeticaoExactAtSpin(now, exactAbsence);
+    if (!match) {
       cursor++;
       continue;
     }
 
-    const zone = zoneFromHeadNumber(now, bestKind);
+    const zone = zoneFromHeadNumber(now, match.kind);
     if (!zone) {
       cursor++;
       continue;
@@ -236,8 +231,8 @@ function scanRepeticaoTable(
     events.push({
       tableId,
       spinIndex: triggerIndex,
-      filterSpins: minAbsence,
-      absenceAtTrigger: bestStreak,
+      filterSpins: exactAbsence,
+      absenceAtTrigger: match.streak,
       winAfterSpins: winAfter,
     });
 

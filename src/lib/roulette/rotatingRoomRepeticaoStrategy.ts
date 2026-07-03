@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Repetição (variação Fibonacci).
- * - Gatilho: ausência de repetição consecutiva de dúzia ou coluna ≥ N
+ * - Gatilho: ausência de repetição consecutiva exactamente N (dúzia ou coluna)
  * - Indicação: repetir a dúzia/coluna do número mais recente
  * - Após derrota parcial: segue a dúzia/coluna do novo número (head)
  * - Recuperação Fibonacci 1-1-2-3-5-8-13-21 (2:1)
@@ -228,7 +228,7 @@ export function tableQualifiesForRepeticao(
   enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): boolean {
   for (const kind of resolveEnabledZoneKinds(enabledZoneKinds)) {
-    if (consecutiveNoRepeatStreak(historyNewestFirst, kind) >= absenceByKind[kind]) {
+    if (consecutiveNoRepeatStreak(historyNewestFirst, kind) === absenceByKind[kind]) {
       return true;
     }
   }
@@ -245,14 +245,10 @@ export function bestPickForTable(
 ): RotatingRoomRepeticaoPick | null {
   let best: RotatingRoomRepeticaoPick | null = null;
   for (const kind of resolveEnabledZoneKinds(enabledZoneKinds)) {
-    const minStreak = absenceByKind[kind];
+    const targetStreak = absenceByKind[kind];
     const streakGap = consecutiveNoRepeatStreak(historyNewestFirst, kind);
-    if (streakGap < minStreak) continue;
-    if (
-      !best ||
-      streakGap > best.streakGap ||
-      (streakGap === best.streakGap && tableId < best.tableId)
-    ) {
+    if (streakGap !== targetStreak) continue;
+    if (!best || tableId < best.tableId) {
       best = { tableId, zoneKind: kind, streakGap };
     }
   }
@@ -571,7 +567,7 @@ export function scanRotatingRoomRepeticaoTables(
     const zone = zoneFromHeadNumber(history, pickPrepare.zoneKind);
     const status: RotatingRoomRepeticaoTableStatus = isActive
       ? "active"
-      : pickPrepare.streakGap >= absenceByKind[pickPrepare.zoneKind]
+      : pickPrepare.streakGap === absenceByKind[pickPrepare.zoneKind]
         ? "alert"
         : "prepare";
 
@@ -778,7 +774,7 @@ export function tickRotatingRoomRepeticaoPlacar(
 
     nextMachine = { ...nextMachine, lastEvaluatedHead: head };
     const streakGap = consecutiveNoRepeatStreak(hist, zoneKind);
-    if (streakGap < absenceByKind[zoneKind]) {
+    if (streakGap !== absenceByKind[zoneKind]) {
       return {
         nextMachine: clearPrepareState(nextMachine),
         stats: nextStats,
@@ -788,7 +784,7 @@ export function tickRotatingRoomRepeticaoPlacar(
     }
 
     const zone = zoneFromHeadNumber(hist, zoneKind);
-    if (allowNewArming && zone && streakGap >= absenceByKind[zoneKind]) {
+    if (allowNewArming && zone && streakGap === absenceByKind[zoneKind]) {
       return {
         nextMachine: armCycleFromZone(nextMachine, pt, zone, histories, nextMachine.recovery, streakGap),
         stats: nextStats,

@@ -1,6 +1,6 @@
 /**
  * Sala rotativa — Fibonacci em dúzias/colunas.
- * - Gatilho: mesa com ausência ≥N numa dúzia ou numa coluna
+ * - Gatilho: mesa com ausência exactamente N numa dúzia ou numa coluna
  * - Persiste na mesma roleta até vitória (sequência 1-1-2-3-5-8-13-21)
  * - Após vitória: nova oportunidade; sem oportunidade → lobby
  */
@@ -242,7 +242,7 @@ export function tableQualifiesForFibonacci(
   enabledZoneKinds?: readonly FibonacciZoneKind[],
 ): boolean {
   for (const zone of allZones(enabledZoneKinds)) {
-    if (consecutiveZoneAbsence(historyNewestFirst, zone) >= absenceByKind[zone.kind]) {
+    if (consecutiveZoneAbsence(historyNewestFirst, zone) === absenceByKind[zone.kind]) {
       return true;
     }
   }
@@ -259,10 +259,10 @@ export function bestPickForTable(
 ): RotatingRoomFibonacciPick | null {
   let best: RotatingRoomFibonacciPick | null = null;
   for (const zone of allZones(enabledZoneKinds)) {
-    const minAbsence = absenceByKind[zone.kind];
+    const targetAbsence = absenceByKind[zone.kind];
     const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
-    if (absenceGap < minAbsence) continue;
-    if (!best || absenceGap > best.absenceGap || (absenceGap === best.absenceGap && tableId < best.tableId)) {
+    if (absenceGap !== targetAbsence) continue;
+    if (!best || tableId < best.tableId) {
       best = { tableId, zone, absenceGap };
     }
   }
@@ -276,7 +276,7 @@ function pickForTableZone(
   absenceByKind: FibonacciZoneAbsenceSpins,
 ): RotatingRoomFibonacciPick | null {
   const absenceGap = consecutiveZoneAbsence(historyNewestFirst, zone);
-  if (absenceGap < absenceByKind[zone.kind]) return null;
+  if (absenceGap !== absenceByKind[zone.kind]) return null;
   return { tableId, zone, absenceGap };
 }
 
@@ -793,7 +793,7 @@ export function tickRotatingRoomFibonacciPlacar(
 
     nextMachine = { ...nextMachine, lastEvaluatedHead: head };
     const absenceGap = consecutiveZoneAbsence(hist, zone);
-    if (absenceGap < absenceByKind[zone.kind]) {
+    if (absenceGap !== absenceByKind[zone.kind]) {
       return {
         nextMachine: clearPrepareState(nextMachine),
         stats: nextStats,
@@ -802,7 +802,7 @@ export function tickRotatingRoomFibonacciPlacar(
       };
     }
 
-    if (allowNewArming && absenceGap >= absenceByKind[zone.kind]) {
+    if (allowNewArming && absenceGap === absenceByKind[zone.kind]) {
       const alertPick = pickForTableZone(pt, hist, zone, absenceByKind);
       if (alertPick) {
         return {
