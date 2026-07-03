@@ -549,14 +549,15 @@ function RotatingRoomStage({
   indicationOnly?: boolean;
 }) {
   const { absenceByZone: fibonacciAbsenceByZone } = useFibonacciAbsenceSpins();
-  const isPrepare =
-    !isSingleFactorSession(session) &&
-    (session.sessionMode === "prepare" ||
-      (session.prepareTableId != null && !session.showTapeteSignal));
-  const hasRoundFlash = session.roundFlash != null;
   const postResultHoldActive =
     "postResultHoldActive" in session &&
     session.postResultHoldActive === true;
+  const isPrepare =
+    !isSingleFactorSession(session) &&
+    !session.showTapeteSignal &&
+    !postResultHoldActive &&
+    (session.sessionMode === "prepare" || session.prepareTableId != null);
+  const hasRoundFlash = session.roundFlash != null;
   const hasLiveIndication =
     (session.showTapeteSignal && session.activeCrossing != null) ||
     (isFibonacciSession(session) && session.showTapeteSignal && session.activeFibonacci != null);

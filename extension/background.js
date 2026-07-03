@@ -434,6 +434,23 @@ function bridgeActionStaggerMs(prevAction, action, context) {
   return CLICK_STAGGER_MS;
 }
 
+function isBettingClickTarget(target) {
+  return target === "factor-1" || target === "factor-2" || target === "repeat-bet";
+}
+
+/** Stagger + 1s extra antes do 1.º clique de aposta após abrir a mesa. */
+function bridgeActionDelayMs(prevAction, action, context) {
+  let delay = prevAction ? bridgeActionStaggerMs(prevAction, action, context) : 0;
+  const settleMs = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 1000;
+  if (
+    isBettingClickTarget(action?.target) &&
+    (prevAction?.target === "prepare-open" || prevAction == null)
+  ) {
+    delay += settleMs;
+  }
+  return delay;
+}
+
 async function runBridgePlan(payload, sourceTabId) {
   const clicks = (payload.actions || []).filter((a) => a.kind === "click");
   const singleFactor = payload.context?.singleFactorMode === true;
@@ -444,7 +461,9 @@ async function runBridgePlan(payload, sourceTabId) {
 
   for (let i = 0; i < filtered.length; i++) {
     if (i > 0) {
-      await sleep(bridgeActionStaggerMs(filtered[i - 1], filtered[i], payload.context));
+      await sleep(bridgeActionDelayMs(filtered[i - 1], filtered[i], payload.context));
+    } else if (isBettingClickTarget(filtered[0]?.target)) {
+      await sleep(GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 1000);
     }
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);

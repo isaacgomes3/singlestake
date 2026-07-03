@@ -71,8 +71,9 @@ export function planRotatingRoomClickBotActions(
   session: RotatingRoomClickBotSessionSlice,
 ): RotatingRoomClickBotAction[] {
   const isPrepare =
-    session.sessionMode === "prepare" ||
-    (session.prepareTableId != null && !session.showTapeteSignal);
+    !session.showTapeteSignal &&
+    !session.postResultHoldActive &&
+    (session.sessionMode === "prepare" || session.prepareTableId != null);
 
   if (isPrepare && session.prepareTableId != null) {
     const mesa = lobbyTableDisplayName(session.prepareTableId);

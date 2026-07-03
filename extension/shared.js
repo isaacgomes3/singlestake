@@ -19,6 +19,8 @@ const GOG = {
   REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
+  /** Após abrir/focar a mesa — pausa extra antes do 1.º clique de aposta. */
+  MESA_FIRST_CLICK_SETTLE_MS: 1000,
 };
 
 /** Hostnames da app em produção (content-bridge + painel). */

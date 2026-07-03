@@ -18,6 +18,9 @@ export const ROTATING_ROOM_UM_FATOR_CLICK_UNIT_MS = EXTENSION_PRE_BET_WAIT_SEC *
 export const ROTATING_ROOM_CROSSING_FACTOR_CLICK_STAGGER_MS =
   ROTATING_ROOM_CLICK_STAGGER_BASE_MS;
 
+/** Após abrir/focar a mesa no operador — pausa antes do 1.º clique de aposta. */
+export const ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS = 1000;
+
 /** 2 Fatores — aguardar 11s após giro antes de nova aposta (gale ou reentrada). */
 export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = 11_000;
 

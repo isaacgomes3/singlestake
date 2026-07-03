@@ -159,8 +159,9 @@ export function MobileSignalScreen({
   const single = sessionView.singleFactorMode;
   const isPrepare =
     !single &&
-    (sessionView.sessionMode === "prepare" ||
-      (sessionView.prepareTableId != null && !sessionView.showTapeteSignal));
+    !sessionView.showTapeteSignal &&
+    !("postResultHoldActive" in sessionView && sessionView.postResultHoldActive === true) &&
+    (sessionView.sessionMode === "prepare" || sessionView.prepareTableId != null);
   const isActive =
     sessionView.showTapeteSignal &&
     sessionView.activeCrossing != null &&
