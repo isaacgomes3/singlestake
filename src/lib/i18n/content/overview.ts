@@ -4,12 +4,14 @@ export const overviewContent = {
     kpiAvailable: "Saldo disponível para saque",
     kpiNetwork: "Ganhos de rede acumulados",
     kpiAutomation: "Saldo automação (sua base)",
-    timingCard: {
-      title: "Extensão · tempos",
-      hold2f: "Espera pós-giro · 2F",
-      stagger2f: "Entre fatores · 2F",
-      stagger3f: "Entre cliques · 3F",
-      preBet3f: "Pré-aposta · 3F",
+    globalKpiCard: {
+      title: "Automação global",
+      balance: "Banca global",
+      net: "Resultado",
+      variation: "Variação",
+      status: "Estado",
+      waiting: "Aguardando",
+      paused: "Pausada",
     },
     startActive:
       "Pack Start {{start}} activo · base de automação {{base}} (múltiplos de {{step}}). Rendimento diário só sobre a parte de automação",
@@ -65,12 +67,14 @@ export const overviewContent = {
     kpiAvailable: "Available balance for withdrawal",
     kpiNetwork: "Accumulated network earnings",
     kpiAutomation: "Automation balance (your base)",
-    timingCard: {
-      title: "Extension · timing",
-      hold2f: "Post-spin wait · 2F",
-      stagger2f: "Between factors · 2F",
-      stagger3f: "Between clicks · 3F",
-      preBet3f: "Pre-bet · 3F",
+    globalKpiCard: {
+      title: "Global automation",
+      balance: "Global bank",
+      net: "Result",
+      variation: "Change",
+      status: "Status",
+      waiting: "Waiting",
+      paused: "Paused",
     },
     startActive:
       "Start Pack {{start}} active · automation base {{base}} (multiples of {{step}}). Daily yield only on the automation portion",
@@ -126,12 +130,14 @@ export const overviewContent = {
     kpiAvailable: "Saldo disponible para retiro",
     kpiNetwork: "Ganancias de red acumuladas",
     kpiAutomation: "Saldo automatización (su base)",
-    timingCard: {
-      title: "Extensión · tiempos",
-      hold2f: "Espera post-giro · 2F",
-      stagger2f: "Entre factores · 2F",
-      stagger3f: "Entre clics · 3F",
-      preBet3f: "Pre-apuesta · 3F",
+    globalKpiCard: {
+      title: "Automatización global",
+      balance: "Banca global",
+      net: "Resultado",
+      variation: "Variación",
+      status: "Estado",
+      waiting: "Esperando",
+      paused: "En pausa",
     },
     startActive:
       "Pack Start {{start}} activo · base de automatización {{base}} (múltiplos de {{step}}). Rendimiento diario solo sobre la parte de automatización",

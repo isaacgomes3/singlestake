@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { AutomationExtensionTimingCard } from "@/components/back-office/automation-extension-timing-card";
+import { AutomationGlobalKpiCard } from "@/components/back-office/automation-global-kpi-card";
 import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
 import { DeferredMount } from "@/components/deferred-mount";
 import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
@@ -113,7 +113,7 @@ export function BackOfficeOverviewPage() {
             label={t("overview.kpiAutomation")}
           />
         </Link>
-        <AutomationExtensionTimingCard />
+        <AutomationGlobalKpiCard />
       </section>
 
       <DeferredMount delayMs={50}>

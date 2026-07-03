@@ -24,7 +24,7 @@ export function RouletteAutomationSimulatorPanel({
 }: Props) {
   const { t } = useI18n();
   const { money } = useFormat();
-  const { state, openBet, config } = useRouletteAutomationSim();
+  const { state, config } = useRouletteAutomationSim();
   const { tableIds, histories } = useRotatingRoomSetup();
   const lobbySession = useAutomationAlignedRotativaSession(tableIds, histories, {
     observeOnly: true,
@@ -33,7 +33,6 @@ export function RouletteAutomationSimulatorPanel({
   const displayBalance = officialBalance ?? state.balance;
   const net = displayBalance - initialCapital;
   const netPct = initialCapital > 0 ? (net / initialCapital) * 100 : 0;
-  const freeBalance = displayBalance;
 
   const isPaused = config?.blocksNewEntries === true;
 
@@ -45,11 +44,6 @@ export function RouletteAutomationSimulatorPanel({
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
               <span className="h-2 w-2 rounded-full bg-warning" />
               {t("overview.automation.paused")}
-            </span>
-          ) : openBet ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
-              {t("overview.automation.inPlay", { table: openBet.tableLabel })}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-xs text-text-secondary">
@@ -66,30 +60,9 @@ export function RouletteAutomationSimulatorPanel({
             <Wallet className="h-4 w-4" aria-hidden />
             {t("overview.automation.title")}
           </p>
-          {openBet ? (
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-border-color/80 bg-bg-card-hover/40 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-kpi-teal/85">
-                  {t("overview.automation.available")}
-                </p>
-                <p className="mt-0.5 text-xl font-bold tabular-nums text-text-primary sm:text-2xl">
-                  {money(freeBalance)}
-                </p>
-              </div>
-              <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-warning">
-                  {t("overview.automation.inPlayBalance")}
-                </p>
-                <p className="mt-0.5 text-xl font-bold tabular-nums text-warning sm:text-2xl">
-                  {money(openBet.stake)}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
-              {money(displayBalance)}
-            </p>
-          )}
+          <p className="mt-1 text-3xl font-extrabold tabular-nums text-text-primary sm:text-4xl">
+            {money(displayBalance)}
+          </p>
           <p
             className={cn(
               "mt-2 text-sm font-semibold tabular-nums",
@@ -102,9 +75,6 @@ export function RouletteAutomationSimulatorPanel({
             {t("overview.automation.globalBank", {
               amount: money(initialCapital),
             })}
-            {openBet
-              ? ` · ${t("overview.automation.total", { amount: money(displayBalance) })}`
-              : null}
           </p>
         </div>
       </div>
