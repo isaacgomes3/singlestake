@@ -4,8 +4,8 @@
  * Padrões: primário x-x-x, secundário x-x-y-x, terciário x-y-x-x.
  * - POSICIONAR → JOGANDO com indicação do cruzamento do padrão
  * - Placar: vitória só com ambos os fatores; derrota se ambos falharem (zero = derrota)
- * - Empate (um factor certo): não conta derrota — encerra a indicação
- * - Indicação vigente apenas **uma rodada** após o gatilho (sem gales no empate)
+ * - Empate (um factor certo): não conta derrota — indicação vigente até vitória (ambos factores)
+ * - Indicação mantém-se em empates consecutivos (sem subir gale) até W ou L
  * - **Mesa fixa:** posiciona numa roleta com padrão e só sai se sair **zero** ou **2 giros sem novo gatilho**
  * - Recuperações na **mesma mesa** quando o gatilho voltar a aparecer
  * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
@@ -1516,14 +1516,11 @@ export function tickRotatingRoomCrossingPlacar(
     }
 
   } else {
-    /** Empate (um factor certo): encerra a indicação; permanece na mesma mesa à espera do próximo gatilho. */
-    nextMachine = reanchorOnTable(
-      nextMachine,
-      tableId,
-      histories,
-      nextMachine.recovery,
-      minAbsenceSpins,
-    );
+    /** Empate (um factor certo): não conta derrota — mantém indicação até vitória. */
+    nextMachine = {
+      ...nextMachine,
+      cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1,
+    };
   }
 
 
