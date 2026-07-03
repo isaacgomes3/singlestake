@@ -18,8 +18,8 @@ export const ROTATING_ROOM_UM_FATOR_CLICK_UNIT_MS = EXTENSION_PRE_BET_WAIT_SEC *
 export const ROTATING_ROOM_CROSSING_FACTOR_CLICK_STAGGER_MS =
   ROTATING_ROOM_CLICK_STAGGER_BASE_MS * 2;
 
-/** 2 Fatores — aguardar após giro: dobro do tempo de 1 clique (3 factores iguais). */
-export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ROTATING_ROOM_UM_FATOR_CLICK_UNIT_MS * 2;
+/** 2 Fatores — aguardar 10s após giro antes de nova aposta (gale ou reentrada). */
+export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = 10_000;
 
 export type RotatingRoomLobbySession = (
   | RotatingRoomCrossingSession
@@ -53,7 +53,7 @@ export const ROTATING_ROOM_LOBBY_NAV_SETTLE_MS = 6500;
 /** Fibonacci em recuperação na mesma mesa — aguardar após o giro antes de nova ficha. */
 export const ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS = 5000;
 
-/** Gale ou reentrada 2F — extensão clica no fim do hold do motor (2× tempo 3 factores iguais). */
+/** Gale ou reentrada 2F — extensão clica no fim do hold do motor (10s pós-giro). */
 export function resolveCrossingExtensionBetDelayUntilMs(
   postResultHoldUntilMs: number | null | undefined,
   recovery: number,
