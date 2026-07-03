@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { AutomationExtensionTimingCard } from "@/components/back-office/automation-extension-timing-card";
 import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
 import { DeferredMount } from "@/components/deferred-mount";
 import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
@@ -86,7 +87,7 @@ export function BackOfficeOverviewPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <section
-        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
         aria-label={t("overview.financialSummary")}
       >
         <SummaryCard
@@ -112,6 +113,7 @@ export function BackOfficeOverviewPage() {
             label={t("overview.kpiAutomation")}
           />
         </Link>
+        <AutomationExtensionTimingCard />
       </section>
 
       <DeferredMount delayMs={50}>
