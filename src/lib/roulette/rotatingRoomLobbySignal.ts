@@ -14,12 +14,12 @@ export const ROTATING_ROOM_CLICK_STAGGER_BASE_MS = 450;
 /** Tempo por clique — 3 factores iguais (Um Fator, 1 ficha após o giro). */
 export const ROTATING_ROOM_UM_FATOR_CLICK_UNIT_MS = EXTENSION_PRE_BET_WAIT_SEC * 1000;
 
-/** Entre factor-1 e factor-2 — dobro do stagger base (2 cliques em campos diferentes). */
+/** Entre factor-1 e factor-2 — mesmo stagger base (450 ms). */
 export const ROTATING_ROOM_CROSSING_FACTOR_CLICK_STAGGER_MS =
-  ROTATING_ROOM_CLICK_STAGGER_BASE_MS * 2;
+  ROTATING_ROOM_CLICK_STAGGER_BASE_MS;
 
-/** 2 Fatores — aguardar 6s após giro antes de nova aposta (gale ou reentrada). */
-export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = 6_000;
+/** 2 Fatores — aguardar 11s após giro antes de nova aposta (gale ou reentrada). */
+export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = 11_000;
 
 export type RotatingRoomLobbySession = (
   | RotatingRoomCrossingSession
