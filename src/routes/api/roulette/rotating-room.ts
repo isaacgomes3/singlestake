@@ -18,7 +18,10 @@ export const Route = createFileRoute("/api/roulette/rotating-room")({
         await ensureAutomationSimEngine();
         const snapshot = getStrategyGlobalSnapshotOrThrow();
         const balance = getAutomationSimState().balance;
-        const crossingEnabled = getAutomationConfig().enabledTriggers.crossing !== false;
+        const { crossingGatilhoEnabledFromMap } = await import("@/lib/roulette/umFatorTriggerEnable");
+        const crossingEnabled = crossingGatilhoEnabledFromMap(
+          getAutomationConfig().enabledTriggers,
+        );
         return Response.json(
           buildRotatingRoomSimulatorIndication(snapshot, balance, { crossingEnabled }),
         );

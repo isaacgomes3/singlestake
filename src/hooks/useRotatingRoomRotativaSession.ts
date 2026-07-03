@@ -12,7 +12,7 @@ import {
   mergeRotatingRoomRotativaSession,
   type RotatingRoomRotativaSession,
 } from "@/lib/roulette/rotatingRoomRotativaMerge";
-import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { isAnyCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 
 type Options = {
   observeOnly?: boolean;
@@ -30,7 +30,7 @@ export function useRotatingRoomRotativaSession(
     observeOnly: options.observeOnly,
     preferLocalSession: options.preferLocalSession,
   });
-  const crossingEnabled = isCrossingGatilhoEnabled();
+  const crossingEnabled = isAnyCrossingGatilhoEnabled();
   const crossing = useRotatingRoomCrossingSession(tableIds, histories, {
     observeOnly: options.observeOnly,
     enabled: crossingEnabled,

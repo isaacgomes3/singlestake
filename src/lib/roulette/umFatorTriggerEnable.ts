@@ -141,6 +141,19 @@ export function isCrossingGatilhoEnabled(): boolean {
   return runtimeEnabled.crossing !== false;
 }
 
+export function crossingGatilhoEnabledFromMap(
+  map: Pick<
+    RotatingRoomGatilhoEnableMap,
+    "crossing" | "crossingCorAltura" | "crossingAlturaParidade"
+  >,
+): boolean {
+  return (
+    map.crossing !== false ||
+    map.crossingCorAltura === true ||
+    map.crossingAlturaParidade === true
+  );
+}
+
 export function isCrossingAbsenceCorAlturaEnabled(): boolean {
   return runtimeEnabled.crossingCorAltura === true;
 }
@@ -154,7 +167,7 @@ export function isCrossingAbsenceGatilhoEnabled(): boolean {
 }
 
 export function isAnyCrossingGatilhoEnabled(): boolean {
-  return isCrossingGatilhoEnabled() || isCrossingAbsenceGatilhoEnabled();
+  return crossingGatilhoEnabledFromMap(runtimeEnabled);
 }
 
 export function getEnabledCrossingAbsenceAxes(): import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] {

@@ -2,8 +2,6 @@
  * Estatísticas por filtro de ausência — cruzamento 2 fatores (cor/altura, paridade/altura).
  */
 import {
-  CROSSING_ABSENCE_SPINS_MIN,
-  DEFAULT_CROSSING_ABSENCE_SPINS,
   type CrossingAbsenceAxisKind,
   absenceKeyToCrossingAxis,
 } from "@/lib/roulette/crossingAbsencePrefs";
@@ -25,7 +23,9 @@ import {
   ABSENCE_FILTER_STATS_SPIN_WINDOW,
 } from "@/lib/roulette/zoneAbsenceFilterStats";
 
-export const CROSSING_ABSENCE_FILTER_STATS_FILTER_MAX = DEFAULT_CROSSING_ABSENCE_SPINS;
+/** Início da grelha «Filtro (giros)» nos quadros de cruzamento (≠ mínimo configurável do gatilho). */
+export const CROSSING_ABSENCE_FILTER_STATS_FILTER_MIN = 10;
+export const CROSSING_ABSENCE_FILTER_STATS_FILTER_MAX = 24;
 
 export type CrossingAbsenceFilterStats = {
   corAltura: ZoneAbsenceFilterStatsBlock;
@@ -207,7 +207,7 @@ function buildBlockForAxis(
 
   const filters: AbsenceFilterStatRow[] = [];
   for (
-    let filterSpins = CROSSING_ABSENCE_SPINS_MIN;
+    let filterSpins = CROSSING_ABSENCE_FILTER_STATS_FILTER_MIN;
     filterSpins <= CROSSING_ABSENCE_FILTER_STATS_FILTER_MAX;
     filterSpins++
   ) {

@@ -5,7 +5,7 @@ import {
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
 } from "@/lib/back-office/automation-config";
-import { enabledFibonacciZoneKindsFromMap, enabledRepeticaoZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { crossingGatilhoEnabledFromMap, enabledFibonacciZoneKindsFromMap, enabledRepeticaoZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
@@ -160,7 +160,7 @@ function buildSnapshotBody(
       {
         baseStake: resolved.baseStake,
         blockNewEntries,
-        crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+        crossingEnabled: crossingGatilhoEnabledFromMap(getAutomationConfig().enabledTriggers),
         fibonacciEnabled:
           enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
         repeticaoEnabled:
@@ -406,7 +406,7 @@ export async function syncAutomationSimWithStrategy(
     {
       baseStake: configDto.baseStake,
       blockNewEntries,
-      crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+      crossingEnabled: crossingGatilhoEnabledFromMap(getAutomationConfig().enabledTriggers),
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       repeticaoEnabled:
@@ -548,7 +548,7 @@ export async function replayAutomationSimFromLedger(
     {
       baseStake: getAutomationConfig().baseStake,
       blockNewEntries: configDtoForBalance(getAutomationSimState().balance).blocksNewEntries,
-      crossingEnabled: getAutomationConfig().enabledTriggers.crossing !== false,
+      crossingEnabled: crossingGatilhoEnabledFromMap(getAutomationConfig().enabledTriggers),
       fibonacciEnabled:
         enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       repeticaoEnabled:

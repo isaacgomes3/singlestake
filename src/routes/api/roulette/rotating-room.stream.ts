@@ -31,8 +31,11 @@ export const Route = createFileRoute("/api/roulette/rotating-room/stream")({
         const { subscribeRouletteHub } = await import("@/lib/server/rouletteHub");
         const tableIds = parseRouletteTableIdsFromEnv();
         await ensureStrategyGlobalEngine(tableIds);
+        const { crossingGatilhoEnabledFromMap } = await import("@/lib/roulette/umFatorTriggerEnable");
         await ensureAutomationSimEngine();
-        const crossingEnabled = getAutomationConfig().enabledTriggers.crossing !== false;
+        const crossingEnabled = crossingGatilhoEnabledFromMap(
+          getAutomationConfig().enabledTriggers,
+        );
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {

@@ -74,7 +74,7 @@ import {
   lobbyTableHasRotatingRoomSignal,
   type RotatingRoomLobbySession,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
-import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { isAnyCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import { rotatingRoomSnapshotForTable } from "@/lib/roulette/rotatingRoomStrategy";
 
 export {
@@ -867,7 +867,7 @@ export function RouletteLobbyPage({ homeView = "cassino" }: { homeView?: Roulett
     rotatingRoomHistories,
     { observeOnly: lobbyRotatingRoomObserveOnly },
   );
-  const crossingEnabled = isCrossingGatilhoEnabled();
+  const crossingEnabled = isAnyCrossingGatilhoEnabled();
   const crossingRoomSession = useAutomationAlignedCrossingSession(
     rotatingRoomTableIds,
     rotatingRoomHistories,
