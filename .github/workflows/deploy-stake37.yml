@@ -26,12 +26,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          package-manager-cache: false
       - name: Instalar dependências
         run: |
           node -v
           npm -v
-          npm ci --ignore-scripts
+          npm ci --ignore-scripts || npm install --ignore-scripts
       - name: Build de produção
         run: npm run build
         env:
