@@ -15,6 +15,7 @@ export function crossingMachinePlacarStepProgressed(
     before.cycleTableId !== after.cycleTableId ||
     before.cycleActive !== after.cycleActive ||
     before.recovery !== after.recovery ||
+    before.cycleSpinsWithoutWin !== after.cycleSpinsWithoutWin ||
     before.awaitSwitchNoTable !== after.awaitSwitchNoTable
   );
 }

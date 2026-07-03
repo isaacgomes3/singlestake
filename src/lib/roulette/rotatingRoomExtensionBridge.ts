@@ -712,18 +712,24 @@ export function buildExtensionBridgeFromAutomationBet(
   if (!actions.some((a) => a.kind === "click")) return null;
 
   const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
-  const fingerprint = `${bet.signalId}|r${bet.recovery}`;
+  const openedHeadSuffix =
+    "openedHead" in bet && typeof bet.openedHead === "string" && bet.openedHead.trim()
+      ? `|${bet.openedHead.trim()}`
+      : "";
+  const fingerprint = `${bet.signalId}|r${bet.recovery}${openedHeadSuffix}`;
 
-  if (bet.strategy === "dois2fatores" && bet.activeCrossing) {
+  if (bet.strategy === "dois2fatores") {
+    const crossingActive = bet.activeCrossing ?? activeCrossingFromAutomationBet(bet);
+    if (!crossingActive) return null;
     return {
       fingerprint,
       actions,
       context: {
         ...context,
-        factor1Label: doisFatoresFactorLabel(bet.activeCrossing.factor1),
-        factor2Label: doisFatoresFactorLabel(bet.activeCrossing.factor2),
-        factor1BetKey: pragmaticExteriorBetKeyFromFactor(bet.activeCrossing.factor1),
-        factor2BetKey: pragmaticExteriorBetKeyFromFactor(bet.activeCrossing.factor2),
+        factor1Label: doisFatoresFactorLabel(crossingActive.factor1),
+        factor2Label: doisFatoresFactorLabel(crossingActive.factor2),
+        factor1BetKey: pragmaticExteriorBetKeyFromFactor(crossingActive.factor1),
+        factor2BetKey: pragmaticExteriorBetKeyFromFactor(crossingActive.factor2),
         rotativaTrigger: "crossing",
         strategy: "dois2fatores",
         signalId: bet.signalId,

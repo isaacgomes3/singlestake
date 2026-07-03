@@ -5,8 +5,11 @@ import type {
 } from "@/lib/roulette/strategyGlobalTypes";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import {
+  ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC,
   tableAcceptableForRotatingRoomEntry,
+  UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC,
 } from "@/lib/roulette/liveTableBettingWindow";
+import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
 import { doisFatoresFactorLabel, evaluateDoisFatoresRound, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { resolveRotativaTriggerFromSnapshot } from "@/lib/roulette/rotatingRoomRotativaMerge";
@@ -341,10 +344,6 @@ export function pendingSignalFromCrossingSession(
 
   const tableId = session.currentTableId;
   const history = histories?.[tableId] ?? [];
-  if (history.length > 0 && !tableAcceptableForRotatingRoomEntry(tableId, history)) {
-    return null;
-  }
-
   const active = session.activeCrossing;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
   const recovery = session.currentRecovery;
@@ -352,9 +351,18 @@ export function pendingSignalFromCrossingSession(
     typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
       ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
       : 0;
+  const headKey = history.length > 0 ? spinHead(history) : "0";
+  const minRemainingSec =
+    tieSpin > 0 ? UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC : ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC;
+  if (
+    history.length > 0 &&
+    !tableAcceptableForRotatingRoomEntry(tableId, history, minRemainingSec)
+  ) {
+    return null;
+  }
 
   return {
-    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}:s${tieSpin}`,
+    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}:s${tieSpin}:h${headKey}`,
     tableId,
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
@@ -682,14 +690,37 @@ export function placeOpenBet(
 ): RouletteAutomationSimState {
   if (state.openBet?.signalId === pending.signalId) return state;
   if (state.openBet && state.openBet.signalId !== pending.signalId) {
-    const head = histories?.[state.openBet.tableId]?.[0];
     if (
-      head == null ||
-      !isSpinResultAlreadySettled(state, state.openBet.tableId, head)
+      state.openBet.strategy === "dois2fatores" &&
+      pending.strategy === "dois2fatores" &&
+      histories
     ) {
-      return state;
+      const released = releaseCrossingOpenBetAfterContinue(state, histories);
+      if (released !== state) {
+        state = released;
+      }
     }
-    state = { ...state, openBet: null };
+    if (state.openBet && state.openBet.signalId !== pending.signalId) {
+      const head = histories?.[state.openBet.tableId]?.[0];
+      if (
+        head == null ||
+        !isSpinResultAlreadySettled(state, state.openBet.tableId, head)
+      ) {
+        if (
+          !(
+            state.openBet.strategy === "dois2fatores" &&
+            pending.strategy === "dois2fatores" &&
+            histories &&
+            openBetSpinArrived(state.openBet, histories)
+          )
+        ) {
+          return state;
+        }
+        state = { ...state, openBet: null };
+      } else {
+        state = { ...state, openBet: null };
+      }
+    }
   }
   if (histories && pendingConflictsWithSettledHead(state, pending, histories)) return state;
   if (state.balance < pending.stake) return state;
@@ -724,6 +755,11 @@ export function pendingConflictsWithSettledHead(
     return false;
   }
 
+  // 2 Fatores / cruzamento — aposta no giro seguinte (empate mantém indicação).
+  if (pending.strategy === "dois2fatores") {
+    return false;
+  }
+
   const history = histories[pending.tableId];
   const head = history?.[0];
   if (head == null) return false;
@@ -754,11 +790,14 @@ export function releaseCrossingOpenBetAfterContinue(
   histories: Record<number, readonly number[]>,
 ): RouletteAutomationSimState {
   const bet = state.openBet;
-  if (bet?.strategy !== "dois2fatores" || !bet.activeCrossing) return state;
+  if (bet?.strategy !== "dois2fatores") return state;
+
+  const active = activeCrossingFromAutomationBet(bet);
+  if (!active) return state;
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;
-  if (evaluateDoisFatoresRound(arrived.resultNumber, bet.activeCrossing) !== "continue") {
+  if (evaluateDoisFatoresRound(arrived.resultNumber, active) !== "continue") {
     return state;
   }
 

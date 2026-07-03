@@ -17,6 +17,7 @@ let bridgeInFlightKey = null;
 /** Último gale/mesa — permite nova aposta quando recovery sobe. */
 let lastBridgeRecovery = null;
 let lastBridgeTableId = null;
+let lastBridgeSignalId = null;
 /** tableId da mesa → separador Chrome onde a aposta foi executada. */
 const mesaTabByTableId = new Map();
 /** Fechos agendados por mesa (evita duplicar). */
@@ -360,13 +361,15 @@ async function handleBridgePayload(payload, sourceTabId) {
   if (
     recovery > (lastBridgeRecovery ?? 0) ||
     recovery !== lastBridgeRecovery ||
-    tableId !== lastBridgeTableId
+    tableId !== lastBridgeTableId ||
+    signalId !== lastBridgeSignalId
   ) {
     lastBridgeDedupeKey = null;
     lastExecutedClickKeys.clear();
   }
   lastBridgeRecovery = recovery;
   lastBridgeTableId = tableId;
+  lastBridgeSignalId = signalId;
 
   const dedupeKey =
     signalId != null ? `${signalId}:r${recovery}` : payload.fingerprint
