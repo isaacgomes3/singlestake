@@ -1,21 +1,12 @@
 /**
  * Estatísticas por filtro de giros de ausência (Fibonacci / Repetição).
  * Independente do gatilho activo — analisa sempre os últimos N números por mesa.
+ * Helpers locais (sem importar strategies completas — evita ciclos no SSR).
  */
 import {
   FIBONACCI_ABSENCE_SPINS_MIN,
   DEFAULT_FIBONACCI_ABSENCE_SPINS,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
-import {
-  consecutiveZoneAbsence,
-  evaluateFibonacciRound,
-  type FibonacciZone,
-  type FibonacciZoneKind,
-} from "@/lib/roulette/rotatingRoomFibonacciStrategy";
-import {
-  consecutiveNoRepeatStreak,
-  zoneFromHeadNumber,
-} from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
 
 export const ABSENCE_FILTER_STATS_SPIN_WINDOW = 50;
 export const ABSENCE_FILTER_STATS_MAX_EVENTS = 50;
@@ -42,6 +33,9 @@ export type ZoneAbsenceFilterStats = {
   repeticao: ZoneAbsenceFilterStatsBlock;
 };
 
+type FibonacciZoneKind = "dozen" | "column";
+type FibonacciZone = { kind: FibonacciZoneKind; id: 1 | 2 | 3 };
+
 type TriggerEvent = {
   tableId: number;
   spinIndex: number;
@@ -60,6 +54,67 @@ const ALL_ZONES: FibonacciZone[] = [
 ];
 
 const ZONE_KINDS: FibonacciZoneKind[] = ["dozen", "column"];
+
+function dozenOf(n: number): 1 | 2 | 3 | null {
+  if (n === 0) return null;
+  if (n <= 12) return 1;
+  if (n <= 24) return 2;
+  return 3;
+}
+
+function columnOf(n: number): 1 | 2 | 3 | null {
+  if (n === 0) return null;
+  return (((n - 1) % 3) + 1) as 1 | 2 | 3;
+}
+
+function zoneValue(n: number, kind: FibonacciZoneKind): 1 | 2 | 3 | null {
+  return kind === "dozen" ? dozenOf(n) : columnOf(n);
+}
+
+function zoneHitOnSpin(spin: number, zone: FibonacciZone): boolean {
+  if (spin === 0) return false;
+  if (zone.kind === "dozen") return dozenOf(spin) === zone.id;
+  return columnOf(spin) === zone.id;
+}
+
+function consecutiveZoneAbsence(historyNewestFirst: readonly number[], zone: FibonacciZone): number {
+  let count = 0;
+  for (const n of historyNewestFirst) {
+    if (zoneHitOnSpin(n, zone)) break;
+    count++;
+  }
+  return count;
+}
+
+function consecutiveNoRepeatStreak(
+  historyNewestFirst: readonly number[],
+  kind: FibonacciZoneKind,
+): number {
+  if (historyNewestFirst.length < 2) return 0;
+  let count = 0;
+  for (let i = 0; i < historyNewestFirst.length - 1; i++) {
+    const a = historyNewestFirst[i]!;
+    const b = historyNewestFirst[i + 1]!;
+    if (a === 0 || b === 0) break;
+    const za = zoneValue(a, kind);
+    const zb = zoneValue(b, kind);
+    if (za == null || zb == null) break;
+    if (za === zb) break;
+    count++;
+  }
+  return count;
+}
+
+function zoneFromHeadNumber(
+  historyNewestFirst: readonly number[],
+  kind: FibonacciZoneKind,
+): FibonacciZone | null {
+  const head = historyNewestFirst[0];
+  if (head == null || head === 0) return null;
+  const id = zoneValue(head, kind);
+  if (id == null) return null;
+  return { kind, id };
+}
 
 function chronologicalSlice(newestFirst: readonly number[], maxLen: number): number[] {
   return [...newestFirst.slice(0, maxLen)].reverse();
@@ -108,7 +163,7 @@ function scanFibonacciTable(
     const triggerIndex = cursor;
     let winAfter: number | null = null;
     for (let j = cursor + 1; j < chronological.length; j++) {
-      if (evaluateFibonacciRound(chronological[j]!, crossing.zone) === "W") {
+      if (zoneHitOnSpin(chronological[j]!, crossing.zone)) {
         winAfter = j - triggerIndex;
         cursor = j + 1;
         break;
@@ -170,7 +225,7 @@ function scanRepeticaoTable(
     const triggerIndex = cursor;
     let winAfter: number | null = null;
     for (let j = cursor + 1; j < chronological.length; j++) {
-      if (evaluateFibonacciRound(chronological[j]!, zone) === "W") {
+      if (zoneHitOnSpin(chronological[j]!, zone)) {
         winAfter = j - triggerIndex;
         cursor = j + 1;
         break;
