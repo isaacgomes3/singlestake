@@ -516,29 +516,30 @@ function buildFibonacciClientView(
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeFibonacci != null && currentTableId != null;
   const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
-  const prepareTableId =
-    machine.prepareTableId != null && allowed.has(machine.prepareTableId)
-      ? machine.prepareTableId
+  const enabledZoneKinds = enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers);
+  const livePreparePick =
+    !showTapeteSignal && machine.recovery === 0
+      ? pickGlobalFibonacciPrepare(
+          tableIds,
+          histories,
+          undefined,
+          absenceByKind,
+          enabledZoneKinds,
+        )
       : null;
-  const preparePick =
-    prepareTableId != null && machine.prepareZone
+  const machinePreparePick =
+    machine.prepareTableId != null && machine.prepareZone && allowed.has(machine.prepareTableId)
       ? {
-          tableId: prepareTableId,
+          tableId: machine.prepareTableId,
           zone: machine.prepareZone,
           absenceGap: consecutiveZoneAbsence(
-            histories[prepareTableId] ?? [],
+            histories[machine.prepareTableId] ?? [],
             machine.prepareZone,
           ),
         }
-      : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalFibonacciPrepare(
-            tableIds,
-            histories,
-            undefined,
-            absenceByKind,
-            enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers),
-          )
-        : null;
+      : null;
+  const preparePick = machinePreparePick ?? livePreparePick;
+  const prepareTableId = preparePick?.tableId ?? null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   const alertCategory = activeFibonacci
     ? activeFibonacci.zone.kind === "dozen"
@@ -596,33 +597,36 @@ function buildRepeticaoClientView(
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
   const showTapeteSignal = activeRepeticao != null && currentTableId != null;
   const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
-  const prepareTableId =
-    machine.prepareTableId != null && allowed.has(machine.prepareTableId)
-      ? machine.prepareTableId
+  const enabledZoneKinds = enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers);
+  const livePreparePick =
+    !showTapeteSignal && machine.recovery === 0
+      ? pickGlobalRepeticaoPrepare(
+          tableIds,
+          histories,
+          undefined,
+          absenceByKind,
+          enabledZoneKinds,
+        )
       : null;
-  const preparePick =
-    prepareTableId != null && machine.prepareZoneKind
+  const machinePreparePick =
+    machine.prepareTableId != null &&
+    machine.prepareZoneKind &&
+    allowed.has(machine.prepareTableId)
       ? {
-          tableId: prepareTableId,
+          tableId: machine.prepareTableId,
           zoneKind: machine.prepareZoneKind,
           streakGap: consecutiveNoRepeatStreak(
-            histories[prepareTableId] ?? [],
+            histories[machine.prepareTableId] ?? [],
             machine.prepareZoneKind,
           ),
         }
-      : !showTapeteSignal && machine.recovery === 0
-        ? pickGlobalRepeticaoPrepare(
-            tableIds,
-            histories,
-            undefined,
-            absenceByKind,
-            enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers),
-          )
-        : null;
+      : null;
+  const preparePick = machinePreparePick ?? livePreparePick;
+  const prepareTableId = preparePick?.tableId ?? null;
   const sessionMode = showTapeteSignal ? "active" : prepareTableId != null ? "prepare" : "scanning";
   const prepareZone =
-    prepareTableId != null && machine.prepareZoneKind
-      ? zoneFromHeadNumber(histories[prepareTableId] ?? [], machine.prepareZoneKind)
+    prepareTableId != null && preparePick
+      ? zoneFromHeadNumber(histories[prepareTableId] ?? [], preparePick.zoneKind)
       : null;
   const alertCategory = activeRepeticao
     ? activeRepeticao.zone.kind === "dozen"

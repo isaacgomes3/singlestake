@@ -702,7 +702,17 @@ export function tickRotatingRoomRepeticaoPlacar(
           enabledZoneKinds,
         );
         if (prepare) {
-          nextMachine = beginRepeticaoPrepare(nextMachine, prepare, histories);
+          const zone = zoneFromHeadNumber(histories[prepare.tableId] ?? [], prepare.zoneKind);
+          if (zone) {
+            nextMachine = armCycleFromZone(
+              nextMachine,
+              prepare.tableId,
+              zone,
+              histories,
+              nextMachine.recovery,
+              prepare.streakGap,
+            );
+          }
         }
       }
     } else {
@@ -808,12 +818,22 @@ export function tickRotatingRoomRepeticaoPlacar(
       enabledZoneKinds,
     );
     if (prepare) {
-      return {
-        nextMachine: beginRepeticaoPrepare(nextMachine, prepare, histories),
-        stats: nextStats,
-        statsChanged,
-        flash,
-      };
+      const zone = zoneFromHeadNumber(histories[prepare.tableId] ?? [], prepare.zoneKind);
+      if (zone) {
+        return {
+          nextMachine: armCycleFromZone(
+            nextMachine,
+            prepare.tableId,
+            zone,
+            histories,
+            nextMachine.recovery,
+            prepare.streakGap,
+          ),
+          stats: nextStats,
+          statsChanged,
+          flash,
+        };
+      }
     }
   }
 

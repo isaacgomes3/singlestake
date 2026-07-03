@@ -721,7 +721,7 @@ export function tickRotatingRoomFibonacciPlacar(
           enabledZoneKinds,
         );
         if (prepare) {
-          nextMachine = beginFibonacciPrepare(nextMachine, prepare, histories);
+          nextMachine = armCycleFromPick(nextMachine, prepare, histories);
         }
       }
     } else {
@@ -830,7 +830,7 @@ export function tickRotatingRoomFibonacciPlacar(
     );
     if (prepare) {
       return {
-        nextMachine: beginFibonacciPrepare(nextMachine, prepare, histories),
+        nextMachine: armCycleFromPick(nextMachine, prepare, histories),
         stats: nextStats,
         statsChanged,
         flash,
