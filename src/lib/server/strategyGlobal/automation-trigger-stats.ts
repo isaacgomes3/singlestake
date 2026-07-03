@@ -11,7 +11,11 @@ import {
 import { normalizeCrossingAxisAbsenceSpins } from "@/lib/roulette/crossingAbsencePrefs";
 import { normalizeCrossingAbsenceAxisStats } from "@/lib/roulette/entryWinBreakdown";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
-import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
+import { getAutomationConfig, initAutomationConfig, saveAutomationConfig } from "@/lib/server/automationSim/config";
+import {
+  applyCrossingAutoAbsenceRuntime,
+  crossingAutoAbsencePatchFromHistories,
+} from "@/lib/server/automationSim/crossing-auto-absence";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import type { RotatingRoomGatilhoEnableMap } from "@/lib/roulette/umFatorTriggerEnable";
@@ -115,6 +119,8 @@ function crossingAbsenceAxisStatsRow(
   kind: "corAltura" | "alturaParidade",
   enabled: boolean,
   absenceSpins: number,
+  absenceAuto: boolean,
+  maxAbsenceInWindow: number,
 ): AutomationStatsDto["crossingAbsence"]["corAltura"] {
   const bucket = normalizeCrossingAbsenceAxisStats(stats?.crossingAbsenceAxis)[kind];
   const wins = Math.max(0, bucket.wins);
@@ -126,6 +132,8 @@ function crossingAbsenceAxisStatsRow(
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
     enabled,
     absenceSpins,
+    absenceAuto,
+    maxAbsenceInWindow,
   };
 }
 
@@ -133,6 +141,7 @@ function crossingAbsenceStatsFromState(
   crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
+  absenceFilter: AutomationStatsDto["absenceFilterStats"]["crossing"],
 ): AutomationStatsDto["crossingAbsence"] {
   const absenceByAxis = normalizeCrossingAxisAbsenceSpins(config);
   return {
@@ -141,12 +150,16 @@ function crossingAbsenceStatsFromState(
       "corAltura",
       enabledTriggers.crossingCorAltura === true,
       absenceByAxis.corAltura,
+      config.crossingCorAlturaAbsenceAuto === true,
+      absenceFilter.corAltura.maxAbsenceInWindow,
     ),
     alturaParidade: crossingAbsenceAxisStatsRow(
       crossingStats,
       "alturaParidade",
       enabledTriggers.crossingAlturaParidade === true,
       absenceByAxis.alturaParidade,
+      config.crossingAlturaParidadeAbsenceAuto === true,
+      absenceFilter.alturaParidade.maxAbsenceInWindow,
     ),
   };
 }
@@ -184,8 +197,15 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const wins = Math.max(0, stats.wins);
   const losses = Math.max(0, stats.losses);
   const extension = getExtensionSourceStatus();
-  const enabledTriggers = getAutomationConfig().enabledTriggers;
-  const config = getAutomationConfig();
+  let config = getAutomationConfig();
+  const absenceFilterStats = safeAbsenceFilterStats(state);
+  const histories = rotatingTableHistoriesFromState(state);
+  const autoPatch = crossingAutoAbsencePatchFromHistories(config, histories);
+  if (autoPatch) {
+    config = applyCrossingAutoAbsenceRuntime({ ...config, ...autoPatch }, histories);
+    void saveAutomationConfig(autoPatch);
+  }
+  const enabledTriggers = config.enabledTriggers;
 
   return {
     updatedAt: state.updatedAt,
@@ -214,8 +234,13 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       enabledTriggers,
       config,
     ),
-    crossingAbsence: crossingAbsenceStatsFromState(crossingStats, enabledTriggers, config),
-    absenceFilterStats: safeAbsenceFilterStats(state),
+    crossingAbsence: crossingAbsenceStatsFromState(
+      crossingStats,
+      enabledTriggers,
+      config,
+      absenceFilterStats.crossing,
+    ),
+    absenceFilterStats,
   };
 }
 

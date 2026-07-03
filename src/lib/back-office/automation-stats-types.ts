@@ -10,6 +10,10 @@ export type AutomationStatsFibonacciZoneRow = {
   accuracyPct: number | null;
   enabled: boolean;
   absenceSpins: number;
+  /** Modo automático: gatilho = máx. ausência na janela − 5. */
+  absenceAuto?: boolean;
+  /** Máx. ausência na janela (últimos 50 giros) — referência do modo automático. */
+  maxAbsenceInWindow?: number;
 };
 
 export type AutomationStatsDto = {

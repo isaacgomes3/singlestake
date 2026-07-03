@@ -1,5 +1,9 @@
 import { automationBlocksNewEntries } from "@/lib/back-office/automation-config";
-import { getAutomationConfig } from "@/lib/server/automationSim/config";
+import { getAutomationConfig, saveAutomationConfig } from "@/lib/server/automationSim/config";
+import {
+  applyCrossingAutoAbsenceRuntime,
+  crossingAutoAbsencePatchFromHistories,
+} from "@/lib/server/automationSim/crossing-auto-absence";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { readEffectiveRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
@@ -236,10 +240,21 @@ function ledgerFromFlash(
   };
 }
 
+function refreshCrossingAutoAbsenceForHistories(
+  histories: Record<number, readonly number[]>,
+): void {
+  const config = getAutomationConfig();
+  const patch = crossingAutoAbsencePatchFromHistories(config, histories);
+  if (!patch) return;
+  applyCrossingAutoAbsenceRuntime({ ...config, ...patch }, histories);
+  void saveAutomationConfig(patch);
+}
+
 function driveCrossing(
   state: StrategyGlobalPersistedState,
   histories: Record<number, readonly number[]>,
 ): { flash: RotatingRoomCrossingPlacarFlash; recoveryBefore: number } {
+  refreshCrossingAutoAbsenceForHistories(histories);
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.dois2fatores.machine.recovery;
   const result = drainPlacarSteps(

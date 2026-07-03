@@ -8,6 +8,8 @@ import {
 export const CROSSING_ABSENCE_SPINS_MIN = 3;
 export const CROSSING_ABSENCE_SPINS_MAX = 99;
 export const DEFAULT_CROSSING_ABSENCE_SPINS = 12;
+/** Desvio do gatilho automático em relação à máx. ausência na janela. */
+export const CROSSING_ABSENCE_AUTO_OFFSET = 5;
 
 export type CrossingAbsenceAxisKind = "corAltura" | "alturaParidade";
 
@@ -16,8 +18,15 @@ export type CrossingAxisAbsenceSpins = {
   alturaParidade: number;
 };
 
+export type CrossingAxisAbsenceAuto = {
+  corAltura: boolean;
+  alturaParidade: boolean;
+};
+
 const LOCAL_KEY_COR_ALTURA = "roulette.rotatingRoom.crossingAbsenceSpins.corAltura";
 const LOCAL_KEY_ALTURA_PARIDADE = "roulette.rotatingRoom.crossingAbsenceSpins.alturaParidade";
+const LOCAL_KEY_COR_ALTURA_AUTO = "roulette.rotatingRoom.crossingAbsenceAuto.corAltura";
+const LOCAL_KEY_ALTURA_PARIDADE_AUTO = "roulette.rotatingRoom.crossingAbsenceAuto.alturaParidade";
 
 export const CROSSING_ABSENCE_SPINS_CHANGED_EVENT = "crossing-absence-spins-changed";
 
@@ -57,6 +66,20 @@ export function absenceSpinsForCrossingAxis(
   return map[kind];
 }
 
+export function crossingAutoAbsenceSpinsFromMax(maxInWindow: number): number {
+  return clampCrossingAbsenceSpins(maxInWindow - CROSSING_ABSENCE_AUTO_OFFSET);
+}
+
+export function normalizeCrossingAxisAbsenceAuto(raw?: {
+  crossingCorAlturaAbsenceAuto?: boolean;
+  crossingAlturaParidadeAbsenceAuto?: boolean;
+} | null): CrossingAxisAbsenceAuto {
+  return {
+    corAltura: raw?.crossingCorAlturaAbsenceAuto === true,
+    alturaParidade: raw?.crossingAlturaParidadeAbsenceAuto === true,
+  };
+}
+
 export function normalizeCrossingAxisAbsenceSpins(raw?: {
   crossingCorAlturaAbsenceSpins?: number;
   crossingAlturaParidadeAbsenceSpins?: number;
@@ -76,6 +99,37 @@ export function setServerCrossingAxisAbsenceSpins(spins: CrossingAxisAbsenceSpin
           corAltura: clampCrossingAbsenceSpins(spins.corAltura),
           alturaParidade: clampCrossingAbsenceSpins(spins.alturaParidade),
         };
+}
+
+function readCrossingAxisAbsenceAutoLocal(): CrossingAxisAbsenceAuto {
+  if (typeof localStorage === "undefined") {
+    return { corAltura: false, alturaParidade: false };
+  }
+  try {
+    return {
+      corAltura: localStorage.getItem(LOCAL_KEY_COR_ALTURA_AUTO) === "1",
+      alturaParidade: localStorage.getItem(LOCAL_KEY_ALTURA_PARIDADE_AUTO) === "1",
+    };
+  } catch {
+    return { corAltura: false, alturaParidade: false };
+  }
+}
+
+export function writeCrossingAxisAbsenceAutoLocal(
+  auto: CrossingAxisAbsenceAuto,
+  options?: { silent?: boolean },
+): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_KEY_COR_ALTURA_AUTO, auto.corAltura ? "1" : "0");
+      localStorage.setItem(LOCAL_KEY_ALTURA_PARIDADE_AUTO, auto.alturaParidade ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!options?.silent && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CROSSING_ABSENCE_SPINS_CHANGED_EVENT));
+  }
 }
 
 function readCrossingAxisAbsenceSpinsLocal(): CrossingAxisAbsenceSpins {
@@ -122,12 +176,22 @@ export function readEffectiveCrossingAxisAbsenceSpins(): CrossingAxisAbsenceSpin
 }
 
 export function syncCrossingAbsencePrefsFromAutomationConfig(
-  crossing: Pick<AutomationStatsDto["crossingAbsence"], "corAltura" | "alturaParidade">,
+  crossing: Pick<
+    AutomationStatsDto["crossingAbsence"],
+    "corAltura" | "alturaParidade"
+  >,
 ): void {
   writeCrossingAxisAbsenceSpinsLocal(
     {
       corAltura: crossing.corAltura.absenceSpins,
       alturaParidade: crossing.alturaParidade.absenceSpins,
+    },
+    { silent: true },
+  );
+  writeCrossingAxisAbsenceAutoLocal(
+    {
+      corAltura: crossing.corAltura.absenceAuto === true,
+      alturaParidade: crossing.alturaParidade.absenceAuto === true,
     },
     { silent: true },
   );

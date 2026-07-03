@@ -65,6 +65,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           repeticaoColumnAbsenceSpins?: number;
           crossingCorAlturaAbsenceSpins?: number;
           crossingAlturaParidadeAbsenceSpins?: number;
+          crossingCorAlturaAbsenceAuto?: boolean;
+          crossingAlturaParidadeAbsenceAuto?: boolean;
         }>(request);
 
         await initAutomationConfig();
@@ -126,7 +128,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.crossingCorAlturaAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.crossingCorAlturaAbsenceSpins)));
-          await saveAutomationConfig({ crossingCorAlturaAbsenceSpins: spins });
+          await saveAutomationConfig({
+            crossingCorAlturaAbsenceSpins: spins,
+            crossingCorAlturaAbsenceAuto: false,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );
@@ -136,7 +141,30 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.crossingAlturaParidadeAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.crossingAlturaParidadeAbsenceSpins)));
-          await saveAutomationConfig({ crossingAlturaParidadeAbsenceSpins: spins });
+          await saveAutomationConfig({
+            crossingAlturaParidadeAbsenceSpins: spins,
+            crossingAlturaParidadeAbsenceAuto: false,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingCorAlturaAbsenceAuto === "boolean") {
+          await saveAutomationConfig({ crossingCorAlturaAbsenceAuto: body.crossingCorAlturaAbsenceAuto });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingAlturaParidadeAbsenceAuto === "boolean") {
+          await saveAutomationConfig({
+            crossingAlturaParidadeAbsenceAuto: body.crossingAlturaParidadeAbsenceAuto,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );

@@ -112,6 +112,27 @@ export async function saveCrossingAxisAbsenceSpins(
   return { ok: true, data: data.data };
 }
 
+export async function saveCrossingAxisAbsenceAuto(
+  axis: "corAltura" | "alturaParidade",
+  absenceAuto: boolean,
+): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
+  const body =
+    axis === "corAltura"
+      ? { crossingCorAlturaAbsenceAuto: absenceAuto }
+      : { crossingAlturaParidadeAbsenceAuto: absenceAuto };
+  const res = await fetch("/api/back-office/admin/automation-stats", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson<{ ok: boolean; data?: AutomationStatsDto; error?: string }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao actualizar modo automático." };
+  }
+  return { ok: true, data: data.data };
+}
+
 /** @deprecated Use saveFibonacciZoneAbsenceSpins */
 export async function saveFibonacciAbsenceSpins(
   absenceSpins: number,

@@ -41,6 +41,10 @@ export type GlobalAutomationConfig = {
   repeticaoColumnAbsenceSpins: number;
   crossingCorAlturaAbsenceSpins: number;
   crossingAlturaParidadeAbsenceSpins: number;
+  /** Giros ausentes = máx. na janela − 5 (cor/altura). */
+  crossingCorAlturaAbsenceAuto: boolean;
+  /** Giros ausentes = máx. na janela − 5 (paridade/altura). */
+  crossingAlturaParidadeAbsenceAuto: boolean;
   updatedAt: number;
 };
 
@@ -70,6 +74,8 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   repeticaoColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   crossingCorAlturaAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
   crossingAlturaParidadeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
+  crossingCorAlturaAbsenceAuto: false,
+  crossingAlturaParidadeAbsenceAuto: false,
   updatedAt: 0,
 };
 
@@ -118,6 +124,8 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     repeticaoColumnAbsenceSpins: repeticaoByZone.column,
     crossingCorAlturaAbsenceSpins: crossingByAxis.corAltura,
     crossingAlturaParidadeAbsenceSpins: crossingByAxis.alturaParidade,
+    crossingCorAlturaAbsenceAuto: o.crossingCorAlturaAbsenceAuto === true,
+    crossingAlturaParidadeAbsenceAuto: o.crossingAlturaParidadeAbsenceAuto === true,
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

@@ -58,6 +58,11 @@ export const automationStatsContent = {
     crossingAbsenceHint:
       "Gatilho por ausência exacta do bucket de cruzamento (cor/altura ou paridade/altura). Vitória só com ambos os factores; derrota só quando ambos falham. Até 5 recuperações.",
     crossingZoneStats: "Acerto por eixo",
+    crossingAbsenceAuto: "Automático",
+    crossingAbsenceManual: "Manual",
+    crossingAbsenceAutoActive: "Automático: máx. janela {{max}} → gatilho {{spins}} giros",
+    crossingAbsenceAutoOn: "Modo automático activo — gatilho segue a máx. na janela − 5.",
+    crossingAbsenceAutoOff: "Modo manual activo.",
     absenceFilterHint:
       "Simulação independente do gatilho — base: últimos 50 números por mesa. Cada filtro exige ausência exactamente igual ao valor (ex.: 3 = só 3 giros, não 4 ou 5).",
     absenceFilterTitle: "Estatística por filtro de ausência",
@@ -126,6 +131,11 @@ export const automationStatsContent = {
     crossingAbsenceHint:
       "Trigger on exact bucket absence (color/height or parity/height). Win only when both factors hit; loss only when both fail. Up to 5 recoveries.",
     crossingZoneStats: "Hit rate by axis",
+    crossingAbsenceAuto: "Automatic",
+    crossingAbsenceManual: "Manual",
+    crossingAbsenceAutoActive: "Automatic: window max {{max}} → trigger {{spins}} spins",
+    crossingAbsenceAutoOn: "Automatic mode on — trigger follows window max − 5.",
+    crossingAbsenceAutoOff: "Manual mode on.",
     absenceFilterHint:
       "Trigger-independent simulation — base: last 50 numbers per table, up to 50 triggers per filter. Counts wins after N spins from trigger.",
     absenceFilterTitle: "Absence filter statistics",
@@ -194,6 +204,11 @@ export const automationStatsContent = {
     crossingAbsenceHint:
       "Gatillo por ausencia exacta del bucket de cruce (color/altura o paridad/altura). Victoria solo con ambos factores; derrota solo cuando ambos fallan. Hasta 5 recuperaciones.",
     crossingZoneStats: "Acierto por eje",
+    crossingAbsenceAuto: "Automático",
+    crossingAbsenceManual: "Manual",
+    crossingAbsenceAutoActive: "Automático: máx. ventana {{max}} → gatillo {{spins}} giros",
+    crossingAbsenceAutoOn: "Modo automático activo — gatillo sigue la máx. en ventana − 5.",
+    crossingAbsenceAutoOff: "Modo manual activo.",
     absenceFilterHint:
       "Simulación independiente del gatillo — base: últimos 50 números por mesa, hasta 50 gatillos por filtro. Cuenta victorias tras N giros desde el gatillo.",
     absenceFilterTitle: "Estadística por filtro de ausencia",

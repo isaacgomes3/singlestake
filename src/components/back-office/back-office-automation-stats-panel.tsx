@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   fetchAutomationStats,
   saveCrossingAxisAbsenceSpins,
+  saveCrossingAxisAbsenceAuto,
   saveFibonacciZoneAbsenceSpins,
   saveRepeticaoZoneAbsenceSpins,
   setAutomationTriggerEnabled,
@@ -98,6 +99,8 @@ export function BackOfficeAutomationStatsPanel() {
   const [savingCrossAbsenceAxis, setSavingCrossAbsenceAxis] = useState<CrossingAbsenceAxisKind | null>(
     null,
   );
+  const [togglingCrossAbsenceAuto, setTogglingCrossAbsenceAuto] =
+    useState<CrossingAbsenceAxisKind | null>(null);
 
   const reload = useCallback(async () => {
     if (!isAdmin) {
@@ -198,6 +201,30 @@ export function BackOfficeAutomationStatsPanel() {
     setRepAbsenceDraftColumn(String(result.data.repeticao.column.absenceSpins));
     applyAutomationPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
+  }
+
+  async function handleToggleCrossingAxisAbsenceAuto(
+    axis: CrossingAbsenceAxisKind,
+    absenceAuto: boolean,
+  ) {
+    setTogglingCrossAbsenceAuto(axis);
+    const result = await saveCrossingAxisAbsenceAuto(axis, absenceAuto);
+    setTogglingCrossAbsenceAuto(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setCrossAbsenceDraftCorAltura(String(result.data.crossingAbsence.corAltura.absenceSpins));
+    setCrossAbsenceDraftAlturaParidade(
+      String(result.data.crossingAbsence.alturaParidade.absenceSpins),
+    );
+    applyAutomationPrefsFromDto(result.data);
+    toast.success(
+      absenceAuto
+        ? t("automationStats.crossingAbsenceAutoOn")
+        : t("automationStats.crossingAbsenceAutoOff"),
+    );
   }
 
   async function handleConfirmCrossingAxisAbsence(axis: CrossingAbsenceAxisKind) {
@@ -414,8 +441,10 @@ export function BackOfficeAutomationStatsPanel() {
     const draft = axisKind === "corAltura" ? crossAbsenceDraftCorAltura : crossAbsenceDraftAlturaParidade;
     const setDraft =
       axisKind === "corAltura" ? setCrossAbsenceDraftCorAltura : setCrossAbsenceDraftAlturaParidade;
-    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const absenceDirty =
+      data != null && !zone.absenceAuto && Number(draft) !== zone.absenceSpins;
     const inputId = axisKind === "corAltura" ? "cross-absence-cor-altura" : "cross-absence-altura-paridade";
+    const maxInWindow = zone.maxAbsenceInWindow ?? 0;
 
     return (
       <div
@@ -453,11 +482,29 @@ export function BackOfficeAutomationStatsPanel() {
             onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
           />
         </div>
-        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
-          <div className="space-y-1">
+        <div className="mt-3 space-y-2 border-t border-border-color/70 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
               {t("automationStats.fibonacciAbsenceLabel")}
             </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-text-secondary">
+                {t("automationStats.crossingAbsenceManual")}
+              </span>
+              <Switch
+                checked={zone.absenceAuto === true}
+                disabled={loading || togglingCrossAbsenceAuto === axisKind}
+                aria-label={t("automationStats.crossingAbsenceAuto")}
+                onCheckedChange={(checked) =>
+                  void handleToggleCrossingAxisAbsenceAuto(axisKind, checked)
+                }
+              />
+              <span className="text-[10px] font-medium text-text-primary">
+                {t("automationStats.crossingAbsenceAuto")}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
             <Input
               id={inputId}
               type="number"
@@ -466,22 +513,36 @@ export function BackOfficeAutomationStatsPanel() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               className="h-8 w-20 tabular-nums text-sm"
-              disabled={loading || savingCrossAbsenceAxis === axisKind}
+              disabled={
+                loading ||
+                savingCrossAbsenceAxis === axisKind ||
+                zone.absenceAuto === true
+              }
             />
+            <Button
+              type="button"
+              size="sm"
+              variant={absenceDirty ? "default" : "secondary"}
+              disabled={
+                loading ||
+                savingCrossAbsenceAxis === axisKind ||
+                zone.absenceAuto === true ||
+                !absenceDirty
+              }
+              onClick={() => void handleConfirmCrossingAxisAbsence(axisKind)}
+            >
+              {savingCrossAbsenceAxis === axisKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant={absenceDirty ? "default" : "secondary"}
-            disabled={loading || savingCrossAbsenceAxis === axisKind || !absenceDirty}
-            onClick={() => void handleConfirmCrossingAxisAbsence(axisKind)}
-          >
-            {savingCrossAbsenceAxis === axisKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
-          </Button>
         </div>
         {!loading ? (
           <p className="mt-2 text-[11px] text-text-secondary">
-            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+            {zone.absenceAuto
+              ? t("automationStats.crossingAbsenceAutoActive", {
+                  max: maxInWindow,
+                  spins: zone.absenceSpins,
+                })
+              : t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
           </p>
         ) : null}
       </div>
