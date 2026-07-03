@@ -454,6 +454,7 @@ function buildCrossingClientView(
     crossingScan: liveView.crossingScan,
     activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
     tableAnchored: isRotatingRoomCrossingTableAnchored(machine),
+    cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
   };
 }
 

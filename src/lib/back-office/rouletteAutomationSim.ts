@@ -325,7 +325,11 @@ export function pendingSignalFromSnapshot(
 export function pendingSignalFromCrossingSession(
   session: Pick<
     StrategyGlobalSnapshot["dois2fatores"],
-    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "activeCrossing"
+    | "showTapeteSignal"
+    | "currentTableId"
+    | "currentRecovery"
+    | "activeCrossing"
+    | "cycleSpinsWithoutWin"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -344,9 +348,13 @@ export function pendingSignalFromCrossingSession(
   const active = session.activeCrossing;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
   const recovery = session.currentRecovery;
+  const tieSpin =
+    typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
+      ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
+      : 0;
 
   return {
-    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}`,
+    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}:s${tieSpin}`,
     tableId,
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
@@ -740,6 +748,23 @@ export function openBetSpinArrived(
   return { resultNumber, head };
 }
 
+/** Liberta openBet após empate 2F (um factor certo) — permite reaposta no giro seguinte. */
+export function releaseCrossingOpenBetAfterContinue(
+  state: RouletteAutomationSimState,
+  histories: Record<number, readonly number[]>,
+): RouletteAutomationSimState {
+  const bet = state.openBet;
+  if (bet?.strategy !== "dois2fatores" || !bet.activeCrossing) return state;
+
+  const arrived = openBetSpinArrived(bet, histories);
+  if (!arrived) return state;
+  if (evaluateDoisFatoresRound(arrived.resultNumber, bet.activeCrossing) !== "continue") {
+    return state;
+  }
+
+  return { ...state, openBet: null };
+}
+
 /** Liquida aposta — saldo da linha = cadeia cumulativa (anterior + net). */
 export function settleOpenBetEntry(
   state: RouletteAutomationSimState,
@@ -1032,7 +1057,10 @@ export function trySettleOpenBetFromSpin(
 
   if (bet.activeCrossing) {
     const outcome = evaluateDoisFatoresRound(resultNumber, bet.activeCrossing);
-    if (outcome === "continue") return state;
+    if (outcome === "continue") {
+      localProcessed.add(key);
+      return { ...state, openBet: null };
+    }
     const won = outcome === "W";
     localProcessed.add(key);
     const entry = ledgerEntryFromSpinSettlement(bet, resultNumber, won);

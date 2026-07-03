@@ -58,6 +58,7 @@ export type StrategyGlobalCrossingClientView = {
   crossingScan: RotatingRoomCrossingTableScan[];
   activeCrossing: DoisFatoresActive | null;
   tableAnchored: boolean;
+  cycleSpinsWithoutWin: number;
 };
 
 export type StrategyGlobalUmFatorClientView = {

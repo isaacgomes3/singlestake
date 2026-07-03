@@ -15,6 +15,7 @@ import {
   ledgerEntryKey,
   pendingSignalFromSnapshot,
   rebuildAutomationSimDisplayFromLedger,
+  releaseCrossingOpenBetAfterContinue,
   settleOpenBetEntry,
   spinHead,
   syncOpenBetFromPending,
@@ -396,6 +397,15 @@ export async function syncAutomationSimWithStrategy(
     if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
       state = { ...state, openBet: null };
       replaceAutomationSimState(state);
+      openBet = null;
+    }
+  }
+  if (openBet?.strategy === "dois2fatores") {
+    const released = releaseCrossingOpenBetAfterContinue(state, strategySnapshot.tableHistories);
+    if (released !== state) {
+      state = released;
+      replaceAutomationSimState(state);
+      openBet = null;
     }
   }
 
