@@ -4,6 +4,12 @@ import { normalizeFibonacciZoneKindStats, umFatorMatchTierAproveitamentoPct } fr
 import { normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import { buildZoneAbsenceFilterStats, emptyZoneAbsenceFilterStats } from "@/lib/roulette/zoneAbsenceFilterStats";
+import {
+  buildCrossingAbsenceFilterStats,
+  emptyCrossingAbsenceFilterStats,
+} from "@/lib/roulette/crossingAbsenceFilterStats";
+import { normalizeCrossingAxisAbsenceSpins } from "@/lib/roulette/crossingAbsencePrefs";
+import { normalizeCrossingAbsenceAxisStats } from "@/lib/roulette/entryWinBreakdown";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -104,6 +110,47 @@ function repeticaoStatsFromState(
   };
 }
 
+function crossingAbsenceAxisStatsRow(
+  stats: RotatingRoomSessionStats | undefined,
+  kind: "corAltura" | "alturaParidade",
+  enabled: boolean,
+  absenceSpins: number,
+): AutomationStatsDto["crossingAbsence"]["corAltura"] {
+  const bucket = normalizeCrossingAbsenceAxisStats(stats?.crossingAbsenceAxis)[kind];
+  const wins = Math.max(0, bucket.wins);
+  const losses = Math.max(0, bucket.losses);
+  return {
+    wins,
+    losses,
+    total: wins + losses,
+    accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
+    enabled,
+    absenceSpins,
+  };
+}
+
+function crossingAbsenceStatsFromState(
+  crossingStats: RotatingRoomSessionStats | undefined,
+  enabledTriggers: RotatingRoomGatilhoEnableMap,
+  config: ReturnType<typeof getAutomationConfig>,
+): AutomationStatsDto["crossingAbsence"] {
+  const absenceByAxis = normalizeCrossingAxisAbsenceSpins(config);
+  return {
+    corAltura: crossingAbsenceAxisStatsRow(
+      crossingStats,
+      "corAltura",
+      enabledTriggers.crossingCorAltura === true,
+      absenceByAxis.corAltura,
+    ),
+    alturaParidade: crossingAbsenceAxisStatsRow(
+      crossingStats,
+      "alturaParidade",
+      enabledTriggers.crossingAlturaParidade === true,
+      absenceByAxis.alturaParidade,
+    ),
+  };
+}
+
 function rotatingTableHistoriesFromState(
   state: ReturnType<typeof getStrategyGlobalState>,
 ): Record<number, readonly number[]> {
@@ -119,10 +166,14 @@ function safeAbsenceFilterStats(
   state: ReturnType<typeof getStrategyGlobalState>,
 ): AutomationStatsDto["absenceFilterStats"] {
   try {
-    return buildZoneAbsenceFilterStats(rotatingTableHistoriesFromState(state));
+    const histories = rotatingTableHistoriesFromState(state);
+    const zone = buildZoneAbsenceFilterStats(histories);
+    const crossing = buildCrossingAbsenceFilterStats(histories);
+    return { ...zone, crossing };
   } catch (err) {
     console.warn("[AutomationStats] absenceFilterStats falhou — fallback vazio:", err);
-    return emptyZoneAbsenceFilterStats();
+    const empty = emptyZoneAbsenceFilterStats();
+    return { ...empty, crossing: emptyCrossingAbsenceFilterStats() };
   }
 }
 
@@ -163,6 +214,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       enabledTriggers,
       config,
     ),
+    crossingAbsence: crossingAbsenceStatsFromState(crossingStats, enabledTriggers, config),
     absenceFilterStats: safeAbsenceFilterStats(state),
   };
 }

@@ -31,6 +31,8 @@ export const automationStatsContent = {
       crossingPrimary: "2 Fatores · primário x-x-x",
       crossingSecondary: "2 Fatores · secundário x-x-y-x",
       crossingTertiary: "2 Fatores · terciário x-y-x-x",
+      crossingCorAltura: "2 Fatores · ausência cor/altura",
+      crossingAlturaParidade: "2 Fatores · ausência paridade/altura",
       fibonacci: "Fibonacci · dúzias/colunas",
       fibonacciDozen: "Fibonacci · dúzias",
       fibonacciColumn: "Fibonacci · colunas",
@@ -52,6 +54,10 @@ export const automationStatsContent = {
     repeticaoHint:
       "Variação Fibonacci: ausência de repetição consecutiva; indica só quando a sequência tem exactamente N giros (ex.: filtro 3 = exactamente 3, não 4+).",
     repeticaoZoneStats: "Acerto por tipo",
+    crossingAbsenceTitle: "2 Fatores · ausência de cruzamento",
+    crossingAbsenceHint:
+      "Gatilho por ausência exacta do bucket de cruzamento (cor/altura ou paridade/altura). Vitória só com ambos os factores; derrota só quando ambos falham. Até 5 recuperações.",
+    crossingZoneStats: "Acerto por eixo",
     absenceFilterHint:
       "Simulação independente do gatilho — base: últimos 50 números por mesa. Cada filtro exige ausência exactamente igual ao valor (ex.: 3 = só 3 giros, não 4 ou 5).",
     absenceFilterTitle: "Estatística por filtro de ausência",
@@ -96,6 +102,8 @@ export const automationStatsContent = {
       crossingPrimary: "2 Factors · primary x-x-x",
       crossingSecondary: "2 Factors · secondary x-x-y-x",
       crossingTertiary: "2 Factors · tertiary x-y-x-x",
+      crossingCorAltura: "2 Factors · absence color/height",
+      crossingAlturaParidade: "2 Factors · absence parity/height",
       fibonacci: "Fibonacci · dozens/columns",
       fibonacciDozen: "Fibonacci · dozens",
       fibonacciColumn: "Fibonacci · columns",
@@ -114,6 +122,10 @@ export const automationStatsContent = {
     repeticaoHint:
       "Fibonacci variant: no consecutive repeat of dozen/column; bet on repeating the latest number zone.",
     repeticaoZoneStats: "Hit rate by type",
+    crossingAbsenceTitle: "2 Factors · crossing absence",
+    crossingAbsenceHint:
+      "Trigger on exact bucket absence (color/height or parity/height). Win only when both factors hit; loss only when both fail. Up to 5 recoveries.",
+    crossingZoneStats: "Hit rate by axis",
     absenceFilterHint:
       "Trigger-independent simulation — base: last 50 numbers per table, up to 50 triggers per filter. Counts wins after N spins from trigger.",
     absenceFilterTitle: "Absence filter statistics",
@@ -158,6 +170,8 @@ export const automationStatsContent = {
       crossingPrimary: "2 Factores · primario x-x-x",
       crossingSecondary: "2 Factores · secundario x-x-y-x",
       crossingTertiary: "2 Factores · terciario x-y-x-x",
+      crossingCorAltura: "2 Factores · ausencia color/altura",
+      crossingAlturaParidade: "2 Factores · ausencia paridad/altura",
       fibonacci: "Fibonacci · docenas/columnas",
       fibonacciDozen: "Fibonacci · docenas",
       fibonacciColumn: "Fibonacci · columnas",
@@ -176,6 +190,10 @@ export const automationStatsContent = {
     repeticaoHint:
       "Variante Fibonacci: ausencia de repetición consecutiva de docena/columna; apuesta en repetir la zona del número más reciente.",
     repeticaoZoneStats: "Acierto por tipo",
+    crossingAbsenceTitle: "2 Factores · ausencia de cruce",
+    crossingAbsenceHint:
+      "Gatillo por ausencia exacta del bucket de cruce (color/altura o paridad/altura). Victoria solo con ambos factores; derrota solo cuando ambos fallan. Hasta 5 recuperaciones.",
+    crossingZoneStats: "Acierto por eje",
     absenceFilterHint:
       "Simulación independiente del gatillo — base: últimos 50 números por mesa, hasta 50 gatillos por filtro. Cuenta victorias tras N giros desde el gatillo.",
     absenceFilterTitle: "Estadística por filtro de ausencia",

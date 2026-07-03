@@ -1,6 +1,10 @@
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 import { DEFAULT_FIBONACCI_ABSENCE_SPINS, normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
+import {
+  DEFAULT_CROSSING_ABSENCE_SPINS,
+  normalizeCrossingAxisAbsenceSpins,
+} from "@/lib/roulette/crossingAbsencePrefs";
 import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
   DEFAULT_ROTATING_ROOM_GATILHO_ENABLE,
@@ -35,6 +39,8 @@ export type GlobalAutomationConfig = {
   repeticaoAbsenceSpins: number;
   repeticaoDozenAbsenceSpins: number;
   repeticaoColumnAbsenceSpins: number;
+  crossingCorAlturaAbsenceSpins: number;
+  crossingAlturaParidadeAbsenceSpins: number;
   updatedAt: number;
 };
 
@@ -62,6 +68,8 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   repeticaoAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   repeticaoDozenAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   repeticaoColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  crossingCorAlturaAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
+  crossingAlturaParidadeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
   updatedAt: 0,
 };
 
@@ -93,6 +101,7 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
   }
   const absenceByZone = normalizeFibonacciZoneAbsenceSpins(o);
   const repeticaoByZone = normalizeRepeticaoZoneAbsenceSpins(o);
+  const crossingByAxis = normalizeCrossingAxisAbsenceSpins(o);
   return {
     paused,
     pauseReason,
@@ -107,6 +116,8 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     repeticaoAbsenceSpins: repeticaoByZone.dozen,
     repeticaoDozenAbsenceSpins: repeticaoByZone.dozen,
     repeticaoColumnAbsenceSpins: repeticaoByZone.column,
+    crossingCorAlturaAbsenceSpins: crossingByAxis.corAltura,
+    crossingAlturaParidadeAbsenceSpins: crossingByAxis.alturaParidade,
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

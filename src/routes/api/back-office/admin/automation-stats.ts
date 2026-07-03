@@ -63,6 +63,8 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           fibonacciColumnAbsenceSpins?: number;
           repeticaoDozenAbsenceSpins?: number;
           repeticaoColumnAbsenceSpins?: number;
+          crossingCorAlturaAbsenceSpins?: number;
+          crossingAlturaParidadeAbsenceSpins?: number;
         }>(request);
 
         await initAutomationConfig();
@@ -122,6 +124,26 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
         }
 
+        if (typeof body?.crossingCorAlturaAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.crossingCorAlturaAbsenceSpins)));
+          await saveAutomationConfig({ crossingCorAlturaAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingAlturaParidadeAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.crossingAlturaParidadeAbsenceSpins)));
+          await saveAutomationConfig({ crossingAlturaParidadeAbsenceSpins: spins });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
         const id = body?.id;
         const enabled = body?.enabled;
         if (
@@ -133,7 +155,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
             id !== "fibonacciDozen" &&
             id !== "fibonacciColumn" &&
             id !== "repeticaoDozen" &&
-            id !== "repeticaoColumn") ||
+            id !== "repeticaoColumn" &&
+            id !== "crossingCorAltura" &&
+            id !== "crossingAlturaParidade") ||
           typeof enabled !== "boolean"
         ) {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });

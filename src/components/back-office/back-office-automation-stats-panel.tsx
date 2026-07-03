@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   fetchAutomationStats,
+  saveCrossingAxisAbsenceSpins,
   saveFibonacciZoneAbsenceSpins,
   saveRepeticaoZoneAbsenceSpins,
   setAutomationTriggerEnabled,
@@ -15,6 +16,11 @@ import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-type
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
 import { isAdminUser } from "@/lib/back-office/admin-access";
 import { getSession } from "@/lib/auth/session";
+import {
+  CROSSING_ABSENCE_SPINS_MAX,
+  CROSSING_ABSENCE_SPINS_MIN,
+  syncCrossingAbsencePrefsFromAutomationConfig,
+} from "@/lib/roulette/crossingAbsencePrefs";
 import {
   FIBONACCI_ABSENCE_SPINS_MAX,
   FIBONACCI_ABSENCE_SPINS_MIN,
@@ -41,9 +47,11 @@ function accuracyTone(pct: number | null): string {
 
 function automationTriggerToggleId(
   rowId: UmFatorTriggerTierReportRow["id"],
-): "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | null {
+): "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "crossingCorAltura" | "crossingAlturaParidade" | null {
   if (rowId === "three") return "three";
   if (rowId === "crossing-primary") return "crossing";
+  if (rowId === "crossing-cor-altura") return "crossingCorAltura";
+  if (rowId === "crossing-altura-paridade") return "crossingAlturaParidade";
   if (rowId === "fibonacci") return "fibonacci";
   if (rowId === "repeticao") return "repeticao";
   if (rowId === "rotacao") return "rotacao";
@@ -58,15 +66,18 @@ function triggerLabel(
   return triggers[labelKey] ?? labelKey;
 }
 
-function applyFibonacciPrefsFromDto(data: AutomationStatsDto): void {
+function applyAutomationPrefsFromDto(data: AutomationStatsDto): void {
   syncFibonacciPrefsFromAutomationConfig(data.fibonacci);
   syncRepeticaoPrefsFromAutomationConfig(data.repeticao);
+  syncCrossingAbsencePrefsFromAutomationConfig(data.crossingAbsence);
 }
 
 type FibonacciZoneToggleId = "fibonacciDozen" | "fibonacciColumn";
 type RepeticaoZoneToggleId = "repeticaoDozen" | "repeticaoColumn";
-type ZoneToggleId = FibonacciZoneToggleId | RepeticaoZoneToggleId;
+type CrossingAbsenceToggleId = "crossingCorAltura" | "crossingAlturaParidade";
+type ZoneToggleId = FibonacciZoneToggleId | RepeticaoZoneToggleId | CrossingAbsenceToggleId;
 type FibonacciZoneKind = "dozen" | "column";
+type CrossingAbsenceAxisKind = "corAltura" | "alturaParidade";
 
 export function BackOfficeAutomationStatsPanel() {
   const { t, messages } = useI18n();
@@ -80,8 +91,13 @@ export function BackOfficeAutomationStatsPanel() {
   const [absenceDraftColumn, setAbsenceDraftColumn] = useState("12");
   const [repAbsenceDraftDozen, setRepAbsenceDraftDozen] = useState("12");
   const [repAbsenceDraftColumn, setRepAbsenceDraftColumn] = useState("12");
+  const [crossAbsenceDraftCorAltura, setCrossAbsenceDraftCorAltura] = useState("12");
+  const [crossAbsenceDraftAlturaParidade, setCrossAbsenceDraftAlturaParidade] = useState("12");
   const [savingAbsenceZone, setSavingAbsenceZone] = useState<FibonacciZoneKind | null>(null);
   const [savingRepAbsenceZone, setSavingRepAbsenceZone] = useState<FibonacciZoneKind | null>(null);
+  const [savingCrossAbsenceAxis, setSavingCrossAbsenceAxis] = useState<CrossingAbsenceAxisKind | null>(
+    null,
+  );
 
   const reload = useCallback(async () => {
     if (!isAdmin) {
@@ -98,7 +114,9 @@ export function BackOfficeAutomationStatsPanel() {
         setAbsenceDraftColumn(String(row.fibonacci.column.absenceSpins));
         setRepAbsenceDraftDozen(String(row.repeticao.dozen.absenceSpins));
         setRepAbsenceDraftColumn(String(row.repeticao.column.absenceSpins));
-        applyFibonacciPrefsFromDto(row);
+        setCrossAbsenceDraftCorAltura(String(row.crossingAbsence.corAltura.absenceSpins));
+        setCrossAbsenceDraftAlturaParidade(String(row.crossingAbsence.alturaParidade.absenceSpins));
+        applyAutomationPrefsFromDto(row);
       } else {
         toast.error(t("automationStats.loadError"));
       }
@@ -134,7 +152,7 @@ export function BackOfficeAutomationStatsPanel() {
       return;
     }
     setData(result.data);
-    applyFibonacciPrefsFromDto(result.data);
+    applyAutomationPrefsFromDto(result.data);
     toast.success(
       enabled ? t("automationStats.triggerEnabled") : t("automationStats.triggerDisabled"),
     );
@@ -157,7 +175,7 @@ export function BackOfficeAutomationStatsPanel() {
     setData(result.data);
     setAbsenceDraftDozen(String(result.data.fibonacci.dozen.absenceSpins));
     setAbsenceDraftColumn(String(result.data.fibonacci.column.absenceSpins));
-    applyFibonacciPrefsFromDto(result.data);
+    applyAutomationPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
   }
 
@@ -178,7 +196,35 @@ export function BackOfficeAutomationStatsPanel() {
     setData(result.data);
     setRepAbsenceDraftDozen(String(result.data.repeticao.dozen.absenceSpins));
     setRepAbsenceDraftColumn(String(result.data.repeticao.column.absenceSpins));
-    applyFibonacciPrefsFromDto(result.data);
+    applyAutomationPrefsFromDto(result.data);
+    toast.success(t("automationStats.fibonacciAbsenceSaved"));
+  }
+
+  async function handleConfirmCrossingAxisAbsence(axis: CrossingAbsenceAxisKind) {
+    const draft =
+      axis === "corAltura" ? crossAbsenceDraftCorAltura : crossAbsenceDraftAlturaParidade;
+    const parsed = Number(draft);
+    if (
+      !Number.isFinite(parsed) ||
+      parsed < CROSSING_ABSENCE_SPINS_MIN ||
+      parsed > CROSSING_ABSENCE_SPINS_MAX
+    ) {
+      toast.error(t("automationStats.fibonacciAbsenceInvalid"));
+      return;
+    }
+    setSavingCrossAbsenceAxis(axis);
+    const result = await saveCrossingAxisAbsenceSpins(axis, Math.floor(parsed));
+    setSavingCrossAbsenceAxis(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setCrossAbsenceDraftCorAltura(String(result.data.crossingAbsence.corAltura.absenceSpins));
+    setCrossAbsenceDraftAlturaParidade(
+      String(result.data.crossingAbsence.alturaParidade.absenceSpins),
+    );
+    applyAutomationPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
   }
 
@@ -359,6 +405,89 @@ export function BackOfficeAutomationStatsPanel() {
     );
   }
 
+  function renderCrossingAbsenceAxisRow(
+    id: CrossingAbsenceToggleId,
+    axisKind: CrossingAbsenceAxisKind,
+    labelKey: "crossingCorAltura" | "crossingAlturaParidade",
+    zone: AutomationStatsDto["crossingAbsence"]["corAltura"],
+  ) {
+    const draft = axisKind === "corAltura" ? crossAbsenceDraftCorAltura : crossAbsenceDraftAlturaParidade;
+    const setDraft =
+      axisKind === "corAltura" ? setCrossAbsenceDraftCorAltura : setCrossAbsenceDraftAlturaParidade;
+    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const inputId = axisKind === "corAltura" ? "cross-absence-cor-altura" : "cross-absence-altura-paridade";
+
+    return (
+      <div
+        key={id}
+        className={cn(
+          "rounded-xl border border-border-color bg-bg-secondary px-3 py-2.5",
+          !zone.enabled && "opacity-60",
+        )}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-text-primary">
+              {triggerLabel(messages, labelKey)}
+            </p>
+            <p
+              className={cn(
+                "mt-0.5 text-lg font-bold tabular-nums",
+                accuracyTone(zone.accuracyPct),
+              )}
+            >
+              {loading ? "…" : formatAccuracy(zone.accuracyPct)}
+            </p>
+            {!loading && zone.total > 0 ? (
+              <p className="text-[11px] tabular-nums text-text-secondary">
+                {zone.wins}V / {zone.losses}D
+              </p>
+            ) : (
+              <p className="text-[11px] text-text-secondary">{t("automationStats.noData")}</p>
+            )}
+          </div>
+          <Switch
+            checked={zone.enabled}
+            disabled={loading || togglingId === id}
+            aria-label={triggerLabel(messages, labelKey)}
+            onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
+              {t("automationStats.fibonacciAbsenceLabel")}
+            </label>
+            <Input
+              id={inputId}
+              type="number"
+              min={CROSSING_ABSENCE_SPINS_MIN}
+              max={CROSSING_ABSENCE_SPINS_MAX}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-8 w-20 tabular-nums text-sm"
+              disabled={loading || savingCrossAbsenceAxis === axisKind}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={absenceDirty ? "default" : "secondary"}
+            disabled={loading || savingCrossAbsenceAxis === axisKind || !absenceDirty}
+            onClick={() => void handleConfirmCrossingAxisAbsence(axisKind)}
+          >
+            {savingCrossAbsenceAxis === axisKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+          </Button>
+        </div>
+        {!loading ? (
+          <p className="mt-2 text-[11px] text-text-secondary">
+            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <section className="theme-card rounded-2xl p-5">
@@ -475,6 +604,76 @@ export function BackOfficeAutomationStatsPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("automationStats.crossingAbsenceTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("automationStats.crossingAbsenceHint")}</p>
+        {!loading && data ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.crossingZoneStats")}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {renderCrossingAbsenceAxisRow(
+                "crossingCorAltura",
+                "corAltura",
+                "crossingCorAltura",
+                data.crossingAbsence.corAltura,
+              )}
+              {renderCrossingAbsenceAxisRow(
+                "crossingAlturaParidade",
+                "alturaParidade",
+                "crossingAlturaParidade",
+                data.crossingAbsence.alturaParidade,
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
+        )}
+        {!loading && data?.absenceFilterStats?.crossing ? (
+          <>
+            <div className="mt-4 border-t border-border-color pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingCorAltura")}
+              </p>
+              <AbsenceFilterStatsTable
+                block={data.absenceFilterStats.crossing.corAltura}
+                labels={{
+                  hint: t("automationStats.absenceFilterHint"),
+                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+                  colFilter: t("automationStats.absenceFilterColFilter"),
+                  colSample: t("automationStats.absenceFilterColSample"),
+                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+                  noData: t("automationStats.absenceFilterNoData"),
+                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+                }}
+              />
+            </div>
+            <div className="mt-4 border-t border-border-color pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingAlturaParidade")}
+              </p>
+              <AbsenceFilterStatsTable
+                block={data.absenceFilterStats.crossing.alturaParidade}
+                labels={{
+                  hint: t("automationStats.absenceFilterHint"),
+                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+                  colFilter: t("automationStats.absenceFilterColFilter"),
+                  colSample: t("automationStats.absenceFilterColSample"),
+                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+                  noData: t("automationStats.absenceFilterNoData"),
+                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+                }}
+              />
+            </div>
+          </>
+        ) : null}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("automationStats.triggersTitle")}</h2>
         <p className="mt-1 text-xs text-text-secondary">{t("automationStats.triggersHint")}</p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
@@ -504,7 +703,13 @@ export function BackOfficeAutomationStatsPanel() {
               </thead>
               <tbody>
                 {(data?.triggers ?? [])
-                  .filter((row) => row.id !== "two" && row.id !== "fibonacci")
+                  .filter(
+                    (row) =>
+                      row.id !== "two" &&
+                      row.id !== "fibonacci" &&
+                      row.id !== "crossing-cor-altura" &&
+                      row.id !== "crossing-altura-paridade",
+                  )
                   .map((row) => (
                   <tr
                     key={row.id}

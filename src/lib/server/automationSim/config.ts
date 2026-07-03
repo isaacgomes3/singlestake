@@ -7,6 +7,10 @@ import {
   type GlobalAutomationConfig,
 } from "@/lib/back-office/automation-config";
 import {
+  normalizeCrossingAxisAbsenceSpins,
+  setServerCrossingAxisAbsenceSpins,
+} from "@/lib/roulette/crossingAbsencePrefs";
+import {
   normalizeFibonacciZoneAbsenceSpins,
   setServerFibonacciZoneAbsenceSpins,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
@@ -23,6 +27,7 @@ function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setRotatingRoomGatilhoEnabled(config.enabledTriggers);
   setServerFibonacciZoneAbsenceSpins(normalizeFibonacciZoneAbsenceSpins(config));
   setServerRepeticaoZoneAbsenceSpins(normalizeRepeticaoZoneAbsenceSpins(config));
+  setServerCrossingAxisAbsenceSpins(normalizeCrossingAxisAbsenceSpins(config));
 }
 
 declare global {

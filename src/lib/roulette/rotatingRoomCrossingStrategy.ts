@@ -24,13 +24,28 @@ import {
   crossingPatternKindLabel,
   detectBestPatternOnTable,
   detectPatternOnTableByKind,
+  factorsForNumberOnAxis,
   tableHasZeroInLastSpins,
   type CrossingPatternKind,
   type CrossingPatternMatch,
   ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS,
 } from "@/lib/roulette/doisFatoresPatternCrossing";
-import { isCrossingGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
-import { type CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
+import {
+  isAnyCrossingGatilhoEnabled,
+  isCrossingGatilhoEnabled,
+  getEnabledCrossingAbsenceAxes,
+} from "@/lib/roulette/umFatorTriggerEnable";
+import {
+  readEffectiveCrossingAxisAbsenceSpins,
+  absenceSpinsForCrossingAxis,
+  crossingAxisKindToAbsenceKey,
+} from "@/lib/roulette/crossingAbsencePrefs";
+import {
+  CROSSING_BUCKET_DEFINITIONS,
+  crossingBucketAbsenceGap,
+  type CrossingAxisKind,
+  type CrossingBucketDef,
+} from "@/lib/roulette/liveTableColdStats";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import { tableAcceptableForRotatingRoomEntry } from "@/lib/roulette/liveTableBettingWindow";
 import {
@@ -39,6 +54,8 @@ import {
   recordRotatingRoomSessionFinalLoss,
   recordCrossingPatternKindWin,
   recordCrossingPatternKindLoss,
+  recordCrossingAbsenceAxisWin,
+  recordCrossingAbsenceAxisLoss,
 } from "@/lib/roulette/entryWinBreakdown";
 
 function spinHeadFromHistory(history: readonly number[]): string {
@@ -72,10 +89,11 @@ export type RotatingRoomCrossingPick = {
   axis: CrossingAxisKind;
   category: string;
   absentCategory: string;
-  /** Prioridade do padrão (3=primário, 2=secundário, 1=terciário). */
+  /** Prioridade do padrão (3=primário, 2=secundário, 1=terciário) ou giros de ausência. */
   bucketGap: number;
   absenceGap: number;
   excludedPair: readonly [number, number];
+  triggerMode: "pattern" | "absence";
   patternKind: CrossingPatternKind;
   triggerNumbers: readonly number[];
   factor1: DoisFatoresFactor;
@@ -185,6 +203,9 @@ export type RotatingRoomCrossingMachineState = {
   /** Padrão de gatilho do ciclo activo (primário / secundário / terciário). */
   cyclePatternKind: CrossingPatternKind | null;
 
+  /** Eixo de ausência do ciclo activo (cor/altura ou paridade/altura). */
+  cycleAbsenceAxis: CrossingAxisKind | null;
+
   /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
   prepareSpinsWithoutPattern: number;
 
@@ -266,6 +287,8 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
 
     cyclePatternKind: null,
 
+    cycleAbsenceAxis: null,
+
     prepareSpinsWithoutPattern: 0,
 
   };
@@ -288,11 +311,86 @@ function pickFromPatternMatch(
     bucketGap: match.patternPriority,
     absenceGap: match.patternPriority,
     excludedPair: [t0, t1] as const,
+    triggerMode: "pattern",
     patternKind: match.patternKind,
     triggerNumbers: match.triggerNumbers,
     factor1: match.factor1,
     factor2: match.factor2,
   };
+}
+
+function pickFromAbsenceBucket(
+  tableId: number,
+  def: CrossingBucketDef,
+  bucketGap: number,
+): RotatingRoomCrossingPick | null {
+  const refNum = def.nums[0];
+  if (refNum == null) return null;
+  const factors = factorsForNumberOnAxis(refNum, def.axis);
+  if (!factors) return null;
+  return {
+    tableId,
+    axis: def.axis,
+    category: def.category,
+    absentCategory: def.category,
+    bucketGap,
+    absenceGap: bucketGap,
+    excludedPair: [refNum, refNum] as const,
+    triggerMode: "absence",
+    patternKind: "primary",
+    triggerNumbers: [refNum],
+    factor1: factors[0],
+    factor2: factors[1],
+  };
+}
+
+function bestExactAbsencePickForTable(
+  tableId: number,
+  historyNewestFirst: readonly number[],
+  axis: CrossingAxisKind,
+  exactAbsence: number,
+): RotatingRoomCrossingPick | null {
+  let best: { def: CrossingBucketDef; gap: number } | null = null;
+  for (const def of CROSSING_BUCKET_DEFINITIONS) {
+    if (def.axis !== axis) continue;
+    const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
+    if (gap !== exactAbsence) continue;
+    if (!best || def.category < best.def.category) {
+      best = { def, gap };
+    }
+  }
+  if (!best) return null;
+  return pickFromAbsenceBucket(tableId, best.def, best.gap);
+}
+
+function listAllCrossingAbsenceAlertPicks(
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  excludeTableIds?: ReadonlySet<number>,
+): RotatingRoomCrossingPick[] {
+  const axes = getEnabledCrossingAbsenceAxes();
+  if (axes.length === 0) return [];
+
+  const absenceSpins = readEffectiveCrossingAxisAbsenceSpins();
+  const out: RotatingRoomCrossingPick[] = [];
+
+  for (const tableId of tableIds) {
+    if (excludeTableIds?.has(tableId)) continue;
+    const history = histories[tableId] ?? [];
+    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
+    if (tableHasZeroInLastSpins(history)) continue;
+
+    for (const axis of axes) {
+      const key = crossingAxisKindToAbsenceKey(axis);
+      if (!key) continue;
+      const exactSpins = absenceSpinsForCrossingAxis(key, absenceSpins);
+      const pick = bestExactAbsencePickForTable(tableId, history, axis, exactSpins);
+      if (pick) out.push(pick);
+    }
+  }
+
+  out.sort(comparePicks);
+  return out;
 }
 
 function pairKindFromAxis(axis: CrossingAxisKind): DoisFatoresPairKind {
@@ -351,6 +449,10 @@ function parseCrossingPrepareKey(key: string): { tableId: number; axis: Crossing
 }
 
 export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): DoisFatoresActive | null {
+  const armingDescription =
+    pick.triggerMode === "absence"
+      ? `Ausência ${pick.bucketGap}g · ${pick.category} (mesa ${pick.tableId})`
+      : `${crossingPatternKindLabel(pick.patternKind)} · ${pick.category} (mesa ${pick.tableId})`;
   return {
     pairKind: pairKindFromAxis(pick.axis),
     pairKindLabel: pairKindLabel(pick.axis),
@@ -360,7 +462,7 @@ export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): Doi
     factor1: pick.factor1,
     factor2: pick.factor2,
     triggerNumbers: [pick.excludedPair[0], pick.excludedPair[1]] as const,
-    armingDescription: `${crossingPatternKindLabel(pick.patternKind)} · ${pick.category} (mesa ${pick.tableId})`,
+    armingDescription,
   };
 }
 
@@ -418,6 +520,24 @@ function bestPickForTable(
   historyNewestFirst: readonly number[],
   _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingPick | null {
+  const axes = getEnabledCrossingAbsenceAxes();
+  if (axes.length > 0) {
+    const absenceSpins = readEffectiveCrossingAxisAbsenceSpins();
+    let best: RotatingRoomCrossingPick | null = null;
+    for (const axis of axes) {
+      const key = crossingAxisKindToAbsenceKey(axis);
+      if (!key) continue;
+      const pick = bestExactAbsencePickForTable(
+        tableId,
+        historyNewestFirst,
+        axis,
+        absenceSpinsForCrossingAxis(key, absenceSpins),
+      );
+      if (pick && (!best || comparePicks(pick, best) < 0)) best = pick;
+    }
+    if (best) return best;
+  }
+  if (!isCrossingGatilhoEnabled()) return null;
   const match = detectBestPatternOnTable(historyNewestFirst);
   if (!match) return null;
   return pickFromPatternMatch(tableId, match);
@@ -447,6 +567,11 @@ export function listAllAlertPicks(
   excludeTableIds?: ReadonlySet<number>,
   _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingPick[] {
+  const absencePicks = listAllCrossingAbsenceAlertPicks(tableIds, histories, excludeTableIds);
+  if (absencePicks.length > 0) return absencePicks;
+
+  if (!isCrossingGatilhoEnabled()) return [];
+
   const kinds = ["primary", "secondary", "tertiary"] as const;
   for (const kind of kinds) {
     const out: RotatingRoomCrossingPick[] = [];
@@ -480,7 +605,7 @@ export function pickGlobalCrossingAlert(
 
 ): RotatingRoomCrossingPick | null {
 
-  if (!isCrossingGatilhoEnabled()) return null;
+  if (!isAnyCrossingGatilhoEnabled()) return null;
   return listAllAlertPicks(tableIds, histories, excludeTableIds, minAbsenceSpins)[0] ?? null;
 
 }
@@ -633,7 +758,9 @@ function armCycleFromActive(
 
     cycleMetricCategory: pick.absentCategory,
 
-    cyclePatternKind: pick.patternKind,
+    cyclePatternKind: pick.triggerMode === "pattern" ? pick.patternKind : null,
+
+    cycleAbsenceAxis: pick.triggerMode === "absence" ? pick.axis : null,
 
   };
 
@@ -650,6 +777,7 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     cycleActive: null,
     cycleMetricCategory: null,
     cyclePatternKind: null,
+    cycleAbsenceAxis: null,
     cycleSpinsWithoutWin: 0,
     armedAtHead: null,
     lastEvaluatedHead: null,
@@ -1296,6 +1424,7 @@ export function tickRotatingRoomCrossingPlacar(
   /** Indicação vigente neste giro — avaliar antes de actualizar com o último número. */
   const activeForRound = nextMachine.cycleActive;
   const patternKindForRound = nextMachine.cyclePatternKind;
+  const absenceAxisForRound = nextMachine.cycleAbsenceAxis;
 
   nextMachine = { ...nextMachine, lastEvaluatedHead: head };
 
@@ -1308,6 +1437,10 @@ export function tickRotatingRoomCrossingPlacar(
     nextStats = recordRotatingRoomSessionWin(nextStats, nextMachine.recovery, maxRecovery);
     if (patternKindForRound != null) {
       nextStats = recordCrossingPatternKindWin(nextStats, patternKindForRound);
+      statsChanged = true;
+    }
+    if (absenceAxisForRound != null) {
+      nextStats = recordCrossingAbsenceAxisWin(nextStats, absenceAxisForRound);
       statsChanged = true;
     }
 
@@ -1339,6 +1472,10 @@ export function tickRotatingRoomCrossingPlacar(
 
     if (patternKindForRound != null) {
       nextStats = recordCrossingPatternKindLoss(nextStats, patternKindForRound);
+      statsChanged = true;
+    }
+    if (absenceAxisForRound != null) {
+      nextStats = recordCrossingAbsenceAxisLoss(nextStats, absenceAxisForRound);
       statsChanged = true;
     }
 

@@ -1,10 +1,13 @@
 import type {
+  CrossingAbsenceAxisStats,
   CrossingPatternKindStats,
   FibonacciZoneKindStats,
   RotatingRoomSessionStats,
   UmFatorMatchTierStats,
 } from "@/lib/roulette/rotatingRoomStrategy";
 import type { CrossingPatternKind } from "@/lib/roulette/doisFatoresPatternCrossing";
+import type { CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
+import { crossingAxisKindToAbsenceKey } from "@/lib/roulette/crossingAbsencePrefs";
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import type { FibonacciZoneKind } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
@@ -69,6 +72,28 @@ export function normalizeCrossingPatternKindStats(
   return parseCrossingPatternKindStats(stats);
 }
 
+export function emptyCrossingAbsenceAxisStats(): CrossingAbsenceAxisStats {
+  return {
+    corAltura: { wins: 0, losses: 0 },
+    alturaParidade: { wins: 0, losses: 0 },
+  };
+}
+
+export function parseCrossingAbsenceAxisStats(raw: unknown): CrossingAbsenceAxisStats {
+  const o = (raw ?? {}) as { corAltura?: unknown; alturaParidade?: unknown };
+  return {
+    corAltura: parseUmFatorMatchTierBucket(o.corAltura),
+    alturaParidade: parseUmFatorMatchTierBucket(o.alturaParidade),
+  };
+}
+
+export function normalizeCrossingAbsenceAxisStats(
+  stats: CrossingAbsenceAxisStats | undefined,
+): CrossingAbsenceAxisStats {
+  if (!stats) return emptyCrossingAbsenceAxisStats();
+  return parseCrossingAbsenceAxisStats(stats);
+}
+
 export function emptyUmFatorMatchTierStats(): UmFatorMatchTierStats {
   return {
     twoEqualFactors: { wins: 0, losses: 0 },
@@ -120,6 +145,7 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     lossesAtRecovery?: unknown;
     umFatorMatchTier?: unknown;
     crossingPatternKind?: unknown;
+    crossingAbsenceAxis?: unknown;
     fibonacciZoneKind?: unknown;
   };
   const base = {
@@ -313,6 +339,51 @@ export function recordCrossingPatternKindLoss(
       [key]: {
         wins: crossingPatternKind[key].wins,
         losses: crossingPatternKind[key].losses + 1,
+      },
+    },
+  };
+}
+
+function crossingAbsenceAxisStatsKey(
+  axis: CrossingAxisKind,
+): keyof CrossingAbsenceAxisStats | null {
+  const key = crossingAxisKindToAbsenceKey(axis);
+  return key;
+}
+
+export function recordCrossingAbsenceAxisWin(
+  stats: RotatingRoomSessionStats,
+  axis: CrossingAxisKind,
+): RotatingRoomSessionStats {
+  const key = crossingAbsenceAxisStatsKey(axis);
+  if (!key) return stats;
+  const crossingAbsenceAxis = normalizeCrossingAbsenceAxisStats(stats.crossingAbsenceAxis);
+  return {
+    ...stats,
+    crossingAbsenceAxis: {
+      ...crossingAbsenceAxis,
+      [key]: {
+        wins: crossingAbsenceAxis[key].wins + 1,
+        losses: crossingAbsenceAxis[key].losses,
+      },
+    },
+  };
+}
+
+export function recordCrossingAbsenceAxisLoss(
+  stats: RotatingRoomSessionStats,
+  axis: CrossingAxisKind,
+): RotatingRoomSessionStats {
+  const key = crossingAbsenceAxisStatsKey(axis);
+  if (!key) return stats;
+  const crossingAbsenceAxis = normalizeCrossingAbsenceAxisStats(stats.crossingAbsenceAxis);
+  return {
+    ...stats,
+    crossingAbsenceAxis: {
+      ...crossingAbsenceAxis,
+      [key]: {
+        wins: crossingAbsenceAxis[key].wins,
+        losses: crossingAbsenceAxis[key].losses + 1,
       },
     },
   };

@@ -8,6 +8,8 @@ export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 
 export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   crossing: boolean;
+  crossingCorAltura: boolean;
+  crossingAlturaParidade: boolean;
   fibonacci: boolean;
   fibonacciDozen: boolean;
   fibonacciColumn: boolean;
@@ -25,6 +27,8 @@ export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
 export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap = {
   ...DEFAULT_UM_FATOR_TRIGGER_ENABLE,
   crossing: false,
+  crossingCorAltura: false,
+  crossingAlturaParidade: false,
   fibonacci: true,
   fibonacciDozen: true,
   fibonacciColumn: true,
@@ -50,6 +54,10 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
     if (typeof o[def.id] === "boolean") base[def.id] = o[def.id]!;
   }
   if (typeof o.crossing === "boolean") base.crossing = o.crossing;
+  if (typeof o.crossingCorAltura === "boolean") base.crossingCorAltura = o.crossingCorAltura;
+  if (typeof o.crossingAlturaParidade === "boolean") {
+    base.crossingAlturaParidade = o.crossingAlturaParidade;
+  }
   if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
   if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
   if (typeof o.fibonacciColumn === "boolean") base.fibonacciColumn = o.fibonacciColumn;
@@ -105,7 +113,19 @@ export function setRotatingRoomGatilhoEnabled(map: RotatingRoomGatilhoEnableMap)
 }
 
 export function getUmFatorEnabledTriggers(): UmFatorTriggerEnableMap {
-  const { crossing: _c, fibonacci: _f, ...um } = runtimeEnabled;
+  const {
+    crossing: _c,
+    crossingCorAltura: _cca,
+    crossingAlturaParidade: _cap,
+    fibonacci: _f,
+    fibonacciDozen: _fd,
+    fibonacciColumn: _fc,
+    repeticao: _r,
+    repeticaoDozen: _rd,
+    repeticaoColumn: _rc,
+    rotacao: _rot,
+    ...um
+  } = runtimeEnabled;
   return um;
 }
 
@@ -119,6 +139,29 @@ export function isUmFatorTriggerTierEnabled(tier: UmFatorTriggerMatchTier): bool
 
 export function isCrossingGatilhoEnabled(): boolean {
   return runtimeEnabled.crossing !== false;
+}
+
+export function isCrossingAbsenceCorAlturaEnabled(): boolean {
+  return runtimeEnabled.crossingCorAltura === true;
+}
+
+export function isCrossingAbsenceAlturaParidadeEnabled(): boolean {
+  return runtimeEnabled.crossingAlturaParidade === true;
+}
+
+export function isCrossingAbsenceGatilhoEnabled(): boolean {
+  return isCrossingAbsenceCorAlturaEnabled() || isCrossingAbsenceAlturaParidadeEnabled();
+}
+
+export function isAnyCrossingGatilhoEnabled(): boolean {
+  return isCrossingGatilhoEnabled() || isCrossingAbsenceGatilhoEnabled();
+}
+
+export function getEnabledCrossingAbsenceAxes(): import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] {
+  const axes: import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] = [];
+  if (isCrossingAbsenceCorAlturaEnabled()) axes.push("cor-altura");
+  if (isCrossingAbsenceAlturaParidadeEnabled()) axes.push("altura-paridade");
+  return axes;
 }
 
 export function isFibonacciGatilhoEnabled(): boolean {

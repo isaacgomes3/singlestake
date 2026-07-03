@@ -1,9 +1,11 @@
 import {
+  normalizeCrossingAbsenceAxisStats,
   normalizeCrossingPatternKindStats,
   normalizeUmFatorMatchTierStats,
   umFatorMatchTierAproveitamentoPct,
 } from "@/lib/roulette/entryWinBreakdown";
 import type {
+  CrossingAbsenceAxisStats,
   CrossingPatternKindStats,
   RotatingRoomSessionStats,
   UmFatorMatchTierBucket,
@@ -11,6 +13,7 @@ import type {
 } from "@/lib/roulette/rotatingRoomStrategy";
 import type { CrossingPatternKind } from "@/lib/roulette/doisFatoresPatternCrossing";
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
+import type { RotatingRoomGatilhoEnableMap } from "@/lib/roulette/umFatorTriggerEnable";
 
 /** Chave i18n em `automationStats.triggers.*` — adicione entradas ao registar novos gatilhos. */
 export type UmFatorTriggerTierDefinition = {
@@ -34,9 +37,12 @@ export type CrossingPatternGatilhoId =
   | "crossing-secondary"
   | "crossing-tertiary";
 
+export type CrossingAbsenceAxisGatilhoId = "crossing-cor-altura" | "crossing-altura-paridade";
+
 export type RotatingRoomGatilhoReportId =
   | UmFatorTriggerMatchTier
   | CrossingPatternGatilhoId
+  | CrossingAbsenceAxisGatilhoId
   | "fibonacci"
   | "repeticao"
   | "rotacao";
@@ -58,6 +64,22 @@ export const CROSSING_PATTERN_KIND_DEFINITIONS: readonly CrossingPatternKindDefi
     labelKey: "crossingSecondary",
   },
   { id: "crossing-tertiary", patternKind: "tertiary", statsKey: "tertiary", labelKey: "crossingTertiary" },
+] as const;
+
+export type CrossingAbsenceAxisDefinition = {
+  id: CrossingAbsenceAxisGatilhoId;
+  statsKey: keyof CrossingAbsenceAxisStats;
+  labelKey: string;
+};
+
+/** Catálogo dos gatilhos 2 Fatores por ausência de cruzamento. */
+export const CROSSING_ABSENCE_AXIS_DEFINITIONS: readonly CrossingAbsenceAxisDefinition[] = [
+  { id: "crossing-cor-altura", statsKey: "corAltura", labelKey: "crossingCorAltura" },
+  {
+    id: "crossing-altura-paridade",
+    statsKey: "alturaParidade",
+    labelKey: "crossingAlturaParidade",
+  },
 ] as const;
 
 export type UmFatorTriggerTierReportRow = {
@@ -93,6 +115,24 @@ function buildCrossingPatternKindReport(
       kindStats[def.statsKey],
       crossingEnabled,
       index === 0,
+    ),
+  );
+}
+
+function buildCrossingAbsenceAxisReport(
+  crossingStats: RotatingRoomSessionStats | undefined,
+  enabledTriggers?: Partial<
+    Pick<RotatingRoomGatilhoEnableMap, "crossingCorAltura" | "crossingAlturaParidade">
+  >,
+): UmFatorTriggerTierReportRow[] {
+  const axisStats = normalizeCrossingAbsenceAxisStats(crossingStats?.crossingAbsenceAxis);
+  return CROSSING_ABSENCE_AXIS_DEFINITIONS.map((def) =>
+    rowFromBucket(
+      def,
+      axisStats[def.statsKey],
+      enabledTriggers?.[def.statsKey === "corAltura" ? "crossingCorAltura" : "crossingAlturaParidade"] ===
+        true,
+      true,
     ),
   );
 }
@@ -155,6 +195,7 @@ export function buildRotatingRoomGatilhoTriggerReport(
     buildFibonacciGatilhoReportRow(fibonacciStats, fibonacciEnabled),
     buildRepeticaoGatilhoReportRow(repeticaoStats, repeticaoEnabled),
     buildRotacaoGatilhoReportRow(rotacaoStats, rotacaoEnabled),
+    ...buildCrossingAbsenceAxisReport(crossingStats, enabledTriggers),
     ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),
     ...buildUmFatorTriggerTierReport(umStats, enabledTriggers),
   ];
