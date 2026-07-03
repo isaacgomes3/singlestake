@@ -269,33 +269,6 @@ const INDICATION_SHELL_DENSE = "min-h-[5.25rem] sm:min-h-[5.75rem]";
 const INDICATION_SHELL_DEFAULT = "min-h-[7.5rem] sm:min-h-[9rem]";
 /** Cartão embedded na página inicial / automação — quadro «aguardando» + iframe. */
 const EMBEDDED_LOBBY_FRAME_CLASS = "aspect-[16/9] min-h-[6rem]";
-const EMBEDDED_LOBBY_MOLDURA_CLASS =
-  "flex items-center justify-center bg-bg-secondary/40 p-5 sm:p-6";
-const EMBEDDED_LOBBY_IMAGE_SHELL_CLASS =
-  "relative h-1/2 w-1/2 min-h-[2.75rem] overflow-hidden rounded-lg border border-border-color/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]";
-
-function EmbeddedLobbyImageMoldura({
-  aspectClassName = EMBEDDED_LOBBY_FRAME_CLASS,
-  className,
-  children,
-}: {
-  aspectClassName?: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "relative w-full shrink-0 overflow-hidden",
-        aspectClassName,
-        EMBEDDED_LOBBY_MOLDURA_CLASS,
-        className,
-      )}
-    >
-      <div className={EMBEDDED_LOBBY_IMAGE_SHELL_CLASS}>{children}</div>
-    </div>
-  );
-}
 
 function RoundFlashOverlay({
   flash,
@@ -437,18 +410,18 @@ function RotatingRoomLobbyWaitFrame({
   aspectClassName?: string;
   embedded?: boolean;
 }) {
-  const imageLayers = (
-    <>
+  return (
+    <div className={cn("relative w-full shrink-0 overflow-hidden", aspectClassName, className)}>
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={rotatingRoomLobbyWaitPhotoStyle()}
         aria-hidden
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/20" aria-hidden />
-      <div className="absolute inset-x-0 bottom-[10%] flex justify-center px-2 sm:bottom-[11%]">
+      <div className="absolute inset-x-0 bottom-[10%] flex justify-center px-3 sm:bottom-[11%]">
         <p
           className={cn(
-            "text-[10px] font-semibold lowercase tracking-wide sm:text-xs",
+            "text-xs font-semibold lowercase tracking-wide sm:text-sm",
             embedded
               ? "text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]"
               : "text-white/95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]",
@@ -457,20 +430,6 @@ function RotatingRoomLobbyWaitFrame({
           aguardando...
         </p>
       </div>
-    </>
-  );
-
-  if (embedded) {
-    return (
-      <EmbeddedLobbyImageMoldura aspectClassName={aspectClassName} className={className}>
-        {imageLayers}
-      </EmbeddedLobbyImageMoldura>
-    );
-  }
-
-  return (
-    <div className={cn("relative w-full shrink-0 overflow-hidden", aspectClassName, className)}>
-      {imageLayers}
     </div>
   );
 }
@@ -1313,59 +1272,33 @@ export function RotatingRoomLobbyCard({
         ) : null}
 
         {focusLabel ? (
-          embedded ? (
-            <EmbeddedLobbyImageMoldura aspectClassName={EMBEDDED_LOBBY_FRAME_CLASS}>
-              <div
-                className="absolute inset-0"
-                style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
-              >
-                {photoStyle ? (
-                  <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
-                ) : null}
-                {photoStyle ? <div className="absolute inset-0 bg-black/30" aria-hidden /> : null}
-                <div className="relative flex h-full flex-col items-center justify-center px-2 text-center">
-                  {isPrepare ? (
-                    <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-amber-300/90 sm:text-[9px]">
-                      Posicione-se
-                    </p>
-                  ) : null}
-                  <p
-                    className={cn(
-                      "font-bold leading-tight",
-                      isPrepare ? "mt-0.5 text-[10px] text-amber-100 sm:text-xs" : isActive ? "text-[10px] text-emerald-200 sm:text-xs" : "text-[10px] text-slate-300 sm:text-xs",
-                    )}
-                  >
-                    {focusLabel}
-                  </p>
-                </div>
-              </div>
-            </EmbeddedLobbyImageMoldura>
-          ) : (
-            <div
-              className="relative flex w-full shrink-0 items-center justify-center overflow-hidden aspect-[16/10]"
-              style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
-            >
-              {photoStyle ? (
-                <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
-              ) : null}
-              {photoStyle ? <div className="absolute inset-0 bg-black/30" aria-hidden /> : null}
-              <div className="relative px-3 text-center">
-                {isPrepare ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300/90 sm:text-xs">
-                    Posicione-se
-                  </p>
-                ) : null}
-                <p
-                  className={cn(
-                    "font-bold sm:text-base",
-                    isPrepare ? "mt-1 text-sm text-amber-100" : isActive ? "text-sm text-emerald-200" : "text-sm text-slate-300",
-                  )}
-                >
-                  {focusLabel}
+          <div
+            className={cn(
+              "relative flex w-full shrink-0 items-center justify-center overflow-hidden",
+              embedded ? EMBEDDED_LOBBY_FRAME_CLASS : "aspect-[16/10]",
+            )}
+            style={photo ? undefined : { background: lobbyTableCardFallbackBg() }}
+          >
+            {photoStyle ? (
+              <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
+            ) : null}
+            {photoStyle ? <div className="absolute inset-0 bg-black/30" aria-hidden /> : null}
+            <div className="relative px-3 text-center">
+              {isPrepare ? (
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-300/90 sm:text-xs">
+                  Posicione-se
                 </p>
-              </div>
+              ) : null}
+              <p
+                className={cn(
+                  "font-bold sm:text-base",
+                  isPrepare ? "mt-1 text-sm text-amber-100" : isActive ? "text-sm text-emerald-200" : "text-sm text-slate-300",
+                )}
+              >
+                {focusLabel}
+              </p>
             </div>
-          )
+          </div>
         ) : (
           <RotatingRoomLobbyWaitFrame
             embedded={embedded}
