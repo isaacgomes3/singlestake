@@ -441,7 +441,9 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       );
       const betFailed = executed?.some(
         (e) =>
-          (e.target === "factor-1" || e.target === "factor-2") &&
+          (e.target === "factor-1" ||
+            e.target === "factor-2" ||
+            e.target === "repeat-bet") &&
           !e.ok &&
           !e.detail.includes("ignorado"),
       );

@@ -173,9 +173,10 @@ const BET_GROUP_LABELS = {
   altura: "Altura",
   duzias: "Dúzias",
   colunas: "Colunas",
+  repetir: "Repetir/Dobrar",
 };
 
-const BET_GROUP_ORDER = ["paridade", "cor", "altura", "duzias", "colunas"];
+const BET_GROUP_ORDER = ["paridade", "cor", "altura", "duzias", "colunas", "repetir"];
 
 function groupCalibrationBets(bets) {
   const grouped = {
@@ -184,6 +185,7 @@ function groupCalibrationBets(bets) {
     altura: [],
     duzias: [],
     colunas: [],
+    repetir: [],
     other: [],
   };
   for (const [key, info] of Object.entries(bets ?? {})) {
@@ -199,7 +201,9 @@ function groupCalibrationBets(bets) {
               ? "duzias"
               : key.startsWith("col:")
                 ? "colunas"
-                : "other");
+                : key === "repeat"
+                  ? "repetir"
+                  : "other");
     if (grouped[group]) grouped[group].push({ key, info });
     else grouped.other.push({ key, info });
   }

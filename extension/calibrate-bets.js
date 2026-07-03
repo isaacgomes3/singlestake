@@ -114,7 +114,9 @@
   banner.innerHTML =
     betKey === "chip"
       ? `📍 Clique exactamente na ficha <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">Ficha base · ESC cancela</span>`
-      : betKey.startsWith("doz:") || betKey.startsWith("col:")
+      : betKey === "repeat"
+        ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">2 Fatores · gales · ESC cancela</span>`
+        : betKey.startsWith("doz:") || betKey.startsWith("col:")
         ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">Dúzia/Coluna · Fibonacci · ESC cancela</span>`
         : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">PARES ou ÍMPARES · ESC cancela</span>`;
 

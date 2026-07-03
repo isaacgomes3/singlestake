@@ -723,9 +723,16 @@ export function buildExtensionBridgeFromAutomationBet(
     };
   }
 
+  const attemptMatch = bet.signalId.match(/:a(\d+)$/);
+  const cycleAttempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
+  const isCrossingGaleContinuation =
+    bet.strategy === "dois2fatores" &&
+    !singleFactorMode &&
+    (recovery > 0 || cycleAttempt > 0);
+
   const sessionSlice: RotatingRoomClickBotSessionSlice = {
     sessionMode: "active",
-    showTapeteSignal: true,
+    showTapeteSignal: !isCrossingGaleContinuation,
     prepareTableId: null,
     currentTableId: bet.tableId,
     activeCrossing,
@@ -733,8 +740,11 @@ export function buildExtensionBridgeFromAutomationBet(
     signalId: bet.signalId,
     betAttemptKey: bet.signalId,
     rotativaTrigger: singleFactorMode ? "umFator" : "crossing",
-    currentRecovery: bet.recovery,
+    currentRecovery: recovery,
     lobbyWait: false,
+    postResultHoldActive: isCrossingGaleContinuation,
+    postResultHoldUntilMs: options?.postResultHoldUntilMs ?? null,
+    cycleSpinsWithoutWin: cycleAttempt,
   };
 
   const actions = planRotatingRoomClickBotActions(sessionSlice);
@@ -750,8 +760,6 @@ export function buildExtensionBridgeFromAutomationBet(
   if (bet.strategy === "dois2fatores") {
     const crossingActive = bet.activeCrossing ?? activeCrossingFromAutomationBet(bet);
     if (!crossingActive) return null;
-    const attemptMatch = bet.signalId.match(/:a(\d+)$/);
-    const attempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
     const holdUntil =
       options?.postResultHoldUntilMs ??
       context.postResultHoldUntilMs ??
@@ -759,7 +767,7 @@ export function buildExtensionBridgeFromAutomationBet(
     const betDelayUntilMs = resolveCrossingExtensionBetDelayUntilMs(
       holdUntil,
       recovery,
-      attempt,
+      cycleAttempt,
     );
     return {
       fingerprint,

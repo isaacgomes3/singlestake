@@ -403,7 +403,11 @@ async function handleBridgePayload(payload, sourceTabId) {
     const results = await runBridgePlan(payload, sourceTabId);
     const placedBet = results.some(
       (r) =>
-        (r.target === "factor-1" || r.target === "factor-2") && r.ok === true && r.skipped !== true,
+        (r.target === "factor-1" ||
+          r.target === "factor-2" ||
+          r.target === "repeat-bet") &&
+        r.ok === true &&
+        r.skipped !== true,
     );
     if (dedupeKey && placedBet) {
       lastBridgeDedupeKey = dedupeKey;
@@ -493,6 +497,35 @@ async function waitForBetDelaySettle(context) {
 }
 
 async function dispatchClickAction(action, context, sourceTabId) {
+  if (action.target === "repeat-bet") {
+    const targetTabId = await ensureMesaTab(context, sourceTabId);
+    if (targetTabId == null) {
+      return {
+        target: action.target,
+        ok: false,
+        detail: "Mesa não aberta — calibre «Repetir/Dobrar» e abra a mesa num separador",
+      };
+    }
+
+    const dryRun = await isDryRun(context);
+    await waitForBetDelaySettle(context);
+
+    if (targetTabId != null && context?.currentTableId != null) {
+      registerMesaTab(context.currentTableId, targetTabId);
+    }
+
+    const label = action.label ?? "Repetir/Dobrar";
+    const clickResult = await executeRepeatBetOnTab(targetTabId, label, dryRun);
+
+    return {
+      target: action.target,
+      betKey: "repeat",
+      dryRun,
+      mode: dryRun ? "demo" : "real",
+      ...clickResult,
+    };
+  }
+
   if (action.target === "prepare-open") {
     const url = mesaUrlFromContext(context);
     if (!url) {
@@ -1423,7 +1456,35 @@ function betGroupFromKey(betKey) {
   if (betKey === "low" || betKey === "high") return "altura";
   if (betKey.startsWith("doz:")) return "duzias";
   if (betKey.startsWith("col:")) return "colunas";
+  if (betKey === "repeat") return "repetir";
   return null;
+}
+
+async function executeRepeatBetOnTab(tabId, label, dryRun) {
+  const cdpOpts = { keepSession: !dryRun };
+  try {
+    if (!dryRun) {
+      await focusMesaTab(tabId);
+      const attach = await ensureCdpAttached(tabId);
+      if (!attach.ok) {
+        return {
+          ok: false,
+          detail: `Debugger: ${attach.detail} — feche DevTools nessa aba`,
+        };
+      }
+      await sleep(CDP_BAR_SETTLE_MS);
+    }
+
+    const clickResult = await executeExteriorBetOnTab(tabId, "repeat", label, dryRun, cdpOpts);
+    return {
+      ...clickResult,
+      detail: clickResult.detail
+        ? `Repetir/Dobrar · ${clickResult.detail}`
+        : "Repetir/Dobrar não executado — calibre 📍 Repetir/Dobrar no popup",
+    };
+  } finally {
+    if (!dryRun) await releaseCdpSession();
+  }
 }
 
 async function exportCalibration() {
@@ -1598,7 +1659,9 @@ async function saveCalibrationClick(message, tabId) {
               ? "dúzia"
               : group === "colunas"
                 ? "coluna"
-                : "";
+                : group === "repetir"
+                  ? "repetir/dobrar"
+                  : "";
     detail = `${message.label || betKey} gravado${groupLabel ? ` (${groupLabel})` : ""} (${Math.round(coord.x * 100)}%, ${Math.round(coord.y * 100)}%)`;
   }
   store.sites[siteKey].updatedAt = new Date().toISOString();

@@ -3,13 +3,23 @@ import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossin
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 
 /** Alvos clicáveis no painel da app ou na mesa Pragmatic (via extensão). */
-export type RotatingRoomClickBotTarget = "prepare-open" | "factor-1" | "factor-2";
+export type RotatingRoomClickBotTarget =
+  | "prepare-open"
+  | "factor-1"
+  | "factor-2"
+  | "repeat-bet";
 
 export const ROTATING_ROOM_CLICK_BOT_TARGET_SELECTOR: Record<RotatingRoomClickBotTarget, string> = {
   "prepare-open": '[data-click-bot="prepare-open"]',
   "factor-1": '[data-click-bot="factor-1"]',
   "factor-2": '[data-click-bot="factor-2"]',
+  "repeat-bet": '[data-click-bot="repeat-bet"]',
 };
+
+/** 2F ausência de cruzamento — cliques no botão Repetir/Dobrar após gale (recovery + 1). */
+export function crossingRepeatBetClickCount(recovery: number): number {
+  return Math.max(1, recovery + 1);
+}
 
 export const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
 
@@ -81,8 +91,8 @@ export function planRotatingRoomClickBotActions(
       session.currentTableId != null &&
       (recovery > 0 || attempt > 0);
     if (isCrossingContinuation) {
-      const { factor1, factor2 } = session.activeCrossing!;
       const mesa = lobbyTableDisplayName(session.currentTableId!);
+      const repeatClicks = crossingRepeatBetClickCount(recovery);
       return [
         {
           kind: "click",
@@ -90,18 +100,12 @@ export function planRotatingRoomClickBotActions(
           label: mesa,
           reason: `Abrir ${mesa} no operador`,
         },
-        {
-          kind: "click",
-          target: "factor-1",
-          label: doisFatoresFactorLabel(factor1),
-          reason: `JOGANDO em ${mesa} — factor 1 (após giro)`,
-        },
-        {
-          kind: "click",
-          target: "factor-2",
-          label: doisFatoresFactorLabel(factor2),
-          reason: `JOGANDO em ${mesa} — factor 2 (após giro)`,
-        },
+        ...Array.from({ length: repeatClicks }, (_, index) => ({
+          kind: "click" as const,
+          target: "repeat-bet" as const,
+          label: "Repetir/Dobrar",
+          reason: `JOGANDO em ${mesa} — repetir aposta (${index + 1}/${repeatClicks})`,
+        })),
       ];
     }
     return [{ kind: "wait", reason: "Resultado — aguardar antes de voltar ao lobby" }];
