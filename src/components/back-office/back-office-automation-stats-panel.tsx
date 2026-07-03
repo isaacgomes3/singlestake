@@ -73,6 +73,7 @@ export function BackOfficeAutomationStatsPanel() {
   const { time } = useFormat();
   const isAdmin = isAdminUser(getSession()?.user);
   const [data, setData] = useState<AutomationStatsDto | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [absenceDraftDozen, setAbsenceDraftDozen] = useState("12");
@@ -87,17 +88,28 @@ export function BackOfficeAutomationStatsPanel() {
       setLoading(false);
       return;
     }
-    const row = await fetchAutomationStats();
-    setData(row);
-    if (row) {
-      setAbsenceDraftDozen(String(row.fibonacci.dozen.absenceSpins));
-      setAbsenceDraftColumn(String(row.fibonacci.column.absenceSpins));
-      setRepAbsenceDraftDozen(String(row.repeticao.dozen.absenceSpins));
-      setRepAbsenceDraftColumn(String(row.repeticao.column.absenceSpins));
-      applyFibonacciPrefsFromDto(row);
+    setLoading(true);
+    try {
+      const row = await fetchAutomationStats();
+      setData(row);
+      setLoadFailed(row == null);
+      if (row) {
+        setAbsenceDraftDozen(String(row.fibonacci.dozen.absenceSpins));
+        setAbsenceDraftColumn(String(row.fibonacci.column.absenceSpins));
+        setRepAbsenceDraftDozen(String(row.repeticao.dozen.absenceSpins));
+        setRepAbsenceDraftColumn(String(row.repeticao.column.absenceSpins));
+        applyFibonacciPrefsFromDto(row);
+      } else {
+        toast.error(t("automationStats.loadError"));
+      }
+    } catch {
+      setData(null);
+      setLoadFailed(true);
+      toast.error(t("automationStats.loadError"));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
   useEffect(() => {
     void reload();
@@ -176,6 +188,12 @@ export function BackOfficeAutomationStatsPanel() {
       : data?.source === "server"
         ? t("automationStats.sourceServer")
         : t("automationStats.sourceUnknown");
+
+  const panelBodyMessage = loading
+    ? t("common.loading")
+    : loadFailed
+      ? t("automationStats.loadError")
+      : null;
 
   function renderFibonacciZoneRow(
     id: FibonacciZoneToggleId,
@@ -392,7 +410,7 @@ export function BackOfficeAutomationStatsPanel() {
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
+          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
         )}
         {!loading && data?.absenceFilterStats ? (
           <div className="mt-4 border-t border-border-color pt-4">
@@ -431,7 +449,7 @@ export function BackOfficeAutomationStatsPanel() {
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
+          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
         )}
         {!loading && data?.absenceFilterStats ? (
           <div className="mt-4 border-t border-border-color pt-4">
@@ -461,7 +479,7 @@ export function BackOfficeAutomationStatsPanel() {
         <p className="mt-1 text-xs text-text-secondary">{t("automationStats.triggersHint")}</p>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border-color">
           {loading ? (
-            <p className="px-4 py-6 text-sm text-text-secondary">{t("common.loading")}</p>
+            <p className="px-4 py-6 text-sm text-text-secondary">{panelBodyMessage}</p>
           ) : (
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead>

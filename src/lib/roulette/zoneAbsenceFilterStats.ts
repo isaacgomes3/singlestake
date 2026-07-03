@@ -338,3 +338,33 @@ export function buildZoneAbsenceFilterStats(
     repeticao: buildBlockForMode(histories, "repeticao"),
   };
 }
+
+function emptyFilterRows(): AbsenceFilterStatRow[] {
+  const filters: AbsenceFilterStatRow[] = [];
+  for (
+    let filter = FIBONACCI_ABSENCE_SPINS_MIN;
+    filter <= ABSENCE_FILTER_STATS_FILTER_MAX;
+    filter++
+  ) {
+    filters.push({
+      filterSpins: filter,
+      sampleSize: 0,
+      winsBySpin: {},
+      unresolved: 0,
+      maxAbsenceAtTrigger: 0,
+    });
+  }
+  return filters;
+}
+
+/** Fallback quando o cálculo pesado falha — mantém o painel funcional. */
+export function emptyZoneAbsenceFilterStats(): ZoneAbsenceFilterStats {
+  const filters = emptyFilterRows();
+  const block: ZoneAbsenceFilterStatsBlock = {
+    spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
+    maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
+    maxAbsenceInWindow: 0,
+    filters,
+  };
+  return { fibonacci: block, repeticao: block };
+}

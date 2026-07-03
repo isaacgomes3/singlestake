@@ -7,7 +7,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
         const { jsonResponse, requireSessionUser } = await import("@/lib/server/auth/http");
         const { ensureRouletteHubDaemon } = await import("@/lib/server/rouletteHubDaemon");
         const { parseRouletteTableIdsFromEnv } = await import("@/lib/server/rouletteSocket");
-        const { ensureStrategyGlobalEngine } = await import("@/lib/server/strategyGlobal/engine");
+        const { resolveRotatingRoomTableIds } = await import("@/lib/roulette/lobbyTables");
+        const { initStrategyGlobalState, getStrategyGlobalState } = await import(
+          "@/lib/server/strategyGlobal/persistence"
+        );
         const { buildAutomationTriggerStatsDtoAsync } = await import(
           "@/lib/server/strategyGlobal/automation-trigger-stats"
         );
@@ -18,10 +21,22 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        ensureRouletteHubDaemon();
-        const tableIds = parseRouletteTableIdsFromEnv();
-        await ensureStrategyGlobalEngine(tableIds);
-        return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        try {
+          ensureRouletteHubDaemon();
+          try {
+            getStrategyGlobalState();
+          } catch {
+            const tableIds = resolveRotatingRoomTableIds(parseRouletteTableIdsFromEnv());
+            await initStrategyGlobalState(tableIds);
+          }
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        } catch (err) {
+          console.error("[automation-stats] GET falhou:", err);
+          return jsonResponse(
+            { ok: false, error: "Falha ao carregar estatísticas da automação." },
+            { status: 500 },
+          );
+        }
       },
       POST: async ({ request }) => {
         const { jsonResponse, readJsonBody, requireSessionUser } = await import(
