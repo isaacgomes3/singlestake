@@ -18,6 +18,9 @@ export const EXTENSION_PRE_BET_WAIT_SEC = 11;
  */
 export const UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC = 3;
 
+/** 2 Fatores — 1.º sinal / entrada só com ≥ este tempo restante no giro (extensão + automação). */
+export const CROSSING_FIRST_SIGNAL_MIN_BETTING_TIME_REMAINING_SEC = 10;
+
 /**
  * Segundos restantes para apostar no giro actual da mesa (0 = janela fechada / a girar).
  * Sem marca temporal no último giro → assume janela completa (optimista).
