@@ -277,6 +277,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   useEffect(() => {
     if (!bridgeActive) return;
+    if ("postResultHoldActive" in session && session.postResultHoldActive === true) return;
     const bet = openBet ?? pendingSignal;
     if (!bet?.signalId || bet.tableId == null) return;
 
@@ -293,6 +294,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     openBet,
     pendingSignal,
     globalAutomation.balance,
+    session,
   ]);
 
   return null;

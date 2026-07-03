@@ -433,9 +433,20 @@ function buildCrossingClientView(
   const liveView = buildRotatingRoomCrossingSessionLiveView(tableIds, histories, machine);
   const allowed = new Set(tableIds);
   const activeCrossing = machine.cycleActive;
-  const showTapeteSignal = activeCrossing != null;
-  const currentTableId =
+  const postResultHoldUntilMs = machine.postResultHoldUntilMs;
+  const postResultHoldTableId = machine.postResultHoldTableId;
+  const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
+  const showTapeteSignalRaw = activeCrossing != null;
+  const cycleTableId =
     machine.cycleTableId != null && allowed.has(machine.cycleTableId) ? machine.cycleTableId : null;
+  const showTapeteSignal = showTapeteSignalRaw && cycleTableId != null;
+  const currentTableId = showTapeteSignal
+    ? cycleTableId
+    : postResultHoldActive &&
+        postResultHoldTableId != null &&
+        allowed.has(postResultHoldTableId)
+      ? postResultHoldTableId
+      : cycleTableId;
   const prepareTableId =
     machine.prepareTableId != null && allowed.has(machine.prepareTableId)
       ? machine.prepareTableId
@@ -455,6 +466,10 @@ function buildCrossingClientView(
     activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
     tableAnchored: isRotatingRoomCrossingTableAnchored(machine),
     cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
+    cycleSeq: machine.cycleSeq ?? 0,
+    cycleFingerprint: machine.cycleFingerprint,
+    postResultHoldUntilMs: machine.postResultHoldUntilMs,
+    postResultHoldTableId: machine.postResultHoldTableId,
   };
 }
 

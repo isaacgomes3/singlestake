@@ -32,6 +32,7 @@ import {
 } from "@/lib/roulette/casinoEmbedProviderHint";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import {
+  ROTATING_ROOM_CROSSING_BET_DELAY_MS,
   ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS,
   ROTATING_ROOM_ROTACAO_BET_DELAY_MS,
   ROTATING_ROOM_ROTACAO_RECOVERY_BET_DELAY_MS,
@@ -721,6 +722,9 @@ export function buildExtensionBridgeFromAutomationBet(
   if (bet.strategy === "dois2fatores") {
     const crossingActive = bet.activeCrossing ?? activeCrossingFromAutomationBet(bet);
     if (!crossingActive) return null;
+    const attemptMatch = bet.signalId.match(/:a(\d+)$/);
+    const attempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
+    const needsCrossingBetDelay = recovery > 0 || attempt > 0;
     return {
       fingerprint,
       actions,
@@ -734,6 +738,9 @@ export function buildExtensionBridgeFromAutomationBet(
         strategy: "dois2fatores",
         signalId: bet.signalId,
         betAttemptKey: bet.signalId,
+        betDelayUntilMs: needsCrossingBetDelay
+          ? Date.now() + ROTATING_ROOM_CROSSING_BET_DELAY_MS
+          : null,
       },
     };
   }

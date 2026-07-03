@@ -456,6 +456,24 @@ async function waitForFibonacciRecoverySettle(context) {
   }
 }
 
+async function waitForCrossingBetDelay(context) {
+  if (context?.strategy !== "dois2fatores") return;
+  const until =
+    typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
+      ? context.betDelayUntilMs
+      : null;
+  if (until == null) return;
+  const waitMs = Math.max(0, until - Date.now());
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+}
+
+async function waitForBetDelaySettle(context) {
+  await waitForCrossingBetDelay(context);
+  await waitForFibonacciRecoverySettle(context);
+}
+
 async function dispatchClickAction(action, context, sourceTabId) {
   if (action.target === "prepare-open") {
     const url = mesaUrlFromContext(context);
@@ -546,7 +564,7 @@ async function dispatchClickAction(action, context, sourceTabId) {
     };
   }
 
-  await waitForFibonacciRecoverySettle(context);
+  await waitForBetDelaySettle(context);
 
   if (targetTabId != null && context?.currentTableId != null) {
     registerMesaTab(context.currentTableId, targetTabId);

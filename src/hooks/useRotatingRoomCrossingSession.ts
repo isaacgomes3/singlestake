@@ -40,7 +40,10 @@ import {
   STRATEGY_GLOBAL_CHANGED_EVENT,
 } from "@/lib/roulette/strategyGlobalClient";
 
-import { ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT } from "@/lib/roulette/rotatingRoomLobbySignal";
+import {
+  isRotatingRoomPostResultHoldActive,
+  ROTATING_ROOM_MS_BEFORE_LOBBY_WAIT,
+} from "@/lib/roulette/rotatingRoomLobbySignal";
 
 export type RotatingRoomCrossingRoundFlash = {
   resultNumber: number;
@@ -73,6 +76,9 @@ export type RotatingRoomCrossingSession = {
   lastEvaluatedHead: string | null;
   /** 2 Fatores: permanece na mesma roleta até zero ou 2 giros sem gatilho. */
   tableAnchored: boolean;
+  postResultHoldUntilMs?: number | null;
+  postResultHoldTableId?: number | null;
+  postResultHoldActive?: boolean;
 };
 
 export function useRotatingRoomCrossingSession(
@@ -298,13 +304,24 @@ export function useRotatingRoomCrossingSession(
 
   const tableAnchored = isRotatingRoomCrossingTableAnchored(machine);
 
+  const postResultHoldUntilMs = globalActive
+    ? (globalView?.postResultHoldUntilMs ?? machine.postResultHoldUntilMs)
+    : machine.postResultHoldUntilMs;
+  const postResultHoldTableId = globalActive
+    ? (globalView?.postResultHoldTableId ?? machine.postResultHoldTableId)
+    : machine.postResultHoldTableId;
+  const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
+
   if (globalActive && globalView) {
     return {
       ...globalView,
       roundFlash,
-      cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
+      cycleSpinsWithoutWin: globalView.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
       lastEvaluatedHead: machine.lastEvaluatedHead,
       tableAnchored: globalView.tableAnchored ?? tableAnchored,
+      postResultHoldUntilMs,
+      postResultHoldTableId,
+      postResultHoldActive,
     };
   }
 
@@ -315,7 +332,12 @@ export function useRotatingRoomCrossingSession(
     roundFlash,
     activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
     currentRecovery: machine.recovery,
-    currentTableId,
+    currentTableId:
+      showTapeteSignal && currentTableId != null
+        ? currentTableId
+        : postResultHoldActive && postResultHoldTableId != null
+          ? postResultHoldTableId
+          : currentTableId,
     prepareTableId,
     alertCategory: liveView.globalPick?.category ?? null,
     alertBucketGap: liveView.globalPick?.bucketGap ?? 0,
@@ -325,5 +347,8 @@ export function useRotatingRoomCrossingSession(
     cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
     lastEvaluatedHead: machine.lastEvaluatedHead,
     tableAnchored,
+    postResultHoldUntilMs,
+    postResultHoldTableId,
+    postResultHoldActive,
   };
 }

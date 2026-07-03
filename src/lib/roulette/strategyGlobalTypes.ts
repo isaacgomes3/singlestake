@@ -59,6 +59,10 @@ export type StrategyGlobalCrossingClientView = {
   activeCrossing: DoisFatoresActive | null;
   tableAnchored: boolean;
   cycleSpinsWithoutWin: number;
+  cycleSeq: number;
+  cycleFingerprint: string | null;
+  postResultHoldUntilMs: number | null;
+  postResultHoldTableId: number | null;
 };
 
 export type StrategyGlobalUmFatorClientView = {

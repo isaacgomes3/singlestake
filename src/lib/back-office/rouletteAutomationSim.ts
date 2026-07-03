@@ -9,6 +9,8 @@ import {
   tableAcceptableForRotatingRoomEntry,
   UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC,
 } from "@/lib/roulette/liveTableBettingWindow";
+import { crossingSignalId } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import { isRotatingRoomPostResultHoldActive } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
 import { doisFatoresFactorLabel, evaluateDoisFatoresRound, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
@@ -324,7 +326,7 @@ export function pendingSignalFromSnapshot(
   );
 }
 
-/** Sinal activo do cruzamento 2 Fatores (empate mantém a mesma roleta). */
+/** Sinal activo do cruzamento 2 Fatores — ciclo persistente até vitória ou derrota final. */
 export function pendingSignalFromCrossingSession(
   session: Pick<
     StrategyGlobalSnapshot["dois2fatores"],
@@ -333,6 +335,9 @@ export function pendingSignalFromCrossingSession(
     | "currentRecovery"
     | "activeCrossing"
     | "cycleSpinsWithoutWin"
+    | "cycleSeq"
+    | "cycleFingerprint"
+    | "postResultHoldUntilMs"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -342,27 +347,36 @@ export function pendingSignalFromCrossingSession(
     return null;
   }
 
+  if (isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs)) {
+    return null;
+  }
+
   const tableId = session.currentTableId;
   const history = histories?.[tableId] ?? [];
   const active = session.activeCrossing;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
   const recovery = session.currentRecovery;
-  const tieSpin =
+  const attempt =
     typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
       ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
       : 0;
-  const headKey = history.length > 0 ? spinHead(history) : "0";
-  const minRemainingSec =
-    tieSpin > 0 ? UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC : ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC;
+  const fingerprint =
+    session.cycleFingerprint ??
+    `${tableId}:${active.pairKind}:${active.referenceNumber}`;
+  const cycleSeq =
+    typeof session.cycleSeq === "number" && Number.isFinite(session.cycleSeq)
+      ? Math.max(0, Math.floor(session.cycleSeq))
+      : 0;
+
   if (
     history.length > 0 &&
-    !tableAcceptableForRotatingRoomEntry(tableId, history, minRemainingSec)
+    !tableAcceptableForRotatingRoomEntry(tableId, history, UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC)
   ) {
     return null;
   }
 
   return {
-    signalId: `${tableId}:${active.referenceNumber}:${active.pairKind}:${recovery}:s${tieSpin}:h${headKey}`,
+    signalId: crossingSignalId(tableId, fingerprint, recovery, cycleSeq, attempt),
     tableId,
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel,
@@ -784,7 +798,7 @@ export function openBetSpinArrived(
   return { resultNumber, head };
 }
 
-/** Liberta openBet após empate 2F (um factor certo) — permite reaposta no giro seguinte. */
+/** Liberta openBet após empate ou gale parcial 2F — permite nova aposta no mesmo ciclo. */
 export function releaseCrossingOpenBetAfterContinue(
   state: RouletteAutomationSimState,
   histories: Record<number, readonly number[]>,
@@ -797,7 +811,9 @@ export function releaseCrossingOpenBetAfterContinue(
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;
-  if (evaluateDoisFatoresRound(arrived.resultNumber, active) !== "continue") {
+
+  const outcome = evaluateDoisFatoresRound(arrived.resultNumber, active);
+  if (outcome !== "continue" && outcome !== "L") {
     return state;
   }
 

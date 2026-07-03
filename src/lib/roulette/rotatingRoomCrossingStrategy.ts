@@ -30,6 +30,7 @@ import {
   type CrossingPatternMatch,
   ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS,
 } from "@/lib/roulette/doisFatoresPatternCrossing";
+import { ROTATING_ROOM_CROSSING_BET_DELAY_MS } from "@/lib/roulette/rotatingRoomLobbySignal";
 import {
   isAnyCrossingGatilhoEnabled,
   isCrossingGatilhoEnabled,
@@ -206,6 +207,14 @@ export type RotatingRoomCrossingMachineState = {
   /** Eixo de ausência do ciclo activo (cor/altura ou paridade/altura). */
   cycleAbsenceAxis: CrossingAxisKind | null;
 
+  /** Identificador estável do ciclo (gatilho → vitória ou derrota final). */
+  cycleSeq: number;
+
+  /** Aguardar após resultado antes de nova aposta (ms epoch). */
+  postResultHoldUntilMs: number | null;
+
+  postResultHoldTableId: number | null;
+
   /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
   prepareSpinsWithoutPattern: number;
 
@@ -288,6 +297,12 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
     cyclePatternKind: null,
 
     cycleAbsenceAxis: null,
+
+    cycleSeq: 0,
+
+    postResultHoldUntilMs: null,
+
+    postResultHoldTableId: null,
 
     prepareSpinsWithoutPattern: 0,
 
@@ -414,6 +429,46 @@ function crossingAxisFromActive(active: DoisFatoresActive): CrossingAxisKind {
 
 export function crossingFingerprint(tableId: number, axis: CrossingAxisKind, category: string): string {
   return `${tableId}:${axis}:${category}`;
+}
+
+/** Id estável do ciclo de indicação (mesmo gatilho até vitória ou derrota final). */
+export function crossingSignalId(
+  tableId: number,
+  fingerprint: string,
+  recovery: number,
+  cycleSeq: number,
+  attempt = 0,
+): string {
+  return `${tableId}:${fingerprint}:${Math.max(0, Math.floor(recovery))}:c${Math.max(0, Math.floor(cycleSeq))}:a${Math.max(0, Math.floor(attempt))}`;
+}
+
+function beginCrossingPostResultHold(
+  machine: RotatingRoomCrossingMachineState,
+  tableId: number,
+  histories: Record<number, readonly number[]>,
+  recovery: number,
+  active: DoisFatoresActive,
+  opts?: { cycleSpinsWithoutWin?: number; switchedTableId?: number | null },
+): RotatingRoomCrossingMachineState {
+  const focusTableId = opts?.switchedTableId ?? tableId;
+  const head = spinHeadFromHistory(histories[focusTableId] ?? []);
+  const now = Date.now();
+  return {
+    ...machine,
+    cycleTableId: focusTableId,
+    cycleActive: active,
+    recovery,
+    cycleSpinsWithoutWin: opts?.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
+    armedAtHead: head,
+    lastEvaluatedHead: head,
+    postResultHoldUntilMs: now + ROTATING_ROOM_CROSSING_BET_DELAY_MS,
+    postResultHoldTableId: focusTableId,
+    prepareFingerprint: null,
+    prepareTableId: null,
+    prepareActive: null,
+    pendingQueueEntry: null,
+    awaitSwitchNoTable: false,
+  };
 }
 
 /** Mesa + eixo na fase POSICIONAR (categoria muda com o último número). */
@@ -721,6 +776,7 @@ function armCycleFromActive(
 ): RotatingRoomCrossingMachineState {
 
   const head = spinHeadFromHistory(histories[pick.tableId] ?? []);
+  const nextCycleSeq = recovery === 0 ? (machine.cycleSeq ?? 0) + 1 : (machine.cycleSeq ?? 0);
 
   return {
 
@@ -734,11 +790,17 @@ function armCycleFromActive(
 
     recovery,
 
+    cycleSeq: nextCycleSeq,
+
     cycleSpinsWithoutWin: 0,
 
     armedAtHead: head,
 
     lastEvaluatedHead: opts?.lastEvaluatedHead ?? null,
+
+    postResultHoldUntilMs: null,
+
+    postResultHoldTableId: null,
 
     signalQueue: [],
 
@@ -779,6 +841,8 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     cyclePatternKind: null,
     cycleAbsenceAxis: null,
     cycleSpinsWithoutWin: 0,
+    postResultHoldUntilMs: null,
+    postResultHoldTableId: null,
     armedAtHead: null,
     lastEvaluatedHead: null,
   };
@@ -956,6 +1020,8 @@ function finishCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCro
   return {
     ...clearPrepareState(clearCycle(machine)),
     recovery: 0,
+    postResultHoldUntilMs: null,
+    postResultHoldTableId: null,
     tablePlacarLosses: {},
     lastLostTableId: null,
     awaitSwitchNoTable: false,
@@ -1502,25 +1568,39 @@ export function tickRotatingRoomCrossingPlacar(
       };
 
       if (switchedOnZero) {
-        nextMachine = rotateAnchoredToNewTable(
+        const excluded = new Set<number>([tableId]);
+        const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
+        const focusTableId = alert?.tableId ?? tableId;
+        nextMachine = beginCrossingPostResultHold(
           { ...nextMachine, recovery },
           tableId,
-          tableIds,
           histories,
-          minAbsenceSpins,
+          recovery,
+          activeForRound,
+          { switchedTableId: focusTableId },
         );
       } else {
-        nextMachine = reanchorOnTable(nextMachine, tableId, histories, recovery, minAbsenceSpins);
+        nextMachine = beginCrossingPostResultHold(
+          { ...nextMachine, recovery },
+          tableId,
+          histories,
+          recovery,
+          activeForRound,
+        );
       }
 
     }
 
   } else {
     /** Empate (um factor certo): não conta derrota — mantém indicação até vitória. */
-    nextMachine = {
-      ...nextMachine,
-      cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1,
-    };
+    nextMachine = beginCrossingPostResultHold(
+      nextMachine,
+      tableId,
+      histories,
+      nextMachine.recovery,
+      activeForRound,
+      { cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1 },
+    );
   }
 
 

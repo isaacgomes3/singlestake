@@ -42,7 +42,8 @@ function crossingInCycle(session: RotatingRoomCrossingSession): boolean {
   return (
     session.showTapeteSignal ||
     session.currentRecovery > 0 ||
-    session.sessionMode === "prepare"
+    session.sessionMode === "prepare" ||
+    session.postResultHoldActive === true
   );
 }
 
@@ -170,7 +171,8 @@ function crossingInCycleFromView(cross: StrategyGlobalCrossingClientView): boole
   return (
     cross.showTapeteSignal ||
     cross.currentRecovery > 0 ||
-    cross.sessionMode === "prepare"
+    cross.sessionMode === "prepare" ||
+    isRotatingRoomPostResultHoldActive(cross.postResultHoldUntilMs)
   );
 }
 

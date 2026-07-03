@@ -39,6 +39,9 @@ export const ROTATING_ROOM_LOBBY_NAV_SETTLE_MS = 6500;
 /** Fibonacci em recuperação na mesma mesa — aguardar após o giro antes de nova ficha. */
 export const ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS = 5000;
 
+/** 2 Fatores cruzamento — aguardar após resultado (empate ou gale) antes de nova ficha. */
+export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = 5000;
+
 /** Rotação — aguardar após o giro antes do próximo clique na ficha. */
 export const ROTATING_ROOM_ROTACAO_BET_DELAY_MS = 5000;
 
