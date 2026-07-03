@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AbsenceFilterStatsTable } from "@/components/back-office/absence-filter-stats-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -393,6 +394,27 @@ export function BackOfficeAutomationStatsPanel() {
         ) : (
           <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
         )}
+        {!loading && data?.absenceFilterStats ? (
+          <div className="mt-4 border-t border-border-color pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.absenceFilterTitle")}
+            </p>
+            <AbsenceFilterStatsTable
+            block={data.absenceFilterStats.fibonacci}
+            labels={{
+              hint: t("automationStats.absenceFilterHint"),
+              maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+              colFilter: t("automationStats.absenceFilterColFilter"),
+              colSample: t("automationStats.absenceFilterColSample"),
+              colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+              colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+              colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+              noData: t("automationStats.absenceFilterNoData"),
+              spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+            }}
+          />
+          </div>
+        ) : null}
       </section>
 
       <section className="theme-card rounded-2xl p-5">
@@ -411,6 +433,27 @@ export function BackOfficeAutomationStatsPanel() {
         ) : (
           <p className="mt-4 text-sm text-text-secondary">{t("common.loading")}</p>
         )}
+        {!loading && data?.absenceFilterStats ? (
+          <div className="mt-4 border-t border-border-color pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.absenceFilterTitle")}
+            </p>
+            <AbsenceFilterStatsTable
+            block={data.absenceFilterStats.repeticao}
+            labels={{
+              hint: t("automationStats.absenceFilterHint"),
+              maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+              colFilter: t("automationStats.absenceFilterColFilter"),
+              colSample: t("automationStats.absenceFilterColSample"),
+              colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+              colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+              colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+              noData: t("automationStats.absenceFilterNoData"),
+              spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+            }}
+          />
+          </div>
+        ) : null}
       </section>
 
       <section className="theme-card rounded-2xl p-5">

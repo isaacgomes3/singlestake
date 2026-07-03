@@ -1,5 +1,6 @@
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
+import type { ZoneAbsenceFilterStatsBlock } from "@/lib/roulette/zoneAbsenceFilterStats";
 
 export type AutomationStatsFibonacciZoneRow = {
   wins: number;
@@ -32,5 +33,10 @@ export type AutomationStatsDto = {
     absenceSpins: number;
     dozen: AutomationStatsFibonacciZoneRow;
     column: AutomationStatsFibonacciZoneRow;
+  };
+  /** Simulação histórica por filtro de ausência (últimos 50 números — independente do gatilho). */
+  absenceFilterStats: {
+    fibonacci: ZoneAbsenceFilterStatsBlock;
+    repeticao: ZoneAbsenceFilterStatsBlock;
   };
 };

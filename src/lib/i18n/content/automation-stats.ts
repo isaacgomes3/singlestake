@@ -51,6 +51,17 @@ export const automationStatsContent = {
     repeticaoHint:
       "Variação Fibonacci: ausência de repetição consecutiva de dúzia ou coluna; aposta na repetição da zona do número mais recente.",
     repeticaoZoneStats: "Acerto por tipo",
+    absenceFilterHint:
+      "Simulação independente do gatilho — base: últimos 50 números por mesa, até 50 gatilhos por filtro. Conta vitórias após N giros desde o gatilho.",
+    absenceFilterTitle: "Estatística por filtro de ausência",
+    absenceFilterMaxInWindow: "Máx. ausência na janela",
+    absenceFilterColFilter: "Filtro (giros)",
+    absenceFilterColSample: "Amostra",
+    absenceFilterColMaxTrigger: "Máx. no gatilho",
+    absenceFilterColWinAfter: "Vitórias após",
+    absenceFilterColUnresolved: "Sem vitória",
+    absenceFilterNoData: "Sem histórico suficiente nas mesas da sala rotativa.",
+    absenceFilterWinAfterSpin: "+{{n}}g",
   },
   en: {
     title: "Automation statistics",
@@ -97,6 +108,21 @@ export const automationStatsContent = {
     fibonacciAbsenceSaved: "Absence spins updated.",
     fibonacciAbsenceInvalid: "Invalid value (3–99 spins).",
     fibonacciZoneStats: "Hit rate by type",
+    repeticaoTitle: "Repetition — rotating room",
+    repeticaoHint:
+      "Fibonacci variant: no consecutive repeat of dozen/column; bet on repeating the latest number zone.",
+    repeticaoZoneStats: "Hit rate by type",
+    absenceFilterHint:
+      "Trigger-independent simulation — base: last 50 numbers per table, up to 50 triggers per filter. Counts wins after N spins from trigger.",
+    absenceFilterTitle: "Absence filter statistics",
+    absenceFilterMaxInWindow: "Max absence in window",
+    absenceFilterColFilter: "Filter (spins)",
+    absenceFilterColSample: "Sample",
+    absenceFilterColMaxTrigger: "Max at trigger",
+    absenceFilterColWinAfter: "Wins after",
+    absenceFilterColUnresolved: "No win",
+    absenceFilterNoData: "Not enough history on rotating room tables.",
+    absenceFilterWinAfterSpin: "+{{n}}s",
   },
   es: {
     title: "Estadísticas de automatización",
@@ -143,5 +169,20 @@ export const automationStatsContent = {
     fibonacciAbsenceSaved: "Giros de ausencia actualizados.",
     fibonacciAbsenceInvalid: "Valor inválido (3–99 giros).",
     fibonacciZoneStats: "Acierto por tipo",
+    repeticaoTitle: "Repetición — sala rotativa",
+    repeticaoHint:
+      "Variante Fibonacci: ausencia de repetición consecutiva de docena/columna; apuesta en repetir la zona del número más reciente.",
+    repeticaoZoneStats: "Acierto por tipo",
+    absenceFilterHint:
+      "Simulación independiente del gatillo — base: últimos 50 números por mesa, hasta 50 gatillos por filtro. Cuenta victorias tras N giros desde el gatillo.",
+    absenceFilterTitle: "Estadística por filtro de ausencia",
+    absenceFilterMaxInWindow: "Máx. ausencia en ventana",
+    absenceFilterColFilter: "Filtro (giros)",
+    absenceFilterColSample: "Muestra",
+    absenceFilterColMaxTrigger: "Máx. en gatillo",
+    absenceFilterColWinAfter: "Victorias tras",
+    absenceFilterColUnresolved: "Sin victoria",
+    absenceFilterNoData: "Historial insuficiente en mesas de sala rotativa.",
+    absenceFilterWinAfterSpin: "+{{n}}g",
   },
 } as const;

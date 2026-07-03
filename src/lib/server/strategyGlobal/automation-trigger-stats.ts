@@ -3,6 +3,7 @@ import { buildRotatingRoomGatilhoTriggerReport } from "@/lib/roulette/umFatorTri
 import { normalizeFibonacciZoneKindStats, umFatorMatchTierAproveitamentoPct } from "@/lib/roulette/entryWinBreakdown";
 import { normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
+import { buildZoneAbsenceFilterStats } from "@/lib/roulette/zoneAbsenceFilterStats";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -103,6 +104,17 @@ function repeticaoStatsFromState(
   };
 }
 
+function allTableHistoriesFromState(
+  state: ReturnType<typeof getStrategyGlobalState>,
+): Record<number, readonly number[]> {
+  const out: Record<number, readonly number[]> = {};
+  for (const [key, list] of Object.entries(state.tableHistories)) {
+    const id = Number(key);
+    if (Number.isFinite(id) && id > 0 && list.length > 0) out[id] = list;
+  }
+  return out;
+}
+
 export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const state = getStrategyGlobalState();
   const stats = state.um1fator.stats;
@@ -140,6 +152,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       enabledTriggers,
       config,
     ),
+    absenceFilterStats: buildZoneAbsenceFilterStats(allTableHistoriesFromState(state)),
   };
 }
 
