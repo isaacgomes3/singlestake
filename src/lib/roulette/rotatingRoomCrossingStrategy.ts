@@ -874,10 +874,10 @@ function reanchorOnTable(
   tableId: number,
   histories: Record<number, readonly number[]>,
   recovery: number,
-  minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+  _minAbsenceSpins: number = ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
 ): RotatingRoomCrossingMachineState {
   const head = spinHeadFromHistory(histories[tableId] ?? []);
-  const anchored: RotatingRoomCrossingMachineState = {
+  return {
     ...clearCycle(machine),
     recovery,
     prepareTableId: tableId,
@@ -888,10 +888,6 @@ function reanchorOnTable(
     lastEvaluatedHead: head,
     awaitSwitchNoTable: false,
   };
-  return (
-    tryEnterCrossingFromTablePattern(anchored, tableId, histories, recovery, minAbsenceSpins) ??
-    anchored
-  );
 }
 
 function rotateAnchoredToNewTable(
