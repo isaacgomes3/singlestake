@@ -16,14 +16,15 @@ export const ROTATING_ROOM_CLICK_BOT_TARGET_SELECTOR: Record<RotatingRoomClickBo
   "repeat-bet": '[data-click-bot="repeat-bet"]',
 };
 
-/** 2F ausência de cruzamento — cliques no botão Repetir/Dobrar após gale ou empate. */
+/** Empate — 1 clique em Repetir. Gale (qualquer fase) — 2 cliques em Repetir/Dobrar. */
+export const CROSSING_REPEAT_CLICKS_ON_DRAW = 1;
+export const CROSSING_REPEAT_CLICKS_ON_GALE = 2;
+
 export function crossingRepeatBetClickCount(
-  recovery: number,
   holdReason?: "draw" | "loss" | null,
 ): number {
-  if (holdReason === "draw") return 1;
-  if (holdReason === "loss") return Math.max(1, recovery + 1);
-  return Math.max(1, recovery + 1);
+  if (holdReason === "draw") return CROSSING_REPEAT_CLICKS_ON_DRAW;
+  return CROSSING_REPEAT_CLICKS_ON_GALE;
 }
 
 export const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
@@ -60,7 +61,7 @@ export type RotatingRoomClickBotSessionSlice = {
   postResultHoldActive?: boolean;
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
-  /** Empate → 1× repetir; derrota → recovery+1× dobrar. */
+  /** Empate → 1× repetir; derrota (gale) → 2× dobrar. */
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
 };
@@ -99,7 +100,7 @@ export function planRotatingRoomClickBotActions(
       (recovery > 0 || attempt > 0);
     if (isCrossingContinuation) {
       const mesa = lobbyTableDisplayName(session.currentTableId!);
-      const repeatClicks = crossingRepeatBetClickCount(recovery, session.postResultHoldReason);
+      const repeatClicks = crossingRepeatBetClickCount(session.postResultHoldReason);
       const repeatLabel =
         session.postResultHoldReason === "draw" ? "Repetir" : "Repetir/Dobrar";
       return [
