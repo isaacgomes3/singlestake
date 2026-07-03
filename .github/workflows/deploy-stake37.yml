@@ -25,12 +25,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22.13.0"
+          cache: npm
       - name: Instalar dependências
         run: |
           node -v
           npm -v
-          npm ci || npm install
+          npm ci --ignore-scripts
       - name: Build de produção
         run: npm run build
         env:

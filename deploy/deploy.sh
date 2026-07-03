@@ -28,9 +28,9 @@ bash deploy/sync-env-keys.sh
 
 echo "→ npm ci"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
-if ! npm ci 2>/dev/null; then
+if ! npm ci --ignore-scripts 2>/dev/null; then
   echo "→ lock desactualizado — npm install"
-  npm install
+  npm install --ignore-scripts
 fi
 
 rebuild_native_modules
