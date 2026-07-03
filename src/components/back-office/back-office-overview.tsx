@@ -45,7 +45,7 @@ function SummaryCard({
   return (
     <div
       className={cn(
-        "flex min-h-[120px] items-center gap-4 rounded-2xl px-5 py-4 text-kpi-foreground",
+        "flex h-full min-h-[120px] items-center gap-4 rounded-2xl px-5 py-4 text-kpi-foreground",
         bg,
         glow,
       )}
@@ -87,7 +87,7 @@ export function BackOfficeOverviewPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <section
-        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4"
         aria-label={t("overview.financialSummary")}
       >
         <SummaryCard
@@ -104,7 +104,7 @@ export function BackOfficeOverviewPage() {
         />
         <Link
           to="/back-office/financeiro/carteira"
-          className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="block h-full rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <SummaryCard
             tone="teal"

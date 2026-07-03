@@ -37,10 +37,7 @@ export function AutomationOverviewSections() {
   return (
     <>
       <section>
-        <RouletteAutomationSimulatorPanel
-          officialBalance={officialBalance}
-          initialCapital={initialCapital}
-        />
+        <RouletteAutomationSimulatorPanel />
       </section>
       <section>
         <AutomationHistoryTable

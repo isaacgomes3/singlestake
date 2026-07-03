@@ -29,29 +29,29 @@ function GlobalKpiMiniButton({
   tone,
   label,
   value,
-  valueClassName,
+  compactValue,
 }: {
   tone: Tone;
   label: string;
   value: string;
-  valueClassName?: string;
+  compactValue?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "flex min-h-[54px] flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-kpi-foreground",
+        "flex h-full min-h-0 flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-kpi-foreground",
         toneClasses(tone),
       )}
     >
       <span
         className={cn(
-          "text-sm font-bold tabular-nums leading-none sm:text-base",
-          valueClassName,
+          "max-w-full truncate font-bold tabular-nums leading-none",
+          compactValue ? "text-sm sm:text-base" : "text-base sm:text-lg",
         )}
       >
         {value}
       </span>
-      <span className="mt-1 text-[8px] font-semibold uppercase leading-tight tracking-wide opacity-90">
+      <span className="mt-1.5 text-[9px] font-semibold uppercase leading-tight tracking-wide opacity-90">
         {label}
       </span>
     </div>
@@ -86,18 +86,21 @@ export function AutomationGlobalKpiCard() {
 
   const netFormatted = `${net >= 0 ? "+" : ""}${money(net)}`;
   const pctFormatted = `${netPct >= 0 ? "+" : ""}${netPct.toFixed(2)}%`;
+  const balanceFormatted = money(displayBalance);
 
   const items = useMemo(
     () => [
       {
         tone: "teal" as const,
         label: t("overview.globalKpiCard.balance"),
-        value: money(displayBalance),
+        value: balanceFormatted,
+        compactValue: balanceFormatted.length > 12,
       },
       {
         tone: net >= 0 ? ("green" as const) : ("slate" as const),
         label: t("overview.globalKpiCard.net"),
         value: netFormatted,
+        compactValue: netFormatted.length > 12,
       },
       {
         tone: "blue" as const,
@@ -110,36 +113,23 @@ export function AutomationGlobalKpiCard() {
         value: statusValue,
       },
     ],
-    [displayBalance, money, net, netFormatted, pctFormatted, statusValue, t],
+    [balanceFormatted, net, netFormatted, pctFormatted, statusValue, t],
   );
 
   return (
     <div
-      className="flex min-h-[120px] flex-col justify-center gap-2 rounded-2xl border border-border-color/60 bg-bg-card/40 p-2.5"
+      className="grid h-full min-h-[120px] grid-cols-2 grid-rows-2 gap-1.5"
       aria-label={t("overview.globalKpiCard.title")}
     >
-      <div className="flex items-center gap-1.5 px-1">
-        <span
-          className={cn(
-            "h-2 w-2 shrink-0 rounded-full",
-            isPaused ? "bg-warning" : "animate-pulse bg-kpi-green/80",
-          )}
-          aria-hidden
+      {items.map((item) => (
+        <GlobalKpiMiniButton
+          key={item.label}
+          tone={item.tone}
+          label={item.label}
+          value={item.value}
+          compactValue={item.compactValue}
         />
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
-          {t("overview.globalKpiCard.title")}
-        </p>
-      </div>
-      <div className="grid flex-1 grid-cols-2 gap-2">
-        {items.map((item) => (
-          <GlobalKpiMiniButton
-            key={item.label}
-            tone={item.tone}
-            label={item.label}
-            value={item.value}
-          />
-        ))}
-      </div>
+      ))}
     </div>
   );
 }

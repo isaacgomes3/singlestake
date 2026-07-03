@@ -217,10 +217,7 @@ export function BackOfficeGlobalAutomationPanel() {
       </section>
 
       <section>
-        <RouletteAutomationSimulatorPanel
-          officialBalance={officialBalance}
-          initialCapital={initialCapital}
-        />
+        <RouletteAutomationSimulatorPanel />
       </section>
 
       <section>
