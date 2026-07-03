@@ -78,6 +78,7 @@ export type RotatingRoomCrossingSession = {
   tableAnchored: boolean;
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
+  postResultHoldReason?: "draw" | "loss" | null;
   postResultHoldActive?: boolean;
 };
 
@@ -310,6 +311,9 @@ export function useRotatingRoomCrossingSession(
   const postResultHoldTableId = globalActive
     ? (globalView?.postResultHoldTableId ?? machine.postResultHoldTableId)
     : machine.postResultHoldTableId;
+  const postResultHoldReason = globalActive
+    ? (globalView?.postResultHoldReason ?? machine.postResultHoldReason ?? null)
+    : (machine.postResultHoldReason ?? null);
   const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
 
   if (globalActive && globalView) {
@@ -321,6 +325,7 @@ export function useRotatingRoomCrossingSession(
       tableAnchored: globalView.tableAnchored ?? tableAnchored,
       postResultHoldUntilMs,
       postResultHoldTableId,
+      postResultHoldReason,
       postResultHoldActive,
     };
   }
@@ -350,6 +355,7 @@ export function useRotatingRoomCrossingSession(
     tableAnchored,
     postResultHoldUntilMs,
     postResultHoldTableId,
+    postResultHoldReason,
     postResultHoldActive,
   };
 }

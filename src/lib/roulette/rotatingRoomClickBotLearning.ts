@@ -16,8 +16,13 @@ export const ROTATING_ROOM_CLICK_BOT_TARGET_SELECTOR: Record<RotatingRoomClickBo
   "repeat-bet": '[data-click-bot="repeat-bet"]',
 };
 
-/** 2F ausência de cruzamento — cliques no botão Repetir/Dobrar após gale (recovery + 1). */
-export function crossingRepeatBetClickCount(recovery: number): number {
+/** 2F ausência de cruzamento — cliques no botão Repetir/Dobrar após gale ou empate. */
+export function crossingRepeatBetClickCount(
+  recovery: number,
+  holdReason?: "draw" | "loss" | null,
+): number {
+  if (holdReason === "draw") return 1;
+  if (holdReason === "loss") return Math.max(1, recovery + 1);
   return Math.max(1, recovery + 1);
 }
 
@@ -55,6 +60,8 @@ export type RotatingRoomClickBotSessionSlice = {
   postResultHoldActive?: boolean;
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
+  /** Empate → 1× repetir; derrota → recovery+1× dobrar. */
+  postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
 };
 
@@ -92,7 +99,9 @@ export function planRotatingRoomClickBotActions(
       (recovery > 0 || attempt > 0);
     if (isCrossingContinuation) {
       const mesa = lobbyTableDisplayName(session.currentTableId!);
-      const repeatClicks = crossingRepeatBetClickCount(recovery);
+      const repeatClicks = crossingRepeatBetClickCount(recovery, session.postResultHoldReason);
+      const repeatLabel =
+        session.postResultHoldReason === "draw" ? "Repetir" : "Repetir/Dobrar";
       return [
         {
           kind: "click",
@@ -103,8 +112,11 @@ export function planRotatingRoomClickBotActions(
         ...Array.from({ length: repeatClicks }, (_, index) => ({
           kind: "click" as const,
           target: "repeat-bet" as const,
-          label: "Repetir/Dobrar",
-          reason: `JOGANDO em ${mesa} — repetir aposta (${index + 1}/${repeatClicks})`,
+          label: repeatLabel,
+          reason:
+            session.postResultHoldReason === "draw"
+              ? `JOGANDO em ${mesa} — repetir aposta empate (${index + 1}/${repeatClicks})`
+              : `JOGANDO em ${mesa} — dobrar aposta gale (${index + 1}/${repeatClicks})`,
         })),
       ];
     }

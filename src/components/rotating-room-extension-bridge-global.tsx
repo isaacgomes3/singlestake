@@ -329,6 +329,12 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
                 typeof session.postResultHoldTableId === "number"
                   ? session.postResultHoldTableId
                   : null,
+              postResultHoldReason:
+                "postResultHoldReason" in session &&
+                (session.postResultHoldReason === "draw" ||
+                  session.postResultHoldReason === "loss")
+                  ? session.postResultHoldReason
+                  : null,
             },
             globalAutomation.balance,
             histories,

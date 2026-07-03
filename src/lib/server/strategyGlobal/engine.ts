@@ -486,6 +486,7 @@ function buildCrossingClientView(
     cycleFingerprint: machine.cycleFingerprint,
     postResultHoldUntilMs: machine.postResultHoldUntilMs,
     postResultHoldTableId: machine.postResultHoldTableId,
+    postResultHoldReason: machine.postResultHoldReason ?? null,
   };
 }
 

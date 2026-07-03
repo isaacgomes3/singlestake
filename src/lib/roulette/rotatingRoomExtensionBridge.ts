@@ -744,6 +744,7 @@ export function buildExtensionBridgeFromAutomationBet(
     lobbyWait: false,
     postResultHoldActive: isCrossingGaleContinuation,
     postResultHoldUntilMs: options?.postResultHoldUntilMs ?? null,
+    postResultHoldReason: bet.crossingHoldReason ?? null,
     cycleSpinsWithoutWin: cycleAttempt,
   };
 

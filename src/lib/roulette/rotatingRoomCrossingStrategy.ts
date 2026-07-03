@@ -157,6 +157,8 @@ export type RotatingRoomSessionMode =
 
 
 
+export type CrossingPostResultHoldReason = "draw" | "loss";
+
 export type RotatingRoomCrossingMachineState = {
 
   cycleTableId: number | null;
@@ -214,6 +216,9 @@ export type RotatingRoomCrossingMachineState = {
   postResultHoldUntilMs: number | null;
 
   postResultHoldTableId: number | null;
+
+  /** Empate → repetir (1×); derrota → dobrar (recovery+1×). */
+  postResultHoldReason: CrossingPostResultHoldReason | null;
 
   /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
   prepareSpinsWithoutPattern: number;
@@ -303,6 +308,8 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
     postResultHoldUntilMs: null,
 
     postResultHoldTableId: null,
+
+    postResultHoldReason: null,
 
     prepareSpinsWithoutPattern: 0,
 
@@ -448,7 +455,7 @@ function beginCrossingPostResultHold(
   histories: Record<number, readonly number[]>,
   recovery: number,
   active: DoisFatoresActive,
-  opts?: { cycleSpinsWithoutWin?: number },
+  opts?: { cycleSpinsWithoutWin?: number; reason: CrossingPostResultHoldReason },
 ): RotatingRoomCrossingMachineState {
   const head = spinHeadFromHistory(histories[tableId] ?? []);
   const now = Date.now();
@@ -462,6 +469,7 @@ function beginCrossingPostResultHold(
     lastEvaluatedHead: head,
     postResultHoldUntilMs: now + ROTATING_ROOM_CROSSING_BET_DELAY_MS,
     postResultHoldTableId: tableId,
+    postResultHoldReason: opts?.reason ?? null,
     prepareFingerprint: null,
     prepareTableId: null,
     prepareActive: null,
@@ -801,6 +809,8 @@ function armCycleFromActive(
 
     postResultHoldTableId: null,
 
+    postResultHoldReason: null,
+
     signalQueue: [],
 
     awaitingQueueTableId: null,
@@ -842,6 +852,7 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     cycleSpinsWithoutWin: 0,
     postResultHoldUntilMs: null,
     postResultHoldTableId: null,
+    postResultHoldReason: null,
     armedAtHead: null,
     lastEvaluatedHead: null,
   };
@@ -1021,6 +1032,7 @@ function finishCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCro
     recovery: 0,
     postResultHoldUntilMs: null,
     postResultHoldTableId: null,
+    postResultHoldReason: null,
     tablePlacarLosses: {},
     lastLostTableId: null,
     awaitSwitchNoTable: false,
@@ -1249,7 +1261,13 @@ export function sanitizeRotatingRoomCrossingMachineForTableIds(
 ): RotatingRoomCrossingMachineState {
   if (tableIds.length === 0) return machine;
   const allowed = new Set(tableIds);
-  let next = machine;
+  let next: RotatingRoomCrossingMachineState = {
+    ...machine,
+    postResultHoldReason:
+      machine.postResultHoldReason === "draw" || machine.postResultHoldReason === "loss"
+        ? machine.postResultHoldReason
+        : null,
+  };
   let changed = false;
 
   const apply = (m: RotatingRoomCrossingMachineState) => {
@@ -1324,7 +1342,7 @@ export function sanitizeRotatingRoomCrossingMachineForTableIds(
     }
   }
 
-  return changed ? next : machine;
+  return next;
 }
 
 
@@ -1569,6 +1587,7 @@ export function tickRotatingRoomCrossingPlacar(
         histories,
         recovery,
         activeForRound,
+        { reason: "loss" },
       );
 
     }
@@ -1581,7 +1600,10 @@ export function tickRotatingRoomCrossingPlacar(
       histories,
       nextMachine.recovery,
       activeForRound,
-      { cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1 },
+      {
+        cycleSpinsWithoutWin: nextMachine.cycleSpinsWithoutWin + 1,
+        reason: "draw",
+      },
     );
   }
 

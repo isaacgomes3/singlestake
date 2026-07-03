@@ -188,6 +188,11 @@ function sessionToSlice(
       Number.isFinite(session.postResultHoldTableId)
         ? session.postResultHoldTableId
         : null,
+    postResultHoldReason:
+      "postResultHoldReason" in session &&
+      (session.postResultHoldReason === "draw" || session.postResultHoldReason === "loss")
+        ? session.postResultHoldReason
+        : null,
     lobbyCooldownUntilMs:
       "lobbyCooldownUntilMs" in session &&
       typeof session.lobbyCooldownUntilMs === "number" &&

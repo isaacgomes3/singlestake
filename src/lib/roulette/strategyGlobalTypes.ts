@@ -63,6 +63,7 @@ export type StrategyGlobalCrossingClientView = {
   cycleFingerprint: string | null;
   postResultHoldUntilMs: number | null;
   postResultHoldTableId: number | null;
+  postResultHoldReason: "draw" | "loss" | null;
 };
 
 export type StrategyGlobalUmFatorClientView = {

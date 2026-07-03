@@ -85,6 +85,8 @@ export type AutomationPendingSignal = {
   activeFibonacci?: RotatingRoomFibonacciActive;
   activeRepeticao?: RotatingRoomRepeticaoActive;
   rotacaoActive?: RotacaoActive;
+  /** 2F — empate (repetir) vs derrota (dobrar) no hold pós-giro. */
+  crossingHoldReason?: "draw" | "loss";
 };
 
 /** Aposta aberta — entrada em jogo à espera do giro. */
@@ -400,6 +402,7 @@ export function pendingSignalFromCrossingExtensionBridge(
     | "cycleFingerprint"
     | "postResultHoldUntilMs"
     | "postResultHoldTableId"
+    | "postResultHoldReason"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -439,6 +442,7 @@ export function pendingSignalFromCrossingExtensionBridge(
     stake: stakeForRecovery(recovery, balance, baseStake),
     strategy: "dois2fatores",
     activeCrossing: active,
+    crossingHoldReason: session.postResultHoldReason ?? undefined,
   };
 }
 
