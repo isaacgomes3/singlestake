@@ -6,8 +6,8 @@
  * - Placar: vitória só com ambos os fatores; derrota se ambos falharem (zero = derrota)
  * - Empate (um factor certo): não conta derrota — indicação vigente até vitória (ambos factores)
  * - Indicação mantém-se em empates consecutivos (sem subir gale) até W ou L
- * - **Mesa fixa:** posiciona numa roleta com padrão e só sai se sair **zero** ou **2 giros sem novo gatilho**
- * - Recuperações na **mesma mesa** quando o gatilho voltar a aparecer
+ * - **Mesa fixa após indicação:** permanece na mesma roleta até vitória (W) ou derrota final — gales e zero incluídos
+ * - Recuperações na **mesma mesa** (sem trocar de mesa no ciclo activo)
  * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
  * - 5 recuperações antes de L final
  * - Não posiciona em mesas com zero nos últimos 12 números
@@ -448,21 +448,20 @@ function beginCrossingPostResultHold(
   histories: Record<number, readonly number[]>,
   recovery: number,
   active: DoisFatoresActive,
-  opts?: { cycleSpinsWithoutWin?: number; switchedTableId?: number | null },
+  opts?: { cycleSpinsWithoutWin?: number },
 ): RotatingRoomCrossingMachineState {
-  const focusTableId = opts?.switchedTableId ?? tableId;
-  const head = spinHeadFromHistory(histories[focusTableId] ?? []);
+  const head = spinHeadFromHistory(histories[tableId] ?? []);
   const now = Date.now();
   return {
     ...machine,
-    cycleTableId: focusTableId,
+    cycleTableId: tableId,
     cycleActive: active,
     recovery,
     cycleSpinsWithoutWin: opts?.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
     armedAtHead: head,
     lastEvaluatedHead: head,
     postResultHoldUntilMs: now + ROTATING_ROOM_CROSSING_BET_DELAY_MS,
-    postResultHoldTableId: focusTableId,
+    postResultHoldTableId: tableId,
     prepareFingerprint: null,
     prepareTableId: null,
     prepareActive: null,
@@ -1557,37 +1556,20 @@ export function tickRotatingRoomCrossingPlacar(
 
       statsChanged = true;
 
-      const switchedOnZero = resultNumber === 0 && canRotateTables;
-
       flash = {
         resultNumber,
         won: false,
         tableId,
         kind: "recovery",
-        switchedTable: switchedOnZero,
       };
 
-      if (switchedOnZero) {
-        const excluded = new Set<number>([tableId]);
-        const alert = pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
-        const focusTableId = alert?.tableId ?? tableId;
-        nextMachine = beginCrossingPostResultHold(
-          { ...nextMachine, recovery },
-          tableId,
-          histories,
-          recovery,
-          activeForRound,
-          { switchedTableId: focusTableId },
-        );
-      } else {
-        nextMachine = beginCrossingPostResultHold(
-          { ...nextMachine, recovery },
-          tableId,
-          histories,
-          recovery,
-          activeForRound,
-        );
-      }
+      nextMachine = beginCrossingPostResultHold(
+        { ...nextMachine, recovery },
+        tableId,
+        histories,
+        recovery,
+        activeForRound,
+      );
 
     }
 
