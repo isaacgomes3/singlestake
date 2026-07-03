@@ -463,7 +463,8 @@ function buildCrossingClientView(
     sessionMode: liveView.mode,
     prepareCategory: liveView.preparePick?.category ?? null,
     crossingScan: liveView.crossingScan,
-    activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
+    activeCrossing:
+      currentTableId != null && activeCrossing != null ? activeCrossing : null,
     tableAnchored: isRotatingRoomCrossingTableAnchored(machine),
     cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
     cycleSeq: machine.cycleSeq ?? 0,

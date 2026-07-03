@@ -387,6 +387,61 @@ export function pendingSignalFromCrossingSession(
   };
 }
 
+/** Durante hold pós-giro — sinal para extensão clicar aos 5s (gale ou reentrada). */
+export function pendingSignalFromCrossingExtensionBridge(
+  session: Pick<
+    StrategyGlobalSnapshot["dois2fatores"],
+    | "showTapeteSignal"
+    | "currentTableId"
+    | "currentRecovery"
+    | "activeCrossing"
+    | "cycleSpinsWithoutWin"
+    | "cycleSeq"
+    | "cycleFingerprint"
+    | "postResultHoldUntilMs"
+    | "postResultHoldTableId"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  histories?: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): AutomationPendingSignal | null {
+  if (!isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs)) {
+    return null;
+  }
+
+  const tableId =
+    session.postResultHoldTableId ?? session.currentTableId;
+  const active = session.activeCrossing;
+  if (tableId == null || !active) return null;
+
+  const recovery = session.currentRecovery;
+  const attempt =
+    typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
+      ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
+      : 0;
+  if (recovery <= 0 && attempt <= 0) return null;
+
+  const fingerprint =
+    session.cycleFingerprint ??
+    `${tableId}:${active.pairKind}:${active.referenceNumber}`;
+  const cycleSeq =
+    typeof session.cycleSeq === "number" && Number.isFinite(session.cycleSeq)
+      ? Math.max(0, Math.floor(session.cycleSeq))
+      : 0;
+  const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
+
+  return {
+    signalId: crossingSignalId(tableId, fingerprint, recovery, cycleSeq, attempt),
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel,
+    recovery,
+    stake: stakeForRecovery(recovery, balance, baseStake),
+    strategy: "dois2fatores",
+    activeCrossing: active,
+  };
+}
+
 /** Mesma lógica do cartão da sala rotativa — só com janela de apostas aberta (início do gatilho). */
 export function pendingSignalFromUmFatorSession(
   session: Pick<

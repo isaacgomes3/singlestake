@@ -32,10 +32,10 @@ import {
 } from "@/lib/roulette/casinoEmbedProviderHint";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
 import {
-  ROTATING_ROOM_CROSSING_BET_DELAY_MS,
   ROTATING_ROOM_FIBONACCI_RECOVERY_BET_DELAY_MS,
   ROTATING_ROOM_ROTACAO_BET_DELAY_MS,
   ROTATING_ROOM_ROTACAO_RECOVERY_BET_DELAY_MS,
+  resolveCrossingExtensionBetDelayUntilMs,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
@@ -191,6 +191,23 @@ export function buildRotatingRoomExtensionContext(
         ? "um1fator"
         : "dois2fatores";
   const zoneFibonacciMode = isZoneFibonacciStrategy(strategy);
+  const cycleSpinsWithoutWin =
+    typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
+      ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
+      : 0;
+  const postResultHoldUntilMs =
+    typeof session.postResultHoldUntilMs === "number" &&
+    Number.isFinite(session.postResultHoldUntilMs)
+      ? session.postResultHoldUntilMs
+      : null;
+  const betDelayUntilMs =
+    strategy === "dois2fatores"
+      ? resolveCrossingExtensionBetDelayUntilMs(
+          postResultHoldUntilMs,
+          recovery,
+          cycleSpinsWithoutWin,
+        )
+      : null;
   return {
     sessionMode: session.sessionMode,
     prepareTableId: lobbyWait ? null : session.prepareTableId,
@@ -227,16 +244,13 @@ export function buildRotatingRoomExtensionContext(
       typeof session.lobbyCooldownUntilMs === "number" && Number.isFinite(session.lobbyCooldownUntilMs)
         ? session.lobbyCooldownUntilMs
         : null,
-    postResultHoldUntilMs:
-      typeof session.postResultHoldUntilMs === "number" &&
-      Number.isFinite(session.postResultHoldUntilMs)
-        ? session.postResultHoldUntilMs
-        : null,
+    postResultHoldUntilMs,
     postResultHoldTableId:
       typeof session.postResultHoldTableId === "number" &&
       Number.isFinite(session.postResultHoldTableId)
         ? session.postResultHoldTableId
         : null,
+    betDelayUntilMs,
   };
 }
 
@@ -529,6 +543,7 @@ function resolveZoneFibonacciStrategyFromBet(
 export function buildExtensionBridgeFromAutomationBet(
   bet: AutomationPendingSignal,
   automationBalance?: number | null,
+  options?: { postResultHoldUntilMs?: number | null },
 ): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
   if (bet.tableId == null || !bet.signalId?.trim()) return null;
 
@@ -737,7 +752,15 @@ export function buildExtensionBridgeFromAutomationBet(
     if (!crossingActive) return null;
     const attemptMatch = bet.signalId.match(/:a(\d+)$/);
     const attempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
-    const needsCrossingBetDelay = recovery > 0 || attempt > 0;
+    const holdUntil =
+      options?.postResultHoldUntilMs ??
+      context.postResultHoldUntilMs ??
+      null;
+    const betDelayUntilMs = resolveCrossingExtensionBetDelayUntilMs(
+      holdUntil,
+      recovery,
+      attempt,
+    );
     return {
       fingerprint,
       actions,
@@ -751,9 +774,8 @@ export function buildExtensionBridgeFromAutomationBet(
         strategy: "dois2fatores",
         signalId: bet.signalId,
         betAttemptKey: bet.signalId,
-        betDelayUntilMs: needsCrossingBetDelay
-          ? Date.now() + ROTATING_ROOM_CROSSING_BET_DELAY_MS
-          : null,
+        betDelayUntilMs,
+        postResultHoldUntilMs: holdUntil,
       },
     };
   }

@@ -8,9 +8,10 @@ import {
   useAutomationAlignedRotativaSession,
 } from "@/hooks/useAutomationAlignedRotatingSession";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
-import type {
-  AutomationOpenBet,
-  AutomationPendingSignal,
+import {
+  type AutomationOpenBet,
+  type AutomationPendingSignal,
+  pendingSignalFromCrossingExtensionBridge,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
 import {
@@ -288,11 +289,57 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   useEffect(() => {
     if (!bridgeActive) return;
-    if ("postResultHoldActive" in session && session.postResultHoldActive === true) return;
-    const bet = openBet ?? pendingSignal;
+    const postResultHoldUntilMs =
+      "postResultHoldUntilMs" in session &&
+      typeof session.postResultHoldUntilMs === "number" &&
+      Number.isFinite(session.postResultHoldUntilMs)
+        ? session.postResultHoldUntilMs
+        : null;
+    const extensionHoldBet =
+      isCrossingRotativaSession(session) &&
+      "postResultHoldActive" in session &&
+      session.postResultHoldActive === true &&
+      !openBet
+        ? pendingSignalFromCrossingExtensionBridge(
+            {
+              showTapeteSignal: "showTapeteSignal" in session && session.showTapeteSignal === true,
+              currentTableId:
+                "currentTableId" in session && typeof session.currentTableId === "number"
+                  ? session.currentTableId
+                  : null,
+              currentRecovery:
+                "currentRecovery" in session && typeof session.currentRecovery === "number"
+                  ? session.currentRecovery
+                  : 0,
+              activeCrossing: "activeCrossing" in session ? session.activeCrossing ?? null : null,
+              cycleSpinsWithoutWin:
+                "cycleSpinsWithoutWin" in session &&
+                typeof session.cycleSpinsWithoutWin === "number"
+                  ? session.cycleSpinsWithoutWin
+                  : 0,
+              cycleSeq:
+                "cycleSeq" in session && typeof session.cycleSeq === "number" ? session.cycleSeq : 0,
+              cycleFingerprint:
+                "cycleFingerprint" in session && typeof session.cycleFingerprint === "string"
+                  ? session.cycleFingerprint
+                  : null,
+              postResultHoldUntilMs,
+              postResultHoldTableId:
+                "postResultHoldTableId" in session &&
+                typeof session.postResultHoldTableId === "number"
+                  ? session.postResultHoldTableId
+                  : null,
+            },
+            globalAutomation.balance,
+            histories,
+          )
+        : null;
+    const bet = openBet ?? pendingSignal ?? extensionHoldBet;
     if (!bet?.signalId || bet.tableId == null) return;
 
-    const payload = buildExtensionBridgeFromAutomationBet(bet, globalAutomation.balance);
+    const payload = buildExtensionBridgeFromAutomationBet(bet, globalAutomation.balance, {
+      postResultHoldUntilMs,
+    });
     if (!payload) return;
 
     const emitKey = payload.fingerprint;

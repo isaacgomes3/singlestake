@@ -11,8 +11,10 @@ const GOG = {
   STORAGE_MODE: "gogExecutionMode",
   STORAGE_BRIDGE_PREFS: "gogBridgePrefs",
   DEFAULT_MODE: "demo",
-  /** Após resultado na mesma mesa — aguardar UI da roleta antes de nova ficha (Fibonacci/Repetição). */
+  /** Fibonacci/Repetição — aguardar após giro antes de nova ficha. */
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
+  /** 2 Fatores — entre factor-1 e factor-2 (2× stagger 3 factores iguais). */
+  CROSSING_FACTOR_CLICK_STAGGER_MS: 900,
   /** Stake base real (R$) — enviado pela automação global. */
   REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
@@ -125,6 +127,9 @@ function clickStaggerMsForContext(context, recovery) {
     typeof recovery === "number" && Number.isFinite(recovery)
       ? Math.max(0, Math.floor(recovery))
       : 0;
+  if (context?.strategy === "dois2fatores" && context?.singleFactorMode !== true) {
+    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_BASE_MS * 2;
+  }
   if (!isRepeticaoContext(context) || r < 5) return CLICK_STAGGER_BASE_MS;
   const mult = r >= 7 ? 4 : r >= 6 ? 3 : 2;
   return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));

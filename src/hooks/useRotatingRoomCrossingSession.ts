@@ -330,7 +330,8 @@ export function useRotatingRoomCrossingSession(
     sessionStats,
     showTapeteSignal: showTapeteSignal && currentTableId != null,
     roundFlash,
-    activeCrossing: showTapeteSignal && currentTableId != null ? activeCrossing : null,
+    activeCrossing:
+      currentTableId != null && machine.cycleActive != null ? machine.cycleActive : null,
     currentRecovery: machine.recovery,
     currentTableId:
       showTapeteSignal && currentTableId != null

@@ -45,6 +45,7 @@ export type RotatingRoomClickBotSessionSlice = {
   postResultHoldActive?: boolean;
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
+  cycleSpinsWithoutWin?: number;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -71,6 +72,38 @@ export function planRotatingRoomClickBotActions(
   }
 
   if (session.postResultHoldActive) {
+    const recovery = session.currentRecovery ?? 0;
+    const attempt = session.cycleSpinsWithoutWin ?? 0;
+    const isCrossingContinuation =
+      session.rotativaTrigger === "crossing" &&
+      session.singleFactorMode !== true &&
+      session.activeCrossing != null &&
+      session.currentTableId != null &&
+      (recovery > 0 || attempt > 0);
+    if (isCrossingContinuation) {
+      const { factor1, factor2 } = session.activeCrossing!;
+      const mesa = lobbyTableDisplayName(session.currentTableId!);
+      return [
+        {
+          kind: "click",
+          target: "prepare-open",
+          label: mesa,
+          reason: `Abrir ${mesa} no operador`,
+        },
+        {
+          kind: "click",
+          target: "factor-1",
+          label: doisFatoresFactorLabel(factor1),
+          reason: `JOGANDO em ${mesa} — factor 1 (após giro)`,
+        },
+        {
+          kind: "click",
+          target: "factor-2",
+          label: doisFatoresFactorLabel(factor2),
+          reason: `JOGANDO em ${mesa} — factor 2 (após giro)`,
+        },
+      ];
+    }
     return [{ kind: "wait", reason: "Resultado — aguardar antes de voltar ao lobby" }];
   }
 

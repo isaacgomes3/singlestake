@@ -26,6 +26,8 @@ import {
 import {
   isRotatingRoomLobbyWait,
   isRotatingRoomPostResultHoldActive,
+  ROTATING_ROOM_CLICK_STAGGER_BASE_MS,
+  ROTATING_ROOM_CROSSING_FACTOR_CLICK_STAGGER_MS,
   type RotatingRoomLobbySession,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
 
@@ -41,8 +43,28 @@ export type ClickBotLogEntry = {
 };
 
 const MAX_LOG = 40;
-const CLICK_STAGGER_MS = 450;
+const CLICK_STAGGER_MS = ROTATING_ROOM_CLICK_STAGGER_BASE_MS;
 const EXTENSION_ACK_TIMEOUT_MS = 6000;
+
+function clickStaggerMsForAction(
+  actions: { target?: string }[],
+  index: number,
+  rotativaTrigger?: string,
+  singleFactorMode?: boolean,
+): number {
+  if (index <= 0) return 0;
+  const prev = actions[index - 1];
+  const current = actions[index];
+  if (
+    rotativaTrigger === "crossing" &&
+    singleFactorMode !== true &&
+    prev?.target === "factor-1" &&
+    current?.target === "factor-2"
+  ) {
+    return ROTATING_ROOM_CROSSING_FACTOR_CLICK_STAGGER_MS;
+  }
+  return CLICK_STAGGER_MS;
+}
 
 type Options = {
   session: RotatingRoomCrossingSession | RotatingRoomUmFatorSession | RotatingRoomRotativaSession;
@@ -172,6 +194,12 @@ function sessionToSlice(
       Number.isFinite(session.lobbyCooldownUntilMs)
         ? session.lobbyCooldownUntilMs
         : null,
+    cycleSpinsWithoutWin:
+      "cycleSpinsWithoutWin" in session &&
+      typeof session.cycleSpinsWithoutWin === "number" &&
+      Number.isFinite(session.cycleSpinsWithoutWin)
+        ? session.cycleSpinsWithoutWin
+        : 0,
   };
 }
 
@@ -261,7 +289,13 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
 
   useEffect(() => {
     if (!enabled) return;
-    if (sessionSlice.postResultHoldActive) return;
+    const crossingHoldBet =
+      sessionSlice.postResultHoldActive === true &&
+      sessionSlice.rotativaTrigger === "crossing" &&
+      sessionSlice.singleFactorMode !== true &&
+      sessionSlice.activeCrossing != null &&
+      ((sessionSlice.currentRecovery ?? 0) > 0 || (sessionSlice.cycleSpinsWithoutWin ?? 0) > 0);
+    if (sessionSlice.postResultHoldActive && !crossingHoldBet) return;
     if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;
     if (fingerprint === lastFingerprintRef.current) return;
 
@@ -325,6 +359,19 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       const executed: ClickBotLogEntry["executed"] = [];
 
       clicks.forEach((action, index) => {
+        const delayMs = clicks
+          .slice(0, index)
+          .reduce(
+            (sum, _, i) =>
+              sum +
+              clickStaggerMsForAction(
+                clicks,
+                i + 1,
+                sessionSlice.rotativaTrigger,
+                sessionSlice.singleFactorMode,
+              ),
+            0,
+          );
         window.setTimeout(() => {
           const result = executeRotatingRoomClickBotTarget(action.target, root ?? document);
           executed.push({ target: action.target, ...result });
@@ -340,7 +387,7 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
               return [row, ...prev].slice(0, MAX_LOG);
             });
           }
-        }, index * CLICK_STAGGER_MS);
+        }, delayMs);
       });
 
       if (clicks.length === 0) {

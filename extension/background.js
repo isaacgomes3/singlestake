@@ -414,6 +414,22 @@ async function handleBridgePayload(payload, sourceTabId) {
   }
 }
 
+function isDois2FatoresBridgeContext(context) {
+  return context?.strategy === "dois2fatores" && context?.singleFactorMode !== true;
+}
+
+/** Pausa entre cliques do plano bridge — 2F usa dobro entre factor-1 e factor-2. */
+function bridgeActionStaggerMs(prevAction, action, context) {
+  if (
+    isDois2FatoresBridgeContext(context) &&
+    prevAction?.target === "factor-1" &&
+    action?.target === "factor-2"
+  ) {
+    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_MS * 2;
+  }
+  return CLICK_STAGGER_MS;
+}
+
 async function runBridgePlan(payload, sourceTabId) {
   const clicks = (payload.actions || []).filter((a) => a.kind === "click");
   const singleFactor = payload.context?.singleFactorMode === true;
@@ -423,7 +439,9 @@ async function runBridgePlan(payload, sourceTabId) {
   const results = [];
 
   for (let i = 0; i < filtered.length; i++) {
-    if (i > 0) await sleep(CLICK_STAGGER_MS);
+    if (i > 0) {
+      await sleep(bridgeActionStaggerMs(filtered[i - 1], filtered[i], payload.context));
+    }
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
     results.push(result);
@@ -458,11 +476,11 @@ async function waitForFibonacciRecoverySettle(context) {
 
 async function waitForCrossingBetDelay(context) {
   if (context?.strategy !== "dois2fatores") return;
-  const until =
-    typeof context?.betDelayUntilMs === "number" && Number.isFinite(context.betDelayUntilMs)
-      ? context.betDelayUntilMs
-      : null;
-  if (until == null) return;
+  const candidates = [context?.betDelayUntilMs, context?.postResultHoldUntilMs].filter(
+    (value) => typeof value === "number" && Number.isFinite(value),
+  );
+  if (candidates.length === 0) return;
+  const until = Math.min(...candidates);
   const waitMs = Math.max(0, until - Date.now());
   if (waitMs > 0) {
     await sleep(waitMs);
