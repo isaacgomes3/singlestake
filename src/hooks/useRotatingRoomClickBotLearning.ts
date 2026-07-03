@@ -195,8 +195,10 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
     const postHoldTableId = sessionSlice.postResultHoldTableId ?? null;
 
     if (postHoldActive && !prevPostResultHoldRef.current && postHoldTableId != null) {
-      emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
-      mesaTabTableIdRef.current = null;
+      if (sessionSlice.rotativaTrigger !== "crossing") {
+        emitRotatingRoomExtensionCloseMesa(postHoldTableId, mesaUrlForTableId(postHoldTableId));
+        mesaTabTableIdRef.current = null;
+      }
     }
     prevPostResultHoldRef.current = postHoldActive;
   }, [

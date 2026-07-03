@@ -326,22 +326,33 @@ export function shouldDeferMesaCloseForCrossingRecovery(
     currentTableId?: number | null;
     postResultHoldActive?: boolean;
     postResultHoldTableId?: number | null;
+    showTapeteSignal?: boolean;
   },
   maxRecovery = ROTATING_ROOM_CROSSING_MAX_RECOVERY,
 ): boolean {
   if (settled.strategy !== "dois2fatores" || settled.tableId == null) return false;
-  if (session.postResultHoldActive === true) return false;
+
+  const focusTableId =
+    session.currentTableId ??
+    (session.postResultHoldTableId != null ? session.postResultHoldTableId : null);
+
+  if (focusTableId != null && focusTableId !== settled.tableId) return false;
+
+  /** Hold de 5s após resultado — mesma mesa até nova aposta no ciclo. */
+  if (session.postResultHoldActive === true) {
+    return true;
+  }
+
+  /** Indicação ainda activa na mesma mesa (empate ou gale). */
+  if (session.showTapeteSignal === true && focusTableId === settled.tableId) {
+    return true;
+  }
 
   const sessionRecovery =
     typeof session.currentRecovery === "number" && Number.isFinite(session.currentRecovery)
       ? Math.max(0, Math.floor(session.currentRecovery))
       : 0;
   if (sessionRecovery <= settled.recovery) return false;
-
-  const focusTableId =
-    session.currentTableId ??
-    (session.postResultHoldTableId != null ? session.postResultHoldTableId : null);
-  if (focusTableId != null && focusTableId !== settled.tableId) return false;
 
   return settled.recovery < maxRecovery;
 }
@@ -369,7 +380,9 @@ export function mesaTabCloseAfterOpenBetChange(
   if (!openBet) {
     if (
       pendingSignal?.tableId === prevOpenBet.tableId &&
-      pendingSignal.recovery > prevOpenBet.recovery
+      (pendingSignal.recovery > prevOpenBet.recovery ||
+        (pendingSignal.strategy === "dois2fatores" &&
+          prevOpenBet.strategy === "dois2fatores"))
     ) {
       return null;
     }

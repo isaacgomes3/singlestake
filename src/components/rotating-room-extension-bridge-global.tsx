@@ -51,6 +51,12 @@ function emitMesaCloseOnce(
   emitRotatingRoomExtensionCloseMesa(tableId, mesaUrlForTableId(tableId));
 }
 
+function isCrossingRotativaSession(session: {
+  rotativaTrigger?: string;
+}): boolean {
+  return "rotativaTrigger" in session && session.rotativaTrigger === "crossing";
+}
+
 function resolveMesaCloseTableId(
   settled: AutomationOpenBet,
   openBet: AutomationOpenBet | null,
@@ -60,6 +66,8 @@ function resolveMesaCloseTableId(
     currentTableId?: number | null;
     postResultHoldActive?: boolean;
     postResultHoldTableId?: number | null;
+    showTapeteSignal?: boolean;
+    rotativaTrigger?: string;
   },
 ): number | null {
   if (shouldDeferMesaCloseForUmFatorRecovery(settled, session)) return null;
@@ -171,9 +179,11 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
         : null;
 
     const prevOpenBet = prevOpenBetRef.current;
+    const crossingSession = isCrossingRotativaSession(session);
 
     if (
       !inGrace &&
+      !crossingSession &&
       postHoldActive &&
       !prevPostResultHoldRef.current &&
       postHoldTableId != null &&
@@ -187,6 +197,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
     if (
       !inGrace &&
+      !crossingSession &&
       prevPostResultHoldRef.current &&
       !postHoldActive &&
       postHoldTableId != null &&
