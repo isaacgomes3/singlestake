@@ -544,6 +544,7 @@ export function scanRotatingRoomRepeticaoTables(
     ROTATING_ROOM_REPETICAO_ALERT_ABSENCE_SPINS,
   ),
   enabledZoneKinds?: readonly FibonacciZoneKind[],
+  alertPick: RotatingRoomRepeticaoPick | null = null,
 ): RotatingRoomRepeticaoTableScan[] {
   return tableIds.map((tableId) => {
     const history = histories[tableId] ?? [];
@@ -564,12 +565,18 @@ export function scanRotatingRoomRepeticaoTables(
       activePick.tableId === pickPrepare.tableId &&
       activePick.zoneKind === pickPrepare.zoneKind;
 
+    const isGlobalAlert =
+      !isActive &&
+      alertPick != null &&
+      alertPick.tableId === pickPrepare.tableId &&
+      alertPick.zoneKind === pickPrepare.zoneKind;
+
     const zone = zoneFromHeadNumber(history, pickPrepare.zoneKind);
     const status: RotatingRoomRepeticaoTableStatus = isActive
       ? "active"
-      : pickPrepare.streakGap === absenceByKind[pickPrepare.zoneKind]
+      : isGlobalAlert
         ? "alert"
-        : "prepare";
+        : "idle";
 
     return {
       tableId,
@@ -577,7 +584,7 @@ export function scanRotatingRoomRepeticaoTables(
       zoneKind: pickPrepare.zoneKind,
       streakGap: pickPrepare.streakGap,
       status,
-      isAlertTable: isActive,
+      isAlertTable: isActive || isGlobalAlert,
     };
   });
 }
@@ -590,6 +597,7 @@ export function buildRotatingRoomRepeticaoLiveView(
     ROTATING_ROOM_REPETICAO_ALERT_ABSENCE_SPINS,
   ),
   enabledZoneKinds?: readonly FibonacciZoneKind[],
+  options?: { suppressNewAlerts?: boolean },
 ): RotatingRoomRepeticaoLiveView {
   let activePick: RotatingRoomRepeticaoPick | null = null;
   if (machine.cycleZoneKind && machine.cycleTableId != null) {
@@ -608,13 +616,15 @@ export function buildRotatingRoomRepeticaoLiveView(
     relaxed.recovery > 0 && relaxed.cycleTableId == null
       ? tablesExcludedFromRotation(relaxed)
       : undefined;
-  const globalPick = pickGlobalRepeticaoAlert(
-    tableIds,
-    histories,
-    excluded,
-    absenceByKind,
-    enabledZoneKinds,
-  );
+  const globalPick = options?.suppressNewAlerts
+    ? activePick
+    : pickGlobalRepeticaoAlert(
+        tableIds,
+        histories,
+        excluded,
+        absenceByKind,
+        enabledZoneKinds,
+      );
 
   return {
     globalPick,
@@ -624,6 +634,7 @@ export function buildRotatingRoomRepeticaoLiveView(
       activePick,
       absenceByKind,
       enabledZoneKinds,
+      globalPick,
     ),
   };
 }

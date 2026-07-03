@@ -119,6 +119,7 @@ export function buildRotatingRoomRepeticaoSessionLiveView(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   machine: RotatingRoomRepeticaoMachineState,
+  options?: { suppressNewAlerts?: boolean },
 ) {
   const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
   const enabledZoneKinds = getEnabledRepeticaoZoneKinds();
@@ -128,6 +129,7 @@ export function buildRotatingRoomRepeticaoSessionLiveView(
     machine,
     absenceByKind,
     enabledZoneKinds,
+    options,
   );
 }
 

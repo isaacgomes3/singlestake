@@ -544,6 +544,7 @@ export function scanRotatingRoomFibonacciTables(
     ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
   ),
   enabledZoneKinds?: readonly FibonacciZoneKind[],
+  alertPick: RotatingRoomFibonacciPick | null = null,
 ): RotatingRoomFibonacciTableScan[] {
   return tableIds.map((tableId) => {
     const history = histories[tableId] ?? [];
@@ -559,18 +560,24 @@ export function scanRotatingRoomFibonacciTables(
       };
     }
 
-    const pickAlert = bestPickForTable(tableId, history, absenceByKind, enabledZoneKinds);
     const isActive =
       activePick != null &&
       activePick.tableId === pickPrepare.tableId &&
       activePick.zone.kind === pickPrepare.zone.kind &&
       activePick.zone.id === pickPrepare.zone.id;
 
+    const isGlobalAlert =
+      !isActive &&
+      alertPick != null &&
+      alertPick.tableId === pickPrepare.tableId &&
+      alertPick.zone.kind === pickPrepare.zone.kind &&
+      alertPick.zone.id === pickPrepare.zone.id;
+
     const status: RotatingRoomFibonacciTableStatus = isActive
       ? "active"
-      : pickAlert
+      : isGlobalAlert
         ? "alert"
-        : "prepare";
+        : "idle";
 
     return {
       tableId,
@@ -578,7 +585,7 @@ export function scanRotatingRoomFibonacciTables(
       zoneKind: pickPrepare.zone.kind,
       absenceGap: pickPrepare.absenceGap,
       status,
-      isAlertTable: isActive,
+      isAlertTable: isActive || isGlobalAlert,
     };
   });
 }
@@ -591,6 +598,7 @@ export function buildRotatingRoomFibonacciLiveView(
     ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS,
   ),
   enabledZoneKinds?: readonly FibonacciZoneKind[],
+  options?: { suppressNewAlerts?: boolean },
 ): RotatingRoomFibonacciLiveView {
   let activePick: RotatingRoomFibonacciPick | null = null;
   if (machine.cycleZone && machine.cycleTableId != null) {
@@ -609,13 +617,15 @@ export function buildRotatingRoomFibonacciLiveView(
     relaxed.recovery > 0 && relaxed.cycleTableId == null
       ? tablesExcludedFromRotation(relaxed)
       : undefined;
-  const globalPick = pickGlobalFibonacciAlert(
-    tableIds,
-    histories,
-    excluded,
-    absenceByKind,
-    enabledZoneKinds,
-  );
+  const globalPick = options?.suppressNewAlerts
+    ? activePick
+    : pickGlobalFibonacciAlert(
+        tableIds,
+        histories,
+        excluded,
+        absenceByKind,
+        enabledZoneKinds,
+      );
 
   return {
     globalPick,
@@ -625,6 +635,7 @@ export function buildRotatingRoomFibonacciLiveView(
       activePick,
       absenceByKind,
       enabledZoneKinds,
+      globalPick,
     ),
   };
 }

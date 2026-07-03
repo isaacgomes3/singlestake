@@ -121,6 +121,7 @@ export function buildRotatingRoomFibonacciSessionLiveView(
   tableIds: readonly number[],
   histories: Record<number, readonly number[]>,
   machine: RotatingRoomFibonacciMachineState,
+  options?: { suppressNewAlerts?: boolean },
 ) {
   const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const enabledZoneKinds = getEnabledFibonacciZoneKinds();
@@ -130,6 +131,7 @@ export function buildRotatingRoomFibonacciSessionLiveView(
     machine,
     absenceByKind,
     enabledZoneKinds,
+    options,
   );
 }
 

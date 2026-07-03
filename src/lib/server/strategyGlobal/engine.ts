@@ -3,6 +3,11 @@ import { getAutomationConfig } from "@/lib/server/automationSim/config";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { readEffectiveRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
+  anyZoneFibonacciMachineInCycle,
+  fibonacciMachineInCycle,
+  repeticaoMachineInCycle,
+} from "@/lib/roulette/zoneFibonacciFamily";
+import {
   enabledFibonacciZoneKindsFromMap,
   enabledRepeticaoZoneKindsFromMap,
   isRotacaoGatilhoEnabled,
@@ -301,7 +306,9 @@ function driveFibonacci(
   const fibonacciTriggerOn = enabledFibonacciZoneKindsFromMap(config.enabledTriggers).length > 0;
   const enabledZoneKinds = enabledFibonacciZoneKindsFromMap(config.enabledTriggers);
   const allowNewArming =
-    fibonacciTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+    fibonacciTriggerOn &&
+    !automationBlocksNewEntries(getAutomationConfig(), 0) &&
+    !repeticaoMachineInCycle(state.repeticao.machine);
   const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const result = drainPlacarSteps(
     state.fibonacci.machine,
@@ -357,7 +364,9 @@ function driveRepeticao(
   const repeticaoTriggerOn = enabledRepeticaoZoneKindsFromMap(config.enabledTriggers).length > 0;
   const enabledZoneKinds = enabledRepeticaoZoneKindsFromMap(config.enabledTriggers);
   const allowNewArming =
-    repeticaoTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+    repeticaoTriggerOn &&
+    !automationBlocksNewEntries(getAutomationConfig(), 0) &&
+    !fibonacciMachineInCycle(state.fibonacci.machine);
   const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
   const result = drainPlacarSteps(
     state.repeticao.machine,
@@ -496,7 +505,10 @@ function buildFibonacciClientView(
 ): StrategyGlobalFibonacciClientView {
   const tableIds = state.rotatingRoomTableIds;
   const machine = sanitizeRotatingRoomFibonacciMachineForTableIds(state.fibonacci.machine, tableIds);
-  const liveView = buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine);
+  const zoneFamilyBusy = anyZoneFibonacciMachineInCycle(state.fibonacci.machine, state.repeticao.machine);
+  const liveView = buildRotatingRoomFibonacciSessionLiveView(tableIds, histories, machine, {
+    suppressNewAlerts: zoneFamilyBusy,
+  });
   const allowed = new Set(tableIds);
   const activeFibonacci =
     machine.cycleZone && machine.cycleTableId != null
@@ -518,7 +530,7 @@ function buildFibonacciClientView(
   const absenceByKind = readEffectiveFibonacciZoneAbsenceSpins();
   const enabledZoneKinds = enabledFibonacciZoneKindsFromMap(getAutomationConfig().enabledTriggers);
   const livePreparePick =
-    !showTapeteSignal && machine.recovery === 0
+    !showTapeteSignal && machine.recovery === 0 && !zoneFamilyBusy
       ? pickGlobalFibonacciPrepare(
           tableIds,
           histories,
@@ -579,7 +591,10 @@ function buildRepeticaoClientView(
 ): StrategyGlobalRepeticaoClientView {
   const tableIds = state.rotatingRoomTableIds;
   const machine = sanitizeRotatingRoomRepeticaoMachineForTableIds(state.repeticao.machine, tableIds);
-  const liveView = buildRotatingRoomRepeticaoSessionLiveView(tableIds, histories, machine);
+  const zoneFamilyBusy = anyZoneFibonacciMachineInCycle(state.fibonacci.machine, state.repeticao.machine);
+  const liveView = buildRotatingRoomRepeticaoSessionLiveView(tableIds, histories, machine, {
+    suppressNewAlerts: zoneFamilyBusy,
+  });
   const allowed = new Set(tableIds);
   const activeRepeticao =
     machine.cycleZone && machine.cycleTableId != null
@@ -599,7 +614,7 @@ function buildRepeticaoClientView(
   const absenceByKind = readEffectiveRepeticaoZoneAbsenceSpins();
   const enabledZoneKinds = enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers);
   const livePreparePick =
-    !showTapeteSignal && machine.recovery === 0
+    !showTapeteSignal && machine.recovery === 0 && !zoneFamilyBusy
       ? pickGlobalRepeticaoPrepare(
           tableIds,
           histories,

@@ -226,9 +226,12 @@ export function resolveRotativaTriggerFromSnapshot(
   const repeticao = snapshot.repeticao;
   const rotacao = snapshot.rotacao;
 
+  const fibBusy = fibonacciEnabled && fibonacciInCycleFromView(fibonacci);
+  const repBusy = repeticaoEnabled && repeticaoInCycleFromView(repeticao);
+  if (fibBusy) return "fibonacci";
+  if (repBusy) return "repeticao";
+
   if (fibonacciEnabled) {
-    const fibBusy = fibonacciInCycleFromView(fibonacci);
-    if (fibBusy) return "fibonacci";
     if (fibonacci.activeFibonacci != null && fibonacci.currentTableId != null) {
       return "fibonacci";
     }
@@ -238,8 +241,6 @@ export function resolveRotativaTriggerFromSnapshot(
   }
 
   if (repeticaoEnabled) {
-    const repBusy = repeticaoInCycleFromView(repeticao);
-    if (repBusy) return "repeticao";
     if (repeticao.activeRepeticao != null && repeticao.currentTableId != null) {
       return "repeticao";
     }

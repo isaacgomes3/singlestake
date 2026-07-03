@@ -12,8 +12,10 @@ import {
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import {
   repeticaoActiveFromSignalId,
+  type RotatingRoomRepeticaoMachineState,
   type RotatingRoomRepeticaoActive,
 } from "@/lib/roulette/rotatingRoomRepeticaoStrategy";
+import type { RotatingRoomFibonacciMachineState } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 
 export type ZoneFibonacciStrategyKind = Extract<StrategyGlobalKind, "fibonacci" | "repeticao">;
 
@@ -84,6 +86,26 @@ export function zoneFibonacciSnapshotFromGlobal(
 
 export function zoneFibonacciSessionEnded(session: ZoneFibonacciSessionSlice): boolean {
   return !session.showTapeteSignal && session.currentRecovery === 0;
+}
+
+/** Ciclo activo (entrada ou gale) — Fibonacci. */
+export function fibonacciMachineInCycle(machine: Pick<RotatingRoomFibonacciMachineState, "cycleTableId" | "cycleZone">): boolean {
+  return machine.cycleTableId != null && machine.cycleZone != null;
+}
+
+/** Ciclo activo (entrada ou gale) — Repetição. */
+export function repeticaoMachineInCycle(
+  machine: Pick<RotatingRoomRepeticaoMachineState, "cycleTableId" | "cycleZone">,
+): boolean {
+  return machine.cycleTableId != null && machine.cycleZone != null;
+}
+
+/** Uma indicação de cada vez — bloqueia nova entrada enquanto Fib ou Rep estiver em jogo. */
+export function anyZoneFibonacciMachineInCycle(
+  fibonacci: Pick<RotatingRoomFibonacciMachineState, "cycleTableId" | "cycleZone">,
+  repeticao: Pick<RotatingRoomRepeticaoMachineState, "cycleTableId" | "cycleZone">,
+): boolean {
+  return fibonacciMachineInCycle(fibonacci) || repeticaoMachineInCycle(repeticao);
 }
 
 export function repeticaoActiveAsFibonacci(
