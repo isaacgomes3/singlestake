@@ -25,6 +25,7 @@ import {
   mesaTabCloseAfterOpenBetChange,
   mesaUrlForTableId,
   shouldDeferMesaCloseForFibonacciRecovery,
+  shouldDeferMesaCloseForCrossingRecovery,
   shouldDeferMesaCloseForUmFatorRecovery,
 } from "@/lib/roulette/rotatingRoomExtensionBridge";
 import {
@@ -63,6 +64,7 @@ function resolveMesaCloseTableId(
 ): number | null {
   if (shouldDeferMesaCloseForUmFatorRecovery(settled, session)) return null;
   if (shouldDeferMesaCloseForFibonacciRecovery(settled, session)) return null;
+  if (shouldDeferMesaCloseForCrossingRecovery(settled, session)) return null;
   return mesaTabCloseAfterOpenBetChange(settled, openBet, pendingSignal);
 }
 

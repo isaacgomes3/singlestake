@@ -43,6 +43,7 @@ import {
   type RotatingRoomClickBotSessionSlice,
 } from "@/lib/roulette/rotatingRoomClickBotLearning";
 import { readRotatingRoomExtensionRealMode, readEffectiveUmFatorMaxRecovery } from "@/lib/roulette/rotatingRoomExtensionPrefs";
+import { ROTATING_ROOM_CROSSING_MAX_RECOVERY } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import type { RotatingUmFatorIndication } from "@/lib/roulette/rotatingUmFatorSimHarness";
 
 export const ROTATING_ROOM_EXTENSION_MESSAGE_TYPE = "game-odds-glow/rotating-room-extension" as const;
@@ -300,6 +301,34 @@ export function shouldDeferMesaCloseForFibonacciRecovery(
 ): boolean {
   if (!isZoneFibonacciBet(settled)) return false;
   if (settled.tableId == null) return false;
+  if (session.postResultHoldActive === true) return false;
+
+  const sessionRecovery =
+    typeof session.currentRecovery === "number" && Number.isFinite(session.currentRecovery)
+      ? Math.max(0, Math.floor(session.currentRecovery))
+      : 0;
+  if (sessionRecovery <= settled.recovery) return false;
+
+  const focusTableId =
+    session.currentTableId ??
+    (session.postResultHoldTableId != null ? session.postResultHoldTableId : null);
+  if (focusTableId != null && focusTableId !== settled.tableId) return false;
+
+  return settled.recovery < maxRecovery;
+}
+
+/** Mantém mesa aberta entre gales de cruzamento (2 fatores) na mesma mesa. */
+export function shouldDeferMesaCloseForCrossingRecovery(
+  settled: Pick<AutomationPendingSignal, "tableId" | "recovery" | "strategy">,
+  session: {
+    currentRecovery?: number;
+    currentTableId?: number | null;
+    postResultHoldActive?: boolean;
+    postResultHoldTableId?: number | null;
+  },
+  maxRecovery = ROTATING_ROOM_CROSSING_MAX_RECOVERY,
+): boolean {
+  if (settled.strategy !== "dois2fatores" || settled.tableId == null) return false;
   if (session.postResultHoldActive === true) return false;
 
   const sessionRecovery =

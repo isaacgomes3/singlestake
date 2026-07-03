@@ -8,8 +8,8 @@ const CDP_BAR_SETTLE_MS = 220;
 
 /** @type {{ fingerprint: string; at: string; actions: unknown[] } | null} */
 let lastBridge = null;
-/** Evita apostar duas vezes no mesmo sinal (demo e real). */
-let lastExecutedSignalId = null;
+/** Evita apostar duas vezes no mesmo alvo do sinal (demo e real). Chave: `${signalId}:factor-1`. */
+const lastExecutedClickKeys = new Set();
 /** Ignora payloads duplicados enquanto o mesmo sinal está activo. */
 let lastBridgeDedupeKey = null;
 /** Bloqueia reentrância durante execução CDP. */
@@ -363,7 +363,7 @@ async function handleBridgePayload(payload, sourceTabId) {
     tableId !== lastBridgeTableId
   ) {
     lastBridgeDedupeKey = null;
-    lastExecutedSignalId = null;
+    lastExecutedClickKeys.clear();
   }
   lastBridgeRecovery = recovery;
   lastBridgeTableId = tableId;
@@ -527,15 +527,15 @@ async function dispatchClickAction(action, context, sourceTabId) {
       ? context.signalId.trim()
       : null;
 
-  if (
-    signalId &&
-    (action.target === "factor-1" || action.target === "factor-2") &&
-    lastExecutedSignalId === signalId
-  ) {
+  const clickDedupeKey =
+    signalId && (action.target === "factor-1" || action.target === "factor-2")
+      ? `${signalId}:${action.target}`
+      : null;
+  if (clickDedupeKey && lastExecutedClickKeys.has(clickDedupeKey)) {
     return {
       target: action.target,
       ok: true,
-      detail: `Sinal ${signalId} já executado — ignorado`,
+      detail: `Sinal ${signalId} (${action.target}) já executado — ignorado`,
       betKey,
       skipped: true,
       dryRun,
@@ -557,8 +557,8 @@ async function dispatchClickAction(action, context, sourceTabId) {
     context,
   );
 
-  if (clickResult.ok && signalId) {
-    lastExecutedSignalId = signalId;
+  if (clickResult.ok && clickDedupeKey) {
+    lastExecutedClickKeys.add(clickDedupeKey);
   }
 
   return {
@@ -1021,16 +1021,21 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
     if (await shouldClickChipBeforeBet()) {
       chipResult = await selectChipOnTab(tabId, dryRun, cdpOpts);
       if (!dryRun && chipResult.ok && !chipResult.skipped) {
-        await sleep(CLICK_STAGGER_MS);
+        const chipStagger = clickStaggerMsForContext(
+          context ?? {},
+          recoveryFromContext(context ?? {}),
+        );
+        await sleep(chipStagger);
       }
     }
 
     const chip = await getSavedChipForTab(tabId);
     const { stakeAmount, chipValue, units, recovery } = stakeUnitsForContext(context ?? {}, chip);
+    const staggerMs = clickStaggerMsForContext(context ?? {}, recovery);
 
     let clickResult = { ok: false, detail: "Aposta não executada" };
     for (let u = 0; u < units; u++) {
-      if (u > 0) await sleep(CLICK_STAGGER_MS);
+      if (u > 0) await sleep(staggerMs);
       clickResult = await executeExteriorBetOnTab(tabId, betKey, label, dryRun, cdpOpts);
       if (!clickResult.ok) break;
     }

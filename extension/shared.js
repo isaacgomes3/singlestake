@@ -109,6 +109,27 @@ function zoneFibStepLabel(context, recovery) {
   return recovery > 0 ? `${tag} ${recovery + 1}` : "Sinal";
 }
 
+function isRepeticaoContext(context) {
+  return (
+    context?.strategy === "repeticao" ||
+    context?.rotativaTrigger === "repeticao" ||
+    (typeof context?.signalId === "string" && context.signalId.trim().startsWith("rep:"))
+  );
+}
+
+const CLICK_STAGGER_BASE_MS = 450;
+
+/** Repetição — 3 últimas entradas Fibonacci (8/13/21 cliques): ritmo mais rápido na janela de apostas. */
+function clickStaggerMsForContext(context, recovery) {
+  const r =
+    typeof recovery === "number" && Number.isFinite(recovery)
+      ? Math.max(0, Math.floor(recovery))
+      : 0;
+  if (!isRepeticaoContext(context) || r < 5) return CLICK_STAGGER_BASE_MS;
+  const mult = r >= 7 ? 4 : r >= 6 ? 3 : 2;
+  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
+}
+
 async function setStoredMode(mode) {
   await chrome.storage.local.set({
     [GOG.STORAGE_MODE]: mode,
