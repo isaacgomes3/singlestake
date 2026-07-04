@@ -500,6 +500,27 @@ export function isRotatingRoomCrossingTableAnchored(
   return isAnchoredFingerprint(machine.prepareFingerprint);
 }
 
+export type RotatingRoomCrossingPrepareSlice = {
+  showTapeteSignal?: boolean;
+  postResultHoldActive?: boolean;
+  prepareTableId?: number | null;
+  prepareCategory?: string | null;
+  sessionMode?: RotatingRoomSessionMode;
+  tableAnchored?: boolean;
+};
+
+/** POSICIONAR — só com gatilho real (categoria/padrão), não ancoragem ociosa pós-ciclo. */
+export function isRotatingRoomCrossingPrepareIndication(
+  session: RotatingRoomCrossingPrepareSlice,
+): boolean {
+  if (session.showTapeteSignal) return false;
+  if (session.postResultHoldActive) return false;
+  if (session.prepareTableId == null) return false;
+  if (session.prepareCategory) return true;
+  if (!session.tableAnchored && session.sessionMode === "prepare") return true;
+  return false;
+}
+
 function parseCrossingPrepareKey(key: string): { tableId: number; axis: CrossingAxisKind } | null {
   const parts = key.split(":");
   if (parts.length < 2) return null;
@@ -1181,7 +1202,12 @@ export function buildRotatingRoomCrossingLiveView(
 
   if (machine.cycleActive) mode = "active";
 
-  else if (machine.prepareFingerprint || preparePick) mode = "prepare";
+  else if (
+    (machine.prepareFingerprint && !isAnchoredFingerprint(machine.prepareFingerprint)) ||
+    preparePick
+  ) {
+    mode = "prepare";
+  }
 
   else if (machine.awaitSwitchNoTable && machine.recovery > 0) mode = "awaiting_queue";
 

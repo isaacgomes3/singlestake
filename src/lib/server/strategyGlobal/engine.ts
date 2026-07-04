@@ -20,6 +20,7 @@ import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableCon
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
 import {
   ROTATING_ROOM_CROSSING_MAX_RECOVERY,
+  isRotatingRoomCrossingPrepareIndication,
   isRotatingRoomCrossingTableAnchored,
   sanitizeRotatingRoomCrossingMachineForTableIds,
   seedRotatingRoomCrossingMachineAfterPlacarReset,
@@ -462,10 +463,21 @@ function buildCrossingClientView(
         allowed.has(postResultHoldTableId)
       ? postResultHoldTableId
       : cycleTableId;
-  const prepareTableId =
+  const prepareTableIdRaw =
     machine.prepareTableId != null && allowed.has(machine.prepareTableId)
       ? machine.prepareTableId
       : null;
+  const tableAnchored = isRotatingRoomCrossingTableAnchored(machine);
+  const prepareTableId = isRotatingRoomCrossingPrepareIndication({
+    showTapeteSignal: showTapeteSignal && currentTableId != null,
+    postResultHoldActive,
+    prepareTableId: prepareTableIdRaw,
+    prepareCategory: liveView.preparePick?.category ?? null,
+    sessionMode: liveView.mode,
+    tableAnchored,
+  })
+    ? prepareTableIdRaw
+    : null;
   return {
     phase: showTapeteSignal && currentTableId != null ? "active" : "waiting",
     sessionStats: state.dois2fatores.stats,

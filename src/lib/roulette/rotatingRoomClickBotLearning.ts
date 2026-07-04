@@ -1,5 +1,6 @@
 import { doisFatoresFactorLabel, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 
 /** Alvos clicáveis no painel da app ou na mesa Pragmatic (via extensão). */
@@ -61,6 +62,9 @@ export type RotatingRoomClickBotSessionSlice = {
   postResultHoldActive?: boolean;
   postResultHoldUntilMs?: number | null;
   postResultHoldTableId?: number | null;
+  /** 2 Fatores — mesa fixa ancorada (pós-vitória). */
+  tableAnchored?: boolean;
+  prepareCategory?: string | null;
   /** Empate → 1× repetir; derrota (gale) → 2× dobrar. */
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
@@ -73,7 +77,16 @@ export function planRotatingRoomClickBotActions(
   const isPrepare =
     !session.showTapeteSignal &&
     !session.postResultHoldActive &&
-    (session.sessionMode === "prepare" || session.prepareTableId != null);
+    (session.rotativaTrigger === "crossing"
+      ? isRotatingRoomCrossingPrepareIndication({
+          showTapeteSignal: session.showTapeteSignal,
+          postResultHoldActive: session.postResultHoldActive,
+          prepareTableId: session.prepareTableId,
+          prepareCategory: session.prepareCategory,
+          sessionMode: session.sessionMode,
+          tableAnchored: session.tableAnchored,
+        })
+      : session.sessionMode === "prepare" || session.prepareTableId != null);
 
   if (isPrepare && session.prepareTableId != null) {
     const mesa = lobbyTableDisplayName(session.prepareTableId);

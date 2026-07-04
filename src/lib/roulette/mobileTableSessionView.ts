@@ -4,6 +4,7 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 
 export type MobileRoundFlash = {
   resultNumber: number;
@@ -49,13 +50,23 @@ export function toMobileTableSessionView(
   if (isRotating && "currentTableId" in session) {
     const rotating = session as RotatingRoomCrossingSession | RotatingRoomUmFatorSession;
     currentTableId = showTapeteSignal ? rotating.currentTableId : null;
-    prepareTableId =
-      !single &&
-      rotating.sessionMode === "prepare" &&
-      !showTapeteSignal &&
-      rotating.prepareTableId != null
-        ? rotating.prepareTableId
-        : null;
+    if (!single && !showTapeteSignal && rotating.prepareTableId != null) {
+      if ("tableAnchored" in rotating) {
+        prepareTableId = isRotatingRoomCrossingPrepareIndication({
+          showTapeteSignal: rotating.showTapeteSignal,
+          postResultHoldActive:
+            "postResultHoldActive" in rotating && rotating.postResultHoldActive === true,
+          prepareTableId: rotating.prepareTableId,
+          prepareCategory: rotating.prepareCategory,
+          sessionMode: rotating.sessionMode,
+          tableAnchored: rotating.tableAnchored,
+        })
+          ? rotating.prepareTableId
+          : null;
+      } else if (rotating.sessionMode === "prepare") {
+        prepareTableId = rotating.prepareTableId;
+      }
+    }
   } else {
     const isPrepare =
       !single &&

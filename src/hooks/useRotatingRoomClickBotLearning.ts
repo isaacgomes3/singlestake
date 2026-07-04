@@ -205,6 +205,8 @@ function sessionToSlice(
       Number.isFinite(session.cycleSpinsWithoutWin)
         ? session.cycleSpinsWithoutWin
         : 0,
+    tableAnchored: "tableAnchored" in session ? session.tableAnchored : undefined,
+    prepareCategory: "prepareCategory" in session ? session.prepareCategory : null,
   };
 }
 

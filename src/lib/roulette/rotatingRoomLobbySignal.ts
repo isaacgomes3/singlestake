@@ -6,6 +6,7 @@ import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { activeFibonacciViewFromBet, isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
+import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { EXTENSION_PRE_BET_WAIT_SEC } from "@/lib/roulette/liveTableBettingWindow";
 
 /** Stagger entre acções de clique na extensão (3 factores iguais / Um Fator). */
@@ -121,6 +122,20 @@ export function isRotatingRoomLobbyWait(session: RotatingRoomLobbySession): bool
   return rotatingRoomLobbyFocusTableId(session) == null;
 }
 
+function crossingPrepareFocusTableId(session: RotatingRoomLobbySession): number | null {
+  if (!("tableAnchored" in session) || session.prepareTableId == null) return null;
+  return isRotatingRoomCrossingPrepareIndication({
+    showTapeteSignal: session.showTapeteSignal,
+    postResultHoldActive: isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs),
+    prepareTableId: session.prepareTableId,
+    prepareCategory: "prepareCategory" in session ? session.prepareCategory : null,
+    sessionMode: session.sessionMode,
+    tableAnchored: session.tableAnchored,
+  })
+    ? session.prepareTableId
+    : null;
+}
+
 /** Mesa em foco na sala rotativa (iframe, cartão lobby, badge de sinal). */
 export function rotatingRoomLobbyFocusTableId(session: RotatingRoomLobbySession): number | null {
   if (
@@ -131,7 +146,15 @@ export function rotatingRoomLobbyFocusTableId(session: RotatingRoomLobbySession)
   }
   if (session.roundFlash?.tableId != null) return session.roundFlash.tableId;
   if (session.showTapeteSignal && session.currentTableId != null) return session.currentTableId;
-  if (session.prepareTableId != null) return session.prepareTableId;
+  const crossingPrepare = crossingPrepareFocusTableId(session);
+  if (crossingPrepare != null) return crossingPrepare;
+  if (
+    session.prepareTableId != null &&
+    session.sessionMode === "prepare" &&
+    !("tableAnchored" in session)
+  ) {
+    return session.prepareTableId;
+  }
   return null;
 }
 
@@ -139,7 +162,8 @@ export function rotatingRoomLobbyFocusTableId(session: RotatingRoomLobbySession)
 export function rotatingRoomLobbyHasSignal(session: RotatingRoomLobbySession): boolean {
   if (session.roundFlash != null) return true;
   if (session.showTapeteSignal) return true;
-  return session.sessionMode === "prepare" && session.prepareTableId != null;
+  if (crossingPrepareFocusTableId(session) != null) return true;
+  return session.sessionMode === "prepare" && session.prepareTableId != null && !("tableAnchored" in session);
 }
 
 /** Mesa do lobby com sinal activo — só a mesa em foco na sessão global da sala rotativa. */

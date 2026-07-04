@@ -11,7 +11,10 @@ import type { RotatingRoomPlusSession } from "@/hooks/useRotatingRoomPlusSession
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import type { UmFatorSession } from "@/hooks/useUmFatorSession";
-import { ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS } from "@/lib/roulette/rotatingRoomCrossingSession";
+import {
+  ROTATING_ROOM_CROSSING_MIN_ABSENCE_SPINS,
+  isRotatingRoomCrossingPrepareIndication,
+} from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { useFibonacciAbsenceSpins } from "@/hooks/useFibonacciAbsenceSpins";
 import { ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS } from "@/lib/roulette/doisFatoresPatternCrossing";
 import { getCasinoEmbedUrlForTable } from "@/lib/roulette/casinoEmbedConfig";
@@ -61,6 +64,19 @@ function isSingleFactorSession(session: RotatingRoomPanelSession): boolean {
 
 function isCrossingTableAnchored(session: RotatingRoomPanelSession): boolean {
   return "tableAnchored" in session && session.tableAnchored === true;
+}
+
+function isCrossingPrepareIndication(session: RotatingRoomPanelSession): boolean {
+  if (isSingleFactorSession(session) || isFibonacciSession(session)) return false;
+  return isRotatingRoomCrossingPrepareIndication({
+    showTapeteSignal: session.showTapeteSignal,
+    postResultHoldActive:
+      "postResultHoldActive" in session && session.postResultHoldActive === true,
+    prepareTableId: session.prepareTableId,
+    prepareCategory: "prepareCategory" in session ? session.prepareCategory : null,
+    sessionMode: session.sessionMode,
+    tableAnchored: isCrossingTableAnchored(session),
+  });
 }
 
 function crossingPrepareHeading(
@@ -553,10 +569,11 @@ function RotatingRoomStage({
     "postResultHoldActive" in session &&
     session.postResultHoldActive === true;
   const isPrepare =
-    !isSingleFactorSession(session) &&
     !session.showTapeteSignal &&
     !postResultHoldActive &&
-    (session.sessionMode === "prepare" || session.prepareTableId != null);
+    (isFibonacciSession(session)
+      ? session.sessionMode === "prepare" && session.prepareTableId != null
+      : !isSingleFactorSession(session) && isCrossingPrepareIndication(session));
   const hasRoundFlash = session.roundFlash != null;
   const hasLiveIndication =
     (session.showTapeteSignal && session.activeCrossing != null) ||

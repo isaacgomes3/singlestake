@@ -18,6 +18,7 @@ import {
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import {
   isRotatingRoomCrossingTableAnchored,
+  isRotatingRoomCrossingPrepareIndication,
   type RotatingRoomCrossingMachineState,
   type RotatingRoomCrossingTableScan,
   type RotatingRoomSessionMode,
@@ -231,9 +232,15 @@ export function useRotatingRoomCrossingSession(
   const globalView = globalSnap?.dois2fatores;
 
   const crossingPrepareKey = globalActive
-    ? globalView?.sessionMode === "prepare" &&
-      !globalView.showTapeteSignal &&
-      globalView.prepareTableId != null
+    ? globalView?.prepareTableId != null &&
+      isRotatingRoomCrossingPrepareIndication({
+        showTapeteSignal: globalView.showTapeteSignal,
+        postResultHoldActive: isRotatingRoomPostResultHoldActive(globalView.postResultHoldUntilMs),
+        prepareTableId: globalView.prepareTableId,
+        prepareCategory: globalView.prepareCategory,
+        sessionMode: globalView.sessionMode,
+        tableAnchored: globalView.tableAnchored,
+      })
       ? `${globalView.prepareTableId}:${globalView.prepareCategory ?? ""}`
       : null
     : liveView.mode === "prepare" && !showTapeteSignal && machine.prepareTableId != null && machine.prepareFingerprint
@@ -316,10 +323,22 @@ export function useRotatingRoomCrossingSession(
     : (machine.postResultHoldReason ?? null);
   const postResultHoldActive = isRotatingRoomPostResultHoldActive(postResultHoldUntilMs);
 
+  const visiblePrepareTableId = isRotatingRoomCrossingPrepareIndication({
+    showTapeteSignal: showTapeteSignal && currentTableId != null,
+    postResultHoldActive,
+    prepareTableId,
+    prepareCategory: liveView.preparePick?.category ?? null,
+    sessionMode: liveView.mode,
+    tableAnchored,
+  })
+    ? prepareTableId
+    : null;
+
   if (globalActive && globalView) {
     return {
       ...globalView,
       roundFlash,
+      prepareTableId: globalView.prepareTableId,
       cycleSpinsWithoutWin: globalView.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
       lastEvaluatedHead: machine.lastEvaluatedHead,
       tableAnchored: globalView.tableAnchored ?? tableAnchored,
@@ -344,7 +363,7 @@ export function useRotatingRoomCrossingSession(
         : postResultHoldActive && postResultHoldTableId != null
           ? postResultHoldTableId
           : currentTableId,
-    prepareTableId,
+    prepareTableId: visiblePrepareTableId,
     alertCategory: liveView.globalPick?.category ?? null,
     alertBucketGap: liveView.globalPick?.bucketGap ?? 0,
     sessionMode: liveView.mode,
