@@ -172,6 +172,22 @@ export function crossingOppositeBucketDef(def: CrossingBucketDef): CrossingBucke
   return CROSSING_BUCKET_DEFINITIONS.find((d) => d.category === cat) ?? null;
 }
 
+/**
+ * Trava de segurança (ausência): não armar indicação enquanto o giro mais recente
+ * pertencer ao cruzamento oposto do alvo (ex.: alvo Par·Baixo, último Ímpar·Alto → aguarda).
+ */
+export function crossingAbsenceIndicationBlockedByOppositeSpin(
+  historyNewestFirst: readonly number[],
+  target: CrossingBucketDef,
+): boolean {
+  if (historyNewestFirst.length === 0) return false;
+  const last = historyNewestFirst[0]!;
+  if (last === 0) return false;
+  const opposite = crossingOppositeBucketDef(target);
+  if (!opposite) return false;
+  return opposite.nums.includes(last);
+}
+
 /** Irmão no mesmo eixo: mesma cor ou paridade, altura oposta. */
 export function crossingHeightSiblingBucketDef(def: CrossingBucketDef): CrossingBucketDef | null {
   const sample = def.nums[0];

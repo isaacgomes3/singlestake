@@ -10,6 +10,7 @@
  * - Recuperações na **mesma mesa** (sem trocar de mesa no ciclo activo)
  * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
  * - 5 recuperações antes de L final
+ * - **Trava oposto:** não indica ausência enquanto o giro mais recente for do cruzamento oposto (ex.: Par·Baixo vs Ímpar·Alto)
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
 
@@ -43,6 +44,7 @@ import {
 } from "@/lib/roulette/crossingAbsencePrefs";
 import {
   CROSSING_BUCKET_DEFINITIONS,
+  crossingAbsenceIndicationBlockedByOppositeSpin,
   crossingBucketAbsenceGap,
   type CrossingAxisKind,
   type CrossingBucketDef,
@@ -366,6 +368,20 @@ function pickFromAbsenceBucket(
   };
 }
 
+function crossingPickBlockedByOppositeLatestSpin(
+  historyNewestFirst: readonly number[],
+  pick: RotatingRoomCrossingPick | null,
+): RotatingRoomCrossingPick | null {
+  if (!pick) return null;
+  const def = CROSSING_BUCKET_DEFINITIONS.find(
+    (d) => d.axis === pick.axis && d.category === pick.category,
+  );
+  if (def && crossingAbsenceIndicationBlockedByOppositeSpin(historyNewestFirst, def)) {
+    return null;
+  }
+  return pick;
+}
+
 function bestExactAbsencePickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
@@ -382,7 +398,10 @@ function bestExactAbsencePickForTable(
     }
   }
   if (!best) return null;
-  return pickFromAbsenceBucket(tableId, best.def, best.gap);
+  return crossingPickBlockedByOppositeLatestSpin(
+    historyNewestFirst,
+    pickFromAbsenceBucket(tableId, best.def, best.gap),
+  );
 }
 
 function listAllCrossingAbsenceAlertPicks(
@@ -618,12 +637,15 @@ function bestPickForTable(
       );
       if (pick && (!best || comparePicks(pick, best) < 0)) best = pick;
     }
-    if (best) return best;
+    if (best) return crossingPickBlockedByOppositeLatestSpin(historyNewestFirst, best);
   }
   if (!isCrossingGatilhoEnabled()) return null;
   const match = detectBestPatternOnTable(historyNewestFirst);
   if (!match) return null;
-  return pickFromPatternMatch(tableId, match);
+  return crossingPickBlockedByOppositeLatestSpin(
+    historyNewestFirst,
+    pickFromPatternMatch(tableId, match),
+  );
 }
 
 function pickForTableOnAxis(
@@ -664,7 +686,10 @@ export function listAllAlertPicks(
       if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
       if (tableHasZeroInLastSpins(history)) continue;
       const match = detectPatternOnTableByKind(history, kind);
-      if (match) out.push(pickFromPatternMatch(tableId, match));
+      const pick = match
+        ? crossingPickBlockedByOppositeLatestSpin(history, pickFromPatternMatch(tableId, match))
+        : null;
+      if (pick) out.push(pick);
     }
     if (out.length > 0) {
       out.sort(comparePicks);
