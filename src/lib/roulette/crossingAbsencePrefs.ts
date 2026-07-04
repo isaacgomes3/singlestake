@@ -8,8 +8,8 @@ import {
 export const CROSSING_ABSENCE_SPINS_MIN = 3;
 export const CROSSING_ABSENCE_SPINS_MAX = 99;
 export const DEFAULT_CROSSING_ABSENCE_SPINS = 12;
-/** Desvio do gatilho automático em relação à máx. ausência na janela. */
-export const CROSSING_ABSENCE_AUTO_OFFSET = 5;
+/** Desvio do gatilho automático em relação à máx. ausência na janela (0 = gatilho igual à máx.). */
+export const CROSSING_ABSENCE_AUTO_OFFSET = 0;
 
 export type CrossingAbsenceAxisKind = "corAltura" | "alturaParidade";
 

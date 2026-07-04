@@ -43,7 +43,7 @@ export function crossingAutoAbsencePatchFromHistories(
   return changed ? patch : null;
 }
 
-/** Actualiza giros efectivos quando o modo automático está activo (máx. janela − 5). */
+/** Actualiza giros efectivos quando o modo automático está activo (gatilho = máx. na janela). */
 export function applyCrossingAutoAbsenceRuntime(
   config: GlobalAutomationConfig,
   histories: Record<number, readonly number[]>,

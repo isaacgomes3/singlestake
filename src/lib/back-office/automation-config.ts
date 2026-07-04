@@ -41,9 +41,9 @@ export type GlobalAutomationConfig = {
   repeticaoColumnAbsenceSpins: number;
   crossingCorAlturaAbsenceSpins: number;
   crossingAlturaParidadeAbsenceSpins: number;
-  /** Giros ausentes = máx. na janela − 5 (cor/altura). */
+  /** Giros ausentes = máx. ausência na janela (cor/altura). */
   crossingCorAlturaAbsenceAuto: boolean;
-  /** Giros ausentes = máx. na janela − 5 (paridade/altura). */
+  /** Giros ausentes = máx. ausência na janela (paridade/altura). */
   crossingAlturaParidadeAbsenceAuto: boolean;
   updatedAt: number;
 };
