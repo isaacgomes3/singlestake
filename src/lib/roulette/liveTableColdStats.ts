@@ -172,20 +172,27 @@ export function crossingOppositeBucketDef(def: CrossingBucketDef): CrossingBucke
   return CROSSING_BUCKET_DEFINITIONS.find((d) => d.category === cat) ?? null;
 }
 
+/** Trava 2F ausência — bloqueia se algum dos N giros mais recentes for do cruzamento oposto. */
+export const CROSSING_ABSENCE_OPPOSITE_SPIN_LOCK = 3;
+
 /**
- * Trava de segurança (ausência): não armar indicação enquanto o giro mais recente
- * pertencer ao cruzamento oposto do alvo (ex.: alvo Par·Baixo, último Ímpar·Alto → aguarda).
+ * Trava de segurança (ausência): não armar indicação enquanto algum dos
+ * {@link CROSSING_ABSENCE_OPPOSITE_SPIN_LOCK} giros mais recentes pertencer ao
+ * cruzamento oposto do alvo (ex.: alvo Par·Baixo, últimos 3 com Ímpar·Alto → aguarda).
  */
 export function crossingAbsenceIndicationBlockedByOppositeSpin(
   historyNewestFirst: readonly number[],
   target: CrossingBucketDef,
 ): boolean {
   if (historyNewestFirst.length === 0) return false;
-  const last = historyNewestFirst[0]!;
-  if (last === 0) return false;
   const opposite = crossingOppositeBucketDef(target);
   if (!opposite) return false;
-  return opposite.nums.includes(last);
+  const recent = historyNewestFirst.slice(0, CROSSING_ABSENCE_OPPOSITE_SPIN_LOCK);
+  for (const spin of recent) {
+    if (spin === 0) continue;
+    if (opposite.nums.includes(spin)) return true;
+  }
+  return false;
 }
 
 /** Irmão no mesmo eixo: mesma cor ou paridade, altura oposta. */

@@ -10,7 +10,7 @@
  * - Recuperações na **mesma mesa** (sem trocar de mesa no ciclo activo)
  * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
  * - 5 recuperações antes de L final
- * - **Trava oposto:** não indica ausência enquanto o giro mais recente for do cruzamento oposto (ex.: Par·Baixo vs Ímpar·Alto)
+ * - **Trava oposto:** não indica ausência enquanto algum dos 3 giros mais recentes for do cruzamento oposto
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
 
