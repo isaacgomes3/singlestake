@@ -10,43 +10,47 @@ import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
 import { cn } from "@/lib/utils";
 
-type Tone = "green" | "blue" | "teal" | "slate";
+type ValueTone = "default" | "green" | "red";
 
-function toneClasses(tone: Tone) {
-  switch (tone) {
+function valueToneFromNumber(n: number): ValueTone {
+  if (n > 0) return "green";
+  if (n < 0) return "red";
+  return "default";
+}
+
+function valueToneClasses(valueTone: ValueTone) {
+  switch (valueTone) {
     case "green":
-      return "bg-kpi-green shadow-[0_4px_16px_rgba(52,168,83,0.32)]";
-    case "blue":
-      return "bg-kpi-blue shadow-[0_4px_16px_rgba(51,122,183,0.32)]";
-    case "teal":
-      return "bg-kpi-teal shadow-[0_4px_16px_rgba(31,182,143,0.32)]";
+      return "text-emerald-400";
+    case "red":
+      return "text-red-400";
     default:
-      return "bg-kpi-slate shadow-md";
+      return "text-kpi-foreground";
   }
 }
 
 function GlobalKpiMiniButton({
-  tone,
   label,
   value,
   compactValue,
+  valueTone = "default",
 }: {
-  tone: Tone;
   label: string;
   value: string;
   compactValue?: boolean;
+  valueTone?: ValueTone;
 }) {
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-kpi-foreground",
-        toneClasses(tone),
+        "flex h-full min-h-0 flex-col items-center justify-center rounded-xl bg-kpi-slate px-2 py-2 text-center text-kpi-foreground shadow-md",
       )}
     >
       <span
         className={cn(
           "max-w-full truncate font-bold tabular-nums leading-none",
           compactValue ? "text-sm sm:text-base" : "text-base sm:text-lg",
+          valueToneClasses(valueTone),
         )}
       >
         {value}
@@ -84,33 +88,33 @@ export function AutomationGlobalKpiCard() {
     ? t("overview.globalKpiCard.paused")
     : t("overview.globalKpiCard.waiting");
 
-  const netFormatted = `${net >= 0 ? "+" : ""}${money(net)}`;
-  const pctFormatted = `${netPct >= 0 ? "+" : ""}${netPct.toFixed(2)}%`;
+  const netFormatted = money(net);
+  const pctFormatted = `${netPct.toFixed(2)}%`;
   const balanceFormatted = money(displayBalance);
 
   const items = useMemo(
     () => [
       {
-        tone: "teal" as const,
         label: t("overview.globalKpiCard.balance"),
         value: balanceFormatted,
         compactValue: balanceFormatted.length > 12,
+        valueTone: "default" as const,
       },
       {
-        tone: net >= 0 ? ("green" as const) : ("slate" as const),
         label: t("overview.globalKpiCard.net"),
         value: netFormatted,
         compactValue: netFormatted.length > 12,
+        valueTone: valueToneFromNumber(net),
       },
       {
-        tone: "blue" as const,
         label: t("overview.globalKpiCard.variation"),
         value: pctFormatted,
+        valueTone: valueToneFromNumber(netPct),
       },
       {
-        tone: "slate" as const,
         label: t("overview.globalKpiCard.status"),
         value: statusValue,
+        valueTone: "default" as const,
       },
     ],
     [balanceFormatted, net, netFormatted, pctFormatted, statusValue, t],
@@ -124,10 +128,10 @@ export function AutomationGlobalKpiCard() {
       {items.map((item) => (
         <GlobalKpiMiniButton
           key={item.label}
-          tone={item.tone}
           label={item.label}
           value={item.value}
           compactValue={item.compactValue}
+          valueTone={item.valueTone}
         />
       ))}
     </div>
