@@ -206,6 +206,9 @@ export function buildRotatingRoomExtensionContext(
           postResultHoldUntilMs,
           recovery,
           cycleSpinsWithoutWin,
+          session.cycleOppositeAbsence === true &&
+            session.postResultHoldReason === "draw" &&
+            recovery <= 0,
         )
       : null;
   return {
@@ -728,7 +731,7 @@ export function buildExtensionBridgeFromAutomationBet(
   const isCrossingGaleContinuation =
     bet.strategy === "dois2fatores" &&
     !singleFactorMode &&
-    (recovery > 0 || cycleAttempt > 0);
+    (recovery > 0 || cycleAttempt > 0 || bet.crossingOppositeWinPersist === true);
 
   const sessionSlice: RotatingRoomClickBotSessionSlice = {
     sessionMode: "active",
@@ -746,6 +749,7 @@ export function buildExtensionBridgeFromAutomationBet(
     postResultHoldUntilMs: options?.postResultHoldUntilMs ?? null,
     postResultHoldReason: bet.crossingHoldReason ?? null,
     cycleSpinsWithoutWin: cycleAttempt,
+    cycleOppositeAbsence: bet.crossingOppositeWinPersist === true,
   };
 
   const actions = planRotatingRoomClickBotActions(sessionSlice);

@@ -515,6 +515,7 @@ function buildCrossingClientView(
     postResultHoldUntilMs: machine.postResultHoldUntilMs,
     postResultHoldTableId: machine.postResultHoldTableId,
     postResultHoldReason: machine.postResultHoldReason ?? null,
+    cycleOppositeAbsence: machine.cycleOppositeAbsence === true,
   };
 }
 

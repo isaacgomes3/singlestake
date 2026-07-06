@@ -1,6 +1,9 @@
 import { doisFatoresFactorLabel, type DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import type { RotatingRoomSessionMode } from "@/lib/roulette/rotatingRoomCrossingStrategy";
-import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import {
+  isRotatingRoomCrossingPrepareIndication,
+  isCrossingOppositeAbsenceWinPersistHold,
+} from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 
 /** Alvos clicáveis no painel da app ou na mesa Pragmatic (via extensão). */
@@ -68,6 +71,7 @@ export type RotatingRoomClickBotSessionSlice = {
   /** Empate → 1× repetir; derrota (gale) → 2× dobrar. */
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
+  cycleOppositeAbsence?: boolean;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -111,7 +115,13 @@ export function planRotatingRoomClickBotActions(
       session.singleFactorMode !== true &&
       session.activeCrossing != null &&
       session.currentTableId != null &&
-      (recovery > 0 || attempt > 0);
+      (recovery > 0 ||
+        attempt > 0 ||
+        isCrossingOppositeAbsenceWinPersistHold({
+          cycleOppositeAbsence: session.cycleOppositeAbsence,
+          postResultHoldReason: session.postResultHoldReason,
+          currentRecovery: recovery,
+        }));
     if (isCrossingContinuation) {
       const mesa = lobbyTableDisplayName(session.currentTableId!);
       const repeatClicks = crossingRepeatBetClickCount(session.postResultHoldReason);

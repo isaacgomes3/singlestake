@@ -64,6 +64,8 @@ export type StrategyGlobalCrossingClientView = {
   postResultHoldUntilMs: number | null;
   postResultHoldTableId: number | null;
   postResultHoldReason: "draw" | "loss" | null;
+  /** Ciclo activo é gatilho de ausência oposta (indicação persistente). */
+  cycleOppositeAbsence: boolean;
 };
 
 export type StrategyGlobalUmFatorClientView = {

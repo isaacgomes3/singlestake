@@ -335,6 +335,8 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
                   session.postResultHoldReason === "loss")
                   ? session.postResultHoldReason
                   : null,
+              cycleOppositeAbsence:
+                "cycleOppositeAbsence" in session && session.cycleOppositeAbsence === true,
             },
             globalAutomation.balance,
             histories,

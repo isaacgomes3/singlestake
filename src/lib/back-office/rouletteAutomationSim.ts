@@ -87,6 +87,8 @@ export type AutomationPendingSignal = {
   rotacaoActive?: RotacaoActive;
   /** 2F — empate (repetir) vs derrota (dobrar) no hold pós-giro. */
   crossingHoldReason?: "draw" | "loss";
+  /** 2F ausência oposta — repetir aposta após vitória na entrada (R0). */
+  crossingOppositeWinPersist?: boolean;
 };
 
 /** Aposta aberta — entrada em jogo à espera do giro. */
@@ -407,6 +409,7 @@ export function pendingSignalFromCrossingExtensionBridge(
     | "postResultHoldUntilMs"
     | "postResultHoldTableId"
     | "postResultHoldReason"
+    | "cycleOppositeAbsence"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -426,7 +429,12 @@ export function pendingSignalFromCrossingExtensionBridge(
     typeof session.cycleSpinsWithoutWin === "number" && Number.isFinite(session.cycleSpinsWithoutWin)
       ? Math.max(0, Math.floor(session.cycleSpinsWithoutWin))
       : 0;
-  if (recovery <= 0 && attempt <= 0) return null;
+  const oppositeWinPersist =
+    session.cycleOppositeAbsence === true &&
+    session.postResultHoldReason === "draw" &&
+    recovery <= 0 &&
+    attempt <= 0;
+  if (recovery <= 0 && attempt <= 0 && !oppositeWinPersist) return null;
 
   const fingerprint =
     session.cycleFingerprint ??
@@ -447,6 +455,7 @@ export function pendingSignalFromCrossingExtensionBridge(
     strategy: "dois2fatores",
     activeCrossing: active,
     crossingHoldReason: session.postResultHoldReason ?? undefined,
+    crossingOppositeWinPersist: oppositeWinPersist,
   };
 }
 

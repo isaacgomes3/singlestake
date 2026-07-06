@@ -565,6 +565,19 @@ export function crossingFingerprint(tableId: number, axis: CrossingAxisKind, cat
   return `${tableId}:${axis}:${category}`;
 }
 
+/** Hold pós-vitória na ausência oposta — repetir aposta no mesmo ciclo (R0). */
+export function isCrossingOppositeAbsenceWinPersistHold(session: {
+  cycleOppositeAbsence?: boolean;
+  postResultHoldReason?: "draw" | "loss" | null;
+  currentRecovery?: number;
+}): boolean {
+  return (
+    session.cycleOppositeAbsence === true &&
+    session.postResultHoldReason === "draw" &&
+    (session.currentRecovery ?? 0) === 0
+  );
+}
+
 /** Id estável do ciclo de indicação (mesmo gatilho até vitória ou derrota final). */
 export function crossingSignalId(
   tableId: number,
@@ -1730,6 +1743,7 @@ export function tickRotatingRoomCrossingPlacar(
         nextMachine = beginCrossingPostResultHold(
           {
             ...nextMachine,
+            cycleSeq: (nextMachine.cycleSeq ?? 0) + 1,
             tablePlacarLosses: {},
             lastLostTableId: null,
             signalQueue: [],

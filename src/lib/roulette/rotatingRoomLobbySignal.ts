@@ -61,10 +61,11 @@ export function resolveCrossingExtensionBetDelayUntilMs(
   postResultHoldUntilMs: number | null | undefined,
   recovery: number,
   cycleSpinsWithoutWin: number,
+  oppositeAbsenceWinPersist = false,
   nowMs = Date.now(),
 ): number | null {
   const attempt = Math.max(0, Math.floor(cycleSpinsWithoutWin));
-  const isContinuation = recovery > 0 || attempt > 0;
+  const isContinuation = recovery > 0 || attempt > 0 || oppositeAbsenceWinPersist;
   if (!isContinuation) return null;
   if (
     typeof postResultHoldUntilMs !== "number" ||
