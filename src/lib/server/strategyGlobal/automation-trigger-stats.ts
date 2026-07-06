@@ -15,6 +15,7 @@ import {
 import {
   buildCrossingReturnStreakStats,
   emptyCrossingReturnStreakStats,
+  lowestReturnStreakFilterWithMaxWinsOne,
 } from "@/lib/roulette/crossingReturnStreakStats";
 import { normalizeCrossingAxisAbsenceSpins } from "@/lib/roulette/crossingAbsencePrefs";
 import { normalizeCrossingOppositeAxisAbsenceSpins } from "@/lib/roulette/crossingOppositeAbsencePrefs";
@@ -204,7 +205,7 @@ function crossingOppositeAbsenceStatsFromState(
   crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
-  absenceFilter: AutomationStatsDto["absenceFilterStats"]["crossing"],
+  returnStreak: AutomationStatsDto["absenceFilterStats"]["crossingReturnStreak"],
 ): AutomationStatsDto["crossingOppositeAbsence"] {
   const absenceByAxis = normalizeCrossingOppositeAxisAbsenceSpins(config);
   return {
@@ -214,7 +215,7 @@ function crossingOppositeAbsenceStatsFromState(
       enabledTriggers.crossingCorAlturaOpposite === true,
       absenceByAxis.corAltura,
       config.crossingCorAlturaOppositeAbsenceAuto === true,
-      absenceFilter.corAltura.maxAbsenceInWindow,
+      lowestReturnStreakFilterWithMaxWinsOne(returnStreak.corAltura) ?? 0,
     ),
     alturaParidade: crossingOppositeAbsenceAxisStatsRow(
       crossingStats,
@@ -222,7 +223,7 @@ function crossingOppositeAbsenceStatsFromState(
       enabledTriggers.crossingAlturaParidadeOpposite === true,
       absenceByAxis.alturaParidade,
       config.crossingAlturaParidadeOppositeAbsenceAuto === true,
-      absenceFilter.alturaParidade.maxAbsenceInWindow,
+      lowestReturnStreakFilterWithMaxWinsOne(returnStreak.alturaParidade) ?? 0,
     ),
   };
 }
@@ -319,7 +320,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       crossingStats,
       enabledTriggers,
       config,
-      absenceFilterStats.crossing,
+      absenceFilterStats.crossingReturnStreak,
     ),
     absenceFilterStats,
   };

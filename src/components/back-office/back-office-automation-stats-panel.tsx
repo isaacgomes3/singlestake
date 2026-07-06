@@ -292,7 +292,7 @@ export function BackOfficeAutomationStatsPanel() {
     applyAutomationPrefsFromDto(result.data);
     toast.success(
       absenceAuto
-        ? t("automationStats.crossingAbsenceAutoOn")
+        ? t("automationStats.crossingOppositeAbsenceAutoOn")
         : t("automationStats.crossingAbsenceAutoOff"),
     );
   }
@@ -632,7 +632,6 @@ export function BackOfficeAutomationStatsPanel() {
       data != null && !zone.absenceAuto && Number(draft) !== zone.absenceSpins;
     const inputId =
       axisKind === "corAltura" ? "cross-opposite-absence-cor-altura" : "cross-opposite-absence-altura-paridade";
-    const maxInWindow = zone.maxAbsenceInWindow ?? 0;
 
     return (
       <div
@@ -728,8 +727,7 @@ export function BackOfficeAutomationStatsPanel() {
         {!loading ? (
           <p className="mt-2 text-[11px] text-text-secondary">
             {zone.absenceAuto
-              ? t("automationStats.crossingAbsenceAutoActive", {
-                  max: maxInWindow,
+              ? t("automationStats.crossingOppositeAbsenceAutoActive", {
                   spins: zone.absenceSpins,
                 })
               : t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}

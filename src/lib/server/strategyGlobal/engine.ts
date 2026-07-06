@@ -4,6 +4,10 @@ import {
   applyCrossingAutoAbsenceRuntime,
   crossingAutoAbsencePatchFromHistories,
 } from "@/lib/server/automationSim/crossing-auto-absence";
+import {
+  applyCrossingOppositeAutoAbsenceRuntime,
+  crossingOppositeAutoAbsencePatchFromHistories,
+} from "@/lib/server/automationSim/crossing-opposite-auto-absence";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { readEffectiveRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
@@ -246,9 +250,21 @@ function refreshCrossingAutoAbsenceForHistories(
 ): void {
   const config = getAutomationConfig();
   const patch = crossingAutoAbsencePatchFromHistories(config, histories);
-  if (!patch) return;
-  applyCrossingAutoAbsenceRuntime({ ...config, ...patch }, histories);
-  void saveAutomationConfig(patch);
+  if (patch) {
+    applyCrossingAutoAbsenceRuntime({ ...config, ...patch }, histories);
+    void saveAutomationConfig(patch);
+  }
+  const oppositePatch = crossingOppositeAutoAbsencePatchFromHistories(
+    patch ? { ...config, ...patch } : config,
+    histories,
+  );
+  if (oppositePatch) {
+    applyCrossingOppositeAutoAbsenceRuntime(
+      { ...(patch ? { ...config, ...patch } : config), ...oppositePatch },
+      histories,
+    );
+    void saveAutomationConfig(oppositePatch);
+  }
 }
 
 function driveCrossing(

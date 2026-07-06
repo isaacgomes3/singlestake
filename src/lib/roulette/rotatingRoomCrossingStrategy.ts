@@ -11,6 +11,7 @@
  * - **Novo gatilho** (qualquer cruzamento) na mesa → nova indicação de imediato; as 2 rodadas sem padrão só contam quando não surge gatilho
  * - 5 recuperações antes de L final
  * - **Trava oposto:** não indica ausência enquanto algum dos 3 giros mais recentes for do cruzamento oposto
+ * - **Ausência oposta:** persiste a indicação enquanto vencer; ao entrar em recuperação, termina ao concluir (W ou L final)
  * - Não posiciona em mesas com zero nos últimos 12 números
  */
 
@@ -1718,21 +1719,48 @@ export function tickRotatingRoomCrossingPlacar(
 
     flash = { resultNumber, won: true, tableId, kind: "win", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
 
-    nextMachine = reanchorOnTable(
-      {
-        ...nextMachine,
-        tablePlacarLosses: {},
-        lastLostTableId: null,
-        signalQueue: [],
-        awaitingQueueTableId: null,
-        awaitingQueueHead: null,
-        awaitSwitchNoTable: false,
-      },
-      tableId,
-      histories,
-      0,
-      minAbsenceSpins,
-    );
+    const recoveryForRound = nextMachine.recovery;
+
+    if (oppositeAbsenceForRound) {
+      if (recoveryForRound > 0) {
+        /** Recuperação concluída com vitória — termina indicação persistente. */
+        nextMachine = reanchorOnTable(finishCycle(nextMachine), tableId, histories, 0, minAbsenceSpins);
+      } else {
+        /** Vitória na entrada — mantém mesma indicação até entrar em recuperação. */
+        nextMachine = beginCrossingPostResultHold(
+          {
+            ...nextMachine,
+            tablePlacarLosses: {},
+            lastLostTableId: null,
+            signalQueue: [],
+            awaitingQueueTableId: null,
+            awaitingQueueHead: null,
+            awaitSwitchNoTable: false,
+          },
+          tableId,
+          histories,
+          0,
+          activeForRound,
+          { reason: "draw" },
+        );
+      }
+    } else {
+      nextMachine = reanchorOnTable(
+        {
+          ...nextMachine,
+          tablePlacarLosses: {},
+          lastLostTableId: null,
+          signalQueue: [],
+          awaitingQueueTableId: null,
+          awaitingQueueHead: null,
+          awaitSwitchNoTable: false,
+        },
+        tableId,
+        histories,
+        0,
+        minAbsenceSpins,
+      );
+    }
 
   } else if (outcome === "L") {
 
@@ -1759,7 +1787,11 @@ export function tickRotatingRoomCrossingPlacar(
 
       flash = { resultNumber, won: false, tableId, kind: "loss", ...crossingFlashSnapshot(activeForRound, history, tableId, nextMachine) };
 
-      nextMachine = finishCycle(canRotateTables ? markTableSessionLoss(nextMachine, tableId) : nextMachine);
+      if (oppositeAbsenceForRound) {
+        nextMachine = reanchorOnTable(finishCycle(nextMachine), tableId, histories, 0, minAbsenceSpins);
+      } else {
+        nextMachine = finishCycle(canRotateTables ? markTableSessionLoss(nextMachine, tableId) : nextMachine);
+      }
 
     } else {
 

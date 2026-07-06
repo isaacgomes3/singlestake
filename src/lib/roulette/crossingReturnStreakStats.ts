@@ -252,3 +252,19 @@ export function emptyCrossingReturnStreakStats(): CrossingReturnStreakStats {
   });
   return { corAltura: emptyBlock(), alturaParidade: emptyBlock() };
 }
+
+/**
+ * Menor filtro (giros) em que a máx. sequência de vitórias após retorno é 1.
+ * Prefere amostra ≥ 2; se não houver, usa amostra ≥ 1.
+ */
+export function lowestReturnStreakFilterWithMaxWinsOne(
+  block: CrossingReturnStreakStatsBlock,
+): number | null {
+  let fallback: number | null = null;
+  for (const row of block.filters) {
+    if (row.sampleSize === 0 || row.maxStreakAtTrigger !== 1) continue;
+    if (row.sampleSize >= 2) return row.filterSpins;
+    if (fallback == null) fallback = row.filterSpins;
+  }
+  return fallback;
+}
