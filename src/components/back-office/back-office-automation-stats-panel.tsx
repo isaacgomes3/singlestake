@@ -13,7 +13,9 @@ import {
   saveCrossingOppositeAxisAbsenceSpins,
   saveCrossingOppositeAxisAbsenceAuto,
   saveFibonacciZoneAbsenceSpins,
+  saveFibonacciZoneAbsenceAuto,
   saveRepeticaoZoneAbsenceSpins,
+  saveRepeticaoZoneAbsenceAuto,
   setAutomationTriggerEnabled,
 } from "@/lib/back-office/automation-stats-api";
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
@@ -106,6 +108,8 @@ export function BackOfficeAutomationStatsPanel() {
   const [crossOppositeDraftAlturaParidade, setCrossOppositeDraftAlturaParidade] = useState("12");
   const [savingAbsenceZone, setSavingAbsenceZone] = useState<FibonacciZoneKind | null>(null);
   const [savingRepAbsenceZone, setSavingRepAbsenceZone] = useState<FibonacciZoneKind | null>(null);
+  const [togglingFibAbsenceAuto, setTogglingFibAbsenceAuto] = useState<FibonacciZoneKind | null>(null);
+  const [togglingRepAbsenceAuto, setTogglingRepAbsenceAuto] = useState<FibonacciZoneKind | null>(null);
   const [savingCrossAbsenceAxis, setSavingCrossAbsenceAxis] = useState<CrossingAbsenceAxisKind | null>(
     null,
   );
@@ -219,6 +223,46 @@ export function BackOfficeAutomationStatsPanel() {
     setRepAbsenceDraftColumn(String(result.data.repeticao.column.absenceSpins));
     applyAutomationPrefsFromDto(result.data);
     toast.success(t("automationStats.fibonacciAbsenceSaved"));
+  }
+
+  async function handleToggleFibonacciZoneAbsenceAuto(
+    zone: FibonacciZoneKind,
+    absenceAuto: boolean,
+  ) {
+    setTogglingFibAbsenceAuto(zone);
+    const result = await saveFibonacciZoneAbsenceAuto(zone, absenceAuto);
+    setTogglingFibAbsenceAuto(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setAbsenceDraftDozen(String(result.data.fibonacci.dozen.absenceSpins));
+    setAbsenceDraftColumn(String(result.data.fibonacci.column.absenceSpins));
+    applyAutomationPrefsFromDto(result.data);
+    toast.success(
+      absenceAuto ? t("automationStats.crossingAbsenceAutoOn") : t("automationStats.fibonacciAbsenceSaved"),
+    );
+  }
+
+  async function handleToggleRepeticaoZoneAbsenceAuto(
+    zone: FibonacciZoneKind,
+    absenceAuto: boolean,
+  ) {
+    setTogglingRepAbsenceAuto(zone);
+    const result = await saveRepeticaoZoneAbsenceAuto(zone, absenceAuto);
+    setTogglingRepAbsenceAuto(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setData(result.data);
+    setRepAbsenceDraftDozen(String(result.data.repeticao.dozen.absenceSpins));
+    setRepAbsenceDraftColumn(String(result.data.repeticao.column.absenceSpins));
+    applyAutomationPrefsFromDto(result.data);
+    toast.success(
+      absenceAuto ? t("automationStats.crossingAbsenceAutoOn") : t("automationStats.fibonacciAbsenceSaved"),
+    );
   }
 
   async function handleToggleCrossingAxisAbsenceAuto(
@@ -346,8 +390,10 @@ export function BackOfficeAutomationStatsPanel() {
   ) {
     const draft = zoneKind === "dozen" ? absenceDraftDozen : absenceDraftColumn;
     const setDraft = zoneKind === "dozen" ? setAbsenceDraftDozen : setAbsenceDraftColumn;
-    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const absenceDirty =
+      data != null && !zone.absenceAuto && Number(draft) !== zone.absenceSpins;
     const inputId = zoneKind === "dozen" ? "fib-absence-dozen" : "fib-absence-column";
+    const maxInWindow = zone.maxAbsenceInWindow ?? 0;
 
     return (
       <div
@@ -385,11 +431,29 @@ export function BackOfficeAutomationStatsPanel() {
             onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
           />
         </div>
-        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
-          <div className="space-y-1">
+        <div className="mt-3 space-y-2 border-t border-border-color/70 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
               {t("automationStats.fibonacciAbsenceLabel")}
             </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-text-secondary">
+                {t("automationStats.crossingAbsenceManual")}
+              </span>
+              <Switch
+                checked={zone.absenceAuto === true}
+                disabled={loading || togglingFibAbsenceAuto === zoneKind}
+                aria-label={t("automationStats.crossingAbsenceAuto")}
+                onCheckedChange={(checked) =>
+                  void handleToggleFibonacciZoneAbsenceAuto(zoneKind, checked)
+                }
+              />
+              <span className="text-[10px] font-medium text-text-primary">
+                {t("automationStats.crossingAbsenceAuto")}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
             <Input
               id={inputId}
               type="number"
@@ -398,22 +462,34 @@ export function BackOfficeAutomationStatsPanel() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               className="h-8 w-20 tabular-nums text-sm"
-              disabled={loading || savingAbsenceZone === zoneKind}
+              disabled={
+                loading || savingAbsenceZone === zoneKind || zone.absenceAuto === true
+              }
             />
+            <Button
+              type="button"
+              size="sm"
+              variant={absenceDirty ? "default" : "secondary"}
+              disabled={
+                loading ||
+                savingAbsenceZone === zoneKind ||
+                zone.absenceAuto === true ||
+                !absenceDirty
+              }
+              onClick={() => void handleConfirmZoneAbsence(zoneKind)}
+            >
+              {savingAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant={absenceDirty ? "default" : "secondary"}
-            disabled={loading || savingAbsenceZone === zoneKind || !absenceDirty}
-            onClick={() => void handleConfirmZoneAbsence(zoneKind)}
-          >
-            {savingAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
-          </Button>
         </div>
         {!loading ? (
           <p className="mt-2 text-[11px] text-text-secondary">
-            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+            {zone.absenceAuto
+              ? t("automationStats.crossingAbsenceAutoActive", {
+                  max: maxInWindow,
+                  spins: zone.absenceSpins,
+                })
+              : t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
           </p>
         ) : null}
       </div>
@@ -428,8 +504,10 @@ export function BackOfficeAutomationStatsPanel() {
   ) {
     const draft = zoneKind === "dozen" ? repAbsenceDraftDozen : repAbsenceDraftColumn;
     const setDraft = zoneKind === "dozen" ? setRepAbsenceDraftDozen : setRepAbsenceDraftColumn;
-    const absenceDirty = data != null && Number(draft) !== zone.absenceSpins;
+    const absenceDirty =
+      data != null && !zone.absenceAuto && Number(draft) !== zone.absenceSpins;
     const inputId = zoneKind === "dozen" ? "rep-absence-dozen" : "rep-absence-column";
+    const maxInWindow = zone.maxAbsenceInWindow ?? 0;
 
     return (
       <div
@@ -467,11 +545,29 @@ export function BackOfficeAutomationStatsPanel() {
             onCheckedChange={(checked) => void handleToggleTrigger(id, checked)}
           />
         </div>
-        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border-color/70 pt-3">
-          <div className="space-y-1">
+        <div className="mt-3 space-y-2 border-t border-border-color/70 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-[11px] font-medium text-text-secondary" htmlFor={inputId}>
               {t("automationStats.fibonacciAbsenceLabel")}
             </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-text-secondary">
+                {t("automationStats.crossingAbsenceManual")}
+              </span>
+              <Switch
+                checked={zone.absenceAuto === true}
+                disabled={loading || togglingRepAbsenceAuto === zoneKind}
+                aria-label={t("automationStats.crossingAbsenceAuto")}
+                onCheckedChange={(checked) =>
+                  void handleToggleRepeticaoZoneAbsenceAuto(zoneKind, checked)
+                }
+              />
+              <span className="text-[10px] font-medium text-text-primary">
+                {t("automationStats.crossingAbsenceAuto")}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
             <Input
               id={inputId}
               type="number"
@@ -480,22 +576,34 @@ export function BackOfficeAutomationStatsPanel() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               className="h-8 w-20 tabular-nums text-sm"
-              disabled={loading || savingRepAbsenceZone === zoneKind}
+              disabled={
+                loading || savingRepAbsenceZone === zoneKind || zone.absenceAuto === true
+              }
             />
+            <Button
+              type="button"
+              size="sm"
+              variant={absenceDirty ? "default" : "secondary"}
+              disabled={
+                loading ||
+                savingRepAbsenceZone === zoneKind ||
+                zone.absenceAuto === true ||
+                !absenceDirty
+              }
+              onClick={() => void handleConfirmRepeticaoZoneAbsence(zoneKind)}
+            >
+              {savingRepAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant={absenceDirty ? "default" : "secondary"}
-            disabled={loading || savingRepAbsenceZone === zoneKind || !absenceDirty}
-            onClick={() => void handleConfirmRepeticaoZoneAbsence(zoneKind)}
-          >
-            {savingRepAbsenceZone === zoneKind ? "…" : t("automationStats.fibonacciAbsenceConfirm")}
-          </Button>
         </div>
         {!loading ? (
           <p className="mt-2 text-[11px] text-text-secondary">
-            {t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
+            {zone.absenceAuto
+              ? t("automationStats.crossingAbsenceAutoActive", {
+                  max: maxInWindow,
+                  spins: zone.absenceSpins,
+                })
+              : t("automationStats.fibonacciAbsenceConfirmed", { spins: zone.absenceSpins })}
           </p>
         ) : null}
       </div>

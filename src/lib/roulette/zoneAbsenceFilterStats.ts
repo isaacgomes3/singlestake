@@ -25,6 +25,10 @@ export type ZoneAbsenceFilterStatsBlock = {
   spinWindow: number;
   maxEvents: number;
   maxAbsenceInWindow: number;
+  /** Máx. ausência na janela — só dúzias (Fibonacci/Repetição). */
+  maxAbsenceInWindowDozen: number;
+  /** Máx. ausência na janela — só colunas (Fibonacci/Repetição). */
+  maxAbsenceInWindowColumn: number;
   filters: AbsenceFilterStatRow[];
 };
 
@@ -245,16 +249,19 @@ function scanRepeticaoTable(
 function maxAbsenceInChronological(
   chronological: readonly number[],
   mode: "fibonacci" | "repeticao",
+  zoneKind?: FibonacciZoneKind,
 ): number {
   let max = 0;
   for (let i = 0; i < chronological.length; i++) {
     const history = historyNewestFirstAt(chronological, i);
     if (mode === "fibonacci") {
-      for (const zone of ALL_ZONES) {
+      const zones = zoneKind ? ALL_ZONES.filter((z) => z.kind === zoneKind) : ALL_ZONES;
+      for (const zone of zones) {
         max = Math.max(max, consecutiveZoneAbsence(history, zone));
       }
     } else {
-      for (const kind of ZONE_KINDS) {
+      const kinds = zoneKind ? [zoneKind] : ZONE_KINDS;
+      for (const kind of kinds) {
         max = Math.max(max, consecutiveNoRepeatStreak(history, kind));
       }
     }
@@ -294,6 +301,8 @@ function buildBlockForMode(
 ): ZoneAbsenceFilterStatsBlock {
   const tables: { tableId: number; chronological: number[] }[] = [];
   let maxAbsenceInWindow = 0;
+  let maxAbsenceInWindowDozen = 0;
+  let maxAbsenceInWindowColumn = 0;
 
   for (const [idRaw, history] of Object.entries(histories)) {
     const tableId = Number(idRaw);
@@ -301,7 +310,15 @@ function buildBlockForMode(
     const chronological = chronologicalSlice(history, ABSENCE_FILTER_STATS_SPIN_WINDOW);
     if (chronological.length === 0) continue;
     tables.push({ tableId, chronological });
-    maxAbsenceInWindow = Math.max(maxAbsenceInWindow, maxAbsenceInChronological(chronological, mode));
+    maxAbsenceInWindowDozen = Math.max(
+      maxAbsenceInWindowDozen,
+      maxAbsenceInChronological(chronological, mode, "dozen"),
+    );
+    maxAbsenceInWindowColumn = Math.max(
+      maxAbsenceInWindowColumn,
+      maxAbsenceInChronological(chronological, mode, "column"),
+    );
+    maxAbsenceInWindow = Math.max(maxAbsenceInWindowDozen, maxAbsenceInWindowColumn);
   }
 
   const filters: AbsenceFilterStatRow[] = [];
@@ -326,6 +343,8 @@ function buildBlockForMode(
     spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
     maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
     maxAbsenceInWindow,
+    maxAbsenceInWindowDozen,
+    maxAbsenceInWindowColumn,
     filters,
   };
 }
@@ -364,6 +383,8 @@ export function emptyZoneAbsenceFilterStats(): ZoneAbsenceFilterStats {
     spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
     maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
     maxAbsenceInWindow: 0,
+    maxAbsenceInWindowDozen: 0,
+    maxAbsenceInWindowColumn: 0,
     filters,
   };
   return { fibonacci: block, repeticao: block };

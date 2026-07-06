@@ -6,8 +6,8 @@ import {
 } from "@/lib/server/automationSim/crossing-auto-absence";
 import {
   applyCrossingOppositeAutoAbsenceRuntime,
-  crossingOppositeAutoAbsencePatchFromHistories,
 } from "@/lib/server/automationSim/crossing-opposite-auto-absence";
+import { refreshZoneFibonacciAutoAbsenceForHistories } from "@/lib/server/automationSim/zone-fibonacci-auto-absence";
 import { readEffectiveFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
 import { readEffectiveRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
@@ -254,17 +254,10 @@ function refreshCrossingAutoAbsenceForHistories(
     applyCrossingAutoAbsenceRuntime({ ...config, ...patch }, histories);
     void saveAutomationConfig(patch);
   }
-  const oppositePatch = crossingOppositeAutoAbsencePatchFromHistories(
+  applyCrossingOppositeAutoAbsenceRuntime(
     patch ? { ...config, ...patch } : config,
     histories,
   );
-  if (oppositePatch) {
-    applyCrossingOppositeAutoAbsenceRuntime(
-      { ...(patch ? { ...config, ...patch } : config), ...oppositePatch },
-      histories,
-    );
-    void saveAutomationConfig(oppositePatch);
-  }
 }
 
 function driveCrossing(
@@ -332,6 +325,7 @@ function driveFibonacci(
   state: StrategyGlobalPersistedState,
   histories: Record<number, readonly number[]>,
 ): { flash: RotatingRoomFibonacciPlacarFlash; recoveryBefore: number } {
+  refreshZoneFibonacciAutoAbsenceForHistories(histories);
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.fibonacci.machine.recovery;
   const config = getAutomationConfig();
@@ -390,6 +384,7 @@ function driveRepeticao(
   state: StrategyGlobalPersistedState,
   histories: Record<number, readonly number[]>,
 ): { flash: RotatingRoomRepeticaoPlacarFlash; recoveryBefore: number } {
+  refreshZoneFibonacciAutoAbsenceForHistories(histories);
   const tableIds = state.rotatingRoomTableIds;
   const recoveryBefore = state.repeticao.machine.recovery;
   const config = getAutomationConfig();

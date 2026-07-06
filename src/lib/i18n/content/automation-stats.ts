@@ -68,9 +68,9 @@ export const automationStatsContent = {
     crossingOppositeAbsenceTitle: "2 Fatores · ausência oposta",
     crossingOppositeAbsenceHint:
       "Quando um cruzamento atinge ausência exacta N, aposta no cruzamento oposto. Trava: não indica se algum dos 3 giros recentes pertencer ao bucket ausente (retorno recente).",
-    crossingOppositeAbsenceAutoActive: "Automático: nível {{spins}} (máx. 1V após retorno)",
+    crossingOppositeAbsenceAutoActive: "Automático: média {{spins}} giros por mesa (máx. ausência na janela)",
     crossingOppositeAbsenceAutoOn:
-      "Modo automático — gatilho = menor nível com apenas 1 vitória seguida após retorno.",
+      "Modo automático — cada mesa usa a sua própria ausência (cor/altura e paridade/altura).",
     returnStreakTitle: "Sequência de vitórias após retorno",
     returnStreakHint:
       "Após ausência ≥ filtro, quando o bucket reaparece: quantas vitórias consecutivas (2F) antes da primeira derrota — até 5 recuperações no lookahead.",
@@ -154,9 +154,9 @@ export const automationStatsContent = {
     crossingOppositeAbsenceTitle: "2 Factors · opposite absence",
     crossingOppositeAbsenceHint:
       "When a crossing reaches exact absence N, bet on the opposite crossing. Lock: no signal if any of the last 3 spins belong to the absent bucket (recent return).",
-    crossingOppositeAbsenceAutoActive: "Automatic: level {{spins}} (max 1W streak after return)",
+    crossingOppositeAbsenceAutoActive: "Automatic: {{spins}} spins avg per table (max absence in window)",
     crossingOppositeAbsenceAutoOn:
-      "Automatic mode — trigger = lowest level with only 1 consecutive win after return.",
+      "Automatic mode — each table uses its own absence (color/height and parity/height).",
     returnStreakTitle: "Win streak after return",
     returnStreakHint:
       "After absence ≥ filter, when the bucket reappears: consecutive 2F wins before first loss — up to 5 recoveries in lookahead.",
@@ -240,9 +240,9 @@ export const automationStatsContent = {
     crossingOppositeAbsenceTitle: "2 Factores · ausencia opuesta",
     crossingOppositeAbsenceHint:
       "Cuando un cruce alcanza ausencia exacta N, apuesta en el cruce opuesto. Bloqueo: no indica si alguno de los 3 giros recientes pertenece al bucket ausente (retorno reciente).",
-    crossingOppositeAbsenceAutoActive: "Automático: nivel {{spins}} (máx. 1V tras retorno)",
+    crossingOppositeAbsenceAutoActive: "Automático: media {{spins}} giros por mesa (máx. ausencia en ventana)",
     crossingOppositeAbsenceAutoOn:
-      "Modo automático — gatillo = menor nivel con solo 1 victoria seguida tras retorno.",
+      "Modo automático — cada mesa usa su propia ausencia (color/altura y paridad/altura).",
     returnStreakTitle: "Secuencia de victorias tras retorno",
     returnStreakHint:
       "Tras ausencia ≥ filtro, cuando el bucket reaparece: victorias consecutivas (2F) antes de la primera derrota — hasta 5 recuperaciones en lookahead.",

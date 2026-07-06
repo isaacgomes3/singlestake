@@ -11,6 +11,8 @@ export const FIBONACCI_ABSENCE_SPINS_MIN = 3;
 export const FIBONACCI_ABSENCE_SPINS_MAX = 99;
 /** Alinhado com ROTATING_ROOM_FIBONACCI_ALERT_ABSENCE_SPINS — não importar da strategy (ciclo de módulos). */
 export const DEFAULT_FIBONACCI_ABSENCE_SPINS = 12;
+/** Desvio do gatilho automático em relação à máx. ausência na janela (0 = gatilho igual à máx.). */
+export const FIBONACCI_ABSENCE_AUTO_OFFSET = 0;
 
 export type FibonacciZoneAbsenceSpins = {
   dozen: number;
@@ -19,6 +21,8 @@ export type FibonacciZoneAbsenceSpins = {
 
 const LOCAL_KEY_DOZEN = "roulette.rotatingRoom.fibonacciAbsenceSpins.dozen";
 const LOCAL_KEY_COLUMN = "roulette.rotatingRoom.fibonacciAbsenceSpins.column";
+const LOCAL_KEY_DOZEN_AUTO = "roulette.rotatingRoom.fibonacciAbsenceAuto.dozen";
+const LOCAL_KEY_COLUMN_AUTO = "roulette.rotatingRoom.fibonacciAbsenceAuto.column";
 /** @deprecated Migração — valor único antigo. */
 const LOCAL_KEY_LEGACY = "roulette.rotatingRoom.fibonacciAbsenceSpins";
 
@@ -36,6 +40,25 @@ export function clampFibonacciAbsenceSpins(
     FIBONACCI_ABSENCE_SPINS_MAX,
     Math.max(FIBONACCI_ABSENCE_SPINS_MIN, Math.floor(n)),
   );
+}
+
+export function fibonacciAutoAbsenceSpinsFromMax(maxInWindow: number): number {
+  return clampFibonacciAbsenceSpins(maxInWindow - FIBONACCI_ABSENCE_AUTO_OFFSET);
+}
+
+export type FibonacciZoneAbsenceAuto = {
+  dozen: boolean;
+  column: boolean;
+};
+
+export function normalizeFibonacciZoneAbsenceAuto(raw?: {
+  fibonacciDozenAbsenceAuto?: boolean;
+  fibonacciColumnAbsenceAuto?: boolean;
+} | null): FibonacciZoneAbsenceAuto {
+  return {
+    dozen: raw?.fibonacciDozenAbsenceAuto === true,
+    column: raw?.fibonacciColumnAbsenceAuto === true,
+  };
 }
 
 export function uniformFibonacciAbsenceSpins(spins: number): FibonacciZoneAbsenceSpins {
@@ -98,6 +121,23 @@ function readFibonacciZoneAbsenceSpinsLocal(): FibonacciZoneAbsenceSpins {
   }
 }
 
+export function writeFibonacciZoneAbsenceAutoLocal(
+  auto: FibonacciZoneAbsenceAuto,
+  options?: { silent?: boolean },
+): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_KEY_DOZEN_AUTO, auto.dozen ? "1" : "0");
+      localStorage.setItem(LOCAL_KEY_COLUMN_AUTO, auto.column ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!options?.silent && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(FIBONACCI_ABSENCE_SPINS_CHANGED_EVENT));
+  }
+}
+
 export function writeFibonacciZoneAbsenceSpinsLocal(
   spins: FibonacciZoneAbsenceSpins,
   options?: { silent?: boolean },
@@ -148,6 +188,13 @@ export function syncFibonacciPrefsFromAutomationConfig(
     {
       dozen: fibonacci.dozen.absenceSpins,
       column: fibonacci.column.absenceSpins,
+    },
+    { silent: true },
+  );
+  writeFibonacciZoneAbsenceAutoLocal(
+    {
+      dozen: fibonacci.dozen.absenceAuto === true,
+      column: fibonacci.column.absenceAuto === true,
     },
     { silent: true },
   );

@@ -157,6 +157,17 @@ function scanCrossingOppositeAbsenceTable(
   return events;
 }
 
+/** Máx. ausência na janela (últimos N giros) para uma mesa e eixo de cruzamento oposto. */
+export function maxCrossingOppositeAbsenceInWindowForTable(
+  historyNewestFirst: readonly number[],
+  axisKind: CrossingAbsenceAxisKind,
+): number {
+  const axis = absenceKeyToCrossingAxis(axisKind);
+  const chronological = chronologicalSlice(historyNewestFirst, ABSENCE_FILTER_STATS_SPIN_WINDOW);
+  if (chronological.length === 0) return 0;
+  return maxAbsenceInChronological(chronological, axis);
+}
+
 function maxAbsenceInChronological(chronological: readonly number[], axis: CrossingAxisKind): number {
   let max = 0;
   for (let i = 0; i < chronological.length; i++) {

@@ -12,7 +12,10 @@ import {
 } from "@/lib/roulette/crossingAbsencePrefs";
 import {
   normalizeCrossingOppositeAxisAbsenceSpins,
+  normalizeCrossingOppositeAxisAbsenceAuto,
   setServerCrossingOppositeAxisAbsenceSpins,
+  setServerCrossingOppositeAxisAbsenceAuto,
+  setServerCrossingOppositeAbsenceByTable,
 } from "@/lib/roulette/crossingOppositeAbsencePrefs";
 import {
   normalizeFibonacciZoneAbsenceSpins,
@@ -33,6 +36,8 @@ function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setServerRepeticaoZoneAbsenceSpins(normalizeRepeticaoZoneAbsenceSpins(config));
   setServerCrossingAxisAbsenceSpins(normalizeCrossingAxisAbsenceSpins(config));
   setServerCrossingOppositeAxisAbsenceSpins(normalizeCrossingOppositeAxisAbsenceSpins(config));
+  setServerCrossingOppositeAxisAbsenceAuto(normalizeCrossingOppositeAxisAbsenceAuto(config));
+  setServerCrossingOppositeAbsenceByTable(null);
 }
 
 declare global {

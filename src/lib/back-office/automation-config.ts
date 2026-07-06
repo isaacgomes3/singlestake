@@ -34,9 +34,17 @@ export type GlobalAutomationConfig = {
   fibonacciAbsenceSpins: number;
   fibonacciDozenAbsenceSpins: number;
   fibonacciColumnAbsenceSpins: number;
+  /** Giros ausentes = máx. ausência na janela (dúzias). */
+  fibonacciDozenAbsenceAuto: boolean;
+  /** Giros ausentes = máx. ausência na janela (colunas). */
+  fibonacciColumnAbsenceAuto: boolean;
   repeticaoAbsenceSpins: number;
   repeticaoDozenAbsenceSpins: number;
   repeticaoColumnAbsenceSpins: number;
+  /** Giros ausentes = máx. ausência na janela (dúzias). */
+  repeticaoDozenAbsenceAuto: boolean;
+  /** Giros ausentes = máx. ausência na janela (colunas). */
+  repeticaoColumnAbsenceAuto: boolean;
   crossingCorAlturaAbsenceSpins: number;
   crossingAlturaParidadeAbsenceSpins: number;
   /** Giros ausentes = máx. ausência na janela (cor/altura). */
@@ -71,9 +79,13 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   fibonacciAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   fibonacciDozenAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   fibonacciColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  fibonacciDozenAbsenceAuto: false,
+  fibonacciColumnAbsenceAuto: false,
   repeticaoAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   repeticaoDozenAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
   repeticaoColumnAbsenceSpins: DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  repeticaoDozenAbsenceAuto: false,
+  repeticaoColumnAbsenceAuto: false,
   crossingCorAlturaAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
   crossingAlturaParidadeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
   crossingCorAlturaAbsenceAuto: false,
@@ -126,9 +138,13 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     fibonacciAbsenceSpins: absenceByZone.dozen,
     fibonacciDozenAbsenceSpins: absenceByZone.dozen,
     fibonacciColumnAbsenceSpins: absenceByZone.column,
+    fibonacciDozenAbsenceAuto: o.fibonacciDozenAbsenceAuto === true,
+    fibonacciColumnAbsenceAuto: o.fibonacciColumnAbsenceAuto === true,
     repeticaoAbsenceSpins: repeticaoByZone.dozen,
     repeticaoDozenAbsenceSpins: repeticaoByZone.dozen,
     repeticaoColumnAbsenceSpins: repeticaoByZone.column,
+    repeticaoDozenAbsenceAuto: o.repeticaoDozenAbsenceAuto === true,
+    repeticaoColumnAbsenceAuto: o.repeticaoColumnAbsenceAuto === true,
     crossingCorAlturaAbsenceSpins: crossingByAxis.corAltura,
     crossingAlturaParidadeAbsenceSpins: crossingByAxis.alturaParidade,
     crossingCorAlturaAbsenceAuto: o.crossingCorAlturaAbsenceAuto === true,

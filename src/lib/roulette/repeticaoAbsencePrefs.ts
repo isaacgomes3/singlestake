@@ -7,6 +7,9 @@ import {
 import {
   clampFibonacciAbsenceSpins,
   DEFAULT_FIBONACCI_ABSENCE_SPINS,
+  fibonacciAutoAbsenceSpinsFromMax,
+  type FibonacciZoneAbsenceAuto,
+  normalizeFibonacciZoneAbsenceAuto,
 } from "@/lib/roulette/fibonacciAbsencePrefs";
 
 export type RepeticaoZoneAbsenceSpins = {
@@ -16,6 +19,8 @@ export type RepeticaoZoneAbsenceSpins = {
 
 const LOCAL_KEY_DOZEN = "roulette.rotatingRoom.repeticaoAbsenceSpins.dozen";
 const LOCAL_KEY_COLUMN = "roulette.rotatingRoom.repeticaoAbsenceSpins.column";
+const LOCAL_KEY_DOZEN_AUTO = "roulette.rotatingRoom.repeticaoAbsenceAuto.dozen";
+const LOCAL_KEY_COLUMN_AUTO = "roulette.rotatingRoom.repeticaoAbsenceAuto.column";
 const REPETICAO_GATILHO_LOCAL_KEY = "roulette.rotatingRoom.repeticaoGatilhoEnabled";
 
 export const REPETICAO_ABSENCE_SPINS_CHANGED_EVENT = "repeticao-absence-spins-changed";
@@ -36,6 +41,16 @@ export function normalizeRepeticaoZoneAbsenceSpins(raw?: {
   return {
     dozen: clampFibonacciAbsenceSpins(raw?.repeticaoDozenAbsenceSpins, legacy),
     column: clampFibonacciAbsenceSpins(raw?.repeticaoColumnAbsenceSpins, legacy),
+  };
+}
+
+export function normalizeRepeticaoZoneAbsenceAuto(raw?: {
+  repeticaoDozenAbsenceAuto?: boolean;
+  repeticaoColumnAbsenceAuto?: boolean;
+} | null): FibonacciZoneAbsenceAuto {
+  return {
+    dozen: raw?.repeticaoDozenAbsenceAuto === true,
+    column: raw?.repeticaoColumnAbsenceAuto === true,
   };
 }
 
@@ -63,6 +78,23 @@ function readRepeticaoZoneAbsenceSpinsLocal(): RepeticaoZoneAbsenceSpins {
     };
   } catch {
     return uniformRepeticaoAbsenceSpins(DEFAULT_FIBONACCI_ABSENCE_SPINS);
+  }
+}
+
+export function writeRepeticaoZoneAbsenceAutoLocal(
+  auto: FibonacciZoneAbsenceAuto,
+  options?: { silent?: boolean },
+): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(LOCAL_KEY_DOZEN_AUTO, auto.dozen ? "1" : "0");
+      localStorage.setItem(LOCAL_KEY_COLUMN_AUTO, auto.column ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!options?.silent && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(REPETICAO_ABSENCE_SPINS_CHANGED_EVENT));
   }
 }
 
@@ -106,6 +138,13 @@ export function syncRepeticaoPrefsFromAutomationConfig(
     {
       dozen: repeticao.dozen.absenceSpins,
       column: repeticao.column.absenceSpins,
+    },
+    { silent: true },
+  );
+  writeRepeticaoZoneAbsenceAutoLocal(
+    {
+      dozen: repeticao.dozen.absenceAuto === true,
+      column: repeticao.column.absenceAuto === true,
     },
     { silent: true },
   );

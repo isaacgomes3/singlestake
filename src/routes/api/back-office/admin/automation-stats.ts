@@ -61,8 +61,12 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           fibonacciAbsenceSpins?: number;
           fibonacciDozenAbsenceSpins?: number;
           fibonacciColumnAbsenceSpins?: number;
+          fibonacciDozenAbsenceAuto?: boolean;
+          fibonacciColumnAbsenceAuto?: boolean;
           repeticaoDozenAbsenceSpins?: number;
           repeticaoColumnAbsenceSpins?: number;
+          repeticaoDozenAbsenceAuto?: boolean;
+          repeticaoColumnAbsenceAuto?: boolean;
           crossingCorAlturaAbsenceSpins?: number;
           crossingAlturaParidadeAbsenceSpins?: number;
           crossingCorAlturaAbsenceAuto?: boolean;
@@ -78,7 +82,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.fibonacciDozenAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciDozenAbsenceSpins)));
-          await saveAutomationConfig({ fibonacciDozenAbsenceSpins: spins });
+          await saveAutomationConfig({
+            fibonacciDozenAbsenceSpins: spins,
+            fibonacciDozenAbsenceAuto: false,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );
@@ -88,7 +95,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.fibonacciColumnAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.fibonacciColumnAbsenceSpins)));
-          await saveAutomationConfig({ fibonacciColumnAbsenceSpins: spins });
+          await saveAutomationConfig({
+            fibonacciColumnAbsenceSpins: spins,
+            fibonacciColumnAbsenceAuto: false,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );
@@ -112,7 +122,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.repeticaoDozenAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.repeticaoDozenAbsenceSpins)));
-          await saveAutomationConfig({ repeticaoDozenAbsenceSpins: spins });
+          await saveAutomationConfig({
+            repeticaoDozenAbsenceSpins: spins,
+            repeticaoDozenAbsenceAuto: false,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );
@@ -122,7 +135,48 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         if (typeof body?.repeticaoColumnAbsenceSpins === "number") {
           const spins = Math.min(99, Math.max(3, Math.floor(body.repeticaoColumnAbsenceSpins)));
-          await saveAutomationConfig({ repeticaoColumnAbsenceSpins: spins });
+          await saveAutomationConfig({
+            repeticaoColumnAbsenceSpins: spins,
+            repeticaoColumnAbsenceAuto: false,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.fibonacciDozenAbsenceAuto === "boolean") {
+          await saveAutomationConfig({ fibonacciDozenAbsenceAuto: body.fibonacciDozenAbsenceAuto });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.fibonacciColumnAbsenceAuto === "boolean") {
+          await saveAutomationConfig({ fibonacciColumnAbsenceAuto: body.fibonacciColumnAbsenceAuto });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.repeticaoDozenAbsenceAuto === "boolean") {
+          await saveAutomationConfig({ repeticaoDozenAbsenceAuto: body.repeticaoDozenAbsenceAuto });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.repeticaoColumnAbsenceAuto === "boolean") {
+          await saveAutomationConfig({
+            repeticaoColumnAbsenceAuto: body.repeticaoColumnAbsenceAuto,
+          });
           const { publishAutomationConfigChange } = await import(
             "@/lib/server/automationSim/engine"
           );

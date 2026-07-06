@@ -15,7 +15,6 @@ import {
 import {
   buildCrossingReturnStreakStats,
   emptyCrossingReturnStreakStats,
-  lowestReturnStreakFilterWithMaxWinsOne,
 } from "@/lib/roulette/crossingReturnStreakStats";
 import { normalizeCrossingAxisAbsenceSpins } from "@/lib/roulette/crossingAbsencePrefs";
 import { normalizeCrossingOppositeAxisAbsenceSpins } from "@/lib/roulette/crossingOppositeAbsencePrefs";
@@ -28,8 +27,15 @@ import {
 } from "@/lib/server/automationSim/crossing-auto-absence";
 import {
   applyCrossingOppositeAutoAbsenceRuntime,
-  crossingOppositeAutoAbsencePatchFromHistories,
+  averageCrossingOppositeAbsenceSpinsPerTable,
+  averagePerTableMaxCrossingOppositeAbsenceInWindow,
 } from "@/lib/server/automationSim/crossing-opposite-auto-absence";
+import {
+  applyFibonacciAutoAbsenceRuntime,
+  applyRepeticaoAutoAbsenceRuntime,
+  fibonacciAutoAbsencePatchFromHistories,
+  repeticaoAutoAbsencePatchFromHistories,
+} from "@/lib/server/automationSim/zone-fibonacci-auto-absence";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import type { RotatingRoomGatilhoEnableMap } from "@/lib/roulette/umFatorTriggerEnable";
@@ -45,6 +51,8 @@ function fibonacciZoneStatsRow(
   kind: "dozen" | "column",
   enabled: boolean,
   absenceSpins: number,
+  absenceAuto: boolean,
+  maxAbsenceInWindow: number,
 ): AutomationStatsDto["fibonacci"]["dozen"] {
   const bucket = normalizeFibonacciZoneKindStats(stats?.fibonacciZoneKind)[kind];
   const wins = Math.max(0, bucket.wins);
@@ -56,6 +64,8 @@ function fibonacciZoneStatsRow(
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
     enabled,
     absenceSpins,
+    absenceAuto,
+    maxAbsenceInWindow,
   };
 }
 
@@ -63,6 +73,7 @@ function fibonacciStatsFromState(
   fibonacciStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
+  absenceFilter: AutomationStatsDto["absenceFilterStats"]["fibonacci"],
 ): AutomationStatsDto["fibonacci"] {
   const masterOn = enabledTriggers.fibonacci !== false;
   const absenceByZone = normalizeFibonacciZoneAbsenceSpins(config);
@@ -74,12 +85,16 @@ function fibonacciStatsFromState(
       "dozen",
       enabledTriggers.fibonacciDozen !== false,
       absenceByZone.dozen,
+      config.fibonacciDozenAbsenceAuto === true,
+      absenceFilter.maxAbsenceInWindowDozen,
     ),
     column: fibonacciZoneStatsRow(
       fibonacciStats,
       "column",
       enabledTriggers.fibonacciColumn !== false,
       absenceByZone.column,
+      config.fibonacciColumnAbsenceAuto === true,
+      absenceFilter.maxAbsenceInWindowColumn,
     ),
   };
 }
@@ -89,6 +104,8 @@ function repeticaoZoneStatsRow(
   kind: "dozen" | "column",
   enabled: boolean,
   absenceSpins: number,
+  absenceAuto: boolean,
+  maxAbsenceInWindow: number,
 ): AutomationStatsDto["repeticao"]["dozen"] {
   const bucket = normalizeFibonacciZoneKindStats(stats?.repeticaoZoneKind)[kind];
   const wins = Math.max(0, bucket.wins);
@@ -100,6 +117,8 @@ function repeticaoZoneStatsRow(
     accuracyPct: umFatorMatchTierAproveitamentoPct({ wins, losses }),
     enabled,
     absenceSpins,
+    absenceAuto,
+    maxAbsenceInWindow,
   };
 }
 
@@ -107,6 +126,7 @@ function repeticaoStatsFromState(
   repeticaoStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
+  absenceFilter: AutomationStatsDto["absenceFilterStats"]["repeticao"],
 ): AutomationStatsDto["repeticao"] {
   const masterOn = enabledTriggers.repeticao === true;
   const absenceByZone = normalizeRepeticaoZoneAbsenceSpins(config);
@@ -118,12 +138,16 @@ function repeticaoStatsFromState(
       "dozen",
       enabledTriggers.repeticaoDozen !== false && masterOn,
       absenceByZone.dozen,
+      config.repeticaoDozenAbsenceAuto === true,
+      absenceFilter.maxAbsenceInWindowDozen,
     ),
     column: repeticaoZoneStatsRow(
       repeticaoStats,
       "column",
       enabledTriggers.repeticaoColumn !== false && masterOn,
       absenceByZone.column,
+      config.repeticaoColumnAbsenceAuto === true,
+      absenceFilter.maxAbsenceInWindowColumn,
     ),
   };
 }
@@ -205,25 +229,36 @@ function crossingOppositeAbsenceStatsFromState(
   crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
-  returnStreak: AutomationStatsDto["absenceFilterStats"]["crossingReturnStreak"],
+  histories: Record<number, readonly number[]>,
+  oppositeFilter: AutomationStatsDto["absenceFilterStats"]["crossingOpposite"],
 ): AutomationStatsDto["crossingOppositeAbsence"] {
   const absenceByAxis = normalizeCrossingOppositeAxisAbsenceSpins(config);
+  const corAuto = config.crossingCorAlturaOppositeAbsenceAuto === true;
+  const altAuto = config.crossingAlturaParidadeOppositeAbsenceAuto === true;
   return {
     corAltura: crossingOppositeAbsenceAxisStatsRow(
       crossingStats,
       "corAltura",
       enabledTriggers.crossingCorAlturaOpposite === true,
-      absenceByAxis.corAltura,
-      config.crossingCorAlturaOppositeAbsenceAuto === true,
-      lowestReturnStreakFilterWithMaxWinsOne(returnStreak.corAltura) ?? 0,
+      corAuto
+        ? averageCrossingOppositeAbsenceSpinsPerTable(config, histories, "corAltura")
+        : absenceByAxis.corAltura,
+      corAuto,
+      corAuto
+        ? averagePerTableMaxCrossingOppositeAbsenceInWindow(histories, "corAltura")
+        : oppositeFilter.corAltura.maxAbsenceInWindow,
     ),
     alturaParidade: crossingOppositeAbsenceAxisStatsRow(
       crossingStats,
       "alturaParidade",
       enabledTriggers.crossingAlturaParidadeOpposite === true,
-      absenceByAxis.alturaParidade,
-      config.crossingAlturaParidadeOppositeAbsenceAuto === true,
-      lowestReturnStreakFilterWithMaxWinsOne(returnStreak.alturaParidade) ?? 0,
+      altAuto
+        ? averageCrossingOppositeAbsenceSpinsPerTable(config, histories, "alturaParidade")
+        : absenceByAxis.alturaParidade,
+      altAuto,
+      altAuto
+        ? averagePerTableMaxCrossingOppositeAbsenceInWindow(histories, "alturaParidade")
+        : oppositeFilter.alturaParidade.maxAbsenceInWindow,
     ),
   };
 }
@@ -276,10 +311,21 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
     config = applyCrossingAutoAbsenceRuntime({ ...config, ...autoPatch }, histories);
     void saveAutomationConfig(autoPatch);
   }
-  const oppositeAutoPatch = crossingOppositeAutoAbsencePatchFromHistories(config, histories);
-  if (oppositeAutoPatch) {
-    config = applyCrossingOppositeAutoAbsenceRuntime({ ...config, ...oppositeAutoPatch }, histories);
-    void saveAutomationConfig(oppositeAutoPatch);
+  if (
+    config.crossingCorAlturaOppositeAbsenceAuto ||
+    config.crossingAlturaParidadeOppositeAbsenceAuto
+  ) {
+    applyCrossingOppositeAutoAbsenceRuntime(config, histories);
+  }
+  const fibAutoPatch = fibonacciAutoAbsencePatchFromHistories(config, histories);
+  if (fibAutoPatch) {
+    config = applyFibonacciAutoAbsenceRuntime({ ...config, ...fibAutoPatch }, histories);
+    void saveAutomationConfig(fibAutoPatch);
+  }
+  const repAutoPatch = repeticaoAutoAbsencePatchFromHistories(config, histories);
+  if (repAutoPatch) {
+    config = applyRepeticaoAutoAbsenceRuntime({ ...config, ...repAutoPatch }, histories);
+    void saveAutomationConfig(repAutoPatch);
   }
   const enabledTriggers = config.enabledTriggers;
 
@@ -304,11 +350,13 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       state.fibonacci.stats,
       enabledTriggers,
       config,
+      absenceFilterStats.fibonacci,
     ),
     repeticao: repeticaoStatsFromState(
       state.repeticao.stats,
       enabledTriggers,
       config,
+      absenceFilterStats.repeticao,
     ),
     crossingAbsence: crossingAbsenceStatsFromState(
       crossingStats,
@@ -320,7 +368,8 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       crossingStats,
       enabledTriggers,
       config,
-      absenceFilterStats.crossingReturnStreak,
+      histories,
+      absenceFilterStats.crossingOpposite,
     ),
     absenceFilterStats,
   };

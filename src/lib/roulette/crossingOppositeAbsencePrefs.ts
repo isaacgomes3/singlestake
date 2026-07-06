@@ -1,5 +1,6 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import type { CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
+import { maxCrossingOppositeAbsenceInWindowForTable } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import {
   CROSSING_ABSENCE_AUTO_OFFSET,
   CROSSING_ABSENCE_SPINS_MAX,
@@ -32,6 +33,10 @@ export type CrossingOppositeAxisAbsenceAuto = {
   alturaParidade: boolean;
 };
 
+export type CrossingOppositeTableAbsenceSpins = CrossingOppositeAxisAbsenceSpins;
+
+export type CrossingOppositeAbsenceByTable = Record<number, CrossingOppositeTableAbsenceSpins>;
+
 const LOCAL_KEY_COR_ALTURA = "roulette.rotatingRoom.crossingOppositeAbsenceSpins.corAltura";
 const LOCAL_KEY_ALTURA_PARIDADE = "roulette.rotatingRoom.crossingOppositeAbsenceSpins.alturaParidade";
 const LOCAL_KEY_COR_ALTURA_AUTO = "roulette.rotatingRoom.crossingOppositeAbsenceAuto.corAltura";
@@ -40,6 +45,8 @@ const LOCAL_KEY_ALTURA_PARIDADE_AUTO = "roulette.rotatingRoom.crossingOppositeAb
 export const CROSSING_OPPOSITE_ABSENCE_SPINS_CHANGED_EVENT = "crossing-opposite-absence-spins-changed";
 
 let serverEffectiveOppositeAbsenceByAxis: CrossingOppositeAxisAbsenceSpins | null = null;
+let serverOppositeAbsenceByTable: CrossingOppositeAbsenceByTable | null = null;
+let serverOppositeAbsenceAuto: CrossingOppositeAxisAbsenceAuto | null = null;
 
 export function absenceSpinsForCrossingOppositeAxis(
   kind: CrossingAbsenceAxisKind,
@@ -83,6 +90,32 @@ export function setServerCrossingOppositeAxisAbsenceSpins(
           corAltura: clampCrossingAbsenceSpins(spins.corAltura),
           alturaParidade: clampCrossingAbsenceSpins(spins.alturaParidade),
         };
+}
+
+export function setServerCrossingOppositeAbsenceByTable(
+  byTable: CrossingOppositeAbsenceByTable | null,
+): void {
+  if (byTable == null) {
+    serverOppositeAbsenceByTable = null;
+    return;
+  }
+  const next: CrossingOppositeAbsenceByTable = {};
+  for (const [tableIdRaw, spins] of Object.entries(byTable)) {
+    const tableId = Number(tableIdRaw);
+    if (!Number.isFinite(tableId)) continue;
+    next[tableId] = {
+      corAltura: clampCrossingAbsenceSpins(spins.corAltura),
+      alturaParidade: clampCrossingAbsenceSpins(spins.alturaParidade),
+    };
+  }
+  serverOppositeAbsenceByTable = next;
+}
+
+export function setServerCrossingOppositeAxisAbsenceAuto(
+  auto: CrossingOppositeAxisAbsenceAuto | null,
+): void {
+  serverOppositeAbsenceAuto =
+    auto == null ? null : { corAltura: auto.corAltura === true, alturaParidade: auto.alturaParidade === true };
 }
 
 function readCrossingOppositeAxisAbsenceAutoLocal(): CrossingOppositeAxisAbsenceAuto {
@@ -157,6 +190,33 @@ export function writeCrossingOppositeAxisAbsenceSpinsLocal(
 export function readEffectiveCrossingOppositeAxisAbsenceSpins(): CrossingOppositeAxisAbsenceSpins {
   if (serverEffectiveOppositeAbsenceByAxis != null) return { ...serverEffectiveOppositeAbsenceByAxis };
   return readCrossingOppositeAxisAbsenceSpinsLocal();
+}
+
+export function readEffectiveCrossingOppositeAxisAbsenceAuto(): CrossingOppositeAxisAbsenceAuto {
+  if (serverOppositeAbsenceAuto != null) return { ...serverOppositeAbsenceAuto };
+  return readCrossingOppositeAxisAbsenceAutoLocal();
+}
+
+/** Giros de ausência oposta para uma mesa — no automático, calcula a partir do histórico da mesa. */
+export function readOppositeAbsenceSpinsForTable(
+  tableId: number,
+  kind: CrossingAbsenceAxisKind,
+  historyNewestFirst?: readonly number[],
+): number {
+  const auto = readEffectiveCrossingOppositeAxisAbsenceAuto();
+  const global = readEffectiveCrossingOppositeAxisAbsenceSpins();
+  if (!auto[kind]) return global[kind];
+
+  const history = historyNewestFirst;
+  if (history?.length) {
+    const maxInWindow = maxCrossingOppositeAbsenceInWindowForTable(history, kind);
+    if (maxInWindow > 0) return crossingOppositeAutoAbsenceSpinsFromMax(maxInWindow);
+  }
+
+  const perTable = serverOppositeAbsenceByTable?.[tableId];
+  if (perTable) return perTable[kind];
+
+  return global[kind];
 }
 
 export function syncCrossingOppositeAbsencePrefsFromAutomationConfig(
