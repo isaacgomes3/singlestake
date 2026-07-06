@@ -1,6 +1,8 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import type { CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
-import { maxCrossingAbsenceInWindowForTable } from "@/lib/roulette/crossingAbsenceFilterStats";
+import {
+  maxCrossingAbsenceForAutoTriggerReference,
+} from "@/lib/roulette/crossingAbsenceFilterStats";
 import {
   getRotatingRoomGatilhoEnabled,
   setRotatingRoomGatilhoEnabled,
@@ -224,8 +226,8 @@ export function readCrossingAbsenceSpinsForTable(
 
   const history = historyNewestFirst;
   if (history?.length) {
-    const maxInWindow = maxCrossingAbsenceInWindowForTable(history, kind);
-    if (maxInWindow > 0) return crossingAutoAbsenceSpinsFromMax(maxInWindow);
+    const referenceMax = maxCrossingAbsenceForAutoTriggerReference(history, kind);
+    if (referenceMax > 0) return crossingAutoAbsenceSpinsFromMax(referenceMax);
   }
 
   const perTable = serverCrossingAbsenceByTable?.[tableId];

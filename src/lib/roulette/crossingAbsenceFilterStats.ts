@@ -2,6 +2,7 @@
  * Estatísticas por filtro de ausência — cruzamento 2 fatores (cor/altura, paridade/altura).
  */
 import {
+  CROSSING_ABSENCE_AUTO_TRIGGER_BONUS,
   CROSSING_ABSENCE_STATS_SPIN_WINDOW,
   type CrossingAbsenceAxisKind,
   absenceKeyToCrossingAxis,
@@ -159,6 +160,21 @@ export function maxCrossingAbsenceInWindowForTable(
   const chronological = chronologicalSlice(historyNewestFirst, CROSSING_ABSENCE_STATS_SPIN_WINDOW);
   if (chronological.length === 0) return 0;
   return maxAbsenceInChronological(chronological, axis);
+}
+
+/**
+ * Referência para gatilho automático (máx. + bónus): exclui os últimos BONUS giros
+ * cronológicos para que a ausência actual possa atingir máx.+bónus sem ficar sempre atrás.
+ */
+export function maxCrossingAbsenceForAutoTriggerReference(
+  historyNewestFirst: readonly number[],
+  axisKind: CrossingAbsenceAxisKind,
+  bonus = CROSSING_ABSENCE_AUTO_TRIGGER_BONUS,
+): number {
+  const axis = absenceKeyToCrossingAxis(axisKind);
+  const chronological = chronologicalSlice(historyNewestFirst, CROSSING_ABSENCE_STATS_SPIN_WINDOW);
+  if (chronological.length <= bonus) return 0;
+  return maxAbsenceInChronological(chronological.slice(0, chronological.length - bonus), axis);
 }
 
 function maxAbsenceInChronological(chronological: readonly number[], axis: CrossingAxisKind): number {

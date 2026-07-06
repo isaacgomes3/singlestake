@@ -1,6 +1,9 @@
 import type { GlobalAutomationConfig } from "@/lib/back-office/automation-config";
 import type { TableCrossingAbsenceTriggerRow } from "@/lib/back-office/automation-stats-types";
-import { maxCrossingAbsenceInWindowForTable } from "@/lib/roulette/crossingAbsenceFilterStats";
+import {
+  maxCrossingAbsenceForAutoTriggerReference,
+  maxCrossingAbsenceInWindowForTable,
+} from "@/lib/roulette/crossingAbsenceFilterStats";
 import {
   type CrossingAbsenceByTable,
   type CrossingAbsenceAxisKind,
@@ -48,17 +51,17 @@ export function buildCrossingAbsenceSpinsByTable(
     const tableId = Number(tableIdRaw);
     if (!Number.isFinite(tableId) || history.length === 0) continue;
 
-    const corMax = maxCrossingAbsenceInWindowForTable(history, "corAltura");
-    const altMax = maxCrossingAbsenceInWindowForTable(history, "alturaParidade");
+    const corReferenceMax = maxCrossingAbsenceForAutoTriggerReference(history, "corAltura");
+    const altReferenceMax = maxCrossingAbsenceForAutoTriggerReference(history, "alturaParidade");
 
     out[tableId] = {
       corAltura:
-        config.crossingCorAlturaAbsenceAuto && corMax > 0
-          ? crossingAutoAbsenceSpinsFromMax(corMax)
+        config.crossingCorAlturaAbsenceAuto && corReferenceMax > 0
+          ? crossingAutoAbsenceSpinsFromMax(corReferenceMax)
           : global.corAltura,
       alturaParidade:
-        config.crossingAlturaParidadeAbsenceAuto && altMax > 0
-          ? crossingAutoAbsenceSpinsFromMax(altMax)
+        config.crossingAlturaParidadeAbsenceAuto && altReferenceMax > 0
+          ? crossingAutoAbsenceSpinsFromMax(altReferenceMax)
           : global.alturaParidade,
     };
   }
