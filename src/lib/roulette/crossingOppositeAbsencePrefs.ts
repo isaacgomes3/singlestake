@@ -2,7 +2,6 @@ import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-type
 import type { CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
 import { maxCrossingOppositeAbsenceInWindowForTable } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import {
-  CROSSING_ABSENCE_AUTO_OFFSET,
   CROSSING_ABSENCE_SPINS_MAX,
   CROSSING_ABSENCE_SPINS_MIN,
   DEFAULT_CROSSING_ABSENCE_SPINS,
@@ -56,7 +55,7 @@ export function absenceSpinsForCrossingOppositeAxis(
 }
 
 export function crossingOppositeAutoAbsenceSpinsFromMax(maxInWindow: number): number {
-  return clampCrossingAbsenceSpins(maxInWindow - CROSSING_ABSENCE_AUTO_OFFSET);
+  return clampCrossingAbsenceSpins(maxInWindow);
 }
 
 export function normalizeCrossingOppositeAxisAbsenceAuto(raw?: {

@@ -33,6 +33,7 @@ import {
   ROTATING_ROOM_CROSSING_SWITCH_WITHOUT_PATTERN_SPINS,
 } from "@/lib/roulette/doisFatoresPatternCrossing";
 import { ROTATING_ROOM_CROSSING_BET_DELAY_MS } from "@/lib/roulette/rotatingRoomLobbySignal";
+import { liveTableBettingRemainingSec, crossingMinBettingTimeRemainingSec } from "@/lib/roulette/liveTableBettingWindow";
 import {
   isAnyCrossingGatilhoEnabled,
   isCrossingGatilhoEnabled,
@@ -585,6 +586,23 @@ export function crossingSignalId(
   return `${tableId}:${fingerprint}:${Math.max(0, Math.floor(recovery))}:c${Math.max(0, Math.floor(cycleSeq))}:a${Math.max(0, Math.floor(attempt))}`;
 }
 
+function crossingPostResultHoldDelayMs(
+  tableId: number,
+  historyNewestFirst: readonly number[],
+  recovery: number,
+  cycleSpinsWithoutWin: number,
+  now = Date.now(),
+): number {
+  const remainingSec = liveTableBettingRemainingSec(tableId, historyNewestFirst, now);
+  const minLeadSec = crossingMinBettingTimeRemainingSec(recovery, cycleSpinsWithoutWin) + 2;
+  if (remainingSec <= minLeadSec) {
+    return 1_500;
+  }
+  const latestDelaySec = remainingSec - minLeadSec;
+  const targetSec = Math.min(ROTATING_ROOM_CROSSING_BET_DELAY_MS / 1000, latestDelaySec);
+  return Math.max(1_500, Math.floor(targetSec * 1000));
+}
+
 function beginCrossingPostResultHold(
   machine: RotatingRoomCrossingMachineState,
   tableId: number,
@@ -595,15 +613,23 @@ function beginCrossingPostResultHold(
 ): RotatingRoomCrossingMachineState {
   const head = spinHeadFromHistory(histories[tableId] ?? []);
   const now = Date.now();
+  const cycleSpinsWithoutWin = opts?.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin;
+  const holdMs = crossingPostResultHoldDelayMs(
+    tableId,
+    histories[tableId] ?? [],
+    recovery,
+    cycleSpinsWithoutWin,
+    now,
+  );
   return {
     ...machine,
     cycleTableId: tableId,
     cycleActive: active,
     recovery,
-    cycleSpinsWithoutWin: opts?.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
+    cycleSpinsWithoutWin,
     armedAtHead: head,
     lastEvaluatedHead: head,
-    postResultHoldUntilMs: now + ROTATING_ROOM_CROSSING_BET_DELAY_MS,
+    postResultHoldUntilMs: now + holdMs,
     postResultHoldTableId: tableId,
     postResultHoldReason: opts?.reason ?? null,
     prepareFingerprint: null,

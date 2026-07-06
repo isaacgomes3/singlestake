@@ -2,6 +2,7 @@
  * Estatísticas por filtro de ausência — cruzamento 2 fatores (cor/altura, paridade/altura).
  */
 import {
+  CROSSING_ABSENCE_STATS_SPIN_WINDOW,
   type CrossingAbsenceAxisKind,
   absenceKeyToCrossingAxis,
 } from "@/lib/roulette/crossingAbsencePrefs";
@@ -20,7 +21,6 @@ import type {
 import {
   ABSENCE_FILTER_STATS_MAX_EVENTS,
   ABSENCE_FILTER_STATS_MAX_WIN_LOOKAHEAD,
-  ABSENCE_FILTER_STATS_SPIN_WINDOW,
 } from "@/lib/roulette/zoneAbsenceFilterStats";
 
 /** Início da grelha «Filtro (giros)» nos quadros de cruzamento (≠ mínimo configurável do gatilho). */
@@ -156,7 +156,7 @@ export function maxCrossingAbsenceInWindowForTable(
   axisKind: CrossingAbsenceAxisKind,
 ): number {
   const axis = absenceKeyToCrossingAxis(axisKind);
-  const chronological = chronologicalSlice(historyNewestFirst, ABSENCE_FILTER_STATS_SPIN_WINDOW);
+  const chronological = chronologicalSlice(historyNewestFirst, CROSSING_ABSENCE_STATS_SPIN_WINDOW);
   if (chronological.length === 0) return 0;
   return maxAbsenceInChronological(chronological, axis);
 }
@@ -210,7 +210,7 @@ function buildBlockForAxis(
   for (const [tableIdRaw, newestFirst] of Object.entries(histories)) {
     const tableId = Number(tableIdRaw);
     if (!Number.isFinite(tableId) || newestFirst.length === 0) continue;
-    const chronological = chronologicalSlice(newestFirst, ABSENCE_FILTER_STATS_SPIN_WINDOW);
+    const chronological = chronologicalSlice(newestFirst, CROSSING_ABSENCE_STATS_SPIN_WINDOW);
     if (chronological.length === 0) continue;
     maxAbsenceInWindow = Math.max(maxAbsenceInWindow, maxAbsenceInChronological(chronological, axis));
     tables.push({ tableId, chronological });
@@ -231,7 +231,7 @@ function buildBlockForAxis(
   }
 
   return {
-    spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
+    spinWindow: CROSSING_ABSENCE_STATS_SPIN_WINDOW,
     maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
     maxAbsenceInWindow,
     filters,
@@ -249,7 +249,7 @@ export function buildCrossingAbsenceFilterStats(
 
 export function emptyCrossingAbsenceFilterStats(): CrossingAbsenceFilterStats {
   const block: ZoneAbsenceFilterStatsBlock = {
-    spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
+    spinWindow: CROSSING_ABSENCE_STATS_SPIN_WINDOW,
     maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
     maxAbsenceInWindow: 0,
     filters: [],

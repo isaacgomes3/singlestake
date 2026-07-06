@@ -445,6 +445,18 @@ export function pendingSignalFromCrossingExtensionBridge(
       : 0;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
 
+  const history = histories?.[tableId] ?? [];
+  if (
+    history.length > 0 &&
+    !tableAcceptableForRotatingRoomEntry(
+      tableId,
+      history,
+      crossingMinBettingTimeRemainingSec(recovery, attempt),
+    )
+  ) {
+    return null;
+  }
+
   return {
     signalId: crossingSignalId(tableId, fingerprint, recovery, cycleSeq, attempt),
     tableId,

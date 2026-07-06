@@ -22,9 +22,9 @@ export const UM_FATOR_ARM_MIN_BETTING_TIME_REMAINING_SEC = 3;
 export const CROSSING_FIRST_SIGNAL_MIN_BETTING_TIME_REMAINING_SEC = 8;
 
 /**
- * 2 Fatores em gale/reentrada — após hold de 8s sobra pouca janela; limiar mais baixo que a 1.ª entrada.
+ * 2 Fatores em gale/reentrada — após hold dinâmico pós-giro; limiar mais baixo que a 1.ª entrada.
  */
-export const CROSSING_RECOVERY_MIN_BETTING_TIME_REMAINING_SEC = 6;
+export const CROSSING_RECOVERY_MIN_BETTING_TIME_REMAINING_SEC = 5;
 
 /** Limiar de janela para pending 2F conforme fase do ciclo. */
 export function crossingMinBettingTimeRemainingSec(
