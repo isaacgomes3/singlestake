@@ -18,6 +18,17 @@ export type AutomationStatsFibonacciZoneRow = {
   maxAbsenceInWindow?: number;
 };
 
+export type TableCrossingAbsenceTriggerRow = {
+  tableId: number;
+  label: string;
+  corAlturaMax: number;
+  corAlturaTrigger: number;
+  alturaParidadeMax: number;
+  alturaParidadeTrigger: number;
+  corAlturaAuto: boolean;
+  alturaParidadeAuto: boolean;
+};
+
 export type AutomationStatsDto = {
   updatedAt: number;
   /** Fonte activa dos sinais (extensão Chrome ou motor do servidor). */
@@ -49,6 +60,9 @@ export type AutomationStatsDto = {
     corAltura: AutomationStatsFibonacciZoneRow;
     alturaParidade: AutomationStatsFibonacciZoneRow;
   };
+  /** Gatilho de giros ausentes calculado por mesa (sala rotativa). */
+  tableCrossingAbsenceTriggers: TableCrossingAbsenceTriggerRow[];
+  tableCrossingOppositeAbsenceTriggers: TableCrossingAbsenceTriggerRow[];
   /** Simulação histórica por filtro de ausência (últimos 50 números — independente do gatilho). */
   absenceFilterStats: {
     fibonacci: ZoneAbsenceFilterStatsBlock;

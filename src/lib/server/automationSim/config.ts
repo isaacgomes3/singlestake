@@ -8,7 +8,10 @@ import {
 } from "@/lib/back-office/automation-config";
 import {
   normalizeCrossingAxisAbsenceSpins,
+  normalizeCrossingAxisAbsenceAuto,
   setServerCrossingAxisAbsenceSpins,
+  setServerCrossingAxisAbsenceAuto,
+  setServerCrossingAbsenceByTable,
 } from "@/lib/roulette/crossingAbsencePrefs";
 import {
   normalizeCrossingOppositeAxisAbsenceSpins,
@@ -35,6 +38,8 @@ function syncTriggerEnableRuntime(config: GlobalAutomationConfig): void {
   setServerFibonacciZoneAbsenceSpins(normalizeFibonacciZoneAbsenceSpins(config));
   setServerRepeticaoZoneAbsenceSpins(normalizeRepeticaoZoneAbsenceSpins(config));
   setServerCrossingAxisAbsenceSpins(normalizeCrossingAxisAbsenceSpins(config));
+  setServerCrossingAxisAbsenceAuto(normalizeCrossingAxisAbsenceAuto(config));
+  setServerCrossingAbsenceByTable(null);
   setServerCrossingOppositeAxisAbsenceSpins(normalizeCrossingOppositeAxisAbsenceSpins(config));
   setServerCrossingOppositeAxisAbsenceAuto(normalizeCrossingOppositeAxisAbsenceAuto(config));
   setServerCrossingOppositeAbsenceByTable(null);

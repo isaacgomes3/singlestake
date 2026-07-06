@@ -23,12 +23,15 @@ import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig, saveAutomationConfig } from "@/lib/server/automationSim/config";
 import {
   applyCrossingAutoAbsenceRuntime,
-  crossingAutoAbsencePatchFromHistories,
+  averageCrossingAbsenceSpinsPerTable,
+  averagePerTableMaxCrossingAbsenceInWindow,
+  buildTableCrossingAbsenceTriggerRows,
 } from "@/lib/server/automationSim/crossing-auto-absence";
 import {
   applyCrossingOppositeAutoAbsenceRuntime,
   averageCrossingOppositeAbsenceSpinsPerTable,
   averagePerTableMaxCrossingOppositeAbsenceInWindow,
+  buildTableCrossingOppositeAbsenceTriggerRows,
 } from "@/lib/server/automationSim/crossing-opposite-auto-absence";
 import {
   applyFibonacciAutoAbsenceRuntime,
@@ -202,25 +205,36 @@ function crossingAbsenceStatsFromState(
   crossingStats: RotatingRoomSessionStats | undefined,
   enabledTriggers: RotatingRoomGatilhoEnableMap,
   config: ReturnType<typeof getAutomationConfig>,
+  histories: Record<number, readonly number[]>,
   absenceFilter: AutomationStatsDto["absenceFilterStats"]["crossing"],
 ): AutomationStatsDto["crossingAbsence"] {
   const absenceByAxis = normalizeCrossingAxisAbsenceSpins(config);
+  const corAuto = config.crossingCorAlturaAbsenceAuto === true;
+  const altAuto = config.crossingAlturaParidadeAbsenceAuto === true;
   return {
     corAltura: crossingAbsenceAxisStatsRow(
       crossingStats,
       "corAltura",
       enabledTriggers.crossingCorAltura === true,
-      absenceByAxis.corAltura,
-      config.crossingCorAlturaAbsenceAuto === true,
-      absenceFilter.corAltura.maxAbsenceInWindow,
+      corAuto
+        ? averageCrossingAbsenceSpinsPerTable(config, histories, "corAltura")
+        : absenceByAxis.corAltura,
+      corAuto,
+      corAuto
+        ? averagePerTableMaxCrossingAbsenceInWindow(histories, "corAltura")
+        : absenceFilter.corAltura.maxAbsenceInWindow,
     ),
     alturaParidade: crossingAbsenceAxisStatsRow(
       crossingStats,
       "alturaParidade",
       enabledTriggers.crossingAlturaParidade === true,
-      absenceByAxis.alturaParidade,
-      config.crossingAlturaParidadeAbsenceAuto === true,
-      absenceFilter.alturaParidade.maxAbsenceInWindow,
+      altAuto
+        ? averageCrossingAbsenceSpinsPerTable(config, histories, "alturaParidade")
+        : absenceByAxis.alturaParidade,
+      altAuto,
+      altAuto
+        ? averagePerTableMaxCrossingAbsenceInWindow(histories, "alturaParidade")
+        : absenceFilter.alturaParidade.maxAbsenceInWindow,
     ),
   };
 }
@@ -306,10 +320,8 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   let config = getAutomationConfig();
   const absenceFilterStats = safeAbsenceFilterStats(state);
   const histories = rotatingTableHistoriesFromState(state);
-  const autoPatch = crossingAutoAbsencePatchFromHistories(config, histories);
-  if (autoPatch) {
-    config = applyCrossingAutoAbsenceRuntime({ ...config, ...autoPatch }, histories);
-    void saveAutomationConfig(autoPatch);
+  if (config.crossingCorAlturaAbsenceAuto || config.crossingAlturaParidadeAbsenceAuto) {
+    applyCrossingAutoAbsenceRuntime(config, histories);
   }
   if (
     config.crossingCorAlturaOppositeAbsenceAuto ||
@@ -362,6 +374,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       crossingStats,
       enabledTriggers,
       config,
+      histories,
       absenceFilterStats.crossing,
     ),
     crossingOppositeAbsence: crossingOppositeAbsenceStatsFromState(
@@ -370,6 +383,11 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       config,
       histories,
       absenceFilterStats.crossingOpposite,
+    ),
+    tableCrossingAbsenceTriggers: buildTableCrossingAbsenceTriggerRows(config, histories),
+    tableCrossingOppositeAbsenceTriggers: buildTableCrossingOppositeAbsenceTriggerRows(
+      config,
+      histories,
     ),
     absenceFilterStats,
   };

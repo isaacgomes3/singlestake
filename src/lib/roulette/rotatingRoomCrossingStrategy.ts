@@ -40,8 +40,7 @@ import {
   getEnabledCrossingOppositeAbsenceAxes,
 } from "@/lib/roulette/umFatorTriggerEnable";
 import {
-  readEffectiveCrossingAxisAbsenceSpins,
-  absenceSpinsForCrossingAxis,
+  readCrossingAbsenceSpinsForTable,
   crossingAxisKindToAbsenceKey,
 } from "@/lib/roulette/crossingAbsencePrefs";
 import {
@@ -464,7 +463,6 @@ function listAllCrossingAbsenceAlertPicks(
   const axes = getEnabledCrossingAbsenceAxes();
   if (axes.length === 0) return [];
 
-  const absenceSpins = readEffectiveCrossingAxisAbsenceSpins();
   const out: RotatingRoomCrossingPick[] = [];
 
   for (const tableId of tableIds) {
@@ -476,7 +474,7 @@ function listAllCrossingAbsenceAlertPicks(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const exactSpins = absenceSpinsForCrossingAxis(key, absenceSpins);
+      const exactSpins = readCrossingAbsenceSpinsForTable(tableId, key, history);
       const pick = bestExactAbsencePickForTable(tableId, history, axis, exactSpins);
       if (pick) out.push(pick);
     }
@@ -745,7 +743,6 @@ function bestPickForTable(
 ): RotatingRoomCrossingPick | null {
   const axes = getEnabledCrossingAbsenceAxes();
   if (axes.length > 0) {
-    const absenceSpins = readEffectiveCrossingAxisAbsenceSpins();
     let best: RotatingRoomCrossingPick | null = null;
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
@@ -754,7 +751,7 @@ function bestPickForTable(
         tableId,
         historyNewestFirst,
         axis,
-        absenceSpinsForCrossingAxis(key, absenceSpins),
+        readCrossingAbsenceSpinsForTable(tableId, key, historyNewestFirst),
       );
       if (pick && (!best || comparePicks(pick, best) < 0)) best = pick;
     }

@@ -1,4 +1,6 @@
 import type { GlobalAutomationConfig } from "@/lib/back-office/automation-config";
+import type { TableCrossingAbsenceTriggerRow } from "@/lib/back-office/automation-stats-types";
+import type { CrossingAbsenceAxisKind } from "@/lib/roulette/crossingAbsencePrefs";
 import { maxCrossingOppositeAbsenceInWindowForTable } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import {
   type CrossingOppositeAbsenceByTable,
@@ -8,7 +10,7 @@ import {
   setServerCrossingOppositeAbsenceByTable,
   setServerCrossingOppositeAxisAbsenceAuto,
 } from "@/lib/roulette/crossingOppositeAbsencePrefs";
-import type { CrossingAbsenceAxisKind } from "@/lib/roulette/crossingAbsencePrefs";
+import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 
 function averageFromByTable(
   byTable: CrossingOppositeAbsenceByTable,
@@ -76,6 +78,39 @@ export function averageCrossingOppositeAbsenceSpinsPerTable(
     return normalizeCrossingOppositeAxisAbsenceSpins(config).alturaParidade;
   }
   return averageFromByTable(buildCrossingOppositeAbsenceSpinsByTable(config, histories), kind);
+}
+
+export function buildTableCrossingOppositeAbsenceTriggerRows(
+  config: GlobalAutomationConfig,
+  histories: Record<number, readonly number[]>,
+): TableCrossingAbsenceTriggerRow[] {
+  const global = normalizeCrossingOppositeAxisAbsenceSpins(config);
+  const auto = normalizeCrossingOppositeAxisAbsenceAuto(config);
+  const byTable = buildCrossingOppositeAbsenceSpinsByTable(config, histories);
+  const rows: TableCrossingAbsenceTriggerRow[] = [];
+
+  for (const [tableIdRaw, history] of Object.entries(histories)) {
+    const tableId = Number(tableIdRaw);
+    if (!Number.isFinite(tableId) || history.length === 0) continue;
+
+    const corMax = maxCrossingOppositeAbsenceInWindowForTable(history, "corAltura");
+    const altMax = maxCrossingOppositeAbsenceInWindowForTable(history, "alturaParidade");
+    const triggers = byTable[tableId];
+
+    rows.push({
+      tableId,
+      label: lobbyTableDisplayName(tableId),
+      corAlturaMax: corMax,
+      corAlturaTrigger: triggers?.corAltura ?? global.corAltura,
+      alturaParidadeMax: altMax,
+      alturaParidadeTrigger: triggers?.alturaParidade ?? global.alturaParidade,
+      corAlturaAuto: auto.corAltura,
+      alturaParidadeAuto: auto.alturaParidade,
+    });
+  }
+
+  rows.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  return rows;
 }
 
 /** Actualiza giros por mesa quando o modo automático está activo (cada roleta com a sua ausência). */

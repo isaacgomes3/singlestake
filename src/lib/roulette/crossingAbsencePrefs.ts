@@ -1,5 +1,6 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import type { CrossingAxisKind } from "@/lib/roulette/liveTableColdStats";
+import { maxCrossingAbsenceInWindowForTable } from "@/lib/roulette/crossingAbsenceFilterStats";
 import {
   getRotatingRoomGatilhoEnabled,
   setRotatingRoomGatilhoEnabled,
@@ -23,6 +24,10 @@ export type CrossingAxisAbsenceAuto = {
   alturaParidade: boolean;
 };
 
+export type CrossingTableAbsenceSpins = CrossingAxisAbsenceSpins;
+
+export type CrossingAbsenceByTable = Record<number, CrossingTableAbsenceSpins>;
+
 const LOCAL_KEY_COR_ALTURA = "roulette.rotatingRoom.crossingAbsenceSpins.corAltura";
 const LOCAL_KEY_ALTURA_PARIDADE = "roulette.rotatingRoom.crossingAbsenceSpins.alturaParidade";
 const LOCAL_KEY_COR_ALTURA_AUTO = "roulette.rotatingRoom.crossingAbsenceAuto.corAltura";
@@ -31,6 +36,8 @@ const LOCAL_KEY_ALTURA_PARIDADE_AUTO = "roulette.rotatingRoom.crossingAbsenceAut
 export const CROSSING_ABSENCE_SPINS_CHANGED_EVENT = "crossing-absence-spins-changed";
 
 let serverEffectiveAbsenceByAxis: CrossingAxisAbsenceSpins | null = null;
+let serverCrossingAbsenceByTable: CrossingAbsenceByTable | null = null;
+let serverCrossingAbsenceAuto: CrossingAxisAbsenceAuto | null = null;
 
 export function crossingAxisKindToAbsenceKey(axis: CrossingAxisKind): CrossingAbsenceAxisKind | null {
   if (axis === "cor-altura") return "corAltura";
@@ -99,6 +106,28 @@ export function setServerCrossingAxisAbsenceSpins(spins: CrossingAxisAbsenceSpin
           corAltura: clampCrossingAbsenceSpins(spins.corAltura),
           alturaParidade: clampCrossingAbsenceSpins(spins.alturaParidade),
         };
+}
+
+export function setServerCrossingAbsenceByTable(byTable: CrossingAbsenceByTable | null): void {
+  if (byTable == null) {
+    serverCrossingAbsenceByTable = null;
+    return;
+  }
+  const next: CrossingAbsenceByTable = {};
+  for (const [tableIdRaw, spins] of Object.entries(byTable)) {
+    const tableId = Number(tableIdRaw);
+    if (!Number.isFinite(tableId)) continue;
+    next[tableId] = {
+      corAltura: clampCrossingAbsenceSpins(spins.corAltura),
+      alturaParidade: clampCrossingAbsenceSpins(spins.alturaParidade),
+    };
+  }
+  serverCrossingAbsenceByTable = next;
+}
+
+export function setServerCrossingAxisAbsenceAuto(auto: CrossingAxisAbsenceAuto | null): void {
+  serverCrossingAbsenceAuto =
+    auto == null ? null : { corAltura: auto.corAltura === true, alturaParidade: auto.alturaParidade === true };
 }
 
 function readCrossingAxisAbsenceAutoLocal(): CrossingAxisAbsenceAuto {
@@ -173,6 +202,33 @@ export function writeCrossingAxisAbsenceSpinsLocal(
 export function readEffectiveCrossingAxisAbsenceSpins(): CrossingAxisAbsenceSpins {
   if (serverEffectiveAbsenceByAxis != null) return { ...serverEffectiveAbsenceByAxis };
   return readCrossingAxisAbsenceSpinsLocal();
+}
+
+export function readEffectiveCrossingAxisAbsenceAuto(): CrossingAxisAbsenceAuto {
+  if (serverCrossingAbsenceAuto != null) return { ...serverCrossingAbsenceAuto };
+  return readCrossingAxisAbsenceAutoLocal();
+}
+
+/** Giros de ausência de cruzamento para uma mesa — no automático, calcula a partir do histórico da mesa. */
+export function readCrossingAbsenceSpinsForTable(
+  tableId: number,
+  kind: CrossingAbsenceAxisKind,
+  historyNewestFirst?: readonly number[],
+): number {
+  const auto = readEffectiveCrossingAxisAbsenceAuto();
+  const global = readEffectiveCrossingAxisAbsenceSpins();
+  if (!auto[kind]) return global[kind];
+
+  const history = historyNewestFirst;
+  if (history?.length) {
+    const maxInWindow = maxCrossingAbsenceInWindowForTable(history, kind);
+    if (maxInWindow > 0) return crossingAutoAbsenceSpinsFromMax(maxInWindow);
+  }
+
+  const perTable = serverCrossingAbsenceByTable?.[tableId];
+  if (perTable) return perTable[kind];
+
+  return global[kind];
 }
 
 export function syncCrossingAbsencePrefsFromAutomationConfig(

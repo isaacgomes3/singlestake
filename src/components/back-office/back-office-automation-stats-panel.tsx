@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AbsenceFilterStatsTable } from "@/components/back-office/absence-filter-stats-table";
+import { CrossingAbsencePerTableTable } from "@/components/back-office/crossing-absence-per-table-table";
 import { ReturnStreakStatsTable } from "@/components/back-office/return-streak-stats-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -883,6 +884,97 @@ export function BackOfficeAutomationStatsPanel() {
       </section>
 
       <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t("automationStats.crossingAbsenceTitle")}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t("automationStats.crossingAbsenceHint")}</p>
+        {!loading && data ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.crossingZoneStats")}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {renderCrossingAbsenceAxisRow(
+                "crossingCorAltura",
+                "corAltura",
+                "crossingCorAltura",
+                data.crossingAbsence.corAltura,
+              )}
+              {renderCrossingAbsenceAxisRow(
+                "crossingAlturaParidade",
+                "alturaParidade",
+                "crossingAlturaParidade",
+                data.crossingAbsence.alturaParidade,
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
+        )}
+        {!loading && data?.tableCrossingAbsenceTriggers ? (
+          <div className="mt-4 border-t border-border-color pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              {t("automationStats.crossingAbsencePerTableTitle")}
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              {t("automationStats.crossingAbsencePerTableHint")}
+            </p>
+            <CrossingAbsencePerTableTable
+              rows={data.tableCrossingAbsenceTriggers}
+              labels={{
+                colTable: t("automationStats.crossingAbsenceColTable"),
+                colCorMax: t("automationStats.crossingAbsenceColCorMax"),
+                colCorTrigger: t("automationStats.crossingAbsenceColCorTrigger"),
+                colAltMax: t("automationStats.crossingAbsenceColAltMax"),
+                colAltTrigger: t("automationStats.crossingAbsenceColAltTrigger"),
+                noData: t("automationStats.crossingAbsencePerTableNoData"),
+              }}
+            />
+          </div>
+        ) : null}
+        {!loading && data?.absenceFilterStats?.crossing ? (
+          <>
+            <div className="mt-4 border-t border-border-color pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingCorAltura")}
+              </p>
+              <AbsenceFilterStatsTable
+                block={data.absenceFilterStats.crossing.corAltura}
+                labels={{
+                  hint: t("automationStats.absenceFilterHint"),
+                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+                  colFilter: t("automationStats.absenceFilterColFilter"),
+                  colSample: t("automationStats.absenceFilterColSample"),
+                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+                  noData: t("automationStats.absenceFilterNoData"),
+                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+                }}
+              />
+            </div>
+            <div className="mt-4 border-t border-border-color pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingAlturaParidade")}
+              </p>
+              <AbsenceFilterStatsTable
+                block={data.absenceFilterStats.crossing.alturaParidade}
+                labels={{
+                  hint: t("automationStats.absenceFilterHint"),
+                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
+                  colFilter: t("automationStats.absenceFilterColFilter"),
+                  colSample: t("automationStats.absenceFilterColSample"),
+                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
+                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
+                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
+                  noData: t("automationStats.absenceFilterNoData"),
+                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
+                }}
+              />
+            </div>
+          </>
+        ) : null}
+      </section>
+
+      <section className="theme-card rounded-2xl p-5">
         <h2 className="text-sm font-bold text-text-primary">{t("automationStats.fibonacciTitle")}</h2>
         <p className="mt-1 text-xs text-text-secondary">{t("automationStats.fibonacciHint")}</p>
         {!loading && data ? (
@@ -957,76 +1049,6 @@ export function BackOfficeAutomationStatsPanel() {
             }}
           />
           </div>
-        ) : null}
-      </section>
-
-      <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">{t("automationStats.crossingAbsenceTitle")}</h2>
-        <p className="mt-1 text-xs text-text-secondary">{t("automationStats.crossingAbsenceHint")}</p>
-        {!loading && data ? (
-          <div className="mt-4 space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
-              {t("automationStats.crossingZoneStats")}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {renderCrossingAbsenceAxisRow(
-                "crossingCorAltura",
-                "corAltura",
-                "crossingCorAltura",
-                data.crossingAbsence.corAltura,
-              )}
-              {renderCrossingAbsenceAxisRow(
-                "crossingAlturaParidade",
-                "alturaParidade",
-                "crossingAlturaParidade",
-                data.crossingAbsence.alturaParidade,
-              )}
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
-        )}
-        {!loading && data?.absenceFilterStats?.crossing ? (
-          <>
-            <div className="mt-4 border-t border-border-color pt-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
-                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingCorAltura")}
-              </p>
-              <AbsenceFilterStatsTable
-                block={data.absenceFilterStats.crossing.corAltura}
-                labels={{
-                  hint: t("automationStats.absenceFilterHint"),
-                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
-                  colFilter: t("automationStats.absenceFilterColFilter"),
-                  colSample: t("automationStats.absenceFilterColSample"),
-                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
-                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
-                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
-                  noData: t("automationStats.absenceFilterNoData"),
-                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
-                }}
-              />
-            </div>
-            <div className="mt-4 border-t border-border-color pt-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
-                {t("automationStats.absenceFilterTitle")} — {triggerLabel(messages, "crossingAlturaParidade")}
-              </p>
-              <AbsenceFilterStatsTable
-                block={data.absenceFilterStats.crossing.alturaParidade}
-                labels={{
-                  hint: t("automationStats.absenceFilterHint"),
-                  maxInWindow: t("automationStats.absenceFilterMaxInWindow"),
-                  colFilter: t("automationStats.absenceFilterColFilter"),
-                  colSample: t("automationStats.absenceFilterColSample"),
-                  colMaxAtTrigger: t("automationStats.absenceFilterColMaxTrigger"),
-                  colWinAfter: t("automationStats.absenceFilterColWinAfter"),
-                  colUnresolved: t("automationStats.absenceFilterColUnresolved"),
-                  noData: t("automationStats.absenceFilterNoData"),
-                  spinLabel: (n) => t("automationStats.absenceFilterWinAfterSpin", { n }),
-                }}
-              />
-            </div>
-          </>
         ) : null}
       </section>
 

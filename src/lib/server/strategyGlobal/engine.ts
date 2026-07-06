@@ -2,7 +2,6 @@ import { automationBlocksNewEntries } from "@/lib/back-office/automation-config"
 import { getAutomationConfig, saveAutomationConfig } from "@/lib/server/automationSim/config";
 import {
   applyCrossingAutoAbsenceRuntime,
-  crossingAutoAbsencePatchFromHistories,
 } from "@/lib/server/automationSim/crossing-auto-absence";
 import {
   applyCrossingOppositeAutoAbsenceRuntime,
@@ -249,15 +248,10 @@ function refreshCrossingAutoAbsenceForHistories(
   histories: Record<number, readonly number[]>,
 ): void {
   const config = getAutomationConfig();
-  const patch = crossingAutoAbsencePatchFromHistories(config, histories);
-  if (patch) {
-    applyCrossingAutoAbsenceRuntime({ ...config, ...patch }, histories);
-    void saveAutomationConfig(patch);
+  if (config.crossingCorAlturaAbsenceAuto || config.crossingAlturaParidadeAbsenceAuto) {
+    applyCrossingAutoAbsenceRuntime(config, histories);
   }
-  applyCrossingOppositeAutoAbsenceRuntime(
-    patch ? { ...config, ...patch } : config,
-    histories,
-  );
+  applyCrossingOppositeAutoAbsenceRuntime(config, histories);
 }
 
 function driveCrossing(
