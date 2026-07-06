@@ -13,7 +13,7 @@ export const DEFAULT_CROSSING_ABSENCE_SPINS = 12;
 export const CROSSING_ABSENCE_AUTO_TRIGGER_BONUS = 2;
 
 /** Janela de análise para ausência de cruzamento (giros por mesa). */
-export const CROSSING_ABSENCE_STATS_SPIN_WINDOW = 60;
+export const CROSSING_ABSENCE_STATS_SPIN_WINDOW = 50;
 
 export type CrossingAbsenceAxisKind = "corAltura" | "alturaParidade";
 
