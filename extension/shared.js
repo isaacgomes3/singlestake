@@ -13,8 +13,8 @@ const GOG = {
   DEFAULT_MODE: "demo",
   /** Fibonacci/Repetição — aguardar após giro antes de nova ficha. */
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
-  /** 2 Fatores — entre factor-1 e factor-2 (250 ms). */
-  CROSSING_FACTOR_CLICK_STAGGER_MS: 250,
+  /** 2 Fatores — entre factor-1 e factor-2 (150 ms). */
+  CROSSING_FACTOR_CLICK_STAGGER_MS: 150,
   /** Stake base real (R$) — enviado pela automação global. */
   REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */

@@ -7,7 +7,7 @@ import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
 import {
   ROTATING_ROOM_MIN_BETTING_TIME_REMAINING_SEC,
   tableAcceptableForRotatingRoomEntry,
-  CROSSING_FIRST_SIGNAL_MIN_BETTING_TIME_REMAINING_SEC,
+  crossingMinBettingTimeRemainingSec,
 } from "@/lib/roulette/liveTableBettingWindow";
 import { crossingSignalId } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { isRotatingRoomPostResultHoldActive } from "@/lib/roulette/rotatingRoomLobbySignal";
@@ -377,7 +377,7 @@ export function pendingSignalFromCrossingSession(
     !tableAcceptableForRotatingRoomEntry(
       tableId,
       history,
-      CROSSING_FIRST_SIGNAL_MIN_BETTING_TIME_REMAINING_SEC,
+      crossingMinBettingTimeRemainingSec(recovery, attempt),
     )
   ) {
     return null;
