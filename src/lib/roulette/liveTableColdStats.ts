@@ -195,6 +195,23 @@ export function crossingAbsenceIndicationBlockedByOppositeSpin(
   return false;
 }
 
+/**
+ * Trava 2F ausência oposta — bloqueia se algum dos N giros mais recentes pertencer
+ * ao bucket **ausente** (retorno recente do cruzamento que estava ausente).
+ */
+export function crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(
+  historyNewestFirst: readonly number[],
+  absentBucket: CrossingBucketDef,
+): boolean {
+  if (historyNewestFirst.length === 0) return false;
+  const recent = historyNewestFirst.slice(0, CROSSING_ABSENCE_OPPOSITE_SPIN_LOCK);
+  for (const spin of recent) {
+    if (spin === 0) continue;
+    if (absentBucket.nums.includes(spin)) return true;
+  }
+  return false;
+}
+
 /** Irmão no mesmo eixo: mesma cor ou paridade, altura oposta. */
 export function crossingHeightSiblingBucketDef(def: CrossingBucketDef): CrossingBucketDef | null {
   const sample = def.nums[0];

@@ -67,6 +67,10 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           crossingAlturaParidadeAbsenceSpins?: number;
           crossingCorAlturaAbsenceAuto?: boolean;
           crossingAlturaParidadeAbsenceAuto?: boolean;
+          crossingCorAlturaOppositeAbsenceSpins?: number;
+          crossingAlturaParidadeOppositeAbsenceSpins?: number;
+          crossingCorAlturaOppositeAbsenceAuto?: boolean;
+          crossingAlturaParidadeOppositeAbsenceAuto?: boolean;
         }>(request);
 
         await initAutomationConfig();
@@ -172,6 +176,57 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
           return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
         }
 
+        if (typeof body?.crossingCorAlturaOppositeAbsenceSpins === "number") {
+          const spins = Math.min(99, Math.max(3, Math.floor(body.crossingCorAlturaOppositeAbsenceSpins)));
+          await saveAutomationConfig({
+            crossingCorAlturaOppositeAbsenceSpins: spins,
+            crossingCorAlturaOppositeAbsenceAuto: false,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingAlturaParidadeOppositeAbsenceSpins === "number") {
+          const spins = Math.min(
+            99,
+            Math.max(3, Math.floor(body.crossingAlturaParidadeOppositeAbsenceSpins)),
+          );
+          await saveAutomationConfig({
+            crossingAlturaParidadeOppositeAbsenceSpins: spins,
+            crossingAlturaParidadeOppositeAbsenceAuto: false,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingCorAlturaOppositeAbsenceAuto === "boolean") {
+          await saveAutomationConfig({
+            crossingCorAlturaOppositeAbsenceAuto: body.crossingCorAlturaOppositeAbsenceAuto,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
+        if (typeof body?.crossingAlturaParidadeOppositeAbsenceAuto === "boolean") {
+          await saveAutomationConfig({
+            crossingAlturaParidadeOppositeAbsenceAuto: body.crossingAlturaParidadeOppositeAbsenceAuto,
+          });
+          const { publishAutomationConfigChange } = await import(
+            "@/lib/server/automationSim/engine"
+          );
+          await publishAutomationConfigChange();
+          return jsonResponse({ ok: true, data: await buildAutomationTriggerStatsDtoAsync() });
+        }
+
         const id = body?.id;
         const enabled = body?.enabled;
         if (
@@ -185,7 +240,9 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
             id !== "repeticaoDozen" &&
             id !== "repeticaoColumn" &&
             id !== "crossingCorAltura" &&
-            id !== "crossingAlturaParidade") ||
+            id !== "crossingAlturaParidade" &&
+            id !== "crossingCorAlturaOpposite" &&
+            id !== "crossingAlturaParidadeOpposite") ||
           typeof enabled !== "boolean"
         ) {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });

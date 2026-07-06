@@ -33,7 +33,9 @@ export async function setAutomationTriggerEnabled(
     | "repeticaoDozen"
     | "repeticaoColumn"
     | "crossingCorAltura"
-    | "crossingAlturaParidade",
+    | "crossingAlturaParidade"
+    | "crossingCorAlturaOpposite"
+    | "crossingAlturaParidadeOpposite",
   enabled: boolean,
 ): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/admin/automation-stats", {
@@ -120,6 +122,48 @@ export async function saveCrossingAxisAbsenceAuto(
     axis === "corAltura"
       ? { crossingCorAlturaAbsenceAuto: absenceAuto }
       : { crossingAlturaParidadeAbsenceAuto: absenceAuto };
+  const res = await fetch("/api/back-office/admin/automation-stats", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson<{ ok: boolean; data?: AutomationStatsDto; error?: string }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao actualizar modo automático." };
+  }
+  return { ok: true, data: data.data };
+}
+
+export async function saveCrossingOppositeAxisAbsenceSpins(
+  axis: "corAltura" | "alturaParidade",
+  absenceSpins: number,
+): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
+  const body =
+    axis === "corAltura"
+      ? { crossingCorAlturaOppositeAbsenceSpins: absenceSpins }
+      : { crossingAlturaParidadeOppositeAbsenceSpins: absenceSpins };
+  const res = await fetch("/api/back-office/admin/automation-stats", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson<{ ok: boolean; data?: AutomationStatsDto; error?: string }>(res);
+  if (!data?.ok || !data.data) {
+    return { ok: false, error: data?.error ?? "Erro ao guardar giros de ausência." };
+  }
+  return { ok: true, data: data.data };
+}
+
+export async function saveCrossingOppositeAxisAbsenceAuto(
+  axis: "corAltura" | "alturaParidade",
+  absenceAuto: boolean,
+): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
+  const body =
+    axis === "corAltura"
+      ? { crossingCorAlturaOppositeAbsenceAuto: absenceAuto }
+      : { crossingAlturaParidadeOppositeAbsenceAuto: absenceAuto };
   const res = await fetch("/api/back-office/admin/automation-stats", {
     method: "POST",
     credentials: "include",

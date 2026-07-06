@@ -1,5 +1,6 @@
 import type {
   CrossingAbsenceAxisStats,
+  CrossingOppositeAbsenceAxisStats,
   CrossingPatternKindStats,
   FibonacciZoneKindStats,
   RotatingRoomSessionStats,
@@ -384,6 +385,70 @@ export function recordCrossingAbsenceAxisLoss(
       [key]: {
         wins: crossingAbsenceAxis[key].wins,
         losses: crossingAbsenceAxis[key].losses + 1,
+      },
+    },
+  };
+}
+
+export function emptyCrossingOppositeAbsenceAxisStats(): CrossingOppositeAbsenceAxisStats {
+  return {
+    corAltura: { wins: 0, losses: 0 },
+    alturaParidade: { wins: 0, losses: 0 },
+  };
+}
+
+export function parseCrossingOppositeAbsenceAxisStats(raw: unknown): CrossingOppositeAbsenceAxisStats {
+  const o = (raw ?? {}) as { corAltura?: unknown; alturaParidade?: unknown };
+  return {
+    corAltura: parseUmFatorMatchTierBucket(o.corAltura),
+    alturaParidade: parseUmFatorMatchTierBucket(o.alturaParidade),
+  };
+}
+
+export function normalizeCrossingOppositeAbsenceAxisStats(
+  stats: CrossingOppositeAbsenceAxisStats | undefined,
+): CrossingOppositeAbsenceAxisStats {
+  if (!stats) return emptyCrossingOppositeAbsenceAxisStats();
+  return parseCrossingOppositeAbsenceAxisStats(stats);
+}
+
+export function recordCrossingOppositeAbsenceAxisWin(
+  stats: RotatingRoomSessionStats,
+  axis: CrossingAxisKind,
+): RotatingRoomSessionStats {
+  const key = crossingAbsenceAxisStatsKey(axis);
+  if (!key) return stats;
+  const crossingOppositeAbsenceAxis = normalizeCrossingOppositeAbsenceAxisStats(
+    stats.crossingOppositeAbsenceAxis,
+  );
+  return {
+    ...stats,
+    crossingOppositeAbsenceAxis: {
+      ...crossingOppositeAbsenceAxis,
+      [key]: {
+        wins: crossingOppositeAbsenceAxis[key].wins + 1,
+        losses: crossingOppositeAbsenceAxis[key].losses,
+      },
+    },
+  };
+}
+
+export function recordCrossingOppositeAbsenceAxisLoss(
+  stats: RotatingRoomSessionStats,
+  axis: CrossingAxisKind,
+): RotatingRoomSessionStats {
+  const key = crossingAbsenceAxisStatsKey(axis);
+  if (!key) return stats;
+  const crossingOppositeAbsenceAxis = normalizeCrossingOppositeAbsenceAxisStats(
+    stats.crossingOppositeAbsenceAxis,
+  );
+  return {
+    ...stats,
+    crossingOppositeAbsenceAxis: {
+      ...crossingOppositeAbsenceAxis,
+      [key]: {
+        wins: crossingOppositeAbsenceAxis[key].wins,
+        losses: crossingOppositeAbsenceAxis[key].losses + 1,
       },
     },
   };

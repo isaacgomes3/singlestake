@@ -2,6 +2,8 @@ import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerT
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import type { ZoneAbsenceFilterStatsBlock } from "@/lib/roulette/zoneAbsenceFilterStats";
 import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
+import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
+import type { CrossingReturnStreakStats } from "@/lib/roulette/crossingReturnStreakStats";
 
 export type AutomationStatsFibonacciZoneRow = {
   wins: number;
@@ -43,10 +45,16 @@ export type AutomationStatsDto = {
     corAltura: AutomationStatsFibonacciZoneRow;
     alturaParidade: AutomationStatsFibonacciZoneRow;
   };
+  crossingOppositeAbsence: {
+    corAltura: AutomationStatsFibonacciZoneRow;
+    alturaParidade: AutomationStatsFibonacciZoneRow;
+  };
   /** Simulação histórica por filtro de ausência (últimos 50 números — independente do gatilho). */
   absenceFilterStats: {
     fibonacci: ZoneAbsenceFilterStatsBlock;
     repeticao: ZoneAbsenceFilterStatsBlock;
     crossing: CrossingAbsenceFilterStats;
+    crossingOpposite: CrossingOppositeAbsenceFilterStats;
+    crossingReturnStreak: CrossingReturnStreakStats;
   };
 };

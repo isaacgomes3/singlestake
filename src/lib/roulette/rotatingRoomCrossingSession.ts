@@ -61,6 +61,7 @@ export function defaultRotatingRoomCrossingMachineState(): RotatingRoomCrossingM
     cycleMetricCategory: null,
     cyclePatternKind: null,
     cycleAbsenceAxis: null,
+    cycleOppositeAbsence: false,
     cycleSeq: 0,
     postResultHoldUntilMs: null,
     postResultHoldTableId: null,

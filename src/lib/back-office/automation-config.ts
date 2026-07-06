@@ -1,10 +1,8 @@
 import { ROULETTE_AUTOMATION_BASE_STAKE } from "@/lib/back-office/automationStakes";
 import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
 import { DEFAULT_FIBONACCI_ABSENCE_SPINS, normalizeFibonacciZoneAbsenceSpins } from "@/lib/roulette/fibonacciAbsencePrefs";
-import {
-  DEFAULT_CROSSING_ABSENCE_SPINS,
-  normalizeCrossingAxisAbsenceSpins,
-} from "@/lib/roulette/crossingAbsencePrefs";
+import { DEFAULT_CROSSING_ABSENCE_SPINS, normalizeCrossingAxisAbsenceSpins } from "@/lib/roulette/crossingAbsencePrefs";
+import { normalizeCrossingOppositeAxisAbsenceSpins } from "@/lib/roulette/crossingOppositeAbsencePrefs";
 import { normalizeRepeticaoZoneAbsenceSpins } from "@/lib/roulette/repeticaoAbsencePrefs";
 import {
   DEFAULT_ROTATING_ROOM_GATILHO_ENABLE,
@@ -45,6 +43,10 @@ export type GlobalAutomationConfig = {
   crossingCorAlturaAbsenceAuto: boolean;
   /** Giros ausentes = máx. ausência na janela (paridade/altura). */
   crossingAlturaParidadeAbsenceAuto: boolean;
+  crossingCorAlturaOppositeAbsenceSpins: number;
+  crossingAlturaParidadeOppositeAbsenceSpins: number;
+  crossingCorAlturaOppositeAbsenceAuto: boolean;
+  crossingAlturaParidadeOppositeAbsenceAuto: boolean;
   updatedAt: number;
 };
 
@@ -76,6 +78,10 @@ export const DEFAULT_GLOBAL_AUTOMATION_CONFIG: GlobalAutomationConfig = {
   crossingAlturaParidadeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
   crossingCorAlturaAbsenceAuto: false,
   crossingAlturaParidadeAbsenceAuto: false,
+  crossingCorAlturaOppositeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
+  crossingAlturaParidadeOppositeAbsenceSpins: DEFAULT_CROSSING_ABSENCE_SPINS,
+  crossingCorAlturaOppositeAbsenceAuto: false,
+  crossingAlturaParidadeOppositeAbsenceAuto: false,
   updatedAt: 0,
 };
 
@@ -108,6 +114,7 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
   const absenceByZone = normalizeFibonacciZoneAbsenceSpins(o);
   const repeticaoByZone = normalizeRepeticaoZoneAbsenceSpins(o);
   const crossingByAxis = normalizeCrossingAxisAbsenceSpins(o);
+  const crossingOppositeByAxis = normalizeCrossingOppositeAxisAbsenceSpins(o);
   return {
     paused,
     pauseReason,
@@ -126,6 +133,10 @@ export function normalizeGlobalAutomationConfig(raw: unknown): GlobalAutomationC
     crossingAlturaParidadeAbsenceSpins: crossingByAxis.alturaParidade,
     crossingCorAlturaAbsenceAuto: o.crossingCorAlturaAbsenceAuto === true,
     crossingAlturaParidadeAbsenceAuto: o.crossingAlturaParidadeAbsenceAuto === true,
+    crossingCorAlturaOppositeAbsenceSpins: crossingOppositeByAxis.corAltura,
+    crossingAlturaParidadeOppositeAbsenceSpins: crossingOppositeByAxis.alturaParidade,
+    crossingCorAlturaOppositeAbsenceAuto: o.crossingCorAlturaOppositeAbsenceAuto === true,
+    crossingAlturaParidadeOppositeAbsenceAuto: o.crossingAlturaParidadeOppositeAbsenceAuto === true,
     updatedAt:
       typeof o.updatedAt === "number" && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now(),
   };

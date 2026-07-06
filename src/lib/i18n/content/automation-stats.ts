@@ -33,6 +33,8 @@ export const automationStatsContent = {
       crossingTertiary: "2 Fatores · terciário x-y-x-x",
       crossingCorAltura: "2 Fatores · ausência cor/altura",
       crossingAlturaParidade: "2 Fatores · ausência paridade/altura",
+      crossingOppositeCorAltura: "2 Fatores · ausência oposta cor/altura",
+      crossingOppositeAlturaParidade: "2 Fatores · ausência oposta paridade/altura",
       fibonacci: "Fibonacci · dúzias/colunas",
       fibonacciDozen: "Fibonacci · dúzias",
       fibonacciColumn: "Fibonacci · colunas",
@@ -63,6 +65,14 @@ export const automationStatsContent = {
     crossingAbsenceAutoActive: "Automático: máx. {{max}} → gatilho {{spins}}",
     crossingAbsenceAutoOn: "Modo automático activo — gatilho = máx. ausência na janela.",
     crossingAbsenceAutoOff: "Modo manual activo.",
+    crossingOppositeAbsenceTitle: "2 Fatores · ausência oposta",
+    crossingOppositeAbsenceHint:
+      "Quando um cruzamento atinge ausência exacta N, aposta no cruzamento oposto. Trava: não indica se algum dos 3 giros recentes pertencer ao bucket ausente (retorno recente).",
+    returnStreakTitle: "Sequência de vitórias após retorno",
+    returnStreakHint:
+      "Após ausência ≥ filtro, quando o bucket reaparece: quantas vitórias consecutivas (2F) antes da primeira derrota — até 5 recuperações no lookahead.",
+    returnStreakColMaxStreak: "Máx. sequência",
+    returnStreakLabel: "{{n}}V seg.",
     absenceFilterHint:
       "Simulação independente do gatilho — base: últimos 50 números por mesa. Cada filtro exige ausência exactamente igual ao valor (ex.: 3 = só 3 giros, não 4 ou 5).",
     absenceFilterTitle: "Estatística por filtro de ausência",
@@ -109,6 +119,8 @@ export const automationStatsContent = {
       crossingTertiary: "2 Factors · tertiary x-y-x-x",
       crossingCorAltura: "2 Factors · absence color/height",
       crossingAlturaParidade: "2 Factors · absence parity/height",
+      crossingOppositeCorAltura: "2 Factors · opposite absence color/height",
+      crossingOppositeAlturaParidade: "2 Factors · opposite absence parity/height",
       fibonacci: "Fibonacci · dozens/columns",
       fibonacciDozen: "Fibonacci · dozens",
       fibonacciColumn: "Fibonacci · columns",
@@ -136,6 +148,14 @@ export const automationStatsContent = {
     crossingAbsenceAutoActive: "Automatic: max {{max}} → trigger {{spins}}",
     crossingAbsenceAutoOn: "Automatic mode on — trigger equals max absence in window.",
     crossingAbsenceAutoOff: "Manual mode on.",
+    crossingOppositeAbsenceTitle: "2 Factors · opposite absence",
+    crossingOppositeAbsenceHint:
+      "When a crossing reaches exact absence N, bet on the opposite crossing. Lock: no signal if any of the last 3 spins belong to the absent bucket (recent return).",
+    returnStreakTitle: "Win streak after return",
+    returnStreakHint:
+      "After absence ≥ filter, when the bucket reappears: consecutive 2F wins before first loss — up to 5 recoveries in lookahead.",
+    returnStreakColMaxStreak: "Max streak",
+    returnStreakLabel: "{{n}}W streak",
     absenceFilterHint:
       "Trigger-independent simulation — base: last 50 numbers per table, up to 50 triggers per filter. Counts wins after N spins from trigger.",
     absenceFilterTitle: "Absence filter statistics",
@@ -182,6 +202,8 @@ export const automationStatsContent = {
       crossingTertiary: "2 Factores · terciario x-y-x-x",
       crossingCorAltura: "2 Factores · ausencia color/altura",
       crossingAlturaParidade: "2 Factores · ausencia paridad/altura",
+      crossingOppositeCorAltura: "2 Factores · ausencia opuesta color/altura",
+      crossingOppositeAlturaParidade: "2 Factores · ausencia opuesta paridad/altura",
       fibonacci: "Fibonacci · docenas/columnas",
       fibonacciDozen: "Fibonacci · docenas",
       fibonacciColumn: "Fibonacci · columnas",
@@ -209,6 +231,14 @@ export const automationStatsContent = {
     crossingAbsenceAutoActive: "Automático: máx. {{max}} → gatillo {{spins}}",
     crossingAbsenceAutoOn: "Modo automático activo — gatillo = máx. ausencia en ventana.",
     crossingAbsenceAutoOff: "Modo manual activo.",
+    crossingOppositeAbsenceTitle: "2 Factores · ausencia opuesta",
+    crossingOppositeAbsenceHint:
+      "Cuando un cruce alcanza ausencia exacta N, apuesta en el cruce opuesto. Bloqueo: no indica si alguno de los 3 giros recientes pertenece al bucket ausente (retorno reciente).",
+    returnStreakTitle: "Secuencia de victorias tras retorno",
+    returnStreakHint:
+      "Tras ausencia ≥ filtro, cuando el bucket reaparece: victorias consecutivas (2F) antes de la primera derrota — hasta 5 recuperaciones en lookahead.",
+    returnStreakColMaxStreak: "Máx. secuencia",
+    returnStreakLabel: "{{n}}V seg.",
     absenceFilterHint:
       "Simulación independiente del gatillo — base: últimos 50 números por mesa, hasta 50 gatillos por filtro. Cuenta victorias tras N giros desde el gatillo.",
     absenceFilterTitle: "Estadística por filtro de ausencia",

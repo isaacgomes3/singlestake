@@ -63,6 +63,7 @@ export type RotatingRoomSessionStats = {
   crossingPatternKind?: CrossingPatternKindStats;
   /** 2 Fatores — acerto por ausência de cruzamento (cor/altura, paridade/altura). */
   crossingAbsenceAxis?: CrossingAbsenceAxisStats;
+  crossingOppositeAbsenceAxis?: CrossingOppositeAbsenceAxisStats;
   /** Fibonacci — acerto por dúzias vs colunas. */
   fibonacciZoneKind?: FibonacciZoneKindStats;
   /** Repetição — acerto por dúzias vs colunas. */
@@ -88,6 +89,12 @@ export type CrossingPatternKindStats = {
 
 /** 2 Fatores — acerto por eixo de ausência de cruzamento. */
 export type CrossingAbsenceAxisStats = {
+  corAltura: UmFatorMatchTierBucket;
+  alturaParidade: UmFatorMatchTierBucket;
+};
+
+/** 2 Fatores — acerto por eixo de ausência oposta (aposta no cruzamento oposto). */
+export type CrossingOppositeAbsenceAxisStats = {
   corAltura: UmFatorMatchTierBucket;
   alturaParidade: UmFatorMatchTierBucket;
 };

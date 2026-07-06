@@ -10,6 +10,8 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   crossing: boolean;
   crossingCorAltura: boolean;
   crossingAlturaParidade: boolean;
+  crossingCorAlturaOpposite: boolean;
+  crossingAlturaParidadeOpposite: boolean;
   fibonacci: boolean;
   fibonacciDozen: boolean;
   fibonacciColumn: boolean;
@@ -29,6 +31,8 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   crossing: false,
   crossingCorAltura: false,
   crossingAlturaParidade: false,
+  crossingCorAlturaOpposite: false,
+  crossingAlturaParidadeOpposite: false,
   fibonacci: true,
   fibonacciDozen: true,
   fibonacciColumn: true,
@@ -57,6 +61,12 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   if (typeof o.crossingCorAltura === "boolean") base.crossingCorAltura = o.crossingCorAltura;
   if (typeof o.crossingAlturaParidade === "boolean") {
     base.crossingAlturaParidade = o.crossingAlturaParidade;
+  }
+  if (typeof o.crossingCorAlturaOpposite === "boolean") {
+    base.crossingCorAlturaOpposite = o.crossingCorAlturaOpposite;
+  }
+  if (typeof o.crossingAlturaParidadeOpposite === "boolean") {
+    base.crossingAlturaParidadeOpposite = o.crossingAlturaParidadeOpposite;
   }
   if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
   if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
@@ -117,6 +127,8 @@ export function getUmFatorEnabledTriggers(): UmFatorTriggerEnableMap {
     crossing: _c,
     crossingCorAltura: _cca,
     crossingAlturaParidade: _cap,
+    crossingCorAlturaOpposite: _ccao,
+    crossingAlturaParidadeOpposite: _capo,
     fibonacci: _f,
     fibonacciDozen: _fd,
     fibonacciColumn: _fc,
@@ -144,13 +156,19 @@ export function isCrossingGatilhoEnabled(): boolean {
 export function crossingGatilhoEnabledFromMap(
   map: Pick<
     RotatingRoomGatilhoEnableMap,
-    "crossing" | "crossingCorAltura" | "crossingAlturaParidade"
+    | "crossing"
+    | "crossingCorAltura"
+    | "crossingAlturaParidade"
+    | "crossingCorAlturaOpposite"
+    | "crossingAlturaParidadeOpposite"
   >,
 ): boolean {
   return (
     map.crossing !== false ||
     map.crossingCorAltura === true ||
-    map.crossingAlturaParidade === true
+    map.crossingAlturaParidade === true ||
+    map.crossingCorAlturaOpposite === true ||
+    map.crossingAlturaParidadeOpposite === true
   );
 }
 
@@ -174,6 +192,27 @@ export function getEnabledCrossingAbsenceAxes(): import("@/lib/roulette/liveTabl
   const axes: import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] = [];
   if (isCrossingAbsenceCorAlturaEnabled()) axes.push("cor-altura");
   if (isCrossingAbsenceAlturaParidadeEnabled()) axes.push("altura-paridade");
+  return axes;
+}
+
+export function isCrossingOppositeAbsenceCorAlturaEnabled(): boolean {
+  return runtimeEnabled.crossingCorAlturaOpposite === true;
+}
+
+export function isCrossingOppositeAbsenceAlturaParidadeEnabled(): boolean {
+  return runtimeEnabled.crossingAlturaParidadeOpposite === true;
+}
+
+export function isCrossingOppositeAbsenceGatilhoEnabled(): boolean {
+  return (
+    isCrossingOppositeAbsenceCorAlturaEnabled() || isCrossingOppositeAbsenceAlturaParidadeEnabled()
+  );
+}
+
+export function getEnabledCrossingOppositeAbsenceAxes(): import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] {
+  const axes: import("@/lib/roulette/liveTableColdStats").CrossingAxisKind[] = [];
+  if (isCrossingOppositeAbsenceCorAlturaEnabled()) axes.push("cor-altura");
+  if (isCrossingOppositeAbsenceAlturaParidadeEnabled()) axes.push("altura-paridade");
   return axes;
 }
 

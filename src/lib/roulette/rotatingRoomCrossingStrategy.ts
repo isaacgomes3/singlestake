@@ -36,6 +36,7 @@ import {
   isAnyCrossingGatilhoEnabled,
   isCrossingGatilhoEnabled,
   getEnabledCrossingAbsenceAxes,
+  getEnabledCrossingOppositeAbsenceAxes,
 } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   readEffectiveCrossingAxisAbsenceSpins,
@@ -43,8 +44,14 @@ import {
   crossingAxisKindToAbsenceKey,
 } from "@/lib/roulette/crossingAbsencePrefs";
 import {
+  readEffectiveCrossingOppositeAxisAbsenceSpins,
+  absenceSpinsForCrossingOppositeAxis,
+} from "@/lib/roulette/crossingOppositeAbsencePrefs";
+import {
   CROSSING_BUCKET_DEFINITIONS,
   crossingAbsenceIndicationBlockedByOppositeSpin,
+  crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin,
+  crossingOppositeBucketDef,
   crossingBucketAbsenceGap,
   type CrossingAxisKind,
   type CrossingBucketDef,
@@ -59,6 +66,8 @@ import {
   recordCrossingPatternKindLoss,
   recordCrossingAbsenceAxisWin,
   recordCrossingAbsenceAxisLoss,
+  recordCrossingOppositeAbsenceAxisWin,
+  recordCrossingOppositeAbsenceAxisLoss,
 } from "@/lib/roulette/entryWinBreakdown";
 
 function spinHeadFromHistory(history: readonly number[]): string {
@@ -96,7 +105,7 @@ export type RotatingRoomCrossingPick = {
   bucketGap: number;
   absenceGap: number;
   excludedPair: readonly [number, number];
-  triggerMode: "pattern" | "absence";
+  triggerMode: "pattern" | "absence" | "opposite-absence";
   patternKind: CrossingPatternKind;
   triggerNumbers: readonly number[];
   factor1: DoisFatoresFactor;
@@ -211,6 +220,9 @@ export type RotatingRoomCrossingMachineState = {
   /** Eixo de ausência do ciclo activo (cor/altura ou paridade/altura). */
   cycleAbsenceAxis: CrossingAxisKind | null;
 
+  /** Ciclo activo é gatilho de ausência oposta (aposta no cruzamento oposto). */
+  cycleOppositeAbsence: boolean;
+
   /** Identificador estável do ciclo (gatilho → vitória ou derrota final). */
   cycleSeq: number;
 
@@ -305,6 +317,8 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
 
     cycleAbsenceAxis: null,
 
+    cycleOppositeAbsence: false,
+
     cycleSeq: 0,
 
     postResultHoldUntilMs: null,
@@ -341,6 +355,44 @@ function pickFromPatternMatch(
     factor1: match.factor1,
     factor2: match.factor2,
   };
+}
+
+function pickFromOppositeAbsenceBucket(
+  tableId: number,
+  absentDef: CrossingBucketDef,
+  oppositeDef: CrossingBucketDef,
+  bucketGap: number,
+): RotatingRoomCrossingPick | null {
+  const refNum = oppositeDef.nums[0];
+  if (refNum == null) return null;
+  const factors = factorsForNumberOnAxis(refNum, oppositeDef.axis);
+  if (!factors) return null;
+  return {
+    tableId,
+    axis: oppositeDef.axis,
+    category: oppositeDef.category,
+    absentCategory: absentDef.category,
+    bucketGap,
+    absenceGap: bucketGap,
+    excludedPair: [refNum, refNum] as const,
+    triggerMode: "opposite-absence",
+    patternKind: "primary",
+    triggerNumbers: [refNum],
+    factor1: factors[0],
+    factor2: factors[1],
+  };
+}
+
+function crossingPickBlockedByAbsentBucketLatestSpin(
+  historyNewestFirst: readonly number[],
+  absentDef: CrossingBucketDef,
+  pick: RotatingRoomCrossingPick | null,
+): RotatingRoomCrossingPick | null {
+  if (!pick) return null;
+  if (crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(historyNewestFirst, absentDef)) {
+    return null;
+  }
+  return pick;
 }
 
 function pickFromAbsenceBucket(
@@ -426,6 +478,61 @@ function listAllCrossingAbsenceAlertPicks(
       if (!key) continue;
       const exactSpins = absenceSpinsForCrossingAxis(key, absenceSpins);
       const pick = bestExactAbsencePickForTable(tableId, history, axis, exactSpins);
+      if (pick) out.push(pick);
+    }
+  }
+
+  out.sort(comparePicks);
+  return out;
+}
+
+function bestExactOppositeAbsencePickForTable(
+  tableId: number,
+  historyNewestFirst: readonly number[],
+  axis: CrossingAxisKind,
+  exactAbsence: number,
+): RotatingRoomCrossingPick | null {
+  let best: { absentDef: CrossingBucketDef; gap: number } | null = null;
+  for (const def of CROSSING_BUCKET_DEFINITIONS) {
+    if (def.axis !== axis) continue;
+    const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
+    if (gap !== exactAbsence) continue;
+    if (!best || def.category < best.absentDef.category) {
+      best = { absentDef: def, gap };
+    }
+  }
+  if (!best) return null;
+  const oppositeDef = crossingOppositeBucketDef(best.absentDef);
+  if (!oppositeDef) return null;
+  return crossingPickBlockedByAbsentBucketLatestSpin(
+    historyNewestFirst,
+    best.absentDef,
+    pickFromOppositeAbsenceBucket(tableId, best.absentDef, oppositeDef, best.gap),
+  );
+}
+
+function listAllCrossingOppositeAbsenceAlertPicks(
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  excludeTableIds?: ReadonlySet<number>,
+): RotatingRoomCrossingPick[] {
+  const axes = getEnabledCrossingOppositeAbsenceAxes();
+  if (axes.length === 0) return [];
+
+  const absenceSpins = readEffectiveCrossingOppositeAxisAbsenceSpins();
+  const out: RotatingRoomCrossingPick[] = [];
+
+  for (const tableId of tableIds) {
+    if (excludeTableIds?.has(tableId)) continue;
+    const history = histories[tableId] ?? [];
+    if (!tableAcceptableForRotatingRoomEntry(tableId, history)) continue;
+    if (tableHasZeroInLastSpins(history)) continue;
+
+    for (const axis of axes) {
+      const key = crossingAxisKindToAbsenceKey(axis);
+      if (!key) continue;
+      const exactSpins = absenceSpinsForCrossingOppositeAxis(key, absenceSpins);
+      const pick = bestExactOppositeAbsencePickForTable(tableId, history, axis, exactSpins);
       if (pick) out.push(pick);
     }
   }
@@ -552,9 +659,11 @@ function parseCrossingPrepareKey(key: string): { tableId: number; axis: Crossing
 
 export function buildCrossingActiveFromPick(pick: RotatingRoomCrossingPick): DoisFatoresActive | null {
   const armingDescription =
-    pick.triggerMode === "absence"
-      ? `Ausência ${pick.bucketGap}g · ${pick.category} (mesa ${pick.tableId})`
-      : `${crossingPatternKindLabel(pick.patternKind)} · ${pick.category} (mesa ${pick.tableId})`;
+    pick.triggerMode === "opposite-absence"
+      ? `Ausência oposta ${pick.bucketGap}g · ${pick.category} (ausente: ${pick.absentCategory}, mesa ${pick.tableId})`
+      : pick.triggerMode === "absence"
+        ? `Ausência ${pick.bucketGap}g · ${pick.category} (mesa ${pick.tableId})`
+        : `${crossingPatternKindLabel(pick.patternKind)} · ${pick.category} (mesa ${pick.tableId})`;
   return {
     pairKind: pairKindFromAxis(pick.axis),
     pairKindLabel: pairKindLabel(pick.axis),
@@ -639,6 +748,23 @@ function bestPickForTable(
     }
     if (best) return crossingPickBlockedByOppositeLatestSpin(historyNewestFirst, best);
   }
+  const oppositeAxes = getEnabledCrossingOppositeAbsenceAxes();
+  if (oppositeAxes.length > 0) {
+    const absenceSpins = readEffectiveCrossingOppositeAxisAbsenceSpins();
+    let best: RotatingRoomCrossingPick | null = null;
+    for (const axis of oppositeAxes) {
+      const key = crossingAxisKindToAbsenceKey(axis);
+      if (!key) continue;
+      const pick = bestExactOppositeAbsencePickForTable(
+        tableId,
+        historyNewestFirst,
+        axis,
+        absenceSpinsForCrossingOppositeAxis(key, absenceSpins),
+      );
+      if (pick && (!best || comparePicks(pick, best) < 0)) best = pick;
+    }
+    if (best) return best;
+  }
   if (!isCrossingGatilhoEnabled()) return null;
   const match = detectBestPatternOnTable(historyNewestFirst);
   if (!match) return null;
@@ -674,6 +800,13 @@ export function listAllAlertPicks(
 ): RotatingRoomCrossingPick[] {
   const absencePicks = listAllCrossingAbsenceAlertPicks(tableIds, histories, excludeTableIds);
   if (absencePicks.length > 0) return absencePicks;
+
+  const oppositeAbsencePicks = listAllCrossingOppositeAbsenceAlertPicks(
+    tableIds,
+    histories,
+    excludeTableIds,
+  );
+  if (oppositeAbsencePicks.length > 0) return oppositeAbsencePicks;
 
   if (!isCrossingGatilhoEnabled()) return [];
 
@@ -877,7 +1010,10 @@ function armCycleFromActive(
 
     cyclePatternKind: pick.triggerMode === "pattern" ? pick.patternKind : null,
 
-    cycleAbsenceAxis: pick.triggerMode === "absence" ? pick.axis : null,
+    cycleAbsenceAxis:
+      pick.triggerMode === "absence" || pick.triggerMode === "opposite-absence" ? pick.axis : null,
+
+    cycleOppositeAbsence: pick.triggerMode === "opposite-absence",
 
   };
 
@@ -895,6 +1031,7 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     cycleMetricCategory: null,
     cyclePatternKind: null,
     cycleAbsenceAxis: null,
+    cycleOppositeAbsence: false,
     cycleSpinsWithoutWin: 0,
     postResultHoldUntilMs: null,
     postResultHoldTableId: null,
@@ -1555,6 +1692,7 @@ export function tickRotatingRoomCrossingPlacar(
   const activeForRound = nextMachine.cycleActive;
   const patternKindForRound = nextMachine.cyclePatternKind;
   const absenceAxisForRound = nextMachine.cycleAbsenceAxis;
+  const oppositeAbsenceForRound = nextMachine.cycleOppositeAbsence;
 
   nextMachine = { ...nextMachine, lastEvaluatedHead: head };
 
@@ -1570,7 +1708,9 @@ export function tickRotatingRoomCrossingPlacar(
       statsChanged = true;
     }
     if (absenceAxisForRound != null) {
-      nextStats = recordCrossingAbsenceAxisWin(nextStats, absenceAxisForRound);
+      nextStats = oppositeAbsenceForRound
+        ? recordCrossingOppositeAbsenceAxisWin(nextStats, absenceAxisForRound)
+        : recordCrossingAbsenceAxisWin(nextStats, absenceAxisForRound);
       statsChanged = true;
     }
 
@@ -1605,7 +1745,9 @@ export function tickRotatingRoomCrossingPlacar(
       statsChanged = true;
     }
     if (absenceAxisForRound != null) {
-      nextStats = recordCrossingAbsenceAxisLoss(nextStats, absenceAxisForRound);
+      nextStats = oppositeAbsenceForRound
+        ? recordCrossingOppositeAbsenceAxisLoss(nextStats, absenceAxisForRound)
+        : recordCrossingAbsenceAxisLoss(nextStats, absenceAxisForRound);
       statsChanged = true;
     }
 

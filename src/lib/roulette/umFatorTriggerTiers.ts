@@ -1,11 +1,13 @@
 import {
   normalizeCrossingAbsenceAxisStats,
+  normalizeCrossingOppositeAbsenceAxisStats,
   normalizeCrossingPatternKindStats,
   normalizeUmFatorMatchTierStats,
   umFatorMatchTierAproveitamentoPct,
 } from "@/lib/roulette/entryWinBreakdown";
 import type {
   CrossingAbsenceAxisStats,
+  CrossingOppositeAbsenceAxisStats,
   CrossingPatternKindStats,
   RotatingRoomSessionStats,
   UmFatorMatchTierBucket,
@@ -39,10 +41,15 @@ export type CrossingPatternGatilhoId =
 
 export type CrossingAbsenceAxisGatilhoId = "crossing-cor-altura" | "crossing-altura-paridade";
 
+export type CrossingOppositeAbsenceAxisGatilhoId =
+  | "crossing-opposite-cor-altura"
+  | "crossing-opposite-altura-paridade";
+
 export type RotatingRoomGatilhoReportId =
   | UmFatorTriggerMatchTier
   | CrossingPatternGatilhoId
   | CrossingAbsenceAxisGatilhoId
+  | CrossingOppositeAbsenceAxisGatilhoId
   | "fibonacci"
   | "repeticao"
   | "rotacao";
@@ -81,6 +88,27 @@ export const CROSSING_ABSENCE_AXIS_DEFINITIONS: readonly CrossingAbsenceAxisDefi
     labelKey: "crossingAlturaParidade",
   },
 ] as const;
+
+export type CrossingOppositeAbsenceAxisDefinition = {
+  id: CrossingOppositeAbsenceAxisGatilhoId;
+  statsKey: keyof CrossingOppositeAbsenceAxisStats;
+  labelKey: string;
+};
+
+/** Catálogo dos gatilhos 2 Fatores por ausência oposta de cruzamento. */
+export const CROSSING_OPPOSITE_ABSENCE_AXIS_DEFINITIONS: readonly CrossingOppositeAbsenceAxisDefinition[] =
+  [
+    {
+      id: "crossing-opposite-cor-altura",
+      statsKey: "corAltura",
+      labelKey: "crossingOppositeCorAltura",
+    },
+    {
+      id: "crossing-opposite-altura-paridade",
+      statsKey: "alturaParidade",
+      labelKey: "crossingOppositeAlturaParidade",
+    },
+  ] as const;
 
 export type UmFatorTriggerTierReportRow = {
   id: RotatingRoomGatilhoReportId;
@@ -132,6 +160,30 @@ function buildCrossingAbsenceAxisReport(
       axisStats[def.statsKey],
       enabledTriggers?.[def.statsKey === "corAltura" ? "crossingCorAltura" : "crossingAlturaParidade"] ===
         true,
+      true,
+    ),
+  );
+}
+
+function buildCrossingOppositeAbsenceAxisReport(
+  crossingStats: RotatingRoomSessionStats | undefined,
+  enabledTriggers?: Partial<
+    Pick<
+      RotatingRoomGatilhoEnableMap,
+      "crossingCorAlturaOpposite" | "crossingAlturaParidadeOpposite"
+    >
+  >,
+): UmFatorTriggerTierReportRow[] {
+  const axisStats = normalizeCrossingOppositeAbsenceAxisStats(
+    crossingStats?.crossingOppositeAbsenceAxis,
+  );
+  return CROSSING_OPPOSITE_ABSENCE_AXIS_DEFINITIONS.map((def) =>
+    rowFromBucket(
+      def,
+      axisStats[def.statsKey],
+      enabledTriggers?.[
+        def.statsKey === "corAltura" ? "crossingCorAlturaOpposite" : "crossingAlturaParidadeOpposite"
+      ] === true,
       true,
     ),
   );
@@ -196,6 +248,7 @@ export function buildRotatingRoomGatilhoTriggerReport(
     buildRepeticaoGatilhoReportRow(repeticaoStats, repeticaoEnabled),
     buildRotacaoGatilhoReportRow(rotacaoStats, rotacaoEnabled),
     ...buildCrossingAbsenceAxisReport(crossingStats, enabledTriggers),
+    ...buildCrossingOppositeAbsenceAxisReport(crossingStats, enabledTriggers),
     ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),
     ...buildUmFatorTriggerTierReport(umStats, enabledTriggers),
   ];
