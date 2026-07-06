@@ -773,6 +773,7 @@ export function buildExtensionBridgeFromAutomationBet(
       holdUntil,
       recovery,
       cycleAttempt,
+      bet.crossingOppositeWinPersist === true,
     );
     return {
       fingerprint,

@@ -24,6 +24,7 @@ import {
 import { reviewMartingaleSettlement } from "@/lib/back-office/martingaleSequenceReview";
 import { isAutomationProfile } from "@/lib/app-profile";
 import { lobbyTableDisplayName } from "@/lib/roulette/lobbyTables";
+import { isRotatingRoomPostResultHoldActive } from "@/lib/roulette/rotatingRoomLobbySignal";
 import type { AutomationSimApiSnapshot } from "@/lib/roulette/automationSimTypes";
 import type { StrategyGlobalLedgerEntry, StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
 import {
@@ -379,6 +380,14 @@ export async function syncAutomationSimWithStrategy(
   if (
     openBet?.strategy === "dois2fatores" &&
     !strategySnapshot.dois2fatores.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
+  if (
+    openBet?.strategy === "dois2fatores" &&
+    isRotatingRoomPostResultHoldActive(strategySnapshot.dois2fatores.postResultHoldUntilMs)
   ) {
     state = { ...state, openBet: null };
     replaceAutomationSimState(state);

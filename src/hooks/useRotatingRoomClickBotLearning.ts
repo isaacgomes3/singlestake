@@ -4,6 +4,7 @@ import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativ
 import type { RotatingRoomCrossingSession } from "@/hooks/useRotatingRoomCrossingSession";
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
+import { isCrossingOppositeAbsenceWinPersistHold } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import {
   executeRotatingRoomClickBotTarget,
   planRotatingRoomClickBotActions,
@@ -205,6 +206,8 @@ function sessionToSlice(
       Number.isFinite(session.cycleSpinsWithoutWin)
         ? session.cycleSpinsWithoutWin
         : 0,
+    cycleOppositeAbsence:
+      "cycleOppositeAbsence" in session && session.cycleOppositeAbsence === true,
     tableAnchored: "tableAnchored" in session ? session.tableAnchored : undefined,
     prepareCategory: "prepareCategory" in session ? session.prepareCategory : null,
   };
@@ -301,7 +304,13 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       sessionSlice.rotativaTrigger === "crossing" &&
       sessionSlice.singleFactorMode !== true &&
       sessionSlice.activeCrossing != null &&
-      ((sessionSlice.currentRecovery ?? 0) > 0 || (sessionSlice.cycleSpinsWithoutWin ?? 0) > 0);
+      ((sessionSlice.currentRecovery ?? 0) > 0 ||
+        (sessionSlice.cycleSpinsWithoutWin ?? 0) > 0 ||
+        isCrossingOppositeAbsenceWinPersistHold({
+          cycleOppositeAbsence: sessionSlice.cycleOppositeAbsence,
+          postResultHoldReason: sessionSlice.postResultHoldReason,
+          currentRecovery: sessionSlice.currentRecovery,
+        }));
     if (sessionSlice.postResultHoldActive && !crossingHoldBet) return;
     if (sessionSlice.lobbyCooldownActive && sessionSlice.showTapeteSignal) return;
     if (fingerprint === lastFingerprintRef.current) return;

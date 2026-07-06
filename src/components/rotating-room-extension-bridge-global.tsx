@@ -142,10 +142,68 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
 
   useEffect(() => {
     if (!bridgeActive) return;
-    const betKey = openBet?.signalId ?? pendingSignal?.signalId;
+    const postHoldActive =
+      "postResultHoldActive" in session && session.postResultHoldActive === true;
+    const extensionHoldKey =
+      postHoldActive && isCrossingRotativaSession(session)
+        ? pendingSignalFromCrossingExtensionBridge(
+            {
+              showTapeteSignal: "showTapeteSignal" in session && session.showTapeteSignal === true,
+              currentTableId:
+                "currentTableId" in session && typeof session.currentTableId === "number"
+                  ? session.currentTableId
+                  : null,
+              currentRecovery:
+                "currentRecovery" in session && typeof session.currentRecovery === "number"
+                  ? session.currentRecovery
+                  : 0,
+              activeCrossing: "activeCrossing" in session ? session.activeCrossing ?? null : null,
+              cycleSpinsWithoutWin:
+                "cycleSpinsWithoutWin" in session &&
+                typeof session.cycleSpinsWithoutWin === "number"
+                  ? session.cycleSpinsWithoutWin
+                  : 0,
+              cycleSeq:
+                "cycleSeq" in session && typeof session.cycleSeq === "number" ? session.cycleSeq : 0,
+              cycleFingerprint:
+                "cycleFingerprint" in session && typeof session.cycleFingerprint === "string"
+                  ? session.cycleFingerprint
+                  : null,
+              postResultHoldUntilMs:
+                "postResultHoldUntilMs" in session &&
+                typeof session.postResultHoldUntilMs === "number" &&
+                Number.isFinite(session.postResultHoldUntilMs)
+                  ? session.postResultHoldUntilMs
+                  : null,
+              postResultHoldTableId:
+                "postResultHoldTableId" in session &&
+                typeof session.postResultHoldTableId === "number"
+                  ? session.postResultHoldTableId
+                  : null,
+              postResultHoldReason:
+                "postResultHoldReason" in session &&
+                (session.postResultHoldReason === "draw" ||
+                  session.postResultHoldReason === "loss")
+                  ? session.postResultHoldReason
+                  : null,
+              cycleOppositeAbsence:
+                "cycleOppositeAbsence" in session && session.cycleOppositeAbsence === true,
+            },
+            globalAutomation.balance,
+            histories,
+          )?.signalId ?? null
+        : null;
+    const betKey = extensionHoldKey ?? openBet?.signalId ?? pendingSignal?.signalId;
     if (!betKey) return;
     clearExtensionLastEmitKey();
-  }, [bridgeActive, openBet?.signalId, pendingSignal?.signalId]);
+  }, [
+    bridgeActive,
+    openBet?.signalId,
+    pendingSignal?.signalId,
+    session,
+    globalAutomation.balance,
+    histories,
+  ]);
 
   useEffect(() => {
     if (!bridgeActive) {
@@ -295,11 +353,10 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
       Number.isFinite(session.postResultHoldUntilMs)
         ? session.postResultHoldUntilMs
         : null;
+    const postHoldActive =
+      "postResultHoldActive" in session && session.postResultHoldActive === true;
     const extensionHoldBet =
-      isCrossingRotativaSession(session) &&
-      "postResultHoldActive" in session &&
-      session.postResultHoldActive === true &&
-      !openBet
+      isCrossingRotativaSession(session) && postHoldActive
         ? pendingSignalFromCrossingExtensionBridge(
             {
               showTapeteSignal: "showTapeteSignal" in session && session.showTapeteSignal === true,
@@ -342,7 +399,10 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
             histories,
           )
         : null;
-    const bet = openBet ?? pendingSignal ?? extensionHoldBet;
+    const bet =
+      postHoldActive && extensionHoldBet
+        ? extensionHoldBet
+        : openBet ?? pendingSignal ?? extensionHoldBet;
     if (!bet?.signalId || bet.tableId == null) return;
 
     const payload = buildExtensionBridgeFromAutomationBet(bet, globalAutomation.balance, {
