@@ -9,7 +9,7 @@ import {
   tableAcceptableForRotatingRoomEntry,
   crossingMinBettingTimeRemainingSec,
 } from "@/lib/roulette/liveTableBettingWindow";
-import { crossingSignalId } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import { crossingSignalId, isCrossingAwaitingSpinAfterArm } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { isRotatingRoomPostResultHoldActive } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
@@ -342,6 +342,7 @@ export function pendingSignalFromCrossingSession(
     | "cycleSeq"
     | "cycleFingerprint"
     | "postResultHoldUntilMs"
+    | "armedAtHead"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -357,6 +358,10 @@ export function pendingSignalFromCrossingSession(
 
   const tableId = session.currentTableId;
   const history = histories?.[tableId] ?? [];
+
+  if (isCrossingAwaitingSpinAfterArm(history, session.armedAtHead)) {
+    return null;
+  }
   const active = session.activeCrossing;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
   const recovery = session.currentRecovery;
@@ -392,6 +397,40 @@ export function pendingSignalFromCrossingSession(
     stake: stakeForRecovery(recovery, balance, baseStake),
     strategy: "dois2fatores",
     activeCrossing: active,
+  };
+}
+
+export type CrossingMesaWatchSignal = {
+  tableId: number;
+  tableLabel: string;
+  armedAtHead: string;
+  fingerprint: string;
+};
+
+/** Fase 1 — abrir mesa no giro do arm; apostar só após novo resultado com indicação activa. */
+export function pendingCrossingMesaWatchFromSession(
+  session: Pick<
+    StrategyGlobalSnapshot["dois2fatores"],
+    "showTapeteSignal" | "currentTableId" | "armedAtHead" | "postResultHoldUntilMs"
+  >,
+  histories?: Record<number, readonly number[]>,
+): CrossingMesaWatchSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.armedAtHead) {
+    return null;
+  }
+  if (isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs)) {
+    return null;
+  }
+  const tableId = session.currentTableId;
+  const history = histories?.[tableId] ?? [];
+  if (!isCrossingAwaitingSpinAfterArm(history, session.armedAtHead)) {
+    return null;
+  }
+  return {
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    armedAtHead: session.armedAtHead,
+    fingerprint: `crossing-mesa-watch:${tableId}:${session.armedAtHead}`,
   };
 }
 
@@ -434,7 +473,8 @@ export function pendingSignalFromCrossingExtensionBridge(
     session.postResultHoldReason === "draw" &&
     recovery <= 0 &&
     attempt <= 0;
-  if (recovery <= 0 && attempt <= 0 && !oppositeWinPersist) return null;
+  const isDrawHold = session.postResultHoldReason === "draw";
+  if (recovery <= 0 && attempt <= 0 && !oppositeWinPersist && !isDrawHold) return null;
 
   const fingerprint =
     session.cycleFingerprint ??

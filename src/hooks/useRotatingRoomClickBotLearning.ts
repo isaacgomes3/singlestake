@@ -304,7 +304,8 @@ export function useRotatingRoomClickBotLearning({ session, enabled, mode, mesaEm
       sessionSlice.rotativaTrigger === "crossing" &&
       sessionSlice.singleFactorMode !== true &&
       sessionSlice.activeCrossing != null &&
-      ((sessionSlice.currentRecovery ?? 0) > 0 ||
+      (sessionSlice.postResultHoldReason === "draw" ||
+        (sessionSlice.currentRecovery ?? 0) > 0 ||
         (sessionSlice.cycleSpinsWithoutWin ?? 0) > 0 ||
         isCrossingOppositeAbsenceWinPersistHold({
           cycleOppositeAbsence: sessionSlice.cycleOppositeAbsence,

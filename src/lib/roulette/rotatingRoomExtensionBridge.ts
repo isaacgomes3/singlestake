@@ -37,7 +37,7 @@ import {
   ROTATING_ROOM_ROTACAO_RECOVERY_BET_DELAY_MS,
   resolveCrossingExtensionBetDelayUntilMs,
 } from "@/lib/roulette/rotatingRoomLobbySignal";
-import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
+import type { AutomationPendingSignal, CrossingMesaWatchSignal } from "@/lib/back-office/rouletteAutomationSim";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import {
   planRotatingRoomClickBotActions,
@@ -111,6 +111,8 @@ export type RotatingRoomExtensionContext = {
   betDelayUntilMs?: number | null;
   /** Fibonacci/Repetição — stakes 1-1-2-3… (nunca martingale 2^gale). */
   zoneFibonacciMode?: boolean;
+  /** 2 Fatores — payload só abre mesa (fase de observação do giro). */
+  crossingMesaWatchOnly?: boolean;
   /** Mesas da sala rotativa com URL individual guardada (localStorage / env). */
   mesaCatalog: RotatingRoomMesaCatalogEntry[];
 };
@@ -546,6 +548,39 @@ function resolveZoneFibonacciStrategyFromBet(
   return zoneFibonacciStrategyFromSignalId(bet.signalId);
 }
 
+/** Payload só com abertura de mesa — aguardar resultado antes de apostar (2 Fatores). */
+export function buildCrossingMesaWatchExtensionBridge(
+  watch: CrossingMesaWatchSignal,
+  automationBalance?: number | null,
+): Pick<RotatingRoomExtensionBridgePayload, "fingerprint" | "actions" | "context"> | null {
+  const mesaEmbedUrl = getCasinoEmbedUrlForTable(watch.tableId);
+  const sessionSlice: RotatingRoomClickBotSessionSlice = {
+    sessionMode: "active",
+    showTapeteSignal: true,
+    prepareTableId: null,
+    currentTableId: watch.tableId,
+    activeCrossing: null,
+    singleFactorMode: false,
+    rotativaTrigger: "crossing",
+    crossingAwaitingSpinAfterArm: true,
+    armedAtHead: watch.armedAtHead,
+    lobbyWait: false,
+  };
+  const actions = planRotatingRoomClickBotActions(sessionSlice);
+  if (!actions.some((a) => a.kind === "click")) return null;
+  const context = buildRotatingRoomExtensionContext(sessionSlice, mesaEmbedUrl, automationBalance);
+  return {
+    fingerprint: watch.fingerprint,
+    actions,
+    context: {
+      ...context,
+      rotativaTrigger: "crossing",
+      strategy: "dois2fatores",
+      crossingMesaWatchOnly: true,
+    },
+  };
+}
+
 /** Payload directo a partir de «Em jogo» / pending da automação global. */
 export function buildExtensionBridgeFromAutomationBet(
   bet: AutomationPendingSignal,
@@ -734,11 +769,9 @@ export function buildExtensionBridgeFromAutomationBet(
   const cycleAttempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
   const isEmpateDrawHold =
     bet.crossingHoldReason === "draw" || bet.crossingOppositeWinPersist === true;
+  /** Empate na mesma roleta — hold + repetir (não exige attempt>0). */
   const isCrossingGaleContinuation =
-    bet.strategy === "dois2fatores" &&
-    !singleFactorMode &&
-    isEmpateDrawHold &&
-    (recovery > 0 || cycleAttempt > 0 || bet.crossingOppositeWinPersist === true);
+    bet.strategy === "dois2fatores" && !singleFactorMode && isEmpateDrawHold;
   const isCrossingRecoveryEntry =
     bet.strategy === "dois2fatores" &&
     !singleFactorMode &&
@@ -763,6 +796,7 @@ export function buildExtensionBridgeFromAutomationBet(
     postResultHoldReason: bet.crossingHoldReason ?? null,
     cycleSpinsWithoutWin: cycleAttempt,
     cycleOppositeAbsence: bet.crossingOppositeWinPersist === true,
+    crossingAwaitingSpinAfterArm: false,
   };
 
   const actions = planRotatingRoomClickBotActions(sessionSlice);

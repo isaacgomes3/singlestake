@@ -11,6 +11,7 @@ import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import {
   type AutomationOpenBet,
   type AutomationPendingSignal,
+  pendingCrossingMesaWatchFromSession,
   pendingSignalFromCrossingExtensionBridge,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { getLiveRouletteTableIds, ROULETTE_LIVE_TABLE_CONFIG_EVENT } from "@/lib/roulette/liveTableConfig";
@@ -19,6 +20,7 @@ import {
   resolveRotatingRoomTableIds,
 } from "@/lib/roulette/lobbyTables";
 import {
+  buildCrossingMesaWatchExtensionBridge,
   buildExtensionBridgeFromAutomationBet,
   emitRotatingRoomExtensionBridge,
   emitRotatingRoomExtensionCancelCloseMesa,
@@ -356,6 +358,40 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
         : null;
     const postHoldActive =
       "postResultHoldActive" in session && session.postResultHoldActive === true;
+
+    if (isCrossingRotativaSession(session) && !postHoldActive) {
+      const mesaWatch = pendingCrossingMesaWatchFromSession(
+        {
+          showTapeteSignal: "showTapeteSignal" in session && session.showTapeteSignal === true,
+          currentTableId:
+            "currentTableId" in session && typeof session.currentTableId === "number"
+              ? session.currentTableId
+              : null,
+          armedAtHead:
+            "armedAtHead" in session && typeof session.armedAtHead === "string"
+              ? session.armedAtHead
+              : null,
+          postResultHoldUntilMs,
+        },
+        histories,
+      );
+      if (mesaWatch) {
+        const watchPayload = buildCrossingMesaWatchExtensionBridge(
+          mesaWatch,
+          globalAutomation.balance,
+        );
+        if (watchPayload) {
+          const watchKey = watchPayload.fingerprint;
+          if (readExtensionLastEmitKey() !== watchKey) {
+            writeExtensionLastEmitKey(watchKey);
+            emitRotatingRoomExtensionCancelCloseMesa(mesaWatch.tableId);
+            emitRotatingRoomExtensionBridge(watchPayload);
+          }
+          return;
+        }
+      }
+    }
+
     const extensionHoldBet =
       isCrossingRotativaSession(session) && postHoldActive
         ? pendingSignalFromCrossingExtensionBridge(
@@ -422,6 +458,7 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
     pendingSignal,
     globalAutomation.balance,
     session,
+    histories,
   ]);
 
   return null;

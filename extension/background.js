@@ -455,18 +455,27 @@ function bridgeActionDelayMs(prevAction, action, context) {
 async function runBridgePlan(payload, sourceTabId) {
   const clicks = (payload.actions || []).filter((a) => a.kind === "click");
   const singleFactor = payload.context?.singleFactorMode === true;
-  const filtered = singleFactor
+  let filtered = singleFactor
     ? clicks.filter((a) => a.target === "factor-1" || a.target === "prepare-open")
     : clicks;
+  const hadPrepareOpen = filtered[0]?.target === "prepare-open";
+  filtered = await filterClicksSkippingReadyPrepareOpen(filtered, payload.context);
   const results = [];
+
+  if (hadPrepareOpen && filtered[0]?.target !== "prepare-open") {
+    results.push({
+      target: "prepare-open",
+      ok: true,
+      skipped: true,
+      detail: "Mesa já aberta — foco directo no repetir/aposta",
+    });
+  }
 
   for (let i = 0; i < filtered.length; i++) {
     if (i > 0) {
       await sleep(bridgeActionDelayMs(filtered[i - 1], filtered[i], payload.context));
     } else if (isBettingClickTarget(filtered[0]?.target)) {
-      const baseSettle = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000;
-      const settleMs = lastMesaTabReused ? Math.min(baseSettle, 1200) : baseSettle;
-      await sleep(settleMs);
+      await sleep(bridgeFirstBetSettleMs(filtered[0]?.target));
     }
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
@@ -1281,6 +1290,42 @@ function pickCasinoTabForNavigation(tabs, mesaUrl) {
 
 /** Último prepare-open reutilizou separador já aberto — settle mais curto antes da aposta. */
 let lastMesaTabReused = false;
+
+/** Separador registado para a mesa com URL correcta — não precisa de prepare-open. */
+async function isMesaTabReadyForContext(context) {
+  const tableId = context?.currentTableId;
+  if (tableId == null) return false;
+  const registered = mesaTabByTableId.get(tableId);
+  if (registered == null) return false;
+  const mesaUrl = mesaUrlFromContext(context);
+  try {
+    const tab = await chrome.tabs.get(registered);
+    if (tab?.id == null || !tab.url || !isCasinoPlayUrl(tab.url)) return false;
+    if (mesaUrl && !casinoPathsMatch(tab.url, mesaUrl)) return false;
+    return true;
+  } catch {
+    mesaTabByTableId.delete(tableId);
+    return false;
+  }
+}
+
+/** Empate / mesa já aberta — salta prepare-open e foca o separador existente. */
+async function filterClicksSkippingReadyPrepareOpen(clicks, context) {
+  if (!clicks.length || clicks[0]?.target !== "prepare-open") return clicks;
+  if (!(await isMesaTabReadyForContext(context))) return clicks;
+  const tableId = context.currentTableId;
+  const tabId = tableId != null ? mesaTabByTableId.get(tableId) : null;
+  if (tabId != null) await focusMesaTab(tabId);
+  lastMesaTabReused = true;
+  return clicks.slice(1);
+}
+
+function bridgeFirstBetSettleMs(firstTarget) {
+  const baseSettle = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000;
+  if (!lastMesaTabReused) return baseSettle;
+  if (firstTarget === "repeat-bet") return 400;
+  return Math.min(baseSettle, 1200);
+}
 
 /** Activa separador da mesa ou navega para o URL correcto do catálogo. */
 async function ensureMesaTab(context, preferredTabId) {

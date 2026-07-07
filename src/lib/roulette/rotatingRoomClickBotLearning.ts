@@ -35,6 +35,7 @@ export function crossingRepeatBetClickCount(
 function buildCrossingFactorBetActions(
   session: RotatingRoomClickBotSessionSlice,
   reasonSuffix = "",
+  options?: { includePrepareOpen?: boolean },
 ): RotatingRoomClickBotAction[] {
   const active = session.activeCrossing;
   if (!active || session.currentTableId == null) {
@@ -43,22 +44,24 @@ function buildCrossingFactorBetActions(
   const { factor1, factor2 } = active;
   const mesa = lobbyTableDisplayName(session.currentTableId);
   const suffix = reasonSuffix ? ` ${reasonSuffix}` : "";
-  const actions: RotatingRoomClickBotAction[] = [
-    {
+  const includePrepareOpen = options?.includePrepareOpen !== false;
+  const actions: RotatingRoomClickBotAction[] = [];
+  if (includePrepareOpen) {
+    actions.push({
       kind: "click",
       target: "prepare-open",
       label: mesa,
       reason: `Abrir ${mesa} no operador`,
-    },
-    {
-      kind: "click",
-      target: "factor-1",
-      label: doisFatoresFactorLabel(factor1),
-      reason: session.singleFactorMode
-        ? `JOGANDO em ${mesa} — aposta 1 Fator${suffix}`
-        : `JOGANDO em ${mesa} — factor 1${suffix}`,
-    },
-  ];
+    });
+  }
+  actions.push({
+    kind: "click",
+    target: "factor-1",
+    label: doisFatoresFactorLabel(factor1),
+    reason: session.singleFactorMode
+      ? `JOGANDO em ${mesa} — aposta 1 Fator${suffix}`
+      : `JOGANDO em ${mesa} — factor 1${suffix}`,
+  });
   if (!session.singleFactorMode && factor2) {
     actions.push({
       kind: "click",
@@ -68,6 +71,20 @@ function buildCrossingFactorBetActions(
     });
   }
   return actions;
+}
+
+function buildCrossingMesaOpenOnlyAction(
+  tableId: number,
+): RotatingRoomClickBotAction[] {
+  const mesa = lobbyTableDisplayName(tableId);
+  return [
+    {
+      kind: "click",
+      target: "prepare-open",
+      label: mesa,
+      reason: `Abrir ${mesa} — aguardar resultado antes de apostar`,
+    },
+  ];
 }
 
 export const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
@@ -111,6 +128,10 @@ export type RotatingRoomClickBotSessionSlice = {
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
   cycleOppositeAbsence?: boolean;
+  /** Giro em que o ciclo foi armado (2 Fatores). */
+  armedAtHead?: string | null;
+  /** Extensão: ainda no giro do arm — só abrir mesa, sem apostar. */
+  crossingAwaitingSpinAfterArm?: boolean;
 };
 
 /** Plano de acções com base no estado da estratégia (Um Fator ou 2 fatores). */
@@ -154,7 +175,8 @@ export function planRotatingRoomClickBotActions(
       session.singleFactorMode !== true &&
       session.activeCrossing != null &&
       session.currentTableId != null &&
-      (recovery > 0 ||
+      (session.postResultHoldReason === "draw" ||
+        recovery > 0 ||
         attempt > 0 ||
         isCrossingOppositeAbsenceWinPersistHold({
           cycleOppositeAbsence: session.cycleOppositeAbsence,
@@ -172,7 +194,7 @@ export function planRotatingRoomClickBotActions(
             kind: "click",
             target: "prepare-open",
             label: mesa,
-            reason: `Abrir ${mesa} no operador`,
+            reason: `Garantir ${mesa} no operador (saltado se separador já aberto)`,
           },
           ...Array.from({ length: repeatClicks }, (_, index) => ({
             kind: "click" as const,
@@ -186,6 +208,7 @@ export function planRotatingRoomClickBotActions(
       return buildCrossingFactorBetActions(
         session,
         recovery > 0 ? `· gale ${recovery}` : "",
+        { includePrepareOpen: false },
       );
     }
     return [{ kind: "wait", reason: "Resultado — aguardar antes de voltar ao lobby" }];
@@ -195,10 +218,14 @@ export function planRotatingRoomClickBotActions(
     return [{ kind: "wait", reason: "Pós-resultado — aguardar próxima indicação" }];
   }
 
+  if (session.crossingAwaitingSpinAfterArm && session.currentTableId != null) {
+    return buildCrossingMesaOpenOnlyAction(session.currentTableId);
+  }
+
   if (session.showTapeteSignal && session.activeCrossing && !session.lobbyCooldownActive) {
     const recovery = session.currentRecovery ?? 0;
     const suffix = recovery > 0 ? `· gale ${recovery}` : "";
-    return buildCrossingFactorBetActions(session, suffix);
+    return buildCrossingFactorBetActions(session, suffix, { includePrepareOpen: false });
   }
 
   if (session.sessionMode === "awaiting_queue") {
@@ -230,6 +257,8 @@ export function rotatingRoomClickBotSessionFingerprint(
     session.lobbyCooldownActive ? 1 : 0,
     session.postResultHoldActive ? 1 : 0,
     session.postResultHoldUntilMs ?? "",
+    session.armedAtHead ?? "",
+    session.crossingAwaitingSpinAfterArm ? 1 : 0,
     f ? `${f.factor1.kind}:${f.factor1.value}|${f.factor2.kind}:${f.factor2.value}` : "",
   ].join("|");
 }

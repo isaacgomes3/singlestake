@@ -70,9 +70,18 @@ import {
   recordCrossingOppositeAbsenceAxisLoss,
 } from "@/lib/roulette/entryWinBreakdown";
 
-function spinHeadFromHistory(history: readonly number[]): string {
+export function spinHeadFromHistory(history: readonly number[]): string {
   if (history.length === 0) return "0";
   return `${history.length}:${history[0]}`;
+}
+
+/** Ciclo armado no giro actual — extensão abre mesa e aguarda o próximo resultado antes de apostar. */
+export function isCrossingAwaitingSpinAfterArm(
+  history: readonly number[],
+  armedAtHead: string | null | undefined,
+): boolean {
+  if (!armedAtHead || history.length === 0) return false;
+  return spinHeadFromHistory(history) === armedAtHead;
 }
 
 

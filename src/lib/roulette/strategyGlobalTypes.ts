@@ -66,6 +66,8 @@ export type StrategyGlobalCrossingClientView = {
   postResultHoldReason: "draw" | "loss" | null;
   /** Ciclo activo é gatilho de ausência oposta (indicação persistente). */
   cycleOppositeAbsence: boolean;
+  /** Giro em que o ciclo foi armado — apostar só após novo resultado. */
+  armedAtHead: string | null;
 };
 
 export type StrategyGlobalUmFatorClientView = {
