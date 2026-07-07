@@ -65,7 +65,7 @@ function GlobalKpiMiniButton({
 export function AutomationGlobalKpiCard() {
   const { t } = useI18n();
   const { money } = useFormat();
-  const { state, config, revision } = useRouletteAutomationSim();
+  const { state, config, revision, openBet, pendingSignal } = useRouletteAutomationSim();
   const [finance, setFinance] = useState<GlobalAutomationFinance | null>(null);
 
   useEffect(() => {
@@ -83,10 +83,15 @@ export function AutomationGlobalKpiCard() {
   const net = displayBalance - initialCapital;
   const netPct = initialCapital > 0 ? (net / initialCapital) * 100 : 0;
   const isPaused = config?.blocksNewEntries === true;
+  const activePlay = openBet ?? pendingSignal;
 
-  const statusValue = isPaused
-    ? t("overview.globalKpiCard.paused")
-    : t("overview.globalKpiCard.waiting");
+  const statusValue = activePlay
+    ? t("overview.globalKpiCard.inPlayWithTable", { table: activePlay.tableLabel })
+    : isPaused
+      ? t("overview.globalKpiCard.paused")
+      : t("overview.globalKpiCard.waiting");
+
+  const statusTone: ValueTone = activePlay ? "green" : isPaused ? "default" : "default";
 
   const netFormatted = money(net);
   const pctFormatted = `${netPct.toFixed(2)}%`;
@@ -114,10 +119,11 @@ export function AutomationGlobalKpiCard() {
       {
         label: t("overview.globalKpiCard.status"),
         value: statusValue,
-        valueTone: "default" as const,
+        compactValue: statusValue.length > 14,
+        valueTone: statusTone,
       },
     ],
-    [balanceFormatted, net, netFormatted, pctFormatted, statusValue, t],
+    [balanceFormatted, net, netFormatted, pctFormatted, statusTone, statusValue, t],
   );
 
   return (

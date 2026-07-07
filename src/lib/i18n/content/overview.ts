@@ -12,6 +12,8 @@ export const overviewContent = {
       status: "Estado",
       waiting: "Aguardando",
       paused: "Pausada",
+      inPlay: "Em jogo",
+      inPlayWithTable: "Em jogo · {{table}}",
     },
     startActive:
       "Pack Start {{start}} activo · base de automação {{base}} (múltiplos de {{step}}). Rendimento diário só sobre a parte de automação",
@@ -75,6 +77,8 @@ export const overviewContent = {
       status: "Status",
       waiting: "Waiting",
       paused: "Paused",
+      inPlay: "In play",
+      inPlayWithTable: "In play · {{table}}",
     },
     startActive:
       "Start Pack {{start}} active · automation base {{base}} (multiples of {{step}}). Daily yield only on the automation portion",
@@ -138,6 +142,8 @@ export const overviewContent = {
       status: "Estado",
       waiting: "Esperando",
       paused: "En pausa",
+      inPlay: "En juego",
+      inPlayWithTable: "En juego · {{table}}",
     },
     startActive:
       "Pack Start {{start}} activo · base de automatización {{base}} (múltiplos de {{step}}). Rendimiento diario solo sobre la parte de automatización",

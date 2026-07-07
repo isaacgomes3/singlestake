@@ -58,7 +58,7 @@ export const automationStatsContent = {
     repeticaoZoneStats: "Acerto por tipo",
     crossingAbsenceTitle: "2 Fatores · ausência de cruzamento",
     crossingAbsenceHint:
-      "Gatilho por ausência exacta do bucket de cruzamento (cor/altura ou paridade/altura). Vitória só com ambos os factores; derrota só quando ambos falham. Até 5 recuperações.",
+      "Gatilho por ausência exacta do bucket de cruzamento (cor/altura ou paridade/altura). Vitória só com ambos os factores; derrota só quando ambos falham. Até 5 recuperações: entrada, gale 1 e gale 2 na mesma roleta; se gale 2 falhar, aguarda nova entrada noutra roleta e continua com gale 3 (gale 4 e 5 na mesma roleta até vitória ou derrota final).",
     crossingZoneStats: "Acerto por eixo",
     crossingAbsenceAuto: "Automático",
     crossingAbsenceManual: "Manual",
@@ -153,7 +153,7 @@ export const automationStatsContent = {
     repeticaoZoneStats: "Hit rate by type",
     crossingAbsenceTitle: "2 Factors · crossing absence",
     crossingAbsenceHint:
-      "Trigger on exact bucket absence (color/height or parity/height). Win only when both factors hit; loss only when both fail. Up to 5 recoveries.",
+      "Trigger on exact bucket absence (color/height or parity/height). Win only when both factors hit; loss only when both fail. Up to 5 recoveries: entry, gale 1 and gale 2 on the same table; if gale 2 fails, wait for a new entry on another table and continue with gale 3 (gale 4 and 5 on that table until win or final loss).",
     crossingZoneStats: "Hit rate by axis",
     crossingAbsenceAuto: "Automatic",
     crossingAbsenceManual: "Manual",
@@ -248,7 +248,7 @@ export const automationStatsContent = {
     repeticaoZoneStats: "Acierto por tipo",
     crossingAbsenceTitle: "2 Factores · ausencia de cruce",
     crossingAbsenceHint:
-      "Gatillo por ausencia exacta del bucket de cruce (color/altura o paridad/altura). Victoria solo con ambos factores; derrota solo cuando ambos fallan. Hasta 5 recuperaciones.",
+      "Gatillo por ausencia exacta del bucket de cruce (color/altura o paridad/altura). Victoria solo con ambos factores; derrota solo cuando ambos fallan. Hasta 5 recuperaciones: entrada, gale 1 y gale 2 en la misma mesa; si gale 2 falla, espera nueva entrada en otra mesa y continúa con gale 3 (gale 4 y 5 en esa mesa hasta victoria o derrota final).",
     crossingZoneStats: "Acierto por eje",
     crossingAbsenceAuto: "Automático",
     crossingAbsenceManual: "Manual",

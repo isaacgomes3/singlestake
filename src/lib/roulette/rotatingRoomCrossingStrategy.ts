@@ -94,6 +94,9 @@ export const ROTATING_ROOM_CROSSING_MIN_ABSENCE = ROTATING_ROOM_CROSSING_ALERT_A
 
 export const ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
 
+/** Entrada + gale 1 + gale 2 na mesma roleta; após falha no gale 2, gale 3+ noutra mesa (ausência de cruzamento). */
+export const CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY = 2;
+
 
 
 export type RotatingRoomCrossingPick = {
@@ -601,6 +604,30 @@ function crossingPostResultHoldDelayMs(
   const latestDelaySec = remainingSec - minLeadSec;
   const targetSec = Math.min(ROTATING_ROOM_CROSSING_BET_DELAY_MS / 1000, latestDelaySec);
   return Math.max(1_500, Math.floor(targetSec * 1000));
+}
+
+function pickCrossingAbsenceAlertExcludingTables(
+  tableIds: readonly number[],
+  histories: Record<number, readonly number[]>,
+  excludeTableIds?: ReadonlySet<number>,
+): RotatingRoomCrossingPick | null {
+  return listAllCrossingAbsenceAlertPicks(tableIds, histories, excludeTableIds)[0] ?? null;
+}
+
+/** Após falha no gale 2 — aguarda nova entrada de ausência noutra roleta (mantém recovery). */
+function suspendCrossingAbsenceForOtherTable(
+  machine: RotatingRoomCrossingMachineState,
+  lostTableId: number,
+  recovery: number,
+): RotatingRoomCrossingMachineState {
+  return {
+    ...clearPrepareState(clearCycle(machine)),
+    recovery,
+    cycleSpinsWithoutWin: 0,
+    lastLostTableId: lostTableId,
+    tablePlacarLosses: { ...machine.tablePlacarLosses, [String(lostTableId)]: 1 },
+    awaitSwitchNoTable: true,
+  };
 }
 
 function beginCrossingPostResultHold(
@@ -1671,16 +1698,21 @@ export function tickRotatingRoomCrossingPlacar(
   if (!nextMachine.cycleActive) {
 
     if (nextMachine.awaitSwitchNoTable && nextMachine.recovery > 0) {
-      const retry = pickGlobalCrossingAlert(tableIds, histories, undefined, minAbsenceSpins);
+      const relaxed = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
+      const excluded = tablesExcludedFromRotation(relaxed);
+      const retry =
+        relaxed.recovery > CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY
+          ? pickCrossingAbsenceAlertExcludingTables(tableIds, histories, excluded)
+          : pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
       if (retry) {
         return {
-          nextMachine: enterCrossingFromAlert(nextMachine, retry, histories),
+          nextMachine: enterCrossingFromAlert(relaxed, retry, histories),
           stats: nextStats,
           statsChanged,
           flash,
         };
       }
-      return { nextMachine, stats: nextStats, statsChanged, flash };
+      return { nextMachine: relaxed, stats: nextStats, statsChanged, flash };
     }
 
     const alert = pickGlobalCrossingAlert(tableIds, histories, undefined, minAbsenceSpins);
@@ -1840,14 +1872,23 @@ export function tickRotatingRoomCrossingPlacar(
         kind: "recovery",
       };
 
-      nextMachine = beginCrossingPostResultHold(
-        { ...nextMachine, recovery },
-        tableId,
-        histories,
-        recovery,
-        activeForRound,
-        { reason: "loss" },
-      );
+      const isAbsenceCrossing = absenceAxisForRound != null && !oppositeAbsenceForRound;
+      if (
+        isAbsenceCrossing &&
+        recoveryBefore === CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY &&
+        canRotateTables
+      ) {
+        nextMachine = suspendCrossingAbsenceForOtherTable(nextMachine, tableId, recovery);
+      } else {
+        nextMachine = beginCrossingPostResultHold(
+          { ...nextMachine, recovery },
+          tableId,
+          histories,
+          recovery,
+          activeForRound,
+          { reason: "loss" },
+        );
+      }
 
     }
 
