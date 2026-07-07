@@ -20,8 +20,9 @@ export const ROTATING_ROOM_CLICK_BOT_TARGET_SELECTOR: Record<RotatingRoomClickBo
   "repeat-bet": '[data-click-bot="repeat-bet"]',
 };
 
-/** Empate — 1 clique em Repetir. Gale (qualquer fase) — 2 cliques em Repetir/Dobrar. */
+/** Empate (R0) — 1 clique em Repetir na mesma roleta. */
 export const CROSSING_REPEAT_CLICKS_ON_DRAW = 1;
+/** @deprecated Recuperação (gale) usa factor-1/factor-2 — repetir/dobrar só após 1.ª aposta na mesa. */
 export const CROSSING_REPEAT_CLICKS_ON_GALE = 2;
 
 export function crossingRepeatBetClickCount(
@@ -29,6 +30,44 @@ export function crossingRepeatBetClickCount(
 ): number {
   if (holdReason === "draw") return CROSSING_REPEAT_CLICKS_ON_DRAW;
   return CROSSING_REPEAT_CLICKS_ON_GALE;
+}
+
+function buildCrossingFactorBetActions(
+  session: RotatingRoomClickBotSessionSlice,
+  reasonSuffix = "",
+): RotatingRoomClickBotAction[] {
+  const active = session.activeCrossing;
+  if (!active || session.currentTableId == null) {
+    return [{ kind: "wait", reason: "Sem indicação activa para aposta nos factores" }];
+  }
+  const { factor1, factor2 } = active;
+  const mesa = lobbyTableDisplayName(session.currentTableId);
+  const suffix = reasonSuffix ? ` ${reasonSuffix}` : "";
+  const actions: RotatingRoomClickBotAction[] = [
+    {
+      kind: "click",
+      target: "prepare-open",
+      label: mesa,
+      reason: `Abrir ${mesa} no operador`,
+    },
+    {
+      kind: "click",
+      target: "factor-1",
+      label: doisFatoresFactorLabel(factor1),
+      reason: session.singleFactorMode
+        ? `JOGANDO em ${mesa} — aposta 1 Fator${suffix}`
+        : `JOGANDO em ${mesa} — factor 1${suffix}`,
+    },
+  ];
+  if (!session.singleFactorMode && factor2) {
+    actions.push({
+      kind: "click",
+      target: "factor-2",
+      label: doisFatoresFactorLabel(factor2),
+      reason: `JOGANDO em ${mesa} — factor 2${suffix}`,
+    });
+  }
+  return actions;
 }
 
 export const ROTATING_ROOM_INDICATION_PANEL_ID = "rotating-room-indication-panel";
@@ -68,7 +107,7 @@ export type RotatingRoomClickBotSessionSlice = {
   /** 2 Fatores — mesa fixa ancorada (pós-vitória). */
   tableAnchored?: boolean;
   prepareCategory?: string | null;
-  /** Empate → 1× repetir; derrota (gale) → 2× dobrar. */
+  /** Empate (R0) → 1× repetir; recuperação (gale) → fichas nos factores. */
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
   cycleOppositeAbsence?: boolean;
@@ -123,10 +162,14 @@ export function planRotatingRoomClickBotActions(
           currentRecovery: recovery,
         }));
     if (isCrossingContinuation) {
+      const recovery = session.currentRecovery ?? 0;
+      if (recovery > 0) {
+        return buildCrossingFactorBetActions(session, `· gale ${recovery}`);
+      }
+
       const mesa = lobbyTableDisplayName(session.currentTableId!);
       const repeatClicks = crossingRepeatBetClickCount(session.postResultHoldReason);
-      const repeatLabel =
-        session.postResultHoldReason === "draw" ? "Repetir" : "Repetir/Dobrar";
+      const repeatLabel = "Repetir";
       return [
         {
           kind: "click",
@@ -138,10 +181,7 @@ export function planRotatingRoomClickBotActions(
           kind: "click" as const,
           target: "repeat-bet" as const,
           label: repeatLabel,
-          reason:
-            session.postResultHoldReason === "draw"
-              ? `JOGANDO em ${mesa} — repetir aposta empate (${index + 1}/${repeatClicks})`
-              : `JOGANDO em ${mesa} — dobrar aposta gale (${index + 1}/${repeatClicks})`,
+          reason: `JOGANDO em ${mesa} — repetir aposta empate (${index + 1}/${repeatClicks})`,
         })),
       ];
     }
@@ -153,35 +193,9 @@ export function planRotatingRoomClickBotActions(
   }
 
   if (session.showTapeteSignal && session.activeCrossing && !session.lobbyCooldownActive) {
-    const { factor1, factor2 } = session.activeCrossing;
-    const mesa =
-      session.currentTableId != null ? lobbyTableDisplayName(session.currentTableId) : "mesa";
-    const actions: RotatingRoomClickBotAction[] = [];
-    if (session.currentTableId != null) {
-      actions.push({
-        kind: "click",
-        target: "prepare-open",
-        label: mesa,
-        reason: `Abrir ${mesa} no operador`,
-      });
-    }
-    actions.push({
-      kind: "click",
-      target: "factor-1",
-      label: doisFatoresFactorLabel(factor1),
-      reason: session.singleFactorMode
-        ? `JOGANDO em ${mesa} — aposta 1 Fator`
-        : `JOGANDO em ${mesa} — factor 1`,
-    });
-    if (!session.singleFactorMode && factor2) {
-      actions.push({
-        kind: "click",
-        target: "factor-2",
-        label: doisFatoresFactorLabel(factor2),
-        reason: `JOGANDO em ${mesa} — factor 2`,
-      });
-    }
-    return actions;
+    const recovery = session.currentRecovery ?? 0;
+    const suffix = recovery > 0 ? `· gale ${recovery}` : "";
+    return buildCrossingFactorBetActions(session, suffix);
   }
 
   if (session.sessionMode === "awaiting_queue") {

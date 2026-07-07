@@ -234,7 +234,7 @@ export type RotatingRoomCrossingMachineState = {
 
   postResultHoldTableId: number | null;
 
-  /** Empate → repetir (1×); derrota → dobrar (2× em qualquer gale). */
+  /** Empate (R0) → repetir; recuperação (gale) → fichas nos factores. */
   postResultHoldReason: CrossingPostResultHoldReason | null;
 
   /** Giros na mesa fixa **sem** gatilho (troca de mesa só após 2 seguidos). */
