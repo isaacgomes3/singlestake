@@ -768,7 +768,8 @@ export function buildExtensionBridgeFromAutomationBet(
   const attemptMatch = bet.signalId.match(/:a(\d+)$/);
   const cycleAttempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
   const isEmpateDrawHold =
-    bet.crossingHoldReason === "draw" || bet.crossingOppositeWinPersist === true;
+    (bet.crossingHoldReason === "draw" || bet.crossingOppositeWinPersist === true) &&
+    !(recovery === 0 && cycleAttempt === 0);
   /** Empate na mesma roleta — hold + repetir (não exige attempt>0). */
   const isCrossingGaleContinuation =
     bet.strategy === "dois2fatores" && !singleFactorMode && isEmpateDrawHold;

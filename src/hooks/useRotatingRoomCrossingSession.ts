@@ -76,6 +76,7 @@ export type RotatingRoomCrossingSession = {
   cycleSpinsWithoutWin: number;
   lastEvaluatedHead: string | null;
   armedAtHead: string | null;
+  crossingObservationConfirmed?: boolean;
   /** 2 Fatores: permanece na mesma roleta até zero ou 2 giros sem gatilho. */
   tableAnchored: boolean;
   postResultHoldUntilMs?: number | null;
@@ -343,6 +344,8 @@ export function useRotatingRoomCrossingSession(
       cycleSpinsWithoutWin: globalView.cycleSpinsWithoutWin ?? machine.cycleSpinsWithoutWin,
       lastEvaluatedHead: machine.lastEvaluatedHead,
       armedAtHead: globalView.armedAtHead ?? machine.armedAtHead,
+      crossingObservationConfirmed:
+        globalView.crossingObservationConfirmed ?? machine.crossingObservationConfirmed === true,
       tableAnchored: globalView.tableAnchored ?? tableAnchored,
       postResultHoldUntilMs,
       postResultHoldTableId,
@@ -374,6 +377,7 @@ export function useRotatingRoomCrossingSession(
     cycleSpinsWithoutWin: machine.cycleSpinsWithoutWin,
     lastEvaluatedHead: machine.lastEvaluatedHead,
     armedAtHead: machine.armedAtHead,
+    crossingObservationConfirmed: machine.crossingObservationConfirmed === true,
     tableAnchored,
     postResultHoldUntilMs,
     postResultHoldTableId,

@@ -506,6 +506,7 @@ function buildCrossingClientView(
     postResultHoldReason: machine.postResultHoldReason ?? null,
     cycleOppositeAbsence: machine.cycleOppositeAbsence === true,
     armedAtHead: machine.armedAtHead,
+    crossingObservationConfirmed: machine.crossingObservationConfirmed === true,
   };
 }
 

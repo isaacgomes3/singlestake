@@ -68,6 +68,8 @@ export type StrategyGlobalCrossingClientView = {
   cycleOppositeAbsence: boolean;
   /** Giro em que o ciclo foi armado — apostar só após novo resultado. */
   armedAtHead: string | null;
+  /** Entrada R0 — giro de observação concluído. */
+  crossingObservationConfirmed: boolean;
 };
 
 export type StrategyGlobalUmFatorClientView = {

@@ -67,6 +67,7 @@ export function defaultRotatingRoomCrossingMachineState(): RotatingRoomCrossingM
     postResultHoldTableId: null,
     postResultHoldReason: null,
     prepareSpinsWithoutPattern: 0,
+    crossingObservationConfirmed: false,
   };
 }
 

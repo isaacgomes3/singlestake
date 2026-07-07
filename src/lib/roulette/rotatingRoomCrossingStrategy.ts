@@ -84,6 +84,21 @@ export function isCrossingAwaitingSpinAfterArm(
   return spinHeadFromHistory(history) === armedAtHead;
 }
 
+/** Entrada R0 — aguarda 1 giro de observação antes de liberar aposta nos factores. */
+export function isCrossingAwaitingObservationBet(
+  session: Pick<
+    RotatingRoomCrossingMachineState,
+    "cycleActive" | "recovery" | "cycleSpinsWithoutWin" | "crossingObservationConfirmed"
+  >,
+): boolean {
+  return (
+    session.cycleActive != null &&
+    session.recovery === 0 &&
+    session.cycleSpinsWithoutWin === 0 &&
+    session.crossingObservationConfirmed !== true
+  );
+}
+
 
 
 /** @deprecated Legado ausência 18 giros — padrões usam prioridade 1–3. */
@@ -199,6 +214,9 @@ export type RotatingRoomCrossingMachineState = {
 
   lastEvaluatedHead: string | null;
 
+  /** Entrada R0 — giro de observação concluído; só então apostar nos factores. */
+  crossingObservationConfirmed: boolean;
+
   lastSpinHeadByTable: Record<string, string>;
 
   signalQueue: RotatingRoomCrossingQueueEntry[];
@@ -300,6 +318,8 @@ function defaultMachineState(): RotatingRoomCrossingMachineState {
     armedAtHead: null,
 
     lastEvaluatedHead: null,
+
+    crossingObservationConfirmed: false,
 
     lastSpinHeadByTable: {},
 
@@ -1054,6 +1074,8 @@ function armCycleFromActive(
 
     lastEvaluatedHead: opts?.lastEvaluatedHead ?? null,
 
+    crossingObservationConfirmed: recovery > 0,
+
     postResultHoldUntilMs: null,
 
     postResultHoldTableId: null,
@@ -1108,6 +1130,7 @@ function clearCycle(machine: RotatingRoomCrossingMachineState): RotatingRoomCros
     postResultHoldReason: null,
     armedAtHead: null,
     lastEvaluatedHead: null,
+    crossingObservationConfirmed: false,
   };
 
 }
@@ -1521,6 +1544,7 @@ export function sanitizeRotatingRoomCrossingMachineForTableIds(
   const allowed = new Set(tableIds);
   let next: RotatingRoomCrossingMachineState = {
     ...machine,
+    crossingObservationConfirmed: machine.crossingObservationConfirmed === true,
     postResultHoldReason:
       machine.postResultHoldReason === "draw" || machine.postResultHoldReason === "loss"
         ? machine.postResultHoldReason
@@ -1758,9 +1782,22 @@ export function tickRotatingRoomCrossingPlacar(
 
   }
 
-
-
   const resultNumber = history[0]!;
+
+  if (
+    nextMachine.recovery === 0 &&
+    nextMachine.cycleSpinsWithoutWin === 0 &&
+    !nextMachine.crossingObservationConfirmed &&
+    nextMachine.armedAtHead != null &&
+    head !== nextMachine.armedAtHead
+  ) {
+    nextMachine = {
+      ...nextMachine,
+      lastEvaluatedHead: head,
+      crossingObservationConfirmed: true,
+    };
+    return { nextMachine, stats: nextStats, statsChanged, flash };
+  }
 
   /** Indicação vigente neste giro — avaliar antes de actualizar com o último número. */
   const activeForRound = nextMachine.cycleActive;

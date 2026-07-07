@@ -9,7 +9,11 @@ import {
   tableAcceptableForRotatingRoomEntry,
   crossingMinBettingTimeRemainingSec,
 } from "@/lib/roulette/liveTableBettingWindow";
-import { crossingSignalId, isCrossingAwaitingSpinAfterArm } from "@/lib/roulette/rotatingRoomCrossingStrategy";
+import {
+  crossingSignalId,
+  isCrossingAwaitingObservationBet,
+  isCrossingAwaitingSpinAfterArm,
+} from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import { isRotatingRoomPostResultHoldActive } from "@/lib/roulette/rotatingRoomLobbySignal";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import type { RotatingRoomSimulatorIndication } from "@/lib/roulette/rotatingRoomSimulatorTypes";
@@ -343,6 +347,7 @@ export function pendingSignalFromCrossingSession(
     | "cycleFingerprint"
     | "postResultHoldUntilMs"
     | "armedAtHead"
+    | "crossingObservationConfirmed"
   >,
   balance = ROULETTE_AUTOMATION_INITIAL_BANK,
   histories?: Record<number, readonly number[]>,
@@ -362,6 +367,18 @@ export function pendingSignalFromCrossingSession(
   if (isCrossingAwaitingSpinAfterArm(history, session.armedAtHead)) {
     return null;
   }
+
+  if (
+    isCrossingAwaitingObservationBet({
+      cycleActive: session.activeCrossing,
+      recovery: session.currentRecovery,
+      cycleSpinsWithoutWin: session.cycleSpinsWithoutWin ?? 0,
+      crossingObservationConfirmed: session.crossingObservationConfirmed === true,
+    })
+  ) {
+    return null;
+  }
+
   const active = session.activeCrossing;
   const alertLabel = `${doisFatoresFactorLabel(active.factor1)} · ${doisFatoresFactorLabel(active.factor2)}`;
   const recovery = session.currentRecovery;
