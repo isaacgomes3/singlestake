@@ -94,8 +94,8 @@ export const ROTATING_ROOM_CROSSING_MIN_ABSENCE = ROTATING_ROOM_CROSSING_ALERT_A
 
 export const ROTATING_ROOM_CROSSING_MAX_RECOVERY = 5;
 
-/** Entrada + gale 1 + gale 2 na mesma roleta; após falha no gale 2, gale 3+ noutra mesa (ausência de cruzamento). */
-export const CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY = 2;
+/** @deprecated Ausência de cruzamento troca de roleta após cada falha (entrada e gales). */
+export const CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY = 0;
 
 
 
@@ -614,7 +614,7 @@ function pickCrossingAbsenceAlertExcludingTables(
   return listAllCrossingAbsenceAlertPicks(tableIds, histories, excludeTableIds)[0] ?? null;
 }
 
-/** Após falha no gale 2 — aguarda nova entrada de ausência noutra roleta (mantém recovery). */
+/** Após falha na indicação — aguarda nova entrada de ausência noutra roleta (mantém recovery). */
 function suspendCrossingAbsenceForOtherTable(
   machine: RotatingRoomCrossingMachineState,
   lostTableId: number,
@@ -1701,9 +1701,8 @@ export function tickRotatingRoomCrossingPlacar(
       const relaxed = relaxTableExclusionsIfAllBlocked(nextMachine, tableIds);
       const excluded = tablesExcludedFromRotation(relaxed);
       const retry =
-        relaxed.recovery > CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY
-          ? pickCrossingAbsenceAlertExcludingTables(tableIds, histories, excluded)
-          : pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
+        pickCrossingAbsenceAlertExcludingTables(tableIds, histories, excluded) ??
+        pickGlobalCrossingAlert(tableIds, histories, excluded, minAbsenceSpins);
       if (retry) {
         return {
           nextMachine: enterCrossingFromAlert(relaxed, retry, histories),
@@ -1873,11 +1872,7 @@ export function tickRotatingRoomCrossingPlacar(
       };
 
       const isAbsenceCrossing = absenceAxisForRound != null && !oppositeAbsenceForRound;
-      if (
-        isAbsenceCrossing &&
-        recoveryBefore === CROSSING_ABSENCE_TABLE_SWITCH_AFTER_RECOVERY &&
-        canRotateTables
-      ) {
+      if (isAbsenceCrossing && canRotateTables) {
         nextMachine = suspendCrossingAbsenceForOtherTable(nextMachine, tableId, recovery);
       } else {
         nextMachine = beginCrossingPostResultHold(

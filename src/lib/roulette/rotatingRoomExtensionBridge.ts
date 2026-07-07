@@ -344,10 +344,14 @@ export function shouldDeferMesaCloseForCrossingRecovery(
     postResultHoldActive?: boolean;
     postResultHoldTableId?: number | null;
     showTapeteSignal?: boolean;
+    sessionMode?: string;
   },
   maxRecovery = ROTATING_ROOM_CROSSING_MAX_RECOVERY,
 ): boolean {
   if (settled.strategy !== "dois2fatores" || settled.tableId == null) return false;
+
+  /** Ausência de cruzamento — gale noutra roleta: fecha a aba da mesa que falhou. */
+  if (session.sessionMode === "awaiting_queue") return false;
 
   const focusTableId =
     session.currentTableId ??

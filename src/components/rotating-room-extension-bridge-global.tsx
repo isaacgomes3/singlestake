@@ -68,6 +68,7 @@ function resolveMesaCloseTableId(
     postResultHoldActive?: boolean;
     postResultHoldTableId?: number | null;
     showTapeteSignal?: boolean;
+    sessionMode?: string;
     rotativaTrigger?: string;
   },
 ): number | null {

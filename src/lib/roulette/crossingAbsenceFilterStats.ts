@@ -163,8 +163,7 @@ export function maxCrossingAbsenceInWindowForTable(
 }
 
 /**
- * Referência para gatilho automático (máx. + bónus): exclui os últimos BONUS giros
- * cronológicos para que a ausência actual possa atingir máx.+bónus sem ficar sempre atrás.
+ * Referência para gatilho automático: máx. ausência na janela (bónus 0 = gatilho igual à máx.).
  */
 export function maxCrossingAbsenceForAutoTriggerReference(
   historyNewestFirst: readonly number[],
