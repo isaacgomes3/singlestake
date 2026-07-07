@@ -472,16 +472,16 @@ function bestAbsencePickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
   axis: CrossingAxisKind,
-  minAbsenceSpins: number,
+  exactAbsenceSpins: number,
 ): RotatingRoomCrossingPick | null {
-  if (minAbsenceSpins < 1) return null;
+  if (exactAbsenceSpins < 1) return null;
   let best: { def: CrossingBucketDef; gap: number } | null = null;
   for (const def of CROSSING_BUCKET_DEFINITIONS) {
     if (def.axis !== axis) continue;
     const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    if (gap < minAbsenceSpins) continue;
+    if (gap !== exactAbsenceSpins) continue;
     if (crossingAbsenceIndicationBlockedByTargetBucketSpin(historyNewestFirst, def)) continue;
-    if (!best || gap > best.gap || (gap === best.gap && def.category < best.def.category)) {
+    if (!best || def.category < best.def.category) {
       best = { def, gap };
     }
   }
@@ -496,21 +496,21 @@ function bestOppositeAbsencePickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
   axis: CrossingAxisKind,
-  minAbsenceSpins: number,
+  exactAbsenceSpins: number,
 ): RotatingRoomCrossingPick | null {
-  if (minAbsenceSpins < 1) return null;
+  if (exactAbsenceSpins < 1) return null;
   let best: { absentDef: CrossingBucketDef; gap: number } | null = null;
   for (const def of CROSSING_BUCKET_DEFINITIONS) {
     if (def.axis !== axis) continue;
     const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    if (gap < minAbsenceSpins) continue;
+    if (gap !== exactAbsenceSpins) continue;
     const oppositeDef = crossingOppositeBucketDef(def);
     if (!oppositeDef) continue;
     if (crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(historyNewestFirst, def)) continue;
     if (crossingOppositeAbsenceIndicationBlockedByOppositeBucketSpin(historyNewestFirst, oppositeDef)) {
       continue;
     }
-    if (!best || gap > best.gap || (gap === best.gap && def.category < best.absentDef.category)) {
+    if (!best || def.category < best.absentDef.category) {
       best = { absentDef: def, gap };
     }
   }
@@ -543,8 +543,8 @@ function listAllCrossingAbsenceAlertPicks(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const minSpins = readCrossingAbsenceSpinsForTable(tableId, key, history);
-      const pick = bestAbsencePickForTable(tableId, history, axis, minSpins);
+      const exactSpins = readCrossingAbsenceSpinsForTable(tableId, key, history);
+      const pick = bestAbsencePickForTable(tableId, history, axis, exactSpins);
       if (pick) out.push(pick);
     }
   }
@@ -572,8 +572,8 @@ function listAllCrossingOppositeAbsenceAlertPicks(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const minSpins = readOppositeAbsenceSpinsForTable(tableId, key, history);
-      const pick = bestOppositeAbsencePickForTable(tableId, history, axis, minSpins);
+      const exactSpins = readOppositeAbsenceSpinsForTable(tableId, key, history);
+      const pick = bestOppositeAbsencePickForTable(tableId, history, axis, exactSpins);
       if (pick) out.push(pick);
     }
   }
@@ -677,12 +677,13 @@ function crossingAbsenceIndicationStillValid(
   const key = crossingAxisKindToAbsenceKey(axis);
   if (!key) return false;
 
-  const minSpins = machine.cycleOppositeAbsence
+  const exactSpins = machine.cycleOppositeAbsence
     ? readOppositeAbsenceSpinsForTable(tableId, key, history)
     : readCrossingAbsenceSpinsForTable(tableId, key, history);
 
   const absentGap = crossingBucketAbsenceGap(history, absentDef);
-  if (absentGap < minSpins) return false;
+  /** Após o giro de observação a ausência pode ser +1 — só invalida se cair abaixo do filtro. */
+  if (absentGap < exactSpins) return false;
 
   if (machine.cycleOppositeAbsence) {
     const oppositeDef = crossingOppositeBucketDef(absentDef);
