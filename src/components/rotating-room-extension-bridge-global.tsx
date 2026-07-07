@@ -372,6 +372,19 @@ function RotatingRoomExtensionBridgeInner({ bridgeActive }: BridgeInnerProps) {
               ? session.armedAtHead
               : null,
           postResultHoldUntilMs,
+          currentRecovery:
+            "currentRecovery" in session && typeof session.currentRecovery === "number"
+              ? session.currentRecovery
+              : 0,
+          cycleSpinsWithoutWin:
+            "cycleSpinsWithoutWin" in session &&
+            typeof session.cycleSpinsWithoutWin === "number"
+              ? session.cycleSpinsWithoutWin
+              : 0,
+          crossingObservationConfirmed:
+            "crossingObservationConfirmed" in session &&
+            session.crossingObservationConfirmed === true,
+          activeCrossing: "activeCrossing" in session ? session.activeCrossing ?? null : null,
         },
         histories,
       );

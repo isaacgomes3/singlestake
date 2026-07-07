@@ -203,11 +203,37 @@ export function crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(
   historyNewestFirst: readonly number[],
   absentBucket: CrossingBucketDef,
 ): boolean {
+  return crossingBucketIndicationBlockedByRecentSpin(historyNewestFirst, absentBucket);
+}
+
+/**
+ * Trava 2F ausência oposta — bloqueia se o cruzamento **alvo da aposta** (oposto)
+ * saiu nos últimos N giros (ex.: 36 acabou de sair → não apostar Alto·Par).
+ */
+export function crossingOppositeAbsenceIndicationBlockedByOppositeBucketSpin(
+  historyNewestFirst: readonly number[],
+  oppositeBucket: CrossingBucketDef,
+): boolean {
+  return crossingBucketIndicationBlockedByRecentSpin(historyNewestFirst, oppositeBucket);
+}
+
+/** Trava 2F ausência — bloqueia se o cruzamento alvo saiu nos últimos N giros. */
+export function crossingAbsenceIndicationBlockedByTargetBucketSpin(
+  historyNewestFirst: readonly number[],
+  targetBucket: CrossingBucketDef,
+): boolean {
+  return crossingBucketIndicationBlockedByRecentSpin(historyNewestFirst, targetBucket);
+}
+
+function crossingBucketIndicationBlockedByRecentSpin(
+  historyNewestFirst: readonly number[],
+  bucket: CrossingBucketDef,
+): boolean {
   if (historyNewestFirst.length === 0) return false;
   const recent = historyNewestFirst.slice(0, CROSSING_ABSENCE_OPPOSITE_SPIN_LOCK);
   for (const spin of recent) {
     if (spin === 0) continue;
-    if (absentBucket.nums.includes(spin)) return true;
+    if (bucket.nums.includes(spin)) return true;
   }
   return false;
 }

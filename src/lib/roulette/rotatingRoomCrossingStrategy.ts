@@ -50,7 +50,9 @@ import {
 import {
   CROSSING_BUCKET_DEFINITIONS,
   crossingAbsenceIndicationBlockedByOppositeSpin,
+  crossingAbsenceIndicationBlockedByTargetBucketSpin,
   crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin,
+  crossingOppositeAbsenceIndicationBlockedByOppositeBucketSpin,
   crossingOppositeBucketDef,
   crossingBucketAbsenceGap,
   type CrossingAxisKind,
@@ -478,6 +480,7 @@ function bestAbsencePickForTable(
     if (def.axis !== axis) continue;
     const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
     if (gap < minAbsenceSpins) continue;
+    if (crossingAbsenceIndicationBlockedByTargetBucketSpin(historyNewestFirst, def)) continue;
     if (!best || gap > best.gap || (gap === best.gap && def.category < best.def.category)) {
       best = { def, gap };
     }
@@ -501,6 +504,12 @@ function bestOppositeAbsencePickForTable(
     if (def.axis !== axis) continue;
     const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
     if (gap < minAbsenceSpins) continue;
+    const oppositeDef = crossingOppositeBucketDef(def);
+    if (!oppositeDef) continue;
+    if (crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(historyNewestFirst, def)) continue;
+    if (crossingOppositeAbsenceIndicationBlockedByOppositeBucketSpin(historyNewestFirst, oppositeDef)) {
+      continue;
+    }
     if (!best || gap > best.gap || (gap === best.gap && def.category < best.absentDef.category)) {
       best = { absentDef: def, gap };
     }
@@ -643,6 +652,51 @@ function pickCrossingAbsenceAlertExcludingTables(
   excludeTableIds?: ReadonlySet<number>,
 ): RotatingRoomCrossingPick | null {
   return listAllCrossingAbsenceAlertPicks(tableIds, histories, excludeTableIds)[0] ?? null;
+}
+
+function findCrossingBucketDef(
+  axis: CrossingAxisKind,
+  category: string,
+): CrossingBucketDef | null {
+  return CROSSING_BUCKET_DEFINITIONS.find((d) => d.axis === axis && d.category === category) ?? null;
+}
+
+/** Revalida gatilho de ausência após o giro de observação — cancela se o alvo acabou de sair. */
+function crossingAbsenceIndicationStillValid(
+  machine: RotatingRoomCrossingMachineState,
+  tableId: number,
+  history: readonly number[],
+): boolean {
+  const axis = machine.cycleAbsenceAxis;
+  const absentCategory = machine.cycleMetricCategory;
+  if (axis == null || absentCategory == null) return true;
+
+  const absentDef = findCrossingBucketDef(axis, absentCategory);
+  if (!absentDef) return false;
+
+  const key = crossingAxisKindToAbsenceKey(axis);
+  if (!key) return false;
+
+  const minSpins = machine.cycleOppositeAbsence
+    ? readOppositeAbsenceSpinsForTable(tableId, key, history)
+    : readCrossingAbsenceSpinsForTable(tableId, key, history);
+
+  const absentGap = crossingBucketAbsenceGap(history, absentDef);
+  if (absentGap < minSpins) return false;
+
+  if (machine.cycleOppositeAbsence) {
+    const oppositeDef = crossingOppositeBucketDef(absentDef);
+    if (!oppositeDef) return false;
+    if (crossingOppositeAbsenceIndicationBlockedByAbsentBucketSpin(history, absentDef)) return false;
+    if (crossingOppositeAbsenceIndicationBlockedByOppositeBucketSpin(history, oppositeDef)) {
+      return false;
+    }
+    return true;
+  }
+
+  if (crossingAbsenceIndicationBlockedByOppositeSpin(history, absentDef)) return false;
+  if (crossingAbsenceIndicationBlockedByTargetBucketSpin(history, absentDef)) return false;
+  return true;
 }
 
 /** Após falha na indicação — aguarda nova entrada de ausência noutra roleta (mantém recovery). */
@@ -1793,6 +1847,13 @@ export function tickRotatingRoomCrossingPlacar(
     nextMachine.armedAtHead != null &&
     head !== nextMachine.armedAtHead
   ) {
+    if (
+      nextMachine.cycleAbsenceAxis != null &&
+      !crossingAbsenceIndicationStillValid(nextMachine, tableId, history)
+    ) {
+      nextMachine = finishCycle(nextMachine);
+      return { nextMachine, stats: nextStats, statsChanged, flash };
+    }
     nextMachine = {
       ...nextMachine,
       lastEvaluatedHead: head,

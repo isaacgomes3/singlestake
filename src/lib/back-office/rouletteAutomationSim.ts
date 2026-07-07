@@ -428,26 +428,49 @@ export type CrossingMesaWatchSignal = {
 export function pendingCrossingMesaWatchFromSession(
   session: Pick<
     StrategyGlobalSnapshot["dois2fatores"],
-    "showTapeteSignal" | "currentTableId" | "armedAtHead" | "postResultHoldUntilMs"
+    | "showTapeteSignal"
+    | "currentTableId"
+    | "armedAtHead"
+    | "postResultHoldUntilMs"
+    | "currentRecovery"
+    | "cycleSpinsWithoutWin"
+    | "crossingObservationConfirmed"
+    | "activeCrossing"
   >,
   histories?: Record<number, readonly number[]>,
 ): CrossingMesaWatchSignal | null {
-  if (!session.showTapeteSignal || session.currentTableId == null || !session.armedAtHead) {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.activeCrossing) {
     return null;
   }
   if (isRotatingRoomPostResultHoldActive(session.postResultHoldUntilMs)) {
     return null;
   }
+
   const tableId = session.currentTableId;
   const history = histories?.[tableId] ?? [];
-  if (!isCrossingAwaitingSpinAfterArm(history, session.armedAtHead)) {
+
+  const awaitingObservation = isCrossingAwaitingObservationBet({
+    cycleActive: session.activeCrossing,
+    recovery: session.currentRecovery,
+    cycleSpinsWithoutWin: session.cycleSpinsWithoutWin ?? 0,
+    crossingObservationConfirmed: session.crossingObservationConfirmed === true,
+  });
+
+  const awaitingArmSpin =
+    session.armedAtHead != null && isCrossingAwaitingSpinAfterArm(history, session.armedAtHead);
+
+  if (!awaitingObservation && !awaitingArmSpin) {
     return null;
   }
+
+  const armedAtHead = session.armedAtHead ?? `open:${tableId}`;
   return {
     tableId,
     tableLabel: lobbyTableDisplayName(tableId),
-    armedAtHead: session.armedAtHead,
-    fingerprint: `crossing-mesa-watch:${tableId}:${session.armedAtHead}`,
+    armedAtHead,
+    fingerprint: awaitingObservation
+      ? `crossing-mesa-watch:${tableId}:obs`
+      : `crossing-mesa-watch:${tableId}:${armedAtHead}`,
   };
 }
 
