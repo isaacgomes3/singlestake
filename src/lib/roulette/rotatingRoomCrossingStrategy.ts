@@ -466,18 +466,19 @@ function crossingPickBlockedByOppositeLatestSpin(
   return pick;
 }
 
-function bestExactAbsencePickForTable(
+function bestAbsencePickForTable(
   tableId: number,
   historyNewestFirst: readonly number[],
   axis: CrossingAxisKind,
-  exactAbsence: number,
+  minAbsenceSpins: number,
 ): RotatingRoomCrossingPick | null {
+  if (minAbsenceSpins < 1) return null;
   let best: { def: CrossingBucketDef; gap: number } | null = null;
   for (const def of CROSSING_BUCKET_DEFINITIONS) {
     if (def.axis !== axis) continue;
     const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    if (gap !== exactAbsence) continue;
-    if (!best || def.category < best.def.category) {
+    if (gap < minAbsenceSpins) continue;
+    if (!best || gap > best.gap || (gap === best.gap && def.category < best.def.category)) {
       best = { def, gap };
     }
   }
@@ -485,6 +486,32 @@ function bestExactAbsencePickForTable(
   return crossingPickBlockedByOppositeLatestSpin(
     historyNewestFirst,
     pickFromAbsenceBucket(tableId, best.def, best.gap),
+  );
+}
+
+function bestOppositeAbsencePickForTable(
+  tableId: number,
+  historyNewestFirst: readonly number[],
+  axis: CrossingAxisKind,
+  minAbsenceSpins: number,
+): RotatingRoomCrossingPick | null {
+  if (minAbsenceSpins < 1) return null;
+  let best: { absentDef: CrossingBucketDef; gap: number } | null = null;
+  for (const def of CROSSING_BUCKET_DEFINITIONS) {
+    if (def.axis !== axis) continue;
+    const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
+    if (gap < minAbsenceSpins) continue;
+    if (!best || gap > best.gap || (gap === best.gap && def.category < best.absentDef.category)) {
+      best = { absentDef: def, gap };
+    }
+  }
+  if (!best) return null;
+  const oppositeDef = crossingOppositeBucketDef(best.absentDef);
+  if (!oppositeDef) return null;
+  return crossingPickBlockedByAbsentBucketLatestSpin(
+    historyNewestFirst,
+    best.absentDef,
+    pickFromOppositeAbsenceBucket(tableId, best.absentDef, oppositeDef, best.gap),
   );
 }
 
@@ -507,39 +534,14 @@ function listAllCrossingAbsenceAlertPicks(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const exactSpins = readCrossingAbsenceSpinsForTable(tableId, key, history);
-      const pick = bestExactAbsencePickForTable(tableId, history, axis, exactSpins);
+      const minSpins = readCrossingAbsenceSpinsForTable(tableId, key, history);
+      const pick = bestAbsencePickForTable(tableId, history, axis, minSpins);
       if (pick) out.push(pick);
     }
   }
 
   out.sort(comparePicks);
   return out;
-}
-
-function bestExactOppositeAbsencePickForTable(
-  tableId: number,
-  historyNewestFirst: readonly number[],
-  axis: CrossingAxisKind,
-  exactAbsence: number,
-): RotatingRoomCrossingPick | null {
-  let best: { absentDef: CrossingBucketDef; gap: number } | null = null;
-  for (const def of CROSSING_BUCKET_DEFINITIONS) {
-    if (def.axis !== axis) continue;
-    const gap = crossingBucketAbsenceGap(historyNewestFirst, def);
-    if (gap !== exactAbsence) continue;
-    if (!best || def.category < best.absentDef.category) {
-      best = { absentDef: def, gap };
-    }
-  }
-  if (!best) return null;
-  const oppositeDef = crossingOppositeBucketDef(best.absentDef);
-  if (!oppositeDef) return null;
-  return crossingPickBlockedByAbsentBucketLatestSpin(
-    historyNewestFirst,
-    best.absentDef,
-    pickFromOppositeAbsenceBucket(tableId, best.absentDef, oppositeDef, best.gap),
-  );
 }
 
 function listAllCrossingOppositeAbsenceAlertPicks(
@@ -561,8 +563,8 @@ function listAllCrossingOppositeAbsenceAlertPicks(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const exactSpins = readOppositeAbsenceSpinsForTable(tableId, key, history);
-      const pick = bestExactOppositeAbsencePickForTable(tableId, history, axis, exactSpins);
+      const minSpins = readOppositeAbsenceSpinsForTable(tableId, key, history);
+      const pick = bestOppositeAbsencePickForTable(tableId, history, axis, minSpins);
       if (pick) out.push(pick);
     }
   }
@@ -829,7 +831,7 @@ function bestPickForTable(
     for (const axis of axes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const pick = bestExactAbsencePickForTable(
+      const pick = bestAbsencePickForTable(
         tableId,
         historyNewestFirst,
         axis,
@@ -845,7 +847,7 @@ function bestPickForTable(
     for (const axis of oppositeAxes) {
       const key = crossingAxisKindToAbsenceKey(axis);
       if (!key) continue;
-      const pick = bestExactOppositeAbsencePickForTable(
+      const pick = bestOppositeAbsencePickForTable(
         tableId,
         historyNewestFirst,
         axis,
