@@ -441,7 +441,8 @@ function isBettingClickTarget(target) {
 /** Stagger + pausa antes do 1.º clique de aposta após abrir a mesa. */
 function bridgeActionDelayMs(prevAction, action, context) {
   let delay = prevAction ? bridgeActionStaggerMs(prevAction, action, context) : 0;
-  const settleMs = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000;
+  const baseSettle = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000;
+  const settleMs = lastMesaTabReused ? Math.min(baseSettle, 1200) : baseSettle;
   if (
     isBettingClickTarget(action?.target) &&
     (prevAction?.target === "prepare-open" || prevAction == null)
@@ -463,7 +464,9 @@ async function runBridgePlan(payload, sourceTabId) {
     if (i > 0) {
       await sleep(bridgeActionDelayMs(filtered[i - 1], filtered[i], payload.context));
     } else if (isBettingClickTarget(filtered[0]?.target)) {
-      await sleep(GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000);
+      const baseSettle = GOG.MESA_FIRST_CLICK_SETTLE_MS ?? 3000;
+      const settleMs = lastMesaTabReused ? Math.min(baseSettle, 1200) : baseSettle;
+      await sleep(settleMs);
     }
     const action = filtered[i];
     const result = await dispatchClickAction(action, payload.context, sourceTabId);
@@ -1161,6 +1164,23 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context) {
 
 async function resolveMesaTabId(context, preferredTabId) {
   const mesaUrl = mesaUrlFromContext(context);
+  const tableId = context?.currentTableId;
+  if (tableId != null) {
+    const registered = mesaTabByTableId.get(tableId);
+    if (registered != null) {
+      try {
+        const regTab = await chrome.tabs.get(registered);
+        if (regTab?.id != null && regTab.url && isCasinoPlayUrl(regTab.url)) {
+          if (!mesaUrl || casinoPathsMatch(regTab.url, mesaUrl)) {
+            return registered;
+          }
+        }
+      } catch {
+        mesaTabByTableId.delete(tableId);
+      }
+    }
+  }
+
   const tabs = await chrome.tabs.query({});
 
   if (preferredTabId != null) {
@@ -1259,9 +1279,13 @@ function pickCasinoTabForNavigation(tabs, mesaUrl) {
   return null;
 }
 
+/** Último prepare-open reutilizou separador já aberto — settle mais curto antes da aposta. */
+let lastMesaTabReused = false;
+
 /** Activa separador da mesa ou navega para o URL correcto do catálogo. */
 async function ensureMesaTab(context, preferredTabId) {
   const url = mesaUrlFromContext(context);
+  lastMesaTabReused = false;
 
   let tabId = await resolveMesaTabId(context, preferredTabId);
 
@@ -1270,7 +1294,7 @@ async function ensureMesaTab(context, preferredTabId) {
       const tab = await chrome.tabs.get(tabId);
       if (tab.url && !casinoPathsMatch(tab.url, url)) {
         await chrome.tabs.update(tabId, { url, active: true });
-        await sleep(6500);
+        await sleep(4500);
         const after = await chrome.tabs.get(tabId);
         if (after.url && !casinoPathsMatch(after.url, url)) {
           tabId = await openMesaTabAndWait(url);
@@ -1279,7 +1303,8 @@ async function ensureMesaTab(context, preferredTabId) {
         return tabId;
       }
       await chrome.tabs.update(tabId, { active: true });
-      await sleep(1100);
+      lastMesaTabReused = true;
+      await sleep(500);
       return tabId;
     } catch {
       tabId = null;
@@ -1288,7 +1313,8 @@ async function ensureMesaTab(context, preferredTabId) {
 
   if (tabId != null) {
     await chrome.tabs.update(tabId, { active: true });
-    await sleep(1100);
+    lastMesaTabReused = true;
+    await sleep(500);
     return tabId;
   }
 
@@ -1329,7 +1355,7 @@ function rankFrameResult(result) {
 
 async function openMesaTabAndWait(url) {
   const tab = await chrome.tabs.create({ url, active: true });
-  await sleep(5500);
+  await sleep(4000);
   return tab.id ?? null;
 }
 

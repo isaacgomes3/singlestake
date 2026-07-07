@@ -747,7 +747,8 @@ export function buildExtensionBridgeFromAutomationBet(
 
   const sessionSlice: RotatingRoomClickBotSessionSlice = {
     sessionMode: "active",
-    showTapeteSignal: !isCrossingGaleContinuation && !isCrossingRecoveryEntry,
+    /** Gale — entrada nos factores; empate — hold + repetir. */
+    showTapeteSignal: isCrossingRecoveryEntry || !isCrossingGaleContinuation,
     prepareTableId: null,
     currentTableId: bet.tableId,
     activeCrossing,
