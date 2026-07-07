@@ -732,14 +732,22 @@ export function buildExtensionBridgeFromAutomationBet(
 
   const attemptMatch = bet.signalId.match(/:a(\d+)$/);
   const cycleAttempt = attemptMatch ? Math.max(0, Number.parseInt(attemptMatch[1]!, 10)) : 0;
+  const isEmpateDrawHold =
+    bet.crossingHoldReason === "draw" || bet.crossingOppositeWinPersist === true;
   const isCrossingGaleContinuation =
     bet.strategy === "dois2fatores" &&
     !singleFactorMode &&
+    isEmpateDrawHold &&
     (recovery > 0 || cycleAttempt > 0 || bet.crossingOppositeWinPersist === true);
+  const isCrossingRecoveryEntry =
+    bet.strategy === "dois2fatores" &&
+    !singleFactorMode &&
+    !isEmpateDrawHold &&
+    recovery > 0;
 
   const sessionSlice: RotatingRoomClickBotSessionSlice = {
     sessionMode: "active",
-    showTapeteSignal: !isCrossingGaleContinuation,
+    showTapeteSignal: !isCrossingGaleContinuation && !isCrossingRecoveryEntry,
     prepareTableId: null,
     currentTableId: bet.tableId,
     activeCrossing,

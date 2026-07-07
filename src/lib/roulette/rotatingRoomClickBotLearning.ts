@@ -107,7 +107,7 @@ export type RotatingRoomClickBotSessionSlice = {
   /** 2 Fatores — mesa fixa ancorada (pós-vitória). */
   tableAnchored?: boolean;
   prepareCategory?: string | null;
-  /** Empate (R0) → 1× repetir; recuperação (gale) → fichas nos factores. */
+  /** Empate → repetir na mesma roleta; gale → entrada nos factores (como 1.ª aposta). */
   postResultHoldReason?: "draw" | "loss" | null;
   cycleSpinsWithoutWin?: number;
   cycleOppositeAbsence?: boolean;
@@ -163,27 +163,30 @@ export function planRotatingRoomClickBotActions(
         }));
     if (isCrossingContinuation) {
       const recovery = session.currentRecovery ?? 0;
-      if (recovery > 0) {
-        return buildCrossingFactorBetActions(session, `· gale ${recovery}`);
+      const mesa = lobbyTableDisplayName(session.currentTableId!);
+
+      if (session.postResultHoldReason === "draw") {
+        const repeatClicks = crossingRepeatBetClickCount("draw");
+        return [
+          {
+            kind: "click",
+            target: "prepare-open",
+            label: mesa,
+            reason: `Abrir ${mesa} no operador`,
+          },
+          ...Array.from({ length: repeatClicks }, (_, index) => ({
+            kind: "click" as const,
+            target: "repeat-bet" as const,
+            label: "Repetir",
+            reason: `JOGANDO em ${mesa} — repetir aposta empate (${index + 1}/${repeatClicks})`,
+          })),
+        ];
       }
 
-      const mesa = lobbyTableDisplayName(session.currentTableId!);
-      const repeatClicks = crossingRepeatBetClickCount(session.postResultHoldReason);
-      const repeatLabel = "Repetir";
-      return [
-        {
-          kind: "click",
-          target: "prepare-open",
-          label: mesa,
-          reason: `Abrir ${mesa} no operador`,
-        },
-        ...Array.from({ length: repeatClicks }, (_, index) => ({
-          kind: "click" as const,
-          target: "repeat-bet" as const,
-          label: repeatLabel,
-          reason: `JOGANDO em ${mesa} — repetir aposta empate (${index + 1}/${repeatClicks})`,
-        })),
-      ];
+      return buildCrossingFactorBetActions(
+        session,
+        recovery > 0 ? `· gale ${recovery}` : "",
+      );
     }
     return [{ kind: "wait", reason: "Resultado — aguardar antes de voltar ao lobby" }];
   }
