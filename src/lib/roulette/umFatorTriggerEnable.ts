@@ -2,7 +2,7 @@ import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
 import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
 /** Gatilhos activos na sala rotativa. 2 Fatores (padrões) activo por defeito; 1 Fator só manual. */
-export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "repeticao" | "rotacao";
+export type RotatingRoomGatilhoKind = UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
 
 export type UmFatorTriggerEnableMap = Record<UmFatorTriggerMatchTier, boolean>;
 
@@ -19,6 +19,7 @@ export type RotatingRoomGatilhoEnableMap = UmFatorTriggerEnableMap & {
   repeticaoDozen: boolean;
   repeticaoColumn: boolean;
   rotacao: boolean;
+  kto2fcruzamento: boolean;
 };
 
 export const DEFAULT_UM_FATOR_TRIGGER_ENABLE: UmFatorTriggerEnableMap = {
@@ -40,6 +41,7 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   repeticaoDozen: true,
   repeticaoColumn: true,
   rotacao: false,
+  kto2fcruzamento: false,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
@@ -75,6 +77,7 @@ export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGa
   if (typeof o.repeticaoDozen === "boolean") base.repeticaoDozen = o.repeticaoDozen;
   if (typeof o.repeticaoColumn === "boolean") base.repeticaoColumn = o.repeticaoColumn;
   if (typeof o.rotacao === "boolean") base.rotacao = o.rotacao;
+  if (typeof o.kto2fcruzamento === "boolean") base.kto2fcruzamento = o.kto2fcruzamento;
   base.two = false;
   return base;
 }
@@ -136,6 +139,7 @@ export function getUmFatorEnabledTriggers(): UmFatorTriggerEnableMap {
     repeticaoDozen: _rd,
     repeticaoColumn: _rc,
     rotacao: _rot,
+    kto2fcruzamento: _kto2f,
     ...um
   } = runtimeEnabled;
   return um;
@@ -230,6 +234,10 @@ export function isFibonacciColumnGatilhoEnabled(): boolean {
 
 export function isRotacaoGatilhoEnabled(): boolean {
   return runtimeEnabled.rotacao === true;
+}
+
+export function isKto2fGatilhoEnabled(): boolean {
+  return runtimeEnabled.kto2fcruzamento === true;
 }
 
 export function isRepeticaoGatilhoEnabled(): boolean {

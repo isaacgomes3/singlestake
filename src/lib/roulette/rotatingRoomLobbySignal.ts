@@ -4,6 +4,7 @@ import type { RotatingRoomRotativaSession } from "@/hooks/useRotatingRoomRotativ
 import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorSession";
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
+import { kto2fActiveToCrossing } from "@/lib/roulette/rotatingRoomKto2fStrategy";
 import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { activeFibonacciViewFromBet, isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
 import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
@@ -178,14 +179,14 @@ export function lobbyTableHasRotatingRoomSignal(
 
 /** Alinha o cartão da sala com entrada em jogo da automação financeira (quando o motor ainda não expõe mesa). */
 export function alignRotatingRoomSessionWithAutomationBet<
-  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao" },
+  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" },
 >(
   session: T,
   bet:
     | {
         tableId: number;
         recovery: number;
-        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
+        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
         signalId?: string;
         alertLabel?: string;
         umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
@@ -198,7 +199,7 @@ export function alignRotatingRoomSessionWithAutomationBet<
     | undefined,
   options?: {
     /** Só alinha quando a aposta é desta estratégia (evita sinal de 1F/2F sobrepor Fibonacci). */
-    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
+    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
   },
 ): T {
   if (!bet?.tableId) return session;
@@ -249,6 +250,20 @@ export function alignRotatingRoomSessionWithAutomationBet<
       activeCrossing,
       sessionMode: "active",
       rotativaTrigger: "rotacao",
+    } as T;
+  }
+
+  if (bet.strategy === "kto2fcruzamento" && bet.kto2fActive) {
+    const activeCrossing = kto2fActiveToCrossing(bet.kto2fActive);
+    return {
+      ...session,
+      currentTableId: bet.tableId,
+      showTapeteSignal: true,
+      prepareTableId: null,
+      currentRecovery: bet.recovery,
+      activeCrossing,
+      sessionMode: "active",
+      rotativaTrigger: "kto2fcruzamento",
     } as T;
   }
 

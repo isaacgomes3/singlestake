@@ -289,6 +289,7 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
             id !== "fibonacci" &&
             id !== "repeticao" &&
             id !== "rotacao" &&
+            id !== "kto2fcruzamento" &&
             id !== "fibonacciDozen" &&
             id !== "fibonacciColumn" &&
             id !== "repeticaoDozen" &&

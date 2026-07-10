@@ -357,6 +357,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       state.fibonacci.stats,
       state.rotacao.stats,
       state.repeticao.stats,
+      state.kto2fcruzamento.stats,
     ),
     fibonacci: fibonacciStatsFromState(
       state.fibonacci.stats,

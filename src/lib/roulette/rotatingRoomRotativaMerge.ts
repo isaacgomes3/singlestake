@@ -9,13 +9,20 @@ import type { UmFatorTableScan } from "@/lib/roulette/rotatingRoomUmFatorStrateg
 import type {
   StrategyGlobalCrossingClientView,
   StrategyGlobalFibonacciClientView,
+  StrategyGlobalKto2fClientView,
   StrategyGlobalRepeticaoClientView,
   StrategyGlobalRotacaoClientView,
   StrategyGlobalSnapshot,
   StrategyGlobalUmFatorClientView,
 } from "@/lib/roulette/strategyGlobalTypes";
 
-export type RotatingRoomRotativaTriggerKind = "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao";
+export type RotatingRoomRotativaTriggerKind =
+  | "umFator"
+  | "crossing"
+  | "fibonacci"
+  | "repeticao"
+  | "rotacao"
+  | "kto2fcruzamento";
 
 export type RotatingRoomRotativaSessionMeta = {
   /** Gatilho activo na indicação actual. */
@@ -155,6 +162,7 @@ export function rotativaTriggerKindLabel(kind: RotatingRoomRotativaTriggerKind):
   if (kind === "fibonacci") return "Fibonacci";
   if (kind === "repeticao") return "Repetição";
   if (kind === "rotacao") return "Rotação";
+  if (kind === "kto2fcruzamento") return "KTO 2F · cruzamento";
   return "1 Fator";
 }
 
@@ -214,6 +222,10 @@ function rotacaoInCycleFromView(rot: StrategyGlobalRotacaoClientView): boolean {
   return rot.showTapeteSignal || rot.currentRecovery > 0;
 }
 
+function kto2fInCycleFromView(kto2f: StrategyGlobalKto2fClientView): boolean {
+  return kto2f.showTapeteSignal || kto2f.hasOpenCycle;
+}
+
 /** Mesma prioridade do merge na sala rotativa — Fibonacci primeiro quando activo. */
 export function resolveRotativaTriggerFromSnapshot(
   snapshot: StrategyGlobalSnapshot,
@@ -221,17 +233,21 @@ export function resolveRotativaTriggerFromSnapshot(
   fibonacciEnabled = true,
   rotacaoEnabled = false,
   repeticaoEnabled = false,
+  kto2fEnabled = false,
 ): RotatingRoomRotativaTriggerKind {
   const um = snapshot.um1fator;
   const crossing = snapshot.dois2fatores;
   const fibonacci = snapshot.fibonacci;
   const repeticao = snapshot.repeticao;
   const rotacao = snapshot.rotacao;
+  const kto2fcruzamento = snapshot.kto2fcruzamento;
 
   const fibBusy = fibonacciEnabled && fibonacciInCycleFromView(fibonacci);
   const repBusy = repeticaoEnabled && repeticaoInCycleFromView(repeticao);
+  const kto2fBusy = kto2fEnabled && kto2fInCycleFromView(kto2fcruzamento);
   if (fibBusy) return "fibonacci";
   if (repBusy) return "repeticao";
+  if (kto2fBusy) return "kto2fcruzamento";
 
   if (fibonacciEnabled) {
     if (fibonacci.activeFibonacci != null && fibonacci.currentTableId != null) {
@@ -255,6 +271,8 @@ export function resolveRotativaTriggerFromSnapshot(
     if (rotacaoInCycleFromView(rotacao)) return "rotacao";
     if (rotacao.showTapeteSignal) return "rotacao";
   }
+
+  if (kto2fEnabled && kto2fcruzamento.showTapeteSignal) return "kto2fcruzamento";
 
   if (!crossingEnabled && !fibonacciEnabled) return "umFator";
 

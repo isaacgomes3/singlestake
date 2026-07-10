@@ -1,5 +1,6 @@
 import type { AutomationPendingSignal } from "@/lib/back-office/rouletteAutomationSim";
 import type { DoisFatoresActive, DoisFatoresFactor } from "@/lib/roulette/doisFatoresStrategy";
+import { kto2fActiveToCrossing } from "@/lib/roulette/rotatingRoomKto2fStrategy";
 import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import {
   PRAGMATIC_EXTERIOR_BET_PROFILES,
@@ -9,7 +10,7 @@ import { umFatorToTapeteActive } from "@/lib/roulette/umFatorStrategy";
 
 export type AutomationBetCrossingInput = Pick<
   AutomationPendingSignal,
-  "tableId" | "recovery" | "strategy" | "signalId" | "alertLabel" | "umActive" | "activeCrossing" | "rotacaoActive"
+  "tableId" | "recovery" | "strategy" | "signalId" | "alertLabel" | "umActive" | "activeCrossing" | "rotacaoActive" | "kto2fActive"
 >;
 
 function factorFromExteriorKey(key: PragmaticExteriorBetKey): DoisFatoresFactor {
@@ -63,6 +64,7 @@ export function activeCrossingFromAutomationBet(
 ): DoisFatoresActive | null {
   if (bet.activeCrossing) return bet.activeCrossing;
   if (bet.rotacaoActive) return rotacaoActiveToCrossing(bet.rotacaoActive);
+  if (bet.kto2fActive) return kto2fActiveToCrossing(bet.kto2fActive);
   if (bet.umActive) return umFatorToTapeteActive(bet.umActive);
 
   const factor1 = doisFatoresFactorFromAlertLabel(bet.alertLabel);

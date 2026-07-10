@@ -25,6 +25,13 @@ import {
   type RotacaoActive,
 } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import {
+  kto2fActiveToCrossing,
+  kto2fAlertLabel,
+  kto2fSignalId,
+  stakeForKto2fRecovery,
+} from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import type { Ice2fActive } from "@/lib/roulette/iceCruzamento2fStrategy";
+import {
   fibonacciSignalId,
   type RotatingRoomFibonacciActive,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
@@ -83,12 +90,13 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
-  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
+  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
   activeFibonacci?: RotatingRoomFibonacciActive;
   activeRepeticao?: RotatingRoomRepeticaoActive;
   rotacaoActive?: RotacaoActive;
+  kto2fActive?: Ice2fActive;
   /** 2F — empate (repetir) vs derrota (dobrar) no hold pós-giro. */
   crossingHoldReason?: "draw" | "loss";
   /** 2F ausência oposta — repetir aposta após vitória na entrada (R0). */
@@ -275,6 +283,7 @@ export function pendingSignalFromSnapshot(
     fibonacciEnabled?: boolean;
     repeticaoEnabled?: boolean;
     rotacaoEnabled?: boolean;
+    kto2fEnabled?: boolean;
   },
 ): AutomationPendingSignal | null {
   if (options?.blockNewEntries) return null;
@@ -283,12 +292,14 @@ export function pendingSignalFromSnapshot(
   const fibonacciEnabled = options?.fibonacciEnabled !== false;
   const repeticaoEnabled = options?.repeticaoEnabled === true;
   const rotacaoEnabled = options?.rotacaoEnabled === true;
+  const kto2fEnabled = options?.kto2fEnabled === true;
   const trigger = resolveRotativaTriggerFromSnapshot(
     snapshot,
     crossingEnabled,
     fibonacciEnabled,
     rotacaoEnabled,
     repeticaoEnabled,
+    kto2fEnabled,
   );
   if (trigger === "crossing") {
     return pendingSignalFromCrossingSession(
@@ -324,6 +335,10 @@ export function pendingSignalFromSnapshot(
       histories,
       options?.baseStake,
     );
+  }
+
+  if (trigger === "kto2fcruzamento") {
+    return pendingSignalFromKto2fSession(snapshot.kto2fcruzamento, balance);
   }
 
   return pendingSignalFromUmFatorSession(
@@ -714,6 +729,35 @@ export function pendingSignalFromRotacaoSession(
     strategy: "rotacao",
     rotacaoActive: active,
     activeCrossing: rotacaoActiveToCrossing(active),
+  };
+}
+
+/** Sinal activo KTO 2F — Roulette 3, cruzamento posições críticas. */
+export function pendingSignalFromKto2fSession(
+  session: Pick<
+    StrategyGlobalSnapshot["kto2fcruzamento"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "kto2fActive"
+  >,
+  balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+): AutomationPendingSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.kto2fActive) {
+    return null;
+  }
+
+  const tableId = session.currentTableId;
+  const active = session.kto2fActive;
+  const recovery = session.currentRecovery;
+
+  return {
+    signalId: kto2fSignalId(active, recovery),
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel: kto2fAlertLabel(active),
+    recovery,
+    stake: stakeForKto2fRecovery(recovery),
+    strategy: "kto2fcruzamento",
+    kto2fActive: active,
+    activeCrossing: kto2fActiveToCrossing(active),
   };
 }
 

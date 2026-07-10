@@ -5,7 +5,7 @@ import {
   evaluateAutomationAutoPause,
   type GlobalAutomationConfigDto,
 } from "@/lib/back-office/automation-config";
-import { crossingGatilhoEnabledFromMap, enabledFibonacciZoneKindsFromMap, enabledRepeticaoZoneKindsFromMap, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
+import { crossingGatilhoEnabledFromMap, enabledFibonacciZoneKindsFromMap, enabledRepeticaoZoneKindsFromMap, isKto2fGatilhoEnabled, isRotacaoGatilhoEnabled } from "@/lib/roulette/umFatorTriggerEnable";
 import {
   finalizeAutomationSimState,
   globalAutomationLedgerFloorTs,
@@ -68,7 +68,7 @@ function withAutomationSimMutationLock<T>(fn: () => Promise<T>): Promise<T> {
 function combinedStrategyLedger(
   ledger: Pick<
     StrategyGlobalPersistedState["ledger"],
-    "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao"
+    "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento"
   >,
 ): StrategyGlobalLedgerEntry[] {
   return [
@@ -77,6 +77,7 @@ function combinedStrategyLedger(
     ...ledger.fibonacci,
     ...ledger.repeticao,
     ...ledger.rotacao,
+    ...ledger.kto2fcruzamento,
   ].sort((a, b) => a.ts - b.ts);
 }
 
@@ -168,6 +169,7 @@ function buildSnapshotBody(
         repeticaoEnabled:
           enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
         rotacaoEnabled: isRotacaoGatilhoEnabled(),
+        kto2fEnabled: isKto2fGatilhoEnabled(),
       },
     ),
     config: resolved,
@@ -261,7 +263,8 @@ export async function ensureAutomationSimEngine(): Promise<void> {
           globalState.ledger.um1fator.length > 0 ||
           globalState.ledger.dois2fatores.length > 0 ||
           globalState.ledger.fibonacci.length > 0 ||
-          globalState.ledger.rotacao.length > 0;
+          globalState.ledger.rotacao.length > 0 ||
+          globalState.ledger.kto2fcruzamento.length > 0;
         const hasSimHistory = sim.rounds.length > 0 || sim.processedKeys.length > 0;
         if (hasLedger && hasSimHistory) {
           const strategySnapshot = buildStrategyGlobalSnapshot(globalState);
@@ -401,6 +404,14 @@ export async function syncAutomationSimWithStrategy(
     replaceAutomationSimState(state);
     openBet = null;
   }
+  if (
+    openBet?.strategy === "kto2fcruzamento" &&
+    !strategySnapshot.kto2fcruzamento.showTapeteSignal
+  ) {
+    state = { ...state, openBet: null };
+    replaceAutomationSimState(state);
+    openBet = null;
+  }
   if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
     if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
@@ -431,6 +442,7 @@ export async function syncAutomationSimWithStrategy(
       repeticaoEnabled:
         enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       rotacaoEnabled: isRotacaoGatilhoEnabled(),
+      kto2fEnabled: isKto2fGatilhoEnabled(),
     },
   );
   const openedHead =
@@ -573,6 +585,7 @@ export async function replayAutomationSimFromLedger(
       repeticaoEnabled:
         enabledRepeticaoZoneKindsFromMap(getAutomationConfig().enabledTriggers).length > 0,
       rotacaoEnabled: isRotacaoGatilhoEnabled(),
+      kto2fEnabled: isKto2fGatilhoEnabled(),
     },
   );
   const openedHead =

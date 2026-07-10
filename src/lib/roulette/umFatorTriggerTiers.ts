@@ -52,7 +52,8 @@ export type RotatingRoomGatilhoReportId =
   | CrossingOppositeAbsenceAxisGatilhoId
   | "fibonacci"
   | "repeticao"
-  | "rotacao";
+  | "rotacao"
+  | "kto2fcruzamento";
 
 export type CrossingPatternKindDefinition = {
   id: CrossingPatternGatilhoId;
@@ -217,6 +218,20 @@ export function buildRotacaoGatilhoReportRow(
   );
 }
 
+export function buildKto2fGatilhoReportRow(
+  stats: RotatingRoomSessionStats | undefined,
+  enabled: boolean,
+): UmFatorTriggerTierReportRow {
+  const wins = Math.max(0, stats?.wins ?? 0);
+  const losses = Math.max(0, stats?.losses ?? 0);
+  return rowFromBucket(
+    { id: "kto2fcruzamento", labelKey: "kto2fcruzamento" },
+    { wins, losses },
+    enabled,
+    true,
+  );
+}
+
 export function buildRepeticaoGatilhoReportRow(
   stats: RotatingRoomSessionStats | undefined,
   enabled: boolean,
@@ -234,19 +249,22 @@ export function buildRepeticaoGatilhoReportRow(
 export function buildRotatingRoomGatilhoTriggerReport(
   umStats: RotatingRoomSessionStats | undefined,
   crossingStats: RotatingRoomSessionStats | undefined,
-  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "repeticao" | "rotacao", boolean>>,
+  enabledTriggers?: Partial<Record<UmFatorTriggerMatchTier | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento", boolean>>,
   fibonacciStats?: RotatingRoomSessionStats,
   rotacaoStats?: RotatingRoomSessionStats,
   repeticaoStats?: RotatingRoomSessionStats,
+  kto2fStats?: RotatingRoomSessionStats,
 ): UmFatorTriggerTierReportRow[] {
   const crossingEnabled = enabledTriggers?.crossing !== false;
   const fibonacciEnabled = enabledTriggers?.fibonacci !== false;
   const repeticaoEnabled = enabledTriggers?.repeticao === true;
   const rotacaoEnabled = enabledTriggers?.rotacao === true;
+  const kto2fEnabled = enabledTriggers?.kto2fcruzamento === true;
   return [
     buildFibonacciGatilhoReportRow(fibonacciStats, fibonacciEnabled),
     buildRepeticaoGatilhoReportRow(repeticaoStats, repeticaoEnabled),
     buildRotacaoGatilhoReportRow(rotacaoStats, rotacaoEnabled),
+    buildKto2fGatilhoReportRow(kto2fStats, kto2fEnabled),
     ...buildCrossingAbsenceAxisReport(crossingStats, enabledTriggers),
     ...buildCrossingOppositeAbsenceAxisReport(crossingStats, enabledTriggers),
     ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),

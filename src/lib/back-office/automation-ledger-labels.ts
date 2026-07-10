@@ -45,6 +45,17 @@ export function formatGlobalAutomationSettleDescription(
     return parts.join(" · ");
   }
 
+  if (input.strategy === "kto2fcruzamento") {
+    const parts = [input.tableLabel, "KTO 2F"];
+    if (input.resultNumber != null) {
+      parts.push(`Giro ${input.resultNumber}`);
+    }
+    if (input.recovery > 0 || input.kind === "recovery" || input.kind === "loss") {
+      parts.push(`gale ${input.recovery}`);
+    }
+    return parts.join(" · ");
+  }
+
   const recoveryNote = input.recovery > 0 ? ` · gale ${input.recovery}` : "";
   const baseDesc = `Automação global — ${input.tableLabel}${recoveryNote}`;
 

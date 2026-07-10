@@ -13,7 +13,13 @@ import type { DoisFatoresActive, DoisFatoresFactor } from "@/lib/roulette/doisFa
 import type { UmFatorActive } from "@/lib/roulette/umFatorStrategy";
 import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 
-export type StrategyGlobalKind = "dois2fatores" | "um1fator" | "fibonacci" | "repeticao" | "rotacao";
+export type StrategyGlobalKind =
+  | "dois2fatores"
+  | "um1fator"
+  | "fibonacci"
+  | "repeticao"
+  | "rotacao"
+  | "kto2fcruzamento";
 
 export type StrategyGlobalLedgerEntry = {
   ts: number;
@@ -140,6 +146,23 @@ export type StrategyGlobalRotacaoClientView = {
   rotacaoActive: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoActive | null;
 };
 
+export type StrategyGlobalKto2fClientView = {
+  phase: RotatingRoomPhase;
+  sessionStats: RotatingRoomSessionStats;
+  showTapeteSignal: boolean;
+  kto2fMode: true;
+  currentRecovery: number;
+  currentTableId: number | null;
+  alertCategory: string | null;
+  sessionMode: "scanning" | "waiting" | "active";
+  hasOpenCycle: boolean;
+  watchLabel: string | null;
+  activeCrossing: DoisFatoresActive | null;
+  kto2fActive: import("@/lib/roulette/iceCruzamento2fStrategy").Ice2fActive | null;
+  lastSpinAtMs: number | null;
+  betDelayUntilMs: number | null;
+};
+
 /** Snapshot servido a todos os clientes (fonte única de verdade). */
 export type StrategyGlobalSnapshot = {
   revision: number;
@@ -151,6 +174,7 @@ export type StrategyGlobalSnapshot = {
   fibonacci: StrategyGlobalFibonacciClientView;
   repeticao: StrategyGlobalRepeticaoClientView;
   rotacao: StrategyGlobalRotacaoClientView;
+  kto2fcruzamento: StrategyGlobalKto2fClientView;
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
   ledgerTail: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
@@ -206,6 +230,12 @@ export type StrategyGlobalFlashPayload = {
     kind: "win" | "loss" | "recovery";
   } | null;
   rotacao: {
+    resultNumber: number;
+    won: boolean;
+    tableId: number;
+    kind: "win" | "loss" | "recovery";
+  } | null;
+  kto2fcruzamento: {
     resultNumber: number;
     won: boolean;
     tableId: number;

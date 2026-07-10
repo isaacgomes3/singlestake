@@ -11,6 +11,12 @@ import {
   type RotatingRoomCrossingMachineState,
 } from "@/lib/roulette/rotatingRoomCrossingStrategy";
 import {
+  KTO2F_MAX_RECOVERY,
+  defaultKto2fMachineState,
+  parseKto2fMachineState,
+  type Kto2fMachineState,
+} from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import {
   ROTACAO_MAX_RECOVERY,
   defaultRotacaoMachineState,
   type RotacaoMachineState,
@@ -70,6 +76,10 @@ export type StrategyGlobalPersistedState = {
     machine: RotacaoMachineState;
     stats: RotatingRoomSessionStats;
   };
+  kto2fcruzamento: {
+    machine: Kto2fMachineState;
+    stats: RotatingRoomSessionStats;
+  };
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   ledger: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
 };
@@ -120,6 +130,10 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
       machine: defaultRotacaoMachineState(),
       stats: emptyRotatingRoomSessionStats(ROTACAO_MAX_RECOVERY),
     },
+    kto2fcruzamento: {
+      machine: defaultKto2fMachineState(),
+      stats: emptyRotatingRoomSessionStats(KTO2F_MAX_RECOVERY),
+    },
     lifetime: {
       dois2fatores: { ...defaultLifetime(), since: now },
       um1fator: {
@@ -146,8 +160,21 @@ export function emptyStrategyGlobalState(tableIds: readonly number[]): StrategyG
         winsAtRecovery: emptyRecoveryLevelCounts(ROTACAO_MAX_RECOVERY),
         lossesAtRecovery: emptyRecoveryLevelCounts(ROTACAO_MAX_RECOVERY),
       },
+      kto2fcruzamento: {
+        ...defaultLifetime(),
+        since: now,
+        winsAtRecovery: emptyRecoveryLevelCounts(KTO2F_MAX_RECOVERY),
+        lossesAtRecovery: emptyRecoveryLevelCounts(KTO2F_MAX_RECOVERY),
+      },
     },
-    ledger: { dois2fatores: [], um1fator: [], fibonacci: [], repeticao: [], rotacao: [] },
+    ledger: {
+      dois2fatores: [],
+      um1fator: [],
+      fibonacci: [],
+      repeticao: [],
+      rotacao: [],
+      kto2fcruzamento: [],
+    },
   };
 }
 
@@ -243,12 +270,17 @@ export function parsePersistedState(
       machine: parseRotacaoMachine(o.rotacao?.machine),
       stats: parseRotatingRoomSessionStats(o.rotacao?.stats, ROTACAO_MAX_RECOVERY),
     },
+    kto2fcruzamento: {
+      machine: parseKto2fMachineState(o.kto2fcruzamento?.machine),
+      stats: parseRotatingRoomSessionStats(o.kto2fcruzamento?.stats, KTO2F_MAX_RECOVERY),
+    },
     lifetime: {
       dois2fatores: parseLifetime(o.lifetime?.dois2fatores, ROTATING_ROOM_CROSSING_MAX_RECOVERY),
       um1fator: parseLifetime(o.lifetime?.um1fator, UM_FATOR_MAX_RECOVERY),
       fibonacci: parseLifetime(o.lifetime?.fibonacci, ROTATING_ROOM_FIBONACCI_MAX_RECOVERY),
       repeticao: parseLifetime(o.lifetime?.repeticao, ROTATING_ROOM_REPETICAO_MAX_RECOVERY),
       rotacao: parseLifetime(o.lifetime?.rotacao, ROTACAO_MAX_RECOVERY),
+      kto2fcruzamento: parseLifetime(o.lifetime?.kto2fcruzamento, KTO2F_MAX_RECOVERY),
     },
     ledger: {
       dois2fatores: Array.isArray(o.ledger?.dois2fatores)
@@ -265,6 +297,9 @@ export function parsePersistedState(
         : [],
       rotacao: Array.isArray(o.ledger?.rotacao)
         ? (o.ledger!.rotacao as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
+        : [],
+      kto2fcruzamento: Array.isArray(o.ledger?.kto2fcruzamento)
+        ? (o.ledger!.kto2fcruzamento as StrategyGlobalLedgerEntry[]).slice(-MAX_LEDGER_ENTRIES)
         : [],
     },
   };
