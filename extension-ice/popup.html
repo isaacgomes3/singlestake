@@ -1,0 +1,204 @@
+﻿<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <title>stake37 ICE</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 12px;
+        width: 360px;
+        min-height: 520px;
+        font: 12px/1.4 system-ui, sans-serif;
+        background: #06120e;
+        color: #cbd5e1;
+      }
+      h1 { margin: 0 0 4px; font-size: 14px; color: #a7f3d0; }
+      .sub { margin: 0 0 10px; font-size: 10px; color: #64748b; }
+      h2 { margin: 10px 0 6px; font-size: 11px; color: #94a3b8; font-weight: 700; }
+      .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+      .mode {
+        border: 1px solid #334155;
+        background: #111827;
+        color: #94a3b8;
+        border-radius: 10px;
+        padding: 10px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+      }
+      .mode.active-demo { border-color: #3b82f6; background: #172554; color: #bfdbfe; }
+      .mode.active-real { border-color: #16a34a; background: #14532d; color: #bbf7d0; }
+      .pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+        margin-left: 6px;
+      }
+      .pill.demo { background: #1d4ed8; color: #dbeafe; }
+      .pill.real { background: #15803d; color: #dcfce7; }
+      pre {
+        margin: 0;
+        padding: 8px;
+        border-radius: 8px;
+        background: #040a08;
+        border: 1px solid #1e293b;
+        font-size: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 120px;
+        overflow: auto;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      #numCalGrid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 4px;
+        margin-top: 6px;
+      }
+      #numCalGrid button {
+        padding: 4px 2px;
+        font-size: 9px;
+        min-width: 0;
+      }
+      button {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      button:hover { background: #334155; }
+      .muted { color: #64748b; font-size: 10px; margin-top: 6px; line-height: 1.45; }
+      .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+      .stat {
+        border-radius: 10px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        padding: 10px 8px;
+        text-align: center;
+      }
+      .stat strong { display: block; font-size: 22px; color: #f8fafc; }
+      .stat small { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #94a3b8; }
+      .stat.win { border-color: #166534; background: #052e16; }
+      .stat.win strong { color: #86efac; }
+      .stat.loss { border-color: #991b1b; background: #450a0a; }
+      .stat.loss strong { color: #fca5a5; }
+      .field { margin-top: 8px; }
+      .field label {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+      .field input, .field select {
+        width: 100%;
+        font-size: 10px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      details summary { cursor: pointer; color: #94a3b8; font-size: 10px; font-weight: 600; }
+      .pin-note {
+        margin: 0 0 8px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #1e3a2f;
+        background: #0a1a14;
+        color: #86efac;
+        font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>stake37 · ICE <span id="modePill" class="pill demo">DEMO</span></h1>
+    <p class="sub">Gatilho 2F · 2 dúzias + 11 números · Fibonacci 1·1·2·3·5·8·13·21·34</p>
+    <p class="pin-note">Painel fixo — não fecha ao clicar na mesa. Use 📍 e depois o número no tapete.</p>
+
+    <h2>Calibrar números 0–36</h2>
+    <p id="calStatus" class="muted" style="margin-top:0">
+      Clique 📍 e depois no número correspondente no tapete. Zero incluído.
+    </p>
+    <div id="numCalGrid" class="row"></div>
+    <div class="row">
+      <button type="button" id="calClear">Apagar calibração</button>
+    </div>
+
+    <h2>Calibrar exteriores</h2>
+    <div class="row">
+      <button type="button" class="cal" data-cal="even" data-cal-label="Par">📍 Par</button>
+      <button type="button" class="cal" data-cal="odd" data-cal-label="Ímpar">📍 Ímpar</button>
+      <button type="button" class="cal" data-cal="red" data-cal-label="Vermelho">📍 Verm.</button>
+      <button type="button" class="cal" data-cal="black" data-cal-label="Preto">📍 Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" class="cal" data-cal="doz:1" data-cal-label="1ª dúzia">📍 1ª dz</button>
+      <button type="button" class="cal" data-cal="doz:2" data-cal-label="2ª dúzia">📍 2ª dz</button>
+      <button type="button" class="cal" data-cal="doz:3" data-cal-label="3ª dúzia">📍 3ª dz</button>
+      <button type="button" class="cal" data-cal="repeat" data-cal-label="Repetir/Dobrar">📍 Repetir</button>
+    </div>
+
+    <div class="modes" style="margin-top:12px">
+      <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
+      <button type="button" id="modeReal" class="mode">Real</button>
+    </div>
+
+    <h2>Estratégia</h2>
+    <p id="iceStatus" class="muted" style="margin-top:0">A carregar…</p>
+    <div class="stat-grid">
+      <div class="stat win"><strong id="wins">0</strong><small>Vitórias</small></div>
+      <div class="stat loss"><strong id="losses">0</strong><small>Derrotas</small></div>
+    </div>
+    <div class="row">
+      <button type="button" id="iceOn" class="mode" style="flex:1">Ligar</button>
+      <button type="button" id="iceOff" class="mode" style="flex:1">Parar</button>
+      <button type="button" id="iceReset">Zerar</button>
+    </div>
+
+    <h2>Testar mesa (aba activa)</h2>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Verm.</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="doz:1" data-label="1ª dúzia">1ª dz</button>
+      <button type="button" data-bet="doz:2" data-label="2ª dúzia">2ª dz</button>
+      <button type="button" data-bet="doz:3" data-label="3ª dúzia">3ª dz</button>
+      <button type="button" id="refresh">Actualizar</button>
+    </div>
+    <pre id="out">A carregar…</pre>
+
+    <details>
+      <summary>Configuração avançada (DGA)</summary>
+      <div class="field">
+        <label for="iceCasinoId">Casino ID</label>
+        <input id="iceCasinoId" type="text" placeholder="ppcdk00000005148" />
+      </div>
+      <p class="muted">
+        Entrada: 12 un./dúzia + 11 números (0 + 10). Fibonacci escala as unidades.
+      </p>
+      <div class="row">
+        <button type="button" id="iceSave">Guardar</button>
+      </div>
+      <p id="iceConfigStatus" class="muted"></p>
+    </details>
+
+    <p class="muted" style="margin-top:10px">
+      Painel flutuante também disponível no site ICE (Roulette 2 Extra Time).
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -25,6 +25,31 @@ export function parityOf(n: number): Parity {
   return n % 2 === 0 ? "Par" : "Impar";
 }
 
+/** Dúzia do tapete: 1 = 1–12, 2 = 13–24, 3 = 25–36. */
+export type Dozen = 1 | 2 | 3;
+
+export function dozenOf(n: number): Dozen | null {
+  if (n === 0) return null;
+  if (n <= 12) return 1;
+  if (n <= 24) return 2;
+  return 3;
+}
+
+/** Dois números em dúzias diferentes (zero não dispara). */
+export function differentDozens(a: number, b: number): boolean {
+  const d1 = dozenOf(a);
+  const d2 = dozenOf(b);
+  return d1 != null && d2 != null && d1 !== d2;
+}
+
+/** Coluna do tapete: 1 = 1/4/7…, 2 = 2/5/8…, 3 = 3/6/9…. */
+export type Column = 1 | 2 | 3;
+
+export function columnOf(n: number): Column | null {
+  if (n === 0) return null;
+  return (((n - 1) % 3) + 1) as Column;
+}
+
 /** Mesma metade Baixo/Alto e mesma cor (zero não dispara). */
 export function sameHeightSameColor(older: number, newer: number): boolean {
   if (older === 0 || newer === 0) return false;

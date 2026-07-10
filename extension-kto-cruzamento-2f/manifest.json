@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "stake37 — KTO Cruzamento 2F",
+  "version": "1.0.0",
+  "description": "Posições críticas 5·6·7·9·10·11 — falha cruzamento cor/altura ou paridade/altura (4×) → entrada 2 fatores. Gales até 5.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "debugger",
+    "windows"
+  ],
+  "host_permissions": [
+    "https://www.kto.bet.br/*",
+    "https://kto.bet.br/*",
+    "https://*.pragmaticplaylive.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.kto.bet.br/*",
+        "https://kto.bet.br/*"
+      ],
+      "js": [
+        "content-casino.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "stake37 KTO 2F Cruzamento"
+  }
+}

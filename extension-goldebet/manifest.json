@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "stake37 — GoldeBet 2 Fatores",
+  "version": "1.0.2",
+  "description": "Cruzamento sequencial 2 fatores na French Roulette la Partage (GoldeBet mesa 28401). Gales alternados (oposto em 1,4,5).",
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "debugger",
+    "windows"
+  ],
+  "host_permissions": [
+    "https://www.goldebet.bet.br/*",
+    "https://goldebet.bet.br/*",
+    "https://*.pragmaticplaylive.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.goldebet.bet.br/*",
+        "https://goldebet.bet.br/*"
+      ],
+      "js": [
+        "content-casino.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "stake37 GoldeBet",
+    "default_popup": "popup.html"
+  }
+}

@@ -148,7 +148,7 @@ export function applyUmFatorThreeTierAdaptiveAlert(
 }
 
 /** Factores em que dois números coincidem (cor, altura, paridade). */
-function umFatorSharedFactorsBetween(a: number, b: number): DoisFatoresFactor[] {
+export function umFatorSharedFactorsBetween(a: number, b: number): DoisFatoresFactor[] {
   if (a === 0 || b === 0) return [];
   const triple = umFatorTripleFactorsForNumber(a);
   if (!triple) return [];
