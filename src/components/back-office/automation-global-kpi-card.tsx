@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
-  fetchGlobalAutomationFinance,
-  type GlobalAutomationFinance,
-} from "@/lib/back-office/global-automation-api";
-import { ROULETTE_AUTOMATION_INITIAL_BANK } from "@/lib/back-office/rouletteAutomationSim";
+  globalAutomationOpeningBalance,
+} from "@/lib/back-office/rouletteAutomationSim";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 import { useFormat } from "@/lib/i18n/use-format";
@@ -65,21 +63,10 @@ function GlobalKpiMiniButton({
 export function AutomationGlobalKpiCard() {
   const { t } = useI18n();
   const { money } = useFormat();
-  const { state, config, revision, openBet, pendingSignal } = useRouletteAutomationSim();
-  const [finance, setFinance] = useState<GlobalAutomationFinance | null>(null);
+  const { state, config, openBet, pendingSignal } = useRouletteAutomationSim();
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchGlobalAutomationFinance().then(({ finance: data }) => {
-      if (!cancelled) setFinance(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [revision]);
-
-  const displayBalance = finance?.balance ?? state.balance;
-  const initialCapital = finance?.initialCapital ?? ROULETTE_AUTOMATION_INITIAL_BANK;
+  const displayBalance = state.balance;
+  const initialCapital = globalAutomationOpeningBalance(state);
   const net = displayBalance - initialCapital;
   const netPct = initialCapital > 0 ? (net / initialCapital) * 100 : 0;
   const isPaused = config?.blocksNewEntries === true;
@@ -123,7 +110,7 @@ export function AutomationGlobalKpiCard() {
         valueTone: statusTone,
       },
     ],
-    [balanceFormatted, net, netFormatted, pctFormatted, statusTone, statusValue, t],
+    [balanceFormatted, netFormatted, pctFormatted, statusTone, statusValue, t],
   );
 
   return (

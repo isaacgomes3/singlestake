@@ -20,7 +20,7 @@ import { RouteSoundGate } from "@/components/route-sound-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { useAppProfile } from "@/hooks/useAppProfile";
 import { isBackOfficeWorkspacePath, isBackOfficeLiveRoulettePath } from "@/lib/back-office/routes";
-import { isBackOfficeAppPath, isLegacyCasinoPath } from "@/lib/auth/guards";
+import { isBackOfficeAppPath, isBackOfficeAdminPath, isLegacyCasinoPath } from "@/lib/auth/guards";
 import { RouletteLiveApiProvider } from "@/lib/roulette/rouletteLiveApiContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme/theme-provider";
 import { I18nProvider } from "@/lib/i18n/i18n-provider";
@@ -166,6 +166,7 @@ function RootComponent() {
   const isAutomation = profile === "automation";
   const workspacePath = isBackOfficeWorkspacePath(pathname);
   const liveRouletteAdmin = isBackOfficeLiveRoulettePath(pathname);
+  const adminAutomation = isBackOfficeAdminPath(pathname);
   const backOfficeApp = isBackOfficeAppPath(pathname);
   const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
@@ -175,7 +176,7 @@ function RootComponent() {
     (pathname === "/back-office" || pathname === "/back-office/");
   /** Motor global + automação — visão geral, salas rotativas, monitor Sequências e subdomínio automação. */
   const needsGlobalAutomation =
-    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin;
+    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin || adminAutomation;
   /** SSE roleta — mesas ao vivo (visão geral + salas + Sequências + subdomínio automação). */
   const needsRouletteStream =
     isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin;

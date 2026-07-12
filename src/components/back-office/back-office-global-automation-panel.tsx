@@ -11,6 +11,7 @@ import {
 } from "@/lib/back-office/global-automation-api";
 import {
   finalizeAutomationSimState,
+  globalAutomationOpeningBalance,
   ROULETTE_AUTOMATION_INITIAL_BANK,
 } from "@/lib/back-office/rouletteAutomationSim";
 import { useRouletteAutomationSim } from "@/hooks/useRouletteAutomationSim";
@@ -169,8 +170,9 @@ export function BackOfficeGlobalAutomationPanel() {
     };
   }, [revision]);
 
-  const officialBalance = finance?.balance ?? state.balance;
-  const initialCapital = finance?.initialCapital ?? ROULETTE_AUTOMATION_INITIAL_BANK;
+  const officialBalance = state.balance;
+  const initialCapital =
+    finance?.initialCapital ?? globalAutomationOpeningBalance(state) ?? ROULETTE_AUTOMATION_INITIAL_BANK;
   const displayState = useMemo(
     () => finalizeAutomationSimState(state, officialBalance),
     [state, officialBalance],
