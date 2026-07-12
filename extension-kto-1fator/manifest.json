@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "stake37 — KTO Cruzamento 2F",
-  "version": "1.0.0",
-  "description": "Posições críticas 5·7·9·11 — falha cruzamento cor/altura ou paridade/altura (5×) → entrada 2 fatores. Gales até 5.",
+  "name": "stake37 — KTO 1 Fator",
+  "version": "1.0.1",
+  "description": "Pos 1×13 score (cor/altura/paridade) → alerta factor da pos 12. Clique 1 factor. Gales até 5.",
   "permissions": [
     "tabs",
     "storage",
@@ -32,6 +32,6 @@
     }
   ],
   "action": {
-    "default_title": "stake37 KTO 2F Cruzamento"
+    "default_title": "stake37 KTO 1 Fator"
   }
 }

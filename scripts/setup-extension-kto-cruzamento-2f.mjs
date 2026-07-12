@@ -64,9 +64,9 @@ runner = runner.replace(
   "tableId: SinglestakeKto2f?.KTO2F_TABLE_ID ?? 230",
 );
 
-runner = runner.replaceAll("2 factores em comum", "4 falhas cruzamento");
-runner = runner.replaceAll("3 falhas cruzamento", "4 falhas cruzamento");
-runner = runner.replaceAll("2 falhas cruzamento", "4 falhas cruzamento");
+runner = runner.replaceAll("2 factores em comum", "3 falhas cruzamento");
+runner = runner.replaceAll("4 falhas cruzamento", "3 falhas cruzamento");
+runner = runner.replaceAll("5 falhas cruzamento", "3 falhas cruzamento");
 
 runner = runner.replace(
   /function formatWatchCounters[\s\S]*?\n\}/,
@@ -215,7 +215,7 @@ for (const f of ["popup.js", "popup.html"]) {
     .replaceAll("liveroulettea-pragmaticexternal", "roulette-3-ppl")
     .replaceAll("Roulette 2 Extra Time", "Roulette 3")
     .replaceAll("stake37 ICE 2F", "stake37 KTO 2F")
-    .replaceAll("1·1·2·4·8·16·32", "1·2·4·8·16·32");
+    .replaceAll("1·2·4·8·16·32·64", "2·4·8·16·32·64");
   writeOut(f, c);
 }
 
@@ -229,7 +229,7 @@ panel = panel
   .replaceAll("Roulette 2 Extra Time", "Roulette 3")
   .replaceAll("ss-ice2f", "ss-kto2f")
   .replaceAll("Cruzamento 2F", "Cruzamento 2F · KTO")
-  .replaceAll("1·1·2·4·8·16·32", "1·2·4·8·16·32");
+  .replaceAll("1·2·4·8·16·32·64", "2·4·8·16·32·64");
 panel = panel.replace(
   /function pageIsIce2fRoulette\(\) \{[\s\S]*?\n  \}/,
   `function pageIsKto2fRoulette() {
@@ -252,7 +252,7 @@ const manifest = {
   name: "stake37 — KTO Cruzamento 2F",
   version: "1.0.0",
   description:
-    "Posições críticas 5·6·7·9·10·11 — falha cruzamento cor/altura ou paridade/altura (4×) → entrada 2 fatores. Gales até 5.",
+    "Posições críticas 5·7·9·11 — falha cruzamento cor/altura ou paridade/altura (5×) → entrada 2 fatores. Gales até 5.",
   permissions: ["tabs", "storage", "scripting", "debugger", "windows"],
   host_permissions: [
     "https://www.kto.bet.br/*",
@@ -280,10 +280,10 @@ Extensão Chrome para **KTO** (mesa **230** · Roulette 3).
 
 ## Estratégia
 
-- Posições críticas **5, 6, 7, 9, 10, 11**
+- Posições críticas **5, 7, 9, 11**
 - Monitoriza falha de cruzamento **cor/altura** e **paridade/altura**
-- Após **4 derrotas** (empate não conta; zero neutro na observação) → entrada nos 2 factores do número na posição
-- Gales até **5** (unidades 1·2·4·8·16·32)
+- Após **5 derrotas** (empate não conta; zero neutro na observação) → entrada nos 2 factores do número na posição
+- Gales até **5** (unidades 2·4·8·16·32·64)
 - Zero com indicação activa = derrota na aposta
 
 ## Instalação

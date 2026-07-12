@@ -313,7 +313,7 @@ function pageIsIce2fRoulette() {
   const sub = el("p", "ss-ice2f-sub", "Roulette 2 Extra Time · mesa 201 · stake 2·4·8·16·32·64");
 
   const signalBox = el("div", "ss-ice2f-signal");
-  const signalIdle = el("div", "ss-ice2f-signal-idle", "Sem sinal — aguarda 4 falhas");
+  const signalIdle = el("div", "ss-ice2f-signal-idle", "Sem sinal — aguarda pos 11×22");
   const signalWatch = el("div", "ss-ice2f-watch", "");
   const signalPos = el("div", "ss-ice2f-pos", "—");
   const signalAxis = el("div", "ss-ice2f-axis", "");
@@ -388,17 +388,19 @@ function pageIsIce2fRoulette() {
   });
 
   function axisLabel(short) {
-    const s = String(short ?? "").toLowerCase();
-    if (s === "c/a" || s === "cor-altura") return "Cor / Altura";
-    if (s === "p/a" || s === "altura-paridade") return "Paridade / Altura";
-    if (s === "c/p" || s === "cor-paridade") return "Cor / Paridade";
+    const s = String(short ?? "").toLowerCase().replace(/\s+/g, "");
+    if (s === "c/a" || s === "cor-altura" || s === "cor/altura") return "Cor / Altura";
+    if (s === "p/a" || s === "altura-paridade" || s === "paridade/altura") return "Paridade / Altura";
+    if (s === "c/p" || s === "cor-paridade" || s === "cor/paridade") return "Cor / Paridade";
     return short ? String(short) : "";
   }
 
   function parseSignalFromStatus(st) {
     const label = String(st.label ?? "");
-    const posFromLabel = label.match(/pos\s*(\d+)/i);
-    const axisFromLabel = label.match(/pos\s*\d+\s*(c\/a|p\/a)/i);
+    const posFromLabel = label.match(/pos(?:11\/22|\s*(\d+))/i);
+    const axisFromLabel = label.match(
+      /pos(?:11\/22|\s*\d+)\s*(c\/a|p\/a|c\/p|cor\/altura|paridade\/altura|cor\/paridade|cor-altura|altura-paridade|cor-paridade)/i,
+    );
     const galeFromLabel = label.match(/gale\s*(\d+)/i);
     const recovery =
       typeof st.recovery === "number" && Number.isFinite(st.recovery)
@@ -419,9 +421,10 @@ function pageIsIce2fRoulette() {
     }
 
     const pausePos = label.match(/pos(\d+)/i);
+    const axisRaw = st.axis ?? axisFromLabel?.[1] ?? null;
     return {
-      position: posFromLabel?.[1] ?? pausePos?.[1] ?? null,
-      axis: axisFromLabel?.[1] ?? null,
+      position: posFromLabel?.[1] ?? (/pos11\/22/i.test(label) ? "11/22" : null) ?? pausePos?.[1] ?? null,
+      axis: axisRaw,
       indication,
       recovery,
       isPause: st.waitingReference === true || /aguarda refer/i.test(label),
@@ -452,7 +455,7 @@ function pageIsIce2fRoulette() {
         } else if (inactive > 0) {
           signalIdle.textContent = `Sem sinal — inactivo ${inactive}/5 rodadas`;
         } else {
-          signalIdle.textContent = "Sem sinal — aguarda 4 falhas de cruzamento";
+          signalIdle.textContent = "Sem sinal — aguarda pos 11×22 com 2 factores em comum";
         }
       }
       if (st.watchLabel) {

@@ -11,8 +11,9 @@ Extensão Chrome para **ICE** (mesa **201** · Roulette 2 Extra Time).
   - **cor/paridade**
 - Se partilham **3** factores → prioriza **cor/paridade**
 - Aposta esses 2 factores no tapete
-- Após derrota: espera novo match 11/22 + gale (Dobrar)
-- Vitória: zera gale; empate: re-aposta os mesmos factores
+- Após derrota/empate/janela perdida: **fecha** a indicação; gale fica para o **próximo** match 11/22
+- **Indicação única** — não reutiliza factores antigos quando o histórico avança
+- Vitória: zera gale
 - **Zero** = derrota (gale normal)
 - Gales até **5** via **Dobrar** (1 ficha/factor + N× Dobrar)
 

@@ -8,12 +8,19 @@ import {
   defaultIce2fMachineState,
   emptyIce2fStats,
   formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
   ICE_2F_BET_DELAY_MS,
   ICE_2F_FIRST_BET_SETTLE_MS,
+  ICE_2F_IMMEDIATE_REBET_DELAY_MS,
   ICE_2F_MAX_RECOVERY,
+  ICE_2F_MIN_HISTORY,
   ICE_2F_RECOVERY_BET_DELAY_MS,
+  ICE_2F_ROULETTE_MESA_URL,
+  ICE_2F_ROULETTE_TABLE_ID,
   ice2fBetDelayMs,
   ice2fBetDelayUntilMs,
+  ice2fDoubleClicks,
+  ice2fEffectiveZeroShift,
   ice2fPadFactorPlacementMs,
   ice2fStakeUnits,
   parseIce2fStats,
@@ -21,6 +28,8 @@ import {
   tickIce2fPlacar,
   tryArmCycleFromWatch,
   type Ice2fActive,
+  type Ice2fCrossingAxis,
+  type Ice2fCyclePhase,
   type Ice2fMachineState,
 } from "../src/lib/roulette/iceCruzamento2fStrategy";
 import type { RotatingRoomSessionStats } from "../src/lib/roulette/rotatingRoomStrategy";
@@ -34,16 +43,54 @@ export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
 const BASE_STAKE = 0.5;
 
+const KTO2F_POSITIONS = new Set([11, 22]);
+const KTO2F_AXES = new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
+
+export type Kto2fPersistedMachine = {
+  lastSpinHead?: string | null;
+  recovery?: number;
+  phase?: Ice2fCyclePhase | null;
+  criticalPosition?: number | null;
+  axis?: Ice2fCrossingAxis | null;
+  relaxedEntry?: boolean;
+  nextEntryAxis?: Ice2fCrossingAxis | null;
+  lockedPosition?: number | null;
+  pendingRecovery?: number;
+};
+
 export type CreateKto2fEngineOptions = {
   maxRecovery?: number;
   initialStats?: RotatingRoomSessionStats | null;
-  initialMachine?: { lastSpinHead?: string | null } | null;
+  initialMachine?: Kto2fPersistedMachine | null;
 };
 
 function clampMaxRecovery(value: unknown, fallback = ICE_2F_MAX_RECOVERY): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return Math.max(0, Math.floor(fallback));
   return Math.min(ICE_2F_MAX_RECOVERY, Math.max(0, Math.floor(n)));
+}
+
+/** Só recupera gale pendente — nunca inventa Vermelho+Baixo nem reabre ciclo stale. */
+function pendingRecoveryFromSaved(saved: Kto2fPersistedMachine): number {
+  const stored =
+    typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery)
+      ? Math.max(0, Math.floor(saved.pendingRecovery))
+      : 0;
+  if (stored > 0) return stored;
+  const recovery =
+    typeof saved.recovery === "number" && Number.isFinite(saved.recovery)
+      ? Math.max(0, Math.floor(saved.recovery))
+      : 0;
+  // Ciclo aberto sem aposta confirmada → gale volta a pendente; awaiting_result
+  // em restart também (não temos factores persistidos fiáveis).
+  if (
+    saved.phase === "awaiting_bet" ||
+    saved.phase === "awaiting_result" ||
+    saved.phase === "awaiting_reference"
+  ) {
+    return recovery;
+  }
+  return 0;
 }
 
 export type Kto2fEngineSpinResult = {
@@ -57,9 +104,27 @@ export type Kto2fEngineSpinResult = {
 export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
   const maxRecovery = clampMaxRecovery(options.maxRecovery);
   let machine = defaultIce2fMachineState();
-  if (options.initialMachine?.lastSpinHead) {
-    machine = { ...machine, lastSpinHead: options.initialMachine.lastSpinHead };
+  if (options.initialMachine) {
+    const saved = options.initialMachine;
+    machine = {
+      ...machine,
+      lastSpinHead: saved.lastSpinHead ?? null,
+      nextEntryAxis:
+        saved.nextEntryAxis && KTO2F_AXES.has(saved.nextEntryAxis)
+          ? saved.nextEntryAxis
+          : "cor-altura",
+      lockedPosition:
+        typeof saved.lockedPosition === "number" &&
+        KTO2F_POSITIONS.has(saved.lockedPosition)
+          ? saved.lockedPosition
+          : null,
+      pendingRecovery:
+        typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery)
+          ? Math.max(0, Math.floor(saved.pendingRecovery))
+          : 0,
+    };
   }
+  let pendingRestore: Kto2fPersistedMachine | null = options.initialMachine ?? null;
   let stats =
     options.initialStats != null
       ? parseIce2fStats(options.initialStats, maxRecovery)
@@ -101,14 +166,55 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
     }
     const head = spinHead();
     const watch = primeIce2fWatchFromHistory(history);
+    const preservedCycle = machine.cycle;
     machine = {
       ...defaultIce2fMachineState(),
       watch,
       lastSpinHead: head,
     };
-    if (history.length >= 12) {
+
+    if (preservedCycle?.phase === "awaiting_result") {
+      // Só mantém ciclo se a aposta já foi colocada (aguarda resultado).
+      machine = {
+        ...machine,
+        lockedPosition: null,
+        nextEntryAxis: preservedCycle.active.axis,
+        pendingRecovery: 0,
+        cycle: {
+          ...preservedCycle,
+          phase: "awaiting_result",
+          armedHead: head,
+        },
+      };
+    } else if (pendingRestore) {
+      const axis =
+        (pendingRestore.nextEntryAxis && KTO2F_AXES.has(pendingRestore.nextEntryAxis)
+          ? pendingRestore.nextEntryAxis
+          : null) ??
+        (pendingRestore.axis && KTO2F_AXES.has(pendingRestore.axis)
+          ? pendingRestore.axis
+          : null) ??
+        "cor-altura";
+      const locked =
+        typeof pendingRestore.lockedPosition === "number" &&
+        KTO2F_POSITIONS.has(pendingRestore.lockedPosition)
+          ? pendingRestore.lockedPosition
+          : null;
+      const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
+      pendingRestore = null;
+      machine = {
+        ...machine,
+        nextEntryAxis: axis,
+        lockedPosition: locked,
+        pendingRecovery,
+      };
+      if (history.length >= ICE_2F_MIN_HISTORY) {
+        machine = tryArmCycleFromWatch(machine, history, head);
+      }
+    } else if (history.length >= ICE_2F_MIN_HISTORY) {
       machine = tryArmCycleFromWatch(machine, history, head);
     }
+
     lastLiveSpinAt = Date.now();
     const tick = tickIce2fPlacar(history, machine, stats, maxRecovery);
     machine = tick.machine;
@@ -137,7 +243,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
 
   function canPlaceBet(nowMs = Date.now()): boolean {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-    return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs);
+    return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs, machine.cycle.immediateBet === true);
   }
 
   function beginBetCommit() {
@@ -159,7 +265,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
     machine = {
       ...machine,
       betCommitInFlight: false,
-      cycle: { ...machine.cycle, phase: "awaiting_result" },
+      cycle: { ...machine.cycle, phase: "awaiting_result", immediateBet: false },
     };
   }
 
@@ -168,34 +274,51 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
     if (!canPlaceBet()) return null;
 
     const { active, recovery } = machine.cycle;
-    const units = ice2fStakeUnits(recovery);
+    const zeroShift = ice2fEffectiveZeroShift(machine);
+    const units = ice2fStakeUnits(recovery, zeroShift);
+    const doubles = ice2fDoubleClicks(recovery, zeroShift);
     const signalId = `kto2f:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}`;
     const f1Key = pragmaticExteriorBetKeyFromFactor(active.factor1);
     const f2Key = pragmaticExteriorBetKeyFromFactor(active.factor2);
     const f1Label = doisFatoresFactorLabel(active.factor1);
     const f2Label = doisFatoresFactorLabel(active.factor2);
     const stakeAmount = BASE_STAKE * units;
-    const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt);
+    const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt, machine.cycle.immediateBet === true);
     const galeSuffix = recovery > 0 ? ` · gale ${recovery}` : " · entrada";
+
+    const actions: Array<{
+      kind: "click";
+      target: "factor-1" | "factor-2" | "repeat-bet";
+      label: string;
+      reason: string;
+    }> = [
+      {
+        kind: "click",
+        target: "factor-1",
+        label: f1Label,
+        reason: `KTO 2F · ${f1Label}${galeSuffix}`,
+      },
+      {
+        kind: "click",
+        target: "factor-2",
+        label: f2Label,
+        reason: `KTO 2F · ${f2Label}${galeSuffix}`,
+      },
+    ];
+    for (let i = 0; i < doubles; i++) {
+      actions.push({
+        kind: "click",
+        target: "repeat-bet",
+        label: "Dobrar",
+        reason: `KTO 2F · Dobrar ${i + 1}/${doubles}${galeSuffix}`,
+      });
+    }
 
     return {
       type: "game-odds-glow/rotating-room-extension" as const,
       version: 1 as const,
       fingerprint: signalId,
-      actions: [
-        {
-          kind: "click" as const,
-          target: "factor-1" as const,
-          label: f1Label,
-          reason: `KTO 2F · ${f1Label}${galeSuffix}`,
-        },
-        {
-          kind: "click" as const,
-          target: "factor-2" as const,
-          label: f2Label,
-          reason: `KTO 2F · ${f2Label}${galeSuffix}`,
-        },
-      ],
+      actions,
       context: {
         sessionMode: "active" as const,
         prepareTableId: null,
@@ -210,6 +333,9 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
         signalId,
         stakeAmount,
         units,
+        chipClicks: 1,
+        useDoubleGale: true,
+        doubleClicks: doubles,
         currentRecovery: recovery,
         baseStake: BASE_STAKE,
         maxRecovery,
@@ -250,6 +376,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
       spinBaselined = false;
       liveSpinSeen = false;
       lastLiveSpinAt = null;
+      pendingRestore = null;
     },
   };
 }
@@ -260,14 +387,19 @@ const api = {
   KTO2F_MAX_GALES,
   ICE_2F_BET_DELAY_MS,
   ICE_2F_FIRST_BET_SETTLE_MS,
+  ICE_2F_IMMEDIATE_REBET_DELAY_MS,
   ICE_2F_MAX_RECOVERY,
   ICE_2F_RECOVERY_BET_DELAY_MS,
   ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
   ROTATING_ROOM_CROSSING_BET_DELAY_MS,
   formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
   ice2fBetDelayMs,
   ice2fBetDelayUntilMs,
   ice2fPadFactorPlacementMs,
+  ice2fDoubleClicks,
+  ice2fEffectiveZeroShift,
+  ice2fStakeUnits,
   createKto2fEngine,
 };
 

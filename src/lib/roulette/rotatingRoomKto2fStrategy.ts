@@ -1,15 +1,15 @@
 /**
  * KTO · Cruzamento 2 Fatores — mesa Roulette 3 (230).
- * Motor partilhado com ICE 2F (`iceCruzamento2fStrategy`).
+ * Motor partilhado com ICE 2F: gatilho pos **11×22** (2 factores em comum).
  */
 
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import {
-  ICE_2F_MAX_RECOVERY,
   canPlaceIce2fBet,
   defaultIce2fMachineState,
   formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
   ice2fStakeUnits,
   primeIce2fWatchFromHistory,
   tickIce2fPlacar,
@@ -20,7 +20,8 @@ import {
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 
 export const KTO2F_TABLE_ID = 230 as const;
-export const KTO2F_MAX_RECOVERY = ICE_2F_MAX_RECOVERY;
+/** Igual a `ICE_2F_MAX_RECOVERY` (literal para evitar ciclo de init com iceCruzamento2f). */
+export const KTO2F_MAX_RECOVERY = 5;
 export const KTO2F_BASE_STAKE = 0.5;
 
 export type Kto2fMachineState = Ice2fMachineState & {
@@ -87,7 +88,7 @@ export function kto2fAlertLabel(active: Ice2fActive): string {
 }
 
 export function kto2fSignalId(active: Ice2fActive, recovery: number): string {
-  return `kto2f:${KTO2F_TABLE_ID}:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${Math.max(0, Math.floor(recovery))}`;
+  return `kto2f:${KTO2F_TABLE_ID}:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${Math.max(0, Math.floor(recovery))}:opp`;
 }
 
 export function kto2fGlobalActive(machine: Kto2fMachineState): Ice2fActive | null {
@@ -110,7 +111,7 @@ export function kto2fShowTapeteSignal(machine: Kto2fMachineState, nowMs = Date.n
 }
 
 export function kto2fWatchLabel(machine: Kto2fMachineState): string {
-  return formatIce2fWatchLabel(machine.watch);
+  return ice2fWatchLabelForMachine(machine);
 }
 
 export function stakeForKto2fRecovery(recovery: number): number {

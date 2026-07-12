@@ -329,14 +329,6 @@ var SinglestakeIce2f = (() => {
     if (history.length === 0) return "0";
     return `${history.length}:${history[0]}`;
   }
-  function criticalIndex(position) {
-    return position - 1;
-  }
-  function referenceAtGridPosition(historyNewestFirst, position) {
-    const idx = criticalIndex(position);
-    if (historyNewestFirst.length <= idx) return null;
-    return historyNewestFirst[idx];
-  }
   function axisLabelPt(axis) {
     if (axis === "cor-altura") return "cor/altura";
     if (axis === "altura-paridade") return "paridade/altura";
@@ -423,44 +415,23 @@ var SinglestakeIce2f = (() => {
       factor2: hit.factor2,
       pairKind: pairKindFromCrossingAxis(hit.axis),
       referenceNumber: hit.triggerNumber,
-      armingDescription: `ICE 2F pos11/22 ${axisLabelPt(hit.axis)}: n\xBA${hit.triggerNumber}\xB7${hit.matchNumber} \u2192 ${labels}${tripleHint}`,
+      armingDescription: `2F pos11/22 ${axisLabelPt(hit.axis)}: n\xBA${hit.triggerNumber}\xB7${hit.matchNumber} \u2192 ${labels}${tripleHint}`,
       matchPosition: hit.matchPosition,
       matchNumber: hit.matchNumber,
       triggerNumber: hit.triggerNumber
     };
   }
-  function ice2fBuildActiveFromHistory(historyNewestFirst, position, axis, meta) {
-    const hit = ice2fFindCriticalPosition(historyNewestFirst);
-    if (hit && (position === 11 || position === hit.criticalPosition)) {
-      if (!axis || axis === hit.axis) return ice2fBuildActiveFromHit(hit);
-    }
-    const refNum = referenceAtGridPosition(historyNewestFirst, position);
-    if (refNum == null || refNum === 0) return null;
-    const factors = factorsForNumberOnAxis(refNum, axis);
-    if (!factors) return null;
-    const labels = factors.map((f) => doisFatoresFactorLabel(f)).join(" \xB7 ");
-    return {
-      criticalPosition: position,
-      axis,
-      factor1: factors[0],
-      factor2: factors[1],
-      pairKind: pairKindFromCrossingAxis(axis),
-      referenceNumber: refNum,
-      armingDescription: `ICE 2F pos${position} ${axisLabelPt(axis)}: n\xBA${refNum} \u2192 ${labels}`,
-      matchPosition: meta?.matchPosition,
-      matchNumber: meta?.matchNumber,
-      triggerNumber: meta?.triggerNumber
-    };
-  }
   function primeIce2fWatchFromHistory(_historyNewestFirst) {
     return emptyWatch();
   }
-  function ice2fResumeCycleAfterRebuild(cycle, _historyNewestFirst, head) {
+  function ice2fClearCycleKeepGale(machine, recoveryToKeep) {
     return {
-      ...cycle,
-      armedHead: head,
-      phase: "awaiting_bet",
-      immediateBet: true
+      ...machine,
+      cycle: null,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+      lockedPosition: null,
+      pendingRecovery: Math.max(0, Math.floor(recoveryToKeep))
     };
   }
   function armCycleFromHit(machine, head, hit, recovery) {
@@ -494,23 +465,14 @@ var SinglestakeIce2f = (() => {
       pendingRecovery
     );
   }
-  function armAfterLoss(machine, historyNewestFirst, head, nextRecovery, _previousAxis) {
-    const hit = ice2fFindCriticalPosition(historyNewestFirst);
-    if (!hit) {
-      return {
-        ...machine,
-        lockedPosition: null,
-        pendingRecovery: nextRecovery,
-        cycle: null,
-        betCommitInFlight: false
-      };
-    }
-    return armCycleFromHit(
-      { ...machine, betCommitInFlight: false },
-      head,
-      hit,
-      nextRecovery
-    );
+  function armAfterLoss(machine, _historyNewestFirst, _head, nextRecovery, _previousAxis) {
+    return {
+      ...machine,
+      lockedPosition: null,
+      pendingRecovery: nextRecovery,
+      cycle: null,
+      betCommitInFlight: false
+    };
   }
   function ice2fStakeUnits(recovery, zeroShift = 0) {
     const idx = Math.min(
@@ -587,26 +549,10 @@ var SinglestakeIce2f = (() => {
     let missedBetWindow = false;
     if (nextMachine.cycle?.phase === "awaiting_bet" && headChanged && nextMachine.cycle.armedHead !== head) {
       missedBetWindow = true;
-      nextMachine = {
-        ...nextMachine,
-        betCommitInFlight: false,
-        betCommitArmedHead: null,
-        cycle: ice2fResumeCycleAfterRebuild(
-          nextMachine.cycle,
-          historyNewestFirst,
-          head
-        )
-      };
+      nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
     }
     if (nextMachine.cycle?.phase === "awaiting_reference" && headChanged && nextMachine.cycle.armedHead !== head) {
-      nextMachine = {
-        ...nextMachine,
-        cycle: ice2fResumeCycleAfterRebuild(
-          nextMachine.cycle,
-          historyNewestFirst,
-          head
-        )
-      };
+      nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
     }
     if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
       const cycle = nextMachine.cycle;
@@ -620,13 +566,10 @@ var SinglestakeIce2f = (() => {
         );
         nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
         statsChanged = true;
-        nextMachine = {
-          ...applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
-          betCommitInFlight: false,
-          lockedPosition: null,
-          pendingRecovery: 0,
-          cycle: null
-        };
+        nextMachine = ice2fClearCycleKeepGale(
+          applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
+          0
+        );
         flash = {
           resultNumber,
           won: true,
@@ -637,14 +580,10 @@ var SinglestakeIce2f = (() => {
           factor1: active.factor1,
           factor2: active.factor2
         };
-        nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
       } else if (outcome === "continue") {
-        nextMachine = {
-          ...nextMachine,
-          betCommitInFlight: false,
-          lockedPosition: active.criticalPosition,
-          cycle: ice2fResumeCycleAfterRebuild(cycle, historyNewestFirst, head)
-        };
+        nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
+        statsChanged = true;
+        nextMachine = ice2fClearCycleKeepGale(nextMachine, recovery);
         flash = {
           resultNumber,
           won: false,
@@ -661,11 +600,7 @@ var SinglestakeIce2f = (() => {
           nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
           statsChanged = true;
           nextMachine = {
-            ...nextMachine,
-            cycle: null,
-            betCommitInFlight: false,
-            lockedPosition: null,
-            pendingRecovery: 0,
+            ...ice2fClearCycleKeepGale(nextMachine, 0),
             nextEntryAxis: ice2fToggleAxis(active.axis)
           };
           flash = {
@@ -707,8 +642,8 @@ var SinglestakeIce2f = (() => {
     if (!nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
-    const globalActive = nextMachine.cycle?.phase === "awaiting_bet" ? nextMachine.cycle.active : null;
-    const globalRecovery = nextMachine.cycle?.recovery ?? 0;
+    const globalActive = nextMachine.cycle?.phase === "awaiting_bet" || nextMachine.cycle?.phase === "awaiting_result" ? nextMachine.cycle.active : null;
+    const globalRecovery = nextMachine.cycle?.recovery ?? Math.max(0, Math.floor(nextMachine.pendingRecovery ?? 0));
     return {
       machine: nextMachine,
       stats: nextStats,
@@ -751,45 +686,14 @@ var SinglestakeIce2f = (() => {
     if (!Number.isFinite(n)) return Math.max(0, Math.floor(fallback));
     return Math.min(ICE_2F_MAX_RECOVERY, Math.max(0, Math.floor(n)));
   }
-  function placeholderActive(position, axis) {
-    return {
-      criticalPosition: position,
-      axis,
-      factor1: { kind: "cor", value: "Vermelho" },
-      factor2: { kind: "altura", value: "Baixo" },
-      pairKind: axis,
-      referenceNumber: 0,
-      armingDescription: "restored"
-    };
-  }
-  function restoreCycleFromSaved(saved, history, head) {
+  function pendingRecoveryFromSaved(saved) {
+    const stored = typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery) ? Math.max(0, Math.floor(saved.pendingRecovery)) : 0;
+    if (stored > 0) return stored;
     const recovery = typeof saved.recovery === "number" && Number.isFinite(saved.recovery) ? Math.max(0, Math.floor(saved.recovery)) : 0;
-    const position = saved.criticalPosition;
-    const axis = saved.axis;
-    const phaseOpen = saved.phase === "awaiting_bet" || saved.phase === "awaiting_result" || saved.phase === "awaiting_reference";
-    if (!phaseOpen && recovery <= 0) return null;
-    if (typeof position !== "number" || !ICE2F_POSITIONS.has(position) || !axis || !ICE2F_AXES.has(axis)) {
-      return null;
+    if (saved.phase === "awaiting_bet" || saved.phase === "awaiting_result" || saved.phase === "awaiting_reference") {
+      return recovery;
     }
-    const pos = position;
-    const rebuilt = history.length ? ice2fBuildActiveFromHistory(history, pos, axis) : null;
-    if (rebuilt) {
-      return {
-        active: rebuilt,
-        recovery,
-        // Após restart, re-aposta (não fica preso em awaiting_result).
-        phase: "awaiting_bet",
-        armedHead: head,
-        relaxedEntry: saved.relaxedEntry === true
-      };
-    }
-    return {
-      active: placeholderActive(pos, axis),
-      recovery,
-      phase: "awaiting_reference",
-      armedHead: head,
-      relaxedEntry: saved.relaxedEntry === true
-    };
+    return 0;
   }
   function createIce2fEngine(options = {}) {
     const maxRecovery = clampMaxRecovery(options.maxRecovery);
@@ -846,41 +750,30 @@ var SinglestakeIce2f = (() => {
         watch,
         lastSpinHead: head
       };
-      if (preservedCycle) {
-        const rebuilt = ice2fBuildActiveFromHistory(
-          history,
-          preservedCycle.active.criticalPosition,
-          preservedCycle.active.axis
-        );
+      if (preservedCycle?.phase === "awaiting_result") {
         machine = {
           ...machine,
-          lockedPosition: preservedCycle.active.criticalPosition,
+          lockedPosition: null,
           nextEntryAxis: preservedCycle.active.axis,
-          cycle: rebuilt ? {
+          pendingRecovery: 0,
+          cycle: {
             ...preservedCycle,
-            active: rebuilt,
-            phase: "awaiting_bet",
-            armedHead: head
-          } : {
-            ...preservedCycle,
-            phase: "awaiting_reference",
+            phase: "awaiting_result",
             armedHead: head
           }
         };
       } else if (pendingRestore) {
-        const restored = restoreCycleFromSaved(pendingRestore, history, head);
         const axis = (pendingRestore.nextEntryAxis && ICE2F_AXES.has(pendingRestore.nextEntryAxis) ? pendingRestore.nextEntryAxis : null) ?? (pendingRestore.axis && ICE2F_AXES.has(pendingRestore.axis) ? pendingRestore.axis : null) ?? "cor-altura";
-        const locked = typeof pendingRestore.lockedPosition === "number" && ICE2F_POSITIONS.has(pendingRestore.lockedPosition) ? pendingRestore.lockedPosition : restored?.active.criticalPosition ?? null;
+        const locked = typeof pendingRestore.lockedPosition === "number" && ICE2F_POSITIONS.has(pendingRestore.lockedPosition) ? pendingRestore.lockedPosition : null;
+        const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
         pendingRestore = null;
         machine = {
           ...machine,
           nextEntryAxis: axis,
           lockedPosition: locked,
-          pendingRecovery: typeof options.initialMachine?.pendingRecovery === "number" ? Math.max(0, Math.floor(options.initialMachine.pendingRecovery)) : 0
+          pendingRecovery
         };
-        if (restored) {
-          machine = { ...machine, cycle: restored };
-        } else if (history.length >= ICE_2F_MIN_HISTORY) {
+        if (history.length >= ICE_2F_MIN_HISTORY) {
           machine = tryArmCycleFromWatch(machine, history, head);
         }
       } else if (history.length >= ICE_2F_MIN_HISTORY) {

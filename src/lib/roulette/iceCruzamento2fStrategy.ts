@@ -8,8 +8,9 @@
  * - cor/paridade
  * Se partilham **3** factores → prioriza **cor/paridade**.
  *
- * **Placar:** vitória / empate / derrota nos 2 factores; gale via Dobrar.
- * Após derrota espera novo match 11/22 com escala de gale; vitória zera gale.
+ * **Indicação única:** o sinal vale só para aquele giro. Novo giro sem aposta
+ * cancela a indicação; empate/derrota/vitória fecham o ciclo. Gale fica pendente
+ * para a **próxima** indicação 11/22 (não reutiliza factores antigos).
  * **Zero** na indicação = **derrota** (gale normal).
  */
 
@@ -219,19 +220,6 @@ function spinHead(history: readonly number[]): string {
   return `${history.length}:${history[0]}`;
 }
 
-function criticalIndex(position: Ice2fCriticalPosition): number {
-  return position - 1;
-}
-
-function referenceAtGridPosition(
-  historyNewestFirst: readonly number[],
-  position: Ice2fCriticalPosition,
-): number | null {
-  const idx = criticalIndex(position);
-  if (historyNewestFirst.length <= idx) return null;
-  return historyNewestFirst[idx]!;
-}
-
 function axisLabelPt(axis: Ice2fCrossingAxis): string {
   if (axis === "cor-altura") return "cor/altura";
   if (axis === "altura-paridade") return "paridade/altura";
@@ -356,7 +344,7 @@ export function ice2fBuildActiveFromHit(hit: Ice2fCriticalHit): Ice2fActive {
     factor2: hit.factor2,
     pairKind: pairKindFromCrossingAxis(hit.axis as CrossingAxisKind),
     referenceNumber: hit.triggerNumber,
-    armingDescription: `ICE 2F pos11/22 ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} → ${labels}${tripleHint}`,
+    armingDescription: `2F pos11/22 ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} → ${labels}${tripleHint}`,
     matchPosition: hit.matchPosition,
     matchNumber: hit.matchNumber,
     triggerNumber: hit.triggerNumber,
@@ -365,31 +353,15 @@ export function ice2fBuildActiveFromHit(hit: Ice2fCriticalHit): Ice2fActive {
 
 export function ice2fBuildActiveFromHistory(
   historyNewestFirst: readonly number[],
-  position: Ice2fCriticalPosition,
-  axis: Ice2fCrossingAxis,
-  meta?: Partial<Pick<Ice2fActive, "matchPosition" | "matchNumber" | "triggerNumber">>,
+  _position?: Ice2fCriticalPosition,
+  _axis?: Ice2fCrossingAxis,
+  _meta?: Partial<Pick<Ice2fActive, "matchPosition" | "matchNumber" | "triggerNumber">>,
 ): Ice2fActive | null {
+  // Só arma com match real 11×22 (≥2 factores em comum). Nunca inventar
+  // factores a partir de um único número (ex.: 35 Preto/Alto sem o 10 partilhar).
   const hit = ice2fFindCriticalPosition(historyNewestFirst);
-  if (hit && (position === 11 || position === hit.criticalPosition)) {
-    if (!axis || axis === hit.axis) return ice2fBuildActiveFromHit(hit);
-  }
-  const refNum = referenceAtGridPosition(historyNewestFirst, position);
-  if (refNum == null || refNum === 0) return null;
-  const factors = factorsForNumberOnAxis(refNum, axis as CrossingAxisKind);
-  if (!factors) return null;
-  const labels = factors.map((f) => doisFatoresFactorLabel(f)).join(" · ");
-  return {
-    criticalPosition: position,
-    axis,
-    factor1: factors[0]!,
-    factor2: factors[1]!,
-    pairKind: pairKindFromCrossingAxis(axis as CrossingAxisKind),
-    referenceNumber: refNum,
-    armingDescription: `ICE 2F pos${position} ${axisLabelPt(axis)}: nº${refNum} → ${labels}`,
-    matchPosition: meta?.matchPosition,
-    matchNumber: meta?.matchNumber,
-    triggerNumber: meta?.triggerNumber,
-  };
+  if (!hit) return null;
+  return ice2fBuildActiveFromHit(hit);
 }
 
 export function primeIce2fWatchFromHistory(
@@ -405,17 +377,17 @@ export function ice2fNextCriticalSlot(
   return { position, axis: ice2fToggleAxis(axis) };
 }
 
-function ice2fResumeCycleAfterRebuild(
-  cycle: Ice2fCycle,
-  _historyNewestFirst: readonly number[],
-  head: string,
-): Ice2fCycle {
-  // Mantém factores da indicação — pos 11/22 mudam a cada giro.
+function ice2fClearCycleKeepGale(
+  machine: Ice2fMachineState,
+  recoveryToKeep: number,
+): Ice2fMachineState {
   return {
-    ...cycle,
-    armedHead: head,
-    phase: "awaiting_bet",
-    immediateBet: true,
+    ...machine,
+    cycle: null,
+    betCommitInFlight: false,
+    betCommitArmedHead: null,
+    lockedPosition: null,
+    pendingRecovery: Math.max(0, Math.floor(recoveryToKeep)),
   };
 }
 
@@ -465,32 +437,23 @@ export function tryArmCycleFromWatch(
 }
 
 /**
- * Após derrota: novo match 11/22 (se existir) + gale.
- * Recovery já incrementado pelo caller.
+ * Após derrota: guarda gale e espera o **próximo giro** para nova indicação 11/22
+ * (uma indicação por giro — não rearma no mesmo head).
  */
 function armAfterLoss(
   machine: Ice2fMachineState,
-  historyNewestFirst: readonly number[],
-  head: string,
+  _historyNewestFirst: readonly number[],
+  _head: string,
   nextRecovery: number,
   _previousAxis: Ice2fCrossingAxis,
 ): Ice2fMachineState {
-  const hit = ice2fFindCriticalPosition(historyNewestFirst);
-  if (!hit) {
-    return {
-      ...machine,
-      lockedPosition: null,
-      pendingRecovery: nextRecovery,
-      cycle: null,
-      betCommitInFlight: false,
-    };
-  }
-  return armCycleFromHit(
-    { ...machine, betCommitInFlight: false },
-    head,
-    hit,
-    nextRecovery,
-  );
+  return {
+    ...machine,
+    lockedPosition: null,
+    pendingRecovery: nextRecovery,
+    cycle: null,
+    betCommitInFlight: false,
+  };
 }
 
 export function ice2fStakeUnits(recovery: number, zeroShift = 0): number {
@@ -624,17 +587,9 @@ export function tickIce2fPlacar(
     headChanged &&
     nextMachine.cycle.armedHead !== head
   ) {
+    // Indicação única: novo giro sem aposta → cancela; gale fica para o próximo match.
     missedBetWindow = true;
-    nextMachine = {
-      ...nextMachine,
-      betCommitInFlight: false,
-      betCommitArmedHead: null,
-      cycle: ice2fResumeCycleAfterRebuild(
-        nextMachine.cycle,
-        historyNewestFirst,
-        head,
-      ),
-    };
+    nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
   }
 
   if (
@@ -642,14 +597,7 @@ export function tickIce2fPlacar(
     headChanged &&
     nextMachine.cycle.armedHead !== head
   ) {
-    nextMachine = {
-      ...nextMachine,
-      cycle: ice2fResumeCycleAfterRebuild(
-        nextMachine.cycle,
-        historyNewestFirst,
-        head,
-      ),
-    };
+    nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
   }
 
   if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
@@ -665,13 +613,10 @@ export function tickIce2fPlacar(
       );
       nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
       statsChanged = true;
-      nextMachine = {
-        ...applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
-        betCommitInFlight: false,
-        lockedPosition: null,
-        pendingRecovery: 0,
-        cycle: null,
-      };
+      nextMachine = ice2fClearCycleKeepGale(
+        applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
+        0,
+      );
       flash = {
         resultNumber,
         won: true,
@@ -682,15 +627,11 @@ export function tickIce2fPlacar(
         factor1: active.factor1,
         factor2: active.factor2,
       };
-      // Novo match 11/22 no mesmo giro, se existir.
-      nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     } else if (outcome === "continue") {
-      nextMachine = {
-        ...nextMachine,
-        betCommitInFlight: false,
-        lockedPosition: active.criticalPosition,
-        cycle: ice2fResumeCycleAfterRebuild(cycle, historyNewestFirst, head),
-      };
+      // Empate: fecha indicação (única); mantém o mesmo gale para o próximo match 11/22.
+      nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
+      statsChanged = true;
+      nextMachine = ice2fClearCycleKeepGale(nextMachine, recovery);
       flash = {
         resultNumber,
         won: false,
@@ -707,11 +648,7 @@ export function tickIce2fPlacar(
         nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
         statsChanged = true;
         nextMachine = {
-          ...nextMachine,
-          cycle: null,
-          betCommitInFlight: false,
-          lockedPosition: null,
-          pendingRecovery: 0,
+          ...ice2fClearCycleKeepGale(nextMachine, 0),
           nextEntryAxis: ice2fToggleAxis(active.axis),
         };
         flash = {
@@ -748,7 +685,13 @@ export function tickIce2fPlacar(
     }
   }
 
-  if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
+  if (
+    !nextMachine.cycle &&
+    headChanged &&
+    historyNewestFirst.length >= ICE_2F_MIN_HISTORY
+  ) {
+    // Novo giro → leitura fresca 11×22 (inclui após W/L/empate no mesmo tick).
+    // Não reutiliza factores antigos: ice2fFindCriticalPosition só arma com o par actual.
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
@@ -760,11 +703,14 @@ export function tickIce2fPlacar(
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
-  // Indicação mantém factores do armamento (par 11/22 no momento do sinal).
-
   const globalActive =
-    nextMachine.cycle?.phase === "awaiting_bet" ? nextMachine.cycle.active : null;
-  const globalRecovery = nextMachine.cycle?.recovery ?? 0;
+    nextMachine.cycle?.phase === "awaiting_bet" ||
+    nextMachine.cycle?.phase === "awaiting_result"
+      ? nextMachine.cycle.active
+      : null;
+  const globalRecovery =
+    nextMachine.cycle?.recovery ??
+    Math.max(0, Math.floor(nextMachine.pendingRecovery ?? 0));
 
   return {
     machine: nextMachine,

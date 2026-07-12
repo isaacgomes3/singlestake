@@ -4,11 +4,18 @@ Extensão Chrome para **KTO** (mesa **230** · Roulette 3).
 
 ## Estratégia
 
-- Posições críticas **5, 6, 7, 9, 10, 11**
-- Monitoriza falha de cruzamento **cor/altura** e **paridade/altura**
-- Após **4 derrotas** (empate não conta; zero neutro na observação) → entrada nos 2 factores do número na posição
-- Gales até **5** (unidades 1·2·4·8·16·32)
-- Zero com indicação activa = derrota na aposta
+- Compara as posições críticas **11** e **22** no histórico
+- Alerta os **2 factores em comum** quando o par partilha:
+  - **cor/altura**, ou
+  - **paridade/altura**, ou
+  - **cor/paridade**
+- Se partilham **3** factores → prioriza **cor/paridade**
+- Aposta esses 2 factores no tapete
+- Após derrota/empate/janela perdida: **fecha** a indicação; gale fica para o **próximo** match 11/22
+- **Indicação única** — não reutiliza factores antigos quando o histórico avança
+- Vitória: zera gale
+- **Zero** = derrota (gale normal)
+- Gales até **5** via **Dobrar** (1 ficha/factor + N× Dobrar)
 
 ## Instalação
 

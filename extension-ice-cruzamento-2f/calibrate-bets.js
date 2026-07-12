@@ -1,5 +1,6 @@
-﻿/**
- * Calibração — overlay no frame do jogo (incl. iframe Pragmatic no ICE); 1 clique grava coordenadas.
+/**
+ * Calibra��o � overlay azul no frame do jogo (incl. iframe Pragmatic no ICE).
+ * 1 clique grava coordenadas.
  */
 (function () {
   const betKey = window.__gogCalBetKey || "";
@@ -8,6 +9,7 @@
     typeof window.__gogCalTabId === "number" && Number.isFinite(window.__gogCalTabId)
       ? window.__gogCalTabId
       : null;
+  const force = window.__gogCalForce === true;
   if (!betKey) return;
 
   function isPragmaticGameHost() {
@@ -24,17 +26,38 @@
     return r.width > 200 && r.height > 120;
   }
 
-  function shouldActivateInThisFrame() {
-    const findSurface = window.__gogFindGameSurface;
-    if (typeof findSurface === "function") {
-      const surface = findSurface();
-      if (surface?.el) return true;
+  function hasGameIframe() {
+    try {
+      return Boolean(document.querySelector("iframe"));
+    } catch {
+      return false;
     }
+  }
+
+  /** Shell ICE com iframe: s� tint/banner (sen�o o overlay bloqueia o clique no jogo). */
+  function isVisualOnlyShell() {
+    return (
+      window === window.top &&
+      /ice\.bet\.br/i.test(location.hostname) &&
+      hasGameIframe() &&
+      !hasLargeCanvas() &&
+      !isPragmaticGameHost()
+    );
+  }
+
+  function shouldActivateInThisFrame() {
+    if (force) return true;
     if (isPragmaticGameHost()) return true;
     if (hasLargeCanvas()) return true;
-    if (window === window.top && /ice\.bet\.br/i.test(location.hostname)) {
-      if (document.querySelector("iframe")) return false;
-      return true;
+    if (window === window.top && /ice\.bet\.br/i.test(location.hostname)) return true;
+
+    const findSurface = window.__gogFindGameSurface;
+    if (typeof findSurface === "function") {
+      try {
+        if (findSurface()?.el) return true;
+      } catch {
+        /* ignore */
+      }
     }
     return false;
   }
@@ -50,6 +73,7 @@
   }
 
   const ROOT_ID = "gog-ext-cal-root";
+  const visualOnly = isVisualOnlyShell();
   let saved = false;
 
   function cleanup() {
@@ -57,7 +81,9 @@
     document.getElementById("gog-ext-cal-banner")?.remove();
     document.getElementById("gog-ext-cal-cancel")?.remove();
     window.__gogCalibrationActive = false;
+    window.__gogCalibrationInteractive = false;
     window.__gogStopCalibration = null;
+    window.__gogCalForce = false;
   }
 
   function showBanner(html, ok) {
@@ -95,7 +121,7 @@
       window.addEventListener("message", onAck);
       setTimeout(() => {
         window.removeEventListener("message", onAck);
-        finish(null, "Sem ligação à extensão — recarregue a extensão ICE");
+        finish(null, "Sem liga��o � extens�o � recarregue a extens�o ICE 2F");
       }, 8000);
       return;
     }
@@ -114,7 +140,7 @@
             window.removeEventListener("message", onAck);
             finish(
               null,
-              chrome.runtime.lastError?.message || "Falha ao enviar clique para a extensão",
+              chrome.runtime.lastError?.message || "Falha ao enviar clique para a extens�o",
             );
           }, 8000);
           return;
@@ -127,7 +153,7 @@
   }
 
   function onCapture(e) {
-    if (saved) return;
+    if (saved || visualOnly) return;
     saved = true;
     e.preventDefault();
     e.stopPropagation();
@@ -155,7 +181,7 @@
       };
     }
 
-    showBanner(`⏳ A gravar <strong>${label}</strong>…`, true);
+    showBanner(`A gravar <strong>${label}</strong>�`, true);
 
     deliverCalibration(
       {
@@ -169,14 +195,14 @@
       },
       (resp, errText) => {
         if (errText) {
-          showBanner(`⚠ ${errText}`, false);
+          showBanner(`${errText}`, false);
           saved = false;
           setTimeout(cleanup, 4000);
           return;
         }
         if (resp?.ok) {
           const pct = `${Math.round(coord.x * 100)}%, ${Math.round(coord.y * 100)}%`;
-          showBanner(`✓ <strong>${label}</strong> gravado · ${pct}`, true);
+          showBanner(`<strong>${label}</strong> gravado � ${pct}`, true);
           document.querySelectorAll("[data-gog-marker]").forEach((el) => el.remove());
           const dot = document.createElement("div");
           dot.setAttribute("data-gog-marker", "1");
@@ -184,7 +210,7 @@
           (document.body || document.documentElement)?.appendChild(dot);
           setTimeout(() => dot.remove(), 2500);
         } else {
-          showBanner(`⚠ ${resp?.detail || "Erro ao gravar"}`, false);
+          showBanner(`${resp?.detail || "Erro ao gravar"}`, false);
           saved = false;
         }
         setTimeout(cleanup, 2800);
@@ -192,49 +218,73 @@
     );
   }
 
-  const root = document.createElement("div");
-  root.id = ROOT_ID;
-  root.style.cssText =
-    "position:fixed;inset:0;z-index:2147483646;cursor:crosshair;background:rgba(37,99,235,0.14);touch-action:none";
+  function mountOverlay() {
+    const mount = document.body || document.documentElement;
+    if (!mount) return false;
 
-  const banner = document.createElement("div");
-  banner.id = "gog-ext-cal-banner";
-  banner.style.cssText =
-    "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:min(440px,94vw);padding:14px 18px;border-radius:12px;border:2px solid rgba(59,130,246,0.9);background:rgba(7,16,32,0.97);color:#dbeafe;font:700 14px/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.55);pointer-events:none";
-  banner.innerHTML =
-    betKey === "repeat"
-      ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">2F Cruzamento · gales · ESC cancela</span>`
-      : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">2 Fatores · ESC cancela</span>`;
+    document.getElementById(ROOT_ID)?.remove();
+    document.getElementById("gog-ext-cal-banner")?.remove();
+    document.getElementById("gog-ext-cal-cancel")?.remove();
 
-  const cancel = document.createElement("button");
-  cancel.id = "gog-ext-cal-cancel";
-  cancel.type = "button";
-  cancel.textContent = "Cancelar";
-  cancel.style.cssText =
-    "position:fixed;top:16px;right:16px;z-index:2147483647;padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font:600 11px system-ui;cursor:pointer";
-  cancel.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    cleanup();
-  });
+    const root = document.createElement("div");
+    root.id = ROOT_ID;
+    const pe = visualOnly ? "none" : "auto";
+    root.style.cssText =
+      `position:fixed;inset:0;z-index:2147483646;cursor:${visualOnly ? "default" : "crosshair"};` +
+      `background:rgba(37,99,235,0.42);touch-action:none;pointer-events:${pe}`;
 
-  root.addEventListener("pointerdown", onCapture, true);
+    const banner = document.createElement("div");
+    banner.id = "gog-ext-cal-banner";
+    banner.style.cssText =
+      "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:min(440px,94vw);padding:14px 18px;border-radius:12px;border:2px solid rgba(59,130,246,0.95);background:rgba(7,16,32,0.97);color:#dbeafe;font:700 14px/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.55);pointer-events:none";
+    const frameHint = visualOnly
+      ? "Clique no tapete dentro da �rea do jogo (iframe)"
+      : "ICE 2F � ESC cancela";
+    banner.innerHTML = `Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">${frameHint}</span>`;
 
-  function onKey(ev) {
-    if (ev.key === "Escape") cleanup();
+    const cancel = document.createElement("button");
+    cancel.id = "gog-ext-cal-cancel";
+    cancel.type = "button";
+    cancel.textContent = "Cancelar";
+    cancel.style.cssText =
+      "position:fixed;top:16px;right:16px;z-index:2147483647;padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font:600 11px system-ui;cursor:pointer;pointer-events:auto";
+    cancel.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      cleanup();
+      // Cancela tamb�m nos outros frames.
+      try {
+        chrome?.runtime?.sendMessage?.({ kind: "clear-calibration-armed" });
+      } catch {
+        /* ignore */
+      }
+    });
+
+    if (!visualOnly) {
+      root.addEventListener("pointerdown", onCapture, true);
+    }
+
+    function onKey(ev) {
+      if (ev.key === "Escape") cleanup();
+    }
+    document.addEventListener("keydown", onKey, true);
+
+    window.__gogStopCalibration = () => {
+      document.removeEventListener("keydown", onKey, true);
+      cleanup();
+    };
+
+    mount.appendChild(root);
+    mount.appendChild(banner);
+    mount.appendChild(cancel);
+    window.__gogCalibrationActive = true;
+    window.__gogCalibrationInteractive = !visualOnly;
+    return true;
   }
-  document.addEventListener("keydown", onKey, true);
 
-  const prevCleanup = cleanup;
-  window.__gogStopCalibration = () => {
-    document.removeEventListener("keydown", onKey, true);
-    prevCleanup();
-  };
+  if (mountOverlay()) return;
 
-  const mount = document.body || document.documentElement;
-  if (!mount) return;
-
-  mount.appendChild(root);
-  mount.appendChild(banner);
-  mount.appendChild(cancel);
-  window.__gogCalibrationActive = true;
+  const pending = setInterval(() => {
+    if (mountOverlay()) clearInterval(pending);
+  }, 150);
+  setTimeout(() => clearInterval(pending), 10000);
 })();

@@ -121,6 +121,51 @@ var SinglestakeKto2f = (() => {
     return null;
   }
 
+  // src/lib/roulette/umFatorStrategy.ts
+  function umFatorTriggerMatchCount(a, b) {
+    if (a === 0 || b === 0) return 0;
+    let count = 0;
+    const colA = colorOf(a);
+    const colB = colorOf(b);
+    if (colA !== "Zero" && colA === colB) count += 1;
+    const altA = heightOf(a);
+    const altB = heightOf(b);
+    if (altA !== "Zero" && altA === altB) count += 1;
+    const parA = parityOf(a);
+    const parB = parityOf(b);
+    if (parA !== "Zero" && parA === parB) count += 1;
+    return count;
+  }
+  function umFatorTripleFactorsForNumber(n) {
+    if (n === 0) return null;
+    const col = colorOf(n);
+    const alt = heightOf(n);
+    const par = parityOf(n);
+    if (col === "Zero" || alt === "Zero" || par === "Zero") return null;
+    return [
+      { kind: "cor", value: col },
+      { kind: "altura", value: alt },
+      { kind: "paridade", value: par }
+    ];
+  }
+  function factorWins2(num, factor) {
+    if (num === 0) return false;
+    switch (factor.kind) {
+      case "cor":
+        return colorOf(num) === factor.value;
+      case "paridade":
+        return parityOf(num) === factor.value;
+      case "altura":
+        return heightOf(num) === factor.value;
+    }
+  }
+  function umFatorSharedFactorsBetween(a, b) {
+    if (a === 0 || b === 0) return [];
+    const triple = umFatorTripleFactorsForNumber(a);
+    if (!triple) return [];
+    return triple.filter((f) => factorWins2(b, f));
+  }
+
   // src/lib/roulette/entryWinBreakdown.ts
   function emptyRecoveryLevelCounts(maxRecovery) {
     return Array.from({ length: maxRecovery + 1 }, () => 0);
@@ -219,28 +264,17 @@ var SinglestakeKto2f = (() => {
   }
 
   // src/lib/roulette/iceCruzamento2fStrategy.ts
-  var ICE_2F_CRITICAL_POSITIONS = [5, 6, 7, 9, 10, 11];
-  var ICE_2F_CROSSING_AXES = ["cor-altura", "altura-paridade"];
-  var ICE_2F_MIN_HISTORY = 12;
-  var ICE_2F_REQUIRED_FAILURES = 4;
+  var ICE_2F_COMPARE_POSITIONS = [11, 22];
+  var ICE_2F_MIN_HISTORY = 22;
   var ICE_2F_MAX_RECOVERY = 5;
-  var ICE_2F_FIRST_BET_SETTLE_MS = 13e3;
-  var ICE_2F_RECOVERY_BET_DELAY_MS = 5e3;
-  var ICE_2F_BET_DELAY_MS = ICE_2F_FIRST_BET_SETTLE_MS;
+  var ICE_2F_REQUIRED_FAILURES = 0;
+  var ICE_2F_RECOVERY_BET_DELAY_MS = 6e3;
+  var ICE_2F_IMMEDIATE_REBET_DELAY_MS = 6e3;
+  var ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
+  var ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32];
-  var ICE_2F_GALE3_REFERENCE_UNITS = 8;
-  function ice2fPadFactorPlacementMs(units) {
-    const u = Math.max(1, Math.floor(units));
-    if (u >= ICE_2F_GALE3_REFERENCE_UNITS) return 0;
-    const base = 150;
-    return (ICE_2F_GALE3_REFERENCE_UNITS - u) * base;
-  }
-  function criticalIndex(position) {
-    return position - 1;
-  }
-  function spinHead(history) {
-    if (history.length === 0) return "0";
-    return `${history.length}:${history[0]}`;
+  function ice2fPadFactorPlacementMs(_units) {
+    return 0;
   }
   function emptyWatchSlot() {
     return { failures: 0 };
@@ -248,20 +282,25 @@ var SinglestakeKto2f = (() => {
   function emptyWatchAxisMap() {
     return {
       "cor-altura": emptyWatchSlot(),
-      "altura-paridade": emptyWatchSlot()
+      "altura-paridade": emptyWatchSlot(),
+      "cor-paridade": emptyWatchSlot()
     };
   }
   function emptyWatch() {
-    return Object.fromEntries(
-      ICE_2F_CRITICAL_POSITIONS.map((pos) => [pos, emptyWatchAxisMap()])
-    );
+    const w = {};
+    for (const pos of ICE_2F_COMPARE_POSITIONS) w[pos] = emptyWatchAxisMap();
+    return w;
   }
   function cloneWatch(watch) {
     const next = {};
-    for (const pos of ICE_2F_CRITICAL_POSITIONS) {
+    for (const key of Object.keys(watch)) {
+      const pos = Number(key);
+      const slot = watch[pos];
+      if (!slot) continue;
       next[pos] = {
-        "cor-altura": { ...watch[pos]["cor-altura"] },
-        "altura-paridade": { ...watch[pos]["altura-paridade"] }
+        "cor-altura": { failures: slot["cor-altura"]?.failures ?? 0 },
+        "altura-paridade": { failures: slot["altura-paridade"]?.failures ?? 0 },
+        "cor-paridade": { failures: slot["cor-paridade"]?.failures ?? 0 }
       };
     }
     return next;
@@ -271,17 +310,78 @@ var SinglestakeKto2f = (() => {
       cycle: null,
       watch: emptyWatch(),
       pendingArm: null,
-      lastSpinHead: null
+      lastSpinHead: null,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+      inactiveSpinsWithoutEntry: 0,
+      nextEntryAxis: "cor-altura",
+      lockedPosition: null,
+      pendingRecovery: 0,
+      zeroDebtUnits: 0,
+      zeroRecoveredUnits: 0,
+      zeroShift: 0,
+      zeroRecoveryArmed: false
     };
   }
-  function referenceAtGridPosition(historyNewestFirst, position) {
-    const idx = criticalIndex(position);
-    if (historyNewestFirst.length <= idx) return null;
-    return historyNewestFirst[idx];
+  function spinHead(history) {
+    if (history.length === 0) return "0";
+    return `${history.length}:${history[0]}`;
   }
-  function referenceBeforeSpin(historyNewestFirst, position) {
-    if (historyNewestFirst.length <= position) return null;
-    return historyNewestFirst[position];
+  function axisLabelPt(axis) {
+    if (axis === "cor-altura") return "cor/altura";
+    if (axis === "altura-paridade") return "paridade/altura";
+    return "cor/paridade";
+  }
+  function axisShort(axis) {
+    if (axis === "cor-altura") return "c/a";
+    if (axis === "altura-paridade") return "p/a";
+    return "c/p";
+  }
+  function pairKindFromFactors(f1, f2) {
+    const kinds = /* @__PURE__ */ new Set([f1.kind, f2.kind]);
+    if (kinds.has("cor") && kinds.has("altura")) return "cor-altura";
+    if (kinds.has("cor") && kinds.has("paridade")) return "cor-paridade";
+    return "altura-paridade";
+  }
+  function ice2fToggleAxis(axis) {
+    if (axis === "cor-altura") return "altura-paridade";
+    if (axis === "altura-paridade") return "cor-paridade";
+    return "cor-altura";
+  }
+  function ice2fFindCriticalPosition(historyNewestFirst) {
+    if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return null;
+    const number11 = historyNewestFirst[10];
+    const number22 = historyNewestFirst[21];
+    if (!Number.isFinite(number11) || !Number.isFinite(number22)) return null;
+    if (number11 === 0 || number22 === 0) return null;
+    const sharedCount = umFatorTriggerMatchCount(number11, number22);
+    if (sharedCount < 2) return null;
+    let axis;
+    let factor1;
+    let factor2;
+    if (sharedCount >= 3) {
+      axis = "cor-paridade";
+      const factors = factorsForNumberOnAxis(number11, axis);
+      if (!factors) return null;
+      factor1 = factors[0];
+      factor2 = factors[1];
+    } else {
+      const shared = umFatorSharedFactorsBetween(number11, number22);
+      if (shared.length !== 2) return null;
+      factor1 = shared[0];
+      factor2 = shared[1];
+      axis = pairKindFromFactors(factor1, factor2);
+    }
+    return {
+      criticalPosition: 11,
+      matchPosition: 22,
+      matchNumber: number22,
+      triggerNumber: number11,
+      axis,
+      factor1,
+      factor2,
+      sharedCount: sharedCount >= 3 ? 3 : 2
+    };
   }
   function toTapeteActive(active) {
     return {
@@ -292,156 +392,143 @@ var SinglestakeKto2f = (() => {
       referenceNumber: active.referenceNumber,
       factor1: active.factor1,
       factor2: active.factor2,
-      triggerNumbers: [active.referenceNumber, active.referenceNumber],
+      triggerNumbers: [
+        active.referenceNumber,
+        active.matchNumber ?? active.referenceNumber
+      ],
       armingDescription: active.armingDescription
     };
-  }
-  function classifyObservation(result, ref, axis) {
-    if (result === 0 || ref === 0) return null;
-    const factors = factorsForNumberOnAxis(ref, axis);
-    if (!factors) return null;
-    const round = evaluateDoisFatoresRound(result, {
-      pairKind: pairKindFromCrossingAxis(axis),
-      pairKindLabel: axis,
-      patternMode: "convergence",
-      patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
-      referenceNumber: ref,
-      factor1: factors[0],
-      factor2: factors[1],
-      triggerNumbers: [ref, ref],
-      armingDescription: ""
-    });
-    if (round === "W") return "win";
-    if (round === "continue") return "tie";
-    return "loss";
   }
   function ice2fClassifyBetRound(result, active) {
     if (result === 0) return "L";
     return evaluateDoisFatoresRound(result, toTapeteActive(active));
   }
-  function ice2fIsWatchSlotArmed(slot) {
-    return slot.failures >= ICE_2F_REQUIRED_FAILURES;
-  }
-  function ice2fBuildActiveFromHistory(historyNewestFirst, position, axis) {
-    const refNum = referenceAtGridPosition(historyNewestFirst, position);
-    if (refNum == null || refNum === 0) return null;
-    const factors = factorsForNumberOnAxis(refNum, axis);
-    if (!factors) return null;
-    const labels = factors.map((f) => doisFatoresFactorLabel(f)).join(" \xB7 ");
-    const axisLabel = axis === "cor-altura" ? "cor/altura" : "paridade/altura";
+  function ice2fBuildActiveFromHit(hit) {
+    const labels = [hit.factor1, hit.factor2].map((f) => doisFatoresFactorLabel(f)).join(" \xB7 ");
+    const tripleHint = hit.sharedCount === 3 ? " \xB7 3F\u2192cor/paridade" : "";
     return {
-      criticalPosition: position,
-      axis,
-      factor1: factors[0],
-      factor2: factors[1],
-      pairKind: pairKindFromCrossingAxis(axis),
-      referenceNumber: refNum,
-      armingDescription: `ICE 2F pos${position} ${axisLabel}: n\xBA${refNum} \u2192 ${labels}`
+      criticalPosition: hit.criticalPosition,
+      axis: hit.axis,
+      factor1: hit.factor1,
+      factor2: hit.factor2,
+      pairKind: pairKindFromCrossingAxis(hit.axis),
+      referenceNumber: hit.triggerNumber,
+      armingDescription: `2F pos11/22 ${axisLabelPt(hit.axis)}: n\xBA${hit.triggerNumber}\xB7${hit.matchNumber} \u2192 ${labels}${tripleHint}`,
+      matchPosition: hit.matchPosition,
+      matchNumber: hit.matchNumber,
+      triggerNumber: hit.triggerNumber
     };
   }
-  function updateWatchOnSpin(watch, historyNewestFirst) {
-    const result = historyNewestFirst[0];
-    const next = cloneWatch(watch);
-    for (const pos of ICE_2F_CRITICAL_POSITIONS) {
-      const ref = referenceBeforeSpin(historyNewestFirst, pos);
-      if (ref == null) continue;
-      for (const axis of ICE_2F_CROSSING_AXES) {
-        const outcome = classifyObservation(result, ref, axis);
-        if (outcome == null) continue;
-        if (outcome === "win") {
-          next[pos][axis] = emptyWatchSlot();
-        } else if (outcome === "loss") {
-          next[pos][axis] = {
-            failures: Math.min(ICE_2F_REQUIRED_FAILURES, next[pos][axis].failures + 1)
-          };
-        }
-      }
-    }
-    return next;
+  function primeIce2fWatchFromHistory(_historyNewestFirst) {
+    return emptyWatch();
   }
-  function primeIce2fWatchFromHistory(historyNewestFirst) {
-    if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return emptyWatch();
-    let watch = emptyWatch();
-    const chronological = [...historyNewestFirst].reverse();
-    for (let end = ICE_2F_MIN_HISTORY; end <= chronological.length; end++) {
-      const sliceNewestFirst = chronological.slice(0, end).reverse();
-      watch = updateWatchOnSpin(watch, sliceNewestFirst);
-    }
-    return watch;
-  }
-  function firstArmedSlot(watch) {
-    for (const pos of ICE_2F_CRITICAL_POSITIONS) {
-      for (const axis of ICE_2F_CROSSING_AXES) {
-        if (ice2fIsWatchSlotArmed(watch[pos][axis])) return { position: pos, axis };
-      }
-    }
-    return null;
-  }
-  function ice2fResumeCycleAfterRebuild(cycle, historyNewestFirst, head) {
-    const rebuilt = ice2fBuildActiveFromHistory(
-      historyNewestFirst,
-      cycle.active.criticalPosition,
-      cycle.active.axis
-    );
-    if (rebuilt) {
-      return {
-        ...cycle,
-        active: rebuilt,
-        phase: "awaiting_bet",
-        armedHead: head
-      };
-    }
+  function ice2fClearCycleKeepGale(machine, recoveryToKeep) {
     return {
-      ...cycle,
-      phase: "awaiting_reference",
-      armedHead: head
+      ...machine,
+      cycle: null,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+      lockedPosition: null,
+      pendingRecovery: Math.max(0, Math.floor(recoveryToKeep))
+    };
+  }
+  function armCycleFromHit(machine, head, hit, recovery) {
+    const active = ice2fBuildActiveFromHit(hit);
+    return {
+      ...machine,
+      lockedPosition: hit.criticalPosition,
+      nextEntryAxis: hit.axis,
+      inactiveSpinsWithoutEntry: 0,
+      pendingArm: null,
+      pendingRecovery: 0,
+      cycle: {
+        active,
+        armedHead: head,
+        recovery,
+        phase: "awaiting_bet",
+        immediateBet: recovery > 0
+      }
     };
   }
   function tryArmCycleFromWatch(machine, historyNewestFirst, head) {
     if (machine.cycle) return machine;
-    const armed = firstArmedSlot(machine.watch);
-    if (armed == null) return machine;
-    const active = ice2fBuildActiveFromHistory(
-      historyNewestFirst,
-      armed.position,
-      armed.axis
+    if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return machine;
+    const pendingRecovery = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
+    const hit = ice2fFindCriticalPosition(historyNewestFirst);
+    if (!hit) return machine;
+    return armCycleFromHit(
+      { ...machine, betCommitInFlight: false },
+      head,
+      hit,
+      pendingRecovery
     );
-    if (!active) return machine;
+  }
+  function armAfterLoss(machine, _historyNewestFirst, _head, nextRecovery, _previousAxis) {
     return {
       ...machine,
-      cycle: {
-        active,
-        armedHead: head,
-        recovery: 0,
-        phase: "awaiting_bet"
-      },
-      watch: {
-        ...machine.watch,
-        [armed.position]: {
-          ...machine.watch[armed.position],
-          [armed.axis]: emptyWatchSlot()
-        }
-      },
-      pendingArm: null
+      lockedPosition: null,
+      pendingRecovery: nextRecovery,
+      cycle: null,
+      betCommitInFlight: false
     };
   }
-  function ice2fStakeUnits(recovery) {
+  function ice2fStakeUnits(recovery, zeroShift = 0) {
     const idx = Math.min(
       Math.max(0, Math.floor(recovery)),
       ICE_2F_STAKE_UNITS.length - 1
     );
-    return ICE_2F_STAKE_UNITS[idx];
+    const shift = Math.max(0, Math.floor(zeroShift));
+    return ICE_2F_STAKE_UNITS[idx] * 2 ** shift;
   }
-  function ice2fBetDelayMs(recovery) {
-    return (recovery ?? 0) > 0 ? ICE_2F_RECOVERY_BET_DELAY_MS : ICE_2F_FIRST_BET_SETTLE_MS;
+  function ice2fDoubleClicks(recovery, zeroShift = 0) {
+    return Math.max(0, Math.floor(recovery)) + Math.max(0, Math.floor(zeroShift));
   }
-  function ice2fBetDelayUntilMs(recovery, lastSpinAtMs) {
-    const delayMs = ice2fBetDelayMs(recovery);
+  function ice2fEffectiveZeroShift(machine) {
+    const debt = machine.zeroDebtUnits ?? 0;
+    if (debt <= 0) return 0;
+    if (!machine.zeroRecoveryArmed) return 0;
+    return Math.max(0, Math.floor(machine.zeroShift ?? 0));
+  }
+  function clearZeroRecovery(machine) {
+    return {
+      ...machine,
+      zeroDebtUnits: 0,
+      zeroRecoveredUnits: 0,
+      zeroShift: 0,
+      zeroRecoveryArmed: false
+    };
+  }
+  function applyWinZeroRecoveryAccounting(machine, wonUnits) {
+    const debt = machine.zeroDebtUnits ?? 0;
+    if (debt <= 0) return clearZeroRecovery(machine);
+    if (!machine.zeroRecoveryArmed) {
+      return {
+        ...machine,
+        zeroRecoveryArmed: true,
+        zeroRecoveredUnits: 0
+      };
+    }
+    const recovered = (machine.zeroRecoveredUnits ?? 0) + Math.max(0, wonUnits);
+    if (recovered >= debt) return clearZeroRecovery(machine);
+    return {
+      ...machine,
+      zeroRecoveredUnits: recovered,
+      zeroRecoveryArmed: true
+    };
+  }
+  function ice2fRecoveryAfterLoss(recovery) {
+    return Math.max(0, Math.floor(recovery)) + 1;
+  }
+  function ice2fBetDelayMs(_recovery, immediateBet) {
+    return immediateBet === true ? ICE_2F_IMMEDIATE_REBET_DELAY_MS : ICE_2F_RECOVERY_BET_DELAY_MS;
+  }
+  function ice2fBetDelayUntilMs(recovery, lastSpinAtMs, immediateBet) {
+    const delayMs = ice2fBetDelayMs(recovery, immediateBet);
     return lastSpinAtMs != null && Number.isFinite(lastSpinAtMs) ? lastSpinAtMs + delayMs : null;
   }
-  function canPlaceIce2fBet(recovery, lastSpinAtMs, nowMs = Date.now()) {
+  function canPlaceIce2fBet(recovery, lastSpinAtMs, nowMs = Date.now(), immediateBet) {
     if (lastSpinAtMs == null || !Number.isFinite(lastSpinAtMs)) return false;
-    return nowMs - lastSpinAtMs >= ice2fBetDelayMs(recovery);
+    return nowMs - lastSpinAtMs >= ice2fBetDelayMs(recovery, immediateBet);
   }
   function tickIce2fPlacar(historyNewestFirst, machine, stats, maxRecovery = ICE_2F_MAX_RECOVERY) {
     const head = spinHead(historyNewestFirst);
@@ -449,55 +536,21 @@ var SinglestakeKto2f = (() => {
     let nextMachine = {
       ...machine,
       lastSpinHead: head,
-      watch: cloneWatch(machine.watch)
+      watch: cloneWatch(machine.watch ?? emptyWatch()),
+      nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
+      lockedPosition: machine.lockedPosition ?? null,
+      pendingRecovery: machine.pendingRecovery ?? 0
     };
     let nextStats = stats;
     let statsChanged = false;
     let flash = null;
+    let missedBetWindow = false;
     if (nextMachine.cycle?.phase === "awaiting_bet" && headChanged && nextMachine.cycle.armedHead !== head) {
-      if (nextMachine.betCommitInFlight) {
-        nextMachine = {
-          ...nextMachine,
-          betCommitInFlight: false,
-          cycle: { ...nextMachine.cycle, phase: "awaiting_result" }
-        };
-      } else {
-        const rebuilt = ice2fBuildActiveFromHistory(
-          historyNewestFirst,
-          nextMachine.cycle.active.criticalPosition,
-          nextMachine.cycle.active.axis
-        );
-        if (!rebuilt) {
-          nextMachine = {
-            ...nextMachine,
-            cycle: {
-              ...nextMachine.cycle,
-              phase: "awaiting_reference",
-              armedHead: head
-            }
-          };
-        } else {
-          nextMachine = {
-            ...nextMachine,
-            cycle: {
-              ...nextMachine.cycle,
-              active: rebuilt,
-              armedHead: head,
-              phase: "awaiting_bet"
-            }
-          };
-        }
-      }
+      missedBetWindow = true;
+      nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
     }
     if (nextMachine.cycle?.phase === "awaiting_reference" && headChanged && nextMachine.cycle.armedHead !== head) {
-      nextMachine = {
-        ...nextMachine,
-        cycle: ice2fResumeCycleAfterRebuild(
-          nextMachine.cycle,
-          historyNewestFirst,
-          head
-        )
-      };
+      nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
     }
     if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
       const cycle = nextMachine.cycle;
@@ -505,13 +558,16 @@ var SinglestakeKto2f = (() => {
       const outcome = ice2fClassifyBetRound(resultNumber, cycle.active);
       const { active, recovery } = cycle;
       if (outcome === "W") {
+        const wonUnits = ice2fStakeUnits(
+          recovery,
+          ice2fEffectiveZeroShift(nextMachine)
+        );
         nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
         statsChanged = true;
-        nextMachine = {
-          ...nextMachine,
-          cycle: null,
-          betCommitInFlight: false
-        };
+        nextMachine = ice2fClearCycleKeepGale(
+          applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
+          0
+        );
         flash = {
           resultNumber,
           won: true,
@@ -523,11 +579,9 @@ var SinglestakeKto2f = (() => {
           factor2: active.factor2
         };
       } else if (outcome === "continue") {
-        nextMachine = {
-          ...nextMachine,
-          betCommitInFlight: false,
-          cycle: ice2fResumeCycleAfterRebuild(cycle, historyNewestFirst, head)
-        };
+        nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
+        statsChanged = true;
+        nextMachine = ice2fClearCycleKeepGale(nextMachine, recovery);
         flash = {
           resultNumber,
           won: false,
@@ -539,14 +593,13 @@ var SinglestakeKto2f = (() => {
           factor2: active.factor2
         };
       } else {
-        const nextRecovery = recovery + 1;
+        const nextRecovery = ice2fRecoveryAfterLoss(recovery);
         if (nextRecovery > maxRecovery) {
           nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
           statsChanged = true;
           nextMachine = {
-            ...nextMachine,
-            cycle: null,
-            betCommitInFlight: false
+            ...ice2fClearCycleKeepGale(nextMachine, 0),
+            nextEntryAxis: ice2fToggleAxis(active.axis)
           };
           flash = {
             resultNumber,
@@ -561,15 +614,6 @@ var SinglestakeKto2f = (() => {
         } else {
           nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
           statsChanged = true;
-          nextMachine = {
-            ...nextMachine,
-            betCommitInFlight: false,
-            cycle: ice2fResumeCycleAfterRebuild(
-              { ...cycle, recovery: nextRecovery },
-              historyNewestFirst,
-              head
-            )
-          };
           flash = {
             resultNumber,
             won: false,
@@ -580,57 +624,32 @@ var SinglestakeKto2f = (() => {
             factor1: active.factor1,
             factor2: active.factor2
           };
+          nextMachine = armAfterLoss(
+            nextMachine,
+            historyNewestFirst,
+            head,
+            nextRecovery,
+            active.axis
+          );
         }
       }
     }
     if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
-      nextMachine = {
-        ...nextMachine,
-        watch: updateWatchOnSpin(nextMachine.watch, historyNewestFirst)
-      };
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
-    if (nextMachine.cycle && headChanged) {
-      const armed = firstArmedSlot(nextMachine.watch);
-      if (armed != null && (armed.position !== nextMachine.cycle.active.criticalPosition || armed.axis !== nextMachine.cycle.active.axis)) {
-        nextMachine = { ...nextMachine, pendingArm: armed };
-      }
+    if (!nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
+      nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
-    if (!nextMachine.cycle && nextMachine.pendingArm != null && headChanged) {
-      const { position, axis } = nextMachine.pendingArm;
-      if (ice2fIsWatchSlotArmed(nextMachine.watch[position][axis])) {
-        nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
-        if (nextMachine.cycle) {
-          nextMachine = { ...nextMachine, pendingArm: null };
-        }
-      }
-    }
-    if (nextMachine.cycle?.phase === "awaiting_bet") {
-      const rebuilt = ice2fBuildActiveFromHistory(
-        historyNewestFirst,
-        nextMachine.cycle.active.criticalPosition,
-        nextMachine.cycle.active.axis
-      );
-      if (!rebuilt) {
-        nextMachine = {
-          ...nextMachine,
-          cycle: {
-            ...nextMachine.cycle,
-            phase: "awaiting_reference",
-            armedHead: head
-          }
-        };
-      }
-    }
-    const globalActive = nextMachine.cycle?.phase === "awaiting_bet" ? nextMachine.cycle.active : null;
-    const globalRecovery = nextMachine.cycle?.recovery ?? 0;
+    const globalActive = nextMachine.cycle?.phase === "awaiting_bet" || nextMachine.cycle?.phase === "awaiting_result" ? nextMachine.cycle.active : null;
+    const globalRecovery = nextMachine.cycle?.recovery ?? Math.max(0, Math.floor(nextMachine.pendingRecovery ?? 0));
     return {
       machine: nextMachine,
       stats: nextStats,
       statsChanged,
       flash,
       globalActive,
-      globalRecovery
+      globalRecovery,
+      missedBetWindow
     };
   }
   function parseIce2fStats(raw, maxRecovery = ICE_2F_MAX_RECOVERY) {
@@ -639,16 +658,16 @@ var SinglestakeKto2f = (() => {
   function emptyIce2fStats(maxRecovery = ICE_2F_MAX_RECOVERY) {
     return emptyRotatingRoomSessionStats(maxRecovery);
   }
-  function formatIce2fWatchLabel(watch) {
-    const parts = [];
-    for (const pos of ICE_2F_CRITICAL_POSITIONS) {
-      for (const axis of ICE_2F_CROSSING_AXES) {
-        const f = watch[pos][axis].failures;
-        const short = axis === "cor-altura" ? "c/a" : "p/a";
-        parts.push(`${pos}${short}:${f}/${ICE_2F_REQUIRED_FAILURES}`);
-      }
+  function formatIce2fWatchLabel(_watch, _requiredFailures = ICE_2F_REQUIRED_FAILURES) {
+    return "pos 11\xD722 \xB7 2F em comum";
+  }
+  function ice2fWatchLabelForMachine(machine) {
+    const pending = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
+    const cycle = machine.cycle?.active;
+    if (cycle) {
+      return `11/22 ${axisShort(cycle.axis)} \xB7 gale ${machine.cycle?.recovery ?? 0}`;
     }
-    return parts.join(" \xB7 ");
+    return pending > 0 ? `aguarda 11/22 \xB7 gale ${pending}` : "aguarda 11/22 \xB7 2F em comum";
   }
 
   // extension-kto-cruzamento-2f/kto2f-strategy-entry.ts
@@ -658,17 +677,36 @@ var SinglestakeKto2f = (() => {
   var ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS = ICE_2F_FIRST_BET_SETTLE_MS;
   var ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var BASE_STAKE = 0.5;
+  var KTO2F_POSITIONS = /* @__PURE__ */ new Set([11, 22]);
+  var KTO2F_AXES = /* @__PURE__ */ new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
   function clampMaxRecovery(value, fallback = ICE_2F_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(n)) return Math.max(0, Math.floor(fallback));
     return Math.min(ICE_2F_MAX_RECOVERY, Math.max(0, Math.floor(n)));
   }
+  function pendingRecoveryFromSaved(saved) {
+    const stored = typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery) ? Math.max(0, Math.floor(saved.pendingRecovery)) : 0;
+    if (stored > 0) return stored;
+    const recovery = typeof saved.recovery === "number" && Number.isFinite(saved.recovery) ? Math.max(0, Math.floor(saved.recovery)) : 0;
+    if (saved.phase === "awaiting_bet" || saved.phase === "awaiting_result" || saved.phase === "awaiting_reference") {
+      return recovery;
+    }
+    return 0;
+  }
   function createKto2fEngine(options = {}) {
     const maxRecovery = clampMaxRecovery(options.maxRecovery);
     let machine = defaultIce2fMachineState();
-    if (options.initialMachine?.lastSpinHead) {
-      machine = { ...machine, lastSpinHead: options.initialMachine.lastSpinHead };
+    if (options.initialMachine) {
+      const saved = options.initialMachine;
+      machine = {
+        ...machine,
+        lastSpinHead: saved.lastSpinHead ?? null,
+        nextEntryAxis: saved.nextEntryAxis && KTO2F_AXES.has(saved.nextEntryAxis) ? saved.nextEntryAxis : "cor-altura",
+        lockedPosition: typeof saved.lockedPosition === "number" && KTO2F_POSITIONS.has(saved.lockedPosition) ? saved.lockedPosition : null,
+        pendingRecovery: typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery) ? Math.max(0, Math.floor(saved.pendingRecovery)) : 0
+      };
     }
+    let pendingRestore = options.initialMachine ?? null;
     let stats = options.initialStats != null ? parseIce2fStats(options.initialStats, maxRecovery) : emptyIce2fStats(maxRecovery);
     let history = [];
     let lastGameId = null;
@@ -703,12 +741,39 @@ var SinglestakeKto2f = (() => {
       }
       const head = spinHead2();
       const watch = primeIce2fWatchFromHistory(history);
+      const preservedCycle = machine.cycle;
       machine = {
         ...defaultIce2fMachineState(),
         watch,
         lastSpinHead: head
       };
-      if (history.length >= 12) {
+      if (preservedCycle?.phase === "awaiting_result") {
+        machine = {
+          ...machine,
+          lockedPosition: null,
+          nextEntryAxis: preservedCycle.active.axis,
+          pendingRecovery: 0,
+          cycle: {
+            ...preservedCycle,
+            phase: "awaiting_result",
+            armedHead: head
+          }
+        };
+      } else if (pendingRestore) {
+        const axis = (pendingRestore.nextEntryAxis && KTO2F_AXES.has(pendingRestore.nextEntryAxis) ? pendingRestore.nextEntryAxis : null) ?? (pendingRestore.axis && KTO2F_AXES.has(pendingRestore.axis) ? pendingRestore.axis : null) ?? "cor-altura";
+        const locked = typeof pendingRestore.lockedPosition === "number" && KTO2F_POSITIONS.has(pendingRestore.lockedPosition) ? pendingRestore.lockedPosition : null;
+        const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
+        pendingRestore = null;
+        machine = {
+          ...machine,
+          nextEntryAxis: axis,
+          lockedPosition: locked,
+          pendingRecovery
+        };
+        if (history.length >= ICE_2F_MIN_HISTORY) {
+          machine = tryArmCycleFromWatch(machine, history, head);
+        }
+      } else if (history.length >= ICE_2F_MIN_HISTORY) {
         machine = tryArmCycleFromWatch(machine, history, head);
       }
       lastLiveSpinAt = Date.now();
@@ -737,7 +802,7 @@ var SinglestakeKto2f = (() => {
     }
     function canPlaceBet(nowMs = Date.now()) {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-      return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs);
+      return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs, machine.cycle.immediateBet === true);
     }
     function beginBetCommit() {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
@@ -756,40 +821,51 @@ var SinglestakeKto2f = (() => {
       machine = {
         ...machine,
         betCommitInFlight: false,
-        cycle: { ...machine.cycle, phase: "awaiting_result" }
+        cycle: { ...machine.cycle, phase: "awaiting_result", immediateBet: false }
       };
     }
     function buildBridgePayload(mesaEmbedUrl = KTO2F_MESA_URL) {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return null;
       if (!canPlaceBet()) return null;
       const { active, recovery } = machine.cycle;
-      const units = ice2fStakeUnits(recovery);
+      const zeroShift = ice2fEffectiveZeroShift(machine);
+      const units = ice2fStakeUnits(recovery, zeroShift);
+      const doubles = ice2fDoubleClicks(recovery, zeroShift);
       const signalId = `kto2f:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}`;
       const f1Key = pragmaticExteriorBetKeyFromFactor(active.factor1);
       const f2Key = pragmaticExteriorBetKeyFromFactor(active.factor2);
       const f1Label = doisFatoresFactorLabel(active.factor1);
       const f2Label = doisFatoresFactorLabel(active.factor2);
       const stakeAmount = BASE_STAKE * units;
-      const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt);
+      const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt, machine.cycle.immediateBet === true);
       const galeSuffix = recovery > 0 ? ` \xB7 gale ${recovery}` : " \xB7 entrada";
+      const actions = [
+        {
+          kind: "click",
+          target: "factor-1",
+          label: f1Label,
+          reason: `KTO 2F \xB7 ${f1Label}${galeSuffix}`
+        },
+        {
+          kind: "click",
+          target: "factor-2",
+          label: f2Label,
+          reason: `KTO 2F \xB7 ${f2Label}${galeSuffix}`
+        }
+      ];
+      for (let i = 0; i < doubles; i++) {
+        actions.push({
+          kind: "click",
+          target: "repeat-bet",
+          label: "Dobrar",
+          reason: `KTO 2F \xB7 Dobrar ${i + 1}/${doubles}${galeSuffix}`
+        });
+      }
       return {
         type: "game-odds-glow/rotating-room-extension",
         version: 1,
         fingerprint: signalId,
-        actions: [
-          {
-            kind: "click",
-            target: "factor-1",
-            label: f1Label,
-            reason: `KTO 2F \xB7 ${f1Label}${galeSuffix}`
-          },
-          {
-            kind: "click",
-            target: "factor-2",
-            label: f2Label,
-            reason: `KTO 2F \xB7 ${f2Label}${galeSuffix}`
-          }
-        ],
+        actions,
         context: {
           sessionMode: "active",
           prepareTableId: null,
@@ -804,6 +880,9 @@ var SinglestakeKto2f = (() => {
           signalId,
           stakeAmount,
           units,
+          chipClicks: 1,
+          useDoubleGale: true,
+          doubleClicks: doubles,
           currentRecovery: recovery,
           baseStake: BASE_STAKE,
           maxRecovery,
@@ -843,6 +922,7 @@ var SinglestakeKto2f = (() => {
         spinBaselined = false;
         liveSpinSeen = false;
         lastLiveSpinAt = null;
+        pendingRestore = null;
       }
     };
   }
@@ -852,14 +932,19 @@ var SinglestakeKto2f = (() => {
     KTO2F_MAX_GALES,
     ICE_2F_BET_DELAY_MS,
     ICE_2F_FIRST_BET_SETTLE_MS,
+    ICE_2F_IMMEDIATE_REBET_DELAY_MS,
     ICE_2F_MAX_RECOVERY,
     ICE_2F_RECOVERY_BET_DELAY_MS,
     ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
     ROTATING_ROOM_CROSSING_BET_DELAY_MS,
     formatIce2fWatchLabel,
+    ice2fWatchLabelForMachine,
     ice2fBetDelayMs,
     ice2fBetDelayUntilMs,
     ice2fPadFactorPlacementMs,
+    ice2fDoubleClicks,
+    ice2fEffectiveZeroShift,
+    ice2fStakeUnits,
     createKto2fEngine
   };
   if (typeof globalThis !== "undefined") {

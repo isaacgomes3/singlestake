@@ -19,7 +19,6 @@ import {
   ICE_2F_ROULETTE_TABLE_ID,
   ice2fBetDelayMs,
   ice2fBetDelayUntilMs,
-  ice2fBuildActiveFromHistory,
   ice2fDoubleClicks,
   ice2fEffectiveZeroShift,
   ice2fPadFactorPlacementMs,
@@ -30,8 +29,6 @@ import {
   tryArmCycleFromWatch,
   type Ice2fActive,
   type Ice2fCrossingAxis,
-  type Ice2fCriticalPosition,
-  type Ice2fCycle,
   type Ice2fCyclePhase,
   type Ice2fMachineState,
 } from "../src/lib/roulette/iceCruzamento2fStrategy";
@@ -72,66 +69,25 @@ function clampMaxRecovery(value: unknown, fallback = ICE_2F_MAX_RECOVERY): numbe
   return Math.min(ICE_2F_MAX_RECOVERY, Math.max(0, Math.floor(n)));
 }
 
-function placeholderActive(
-  position: Ice2fCriticalPosition,
-  axis: Ice2fCrossingAxis,
-): Ice2fActive {
-  return {
-    criticalPosition: position,
-    axis,
-    factor1: { kind: "cor", value: "Vermelho" },
-    factor2: { kind: "altura", value: "Baixo" },
-    pairKind: axis,
-    referenceNumber: 0,
-    armingDescription: "restored",
-  };
-}
-
-function restoreCycleFromSaved(
-  saved: Ice2fPersistedMachine,
-  history: readonly number[],
-  head: string,
-): Ice2fCycle | null {
+/** Só recupera gale pendente — nunca inventa Vermelho+Baixo nem reabre ciclo stale. */
+function pendingRecoveryFromSaved(saved: Ice2fPersistedMachine): number {
+  const stored =
+    typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery)
+      ? Math.max(0, Math.floor(saved.pendingRecovery))
+      : 0;
+  if (stored > 0) return stored;
   const recovery =
     typeof saved.recovery === "number" && Number.isFinite(saved.recovery)
       ? Math.max(0, Math.floor(saved.recovery))
       : 0;
-  const position = saved.criticalPosition;
-  const axis = saved.axis;
-  const phaseOpen =
+  if (
     saved.phase === "awaiting_bet" ||
     saved.phase === "awaiting_result" ||
-    saved.phase === "awaiting_reference";
-  if (!phaseOpen && recovery <= 0) return null;
-  if (
-    typeof position !== "number" ||
-    !ICE2F_POSITIONS.has(position) ||
-    !axis ||
-    !ICE2F_AXES.has(axis)
+    saved.phase === "awaiting_reference"
   ) {
-    return null;
+    return recovery;
   }
-  const pos = position as Ice2fCriticalPosition;
-  const rebuilt = history.length
-    ? ice2fBuildActiveFromHistory(history, pos, axis)
-    : null;
-  if (rebuilt) {
-    return {
-      active: rebuilt,
-      recovery,
-      // Após restart, re-aposta (não fica preso em awaiting_result).
-      phase: "awaiting_bet",
-      armedHead: head,
-      relaxedEntry: saved.relaxedEntry === true,
-    };
-  }
-  return {
-    active: placeholderActive(pos, axis),
-    recovery,
-    phase: "awaiting_reference",
-    armedHead: head,
-    relaxedEntry: saved.relaxedEntry === true,
-  };
+  return 0;
 }
 
 export type Ice2fEngineSpinResult = {
@@ -216,31 +172,19 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
       lastSpinHead: head,
     };
 
-    if (preservedCycle) {
-      const rebuilt = ice2fBuildActiveFromHistory(
-        history,
-        preservedCycle.active.criticalPosition,
-        preservedCycle.active.axis,
-      );
+    if (preservedCycle?.phase === "awaiting_result") {
       machine = {
         ...machine,
-        lockedPosition: preservedCycle.active.criticalPosition,
+        lockedPosition: null,
         nextEntryAxis: preservedCycle.active.axis,
-        cycle: rebuilt
-          ? {
-              ...preservedCycle,
-              active: rebuilt,
-              phase: "awaiting_bet",
-              armedHead: head,
-            }
-          : {
-              ...preservedCycle,
-              phase: "awaiting_reference",
-              armedHead: head,
-            },
+        pendingRecovery: 0,
+        cycle: {
+          ...preservedCycle,
+          phase: "awaiting_result",
+          armedHead: head,
+        },
       };
     } else if (pendingRestore) {
-      const restored = restoreCycleFromSaved(pendingRestore, history, head);
       const axis =
         (pendingRestore.nextEntryAxis && ICE2F_AXES.has(pendingRestore.nextEntryAxis)
           ? pendingRestore.nextEntryAxis
@@ -253,20 +197,16 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
         typeof pendingRestore.lockedPosition === "number" &&
         ICE2F_POSITIONS.has(pendingRestore.lockedPosition)
           ? pendingRestore.lockedPosition
-          : restored?.active.criticalPosition ?? null;
+          : null;
+      const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
       pendingRestore = null;
       machine = {
         ...machine,
         nextEntryAxis: axis,
         lockedPosition: locked,
-        pendingRecovery:
-          typeof options.initialMachine?.pendingRecovery === "number"
-            ? Math.max(0, Math.floor(options.initialMachine.pendingRecovery))
-            : 0,
+        pendingRecovery,
       };
-      if (restored) {
-        machine = { ...machine, cycle: restored };
-      } else if (history.length >= ICE_2F_MIN_HISTORY) {
+      if (history.length >= ICE_2F_MIN_HISTORY) {
         machine = tryArmCycleFromWatch(machine, history, head);
       }
     } else if (history.length >= ICE_2F_MIN_HISTORY) {

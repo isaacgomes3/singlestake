@@ -228,9 +228,24 @@ function formatActiveLabel(active, recovery) {
   if (!active) return null;
   const f1 = active.factor1?.value ?? "";
   const f2 = active.factor2?.value ?? "";
-  const axis = active.axis === "cor-altura" ? "c/a" : active.axis === "altura-paridade" ? "p/a" : active.axis ?? "";
+  const axis =
+    active.axis === "cor-altura"
+      ? "c/a"
+      : active.axis === "altura-paridade"
+        ? "p/a"
+        : active.axis === "cor-paridade"
+          ? "c/p"
+          : (active.axis ?? "");
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
-  return `${f1} · ${f2}${gale} · pos${active.criticalPosition ?? "?"} ${axis}`.trim();
+  return `${f1} · ${f2}${gale} · pos11/22 ${axis}`.trim();
+}
+
+function axisFromActive(active) {
+  return active?.axis === "cor-altura" ||
+    active?.axis === "altura-paridade" ||
+    active?.axis === "cor-paridade"
+    ? active.axis
+    : null;
 }
 
 function idleRecoveryFromResult(result, engine) {
@@ -300,13 +315,24 @@ async function executeBridgePayload(payload, mesaUrl) {
   const active = cycle?.active;
   const label =
     payload.context.factor1Label && payload.context.factor2Label
-      ? `${payload.context.factor1Label} · ${payload.context.factor2Label}`
+      ? `${payload.context.factor1Label} · ${payload.context.factor2Label}${
+          recovery > 0 ? ` · gale ${recovery}` : ""
+        } · pos11/22 ${
+          active?.axis === "cor-altura"
+            ? "c/a"
+            : active?.axis === "altura-paridade"
+              ? "p/a"
+              : active?.axis === "cor-paridade"
+                ? "c/p"
+                : ""
+        }`.trim()
       : formatActiveLabel(active, recovery);
 
   await writeIce2fStatus({
     active: true,
     tableId: payload.context.currentTableId,
     label,
+    axis: axisFromActive(active),
     signalId: payload.context.signalId,
     recovery,
     waitingBet: false,
@@ -496,6 +522,7 @@ async function scheduleBetAttempt(result, mesaUrl, cfg) {
       active: true,
       tableId,
       label,
+      axis: axisFromActive(active),
       waitingBet: true,
       waitingReference: false,
       waitRemainingSec: Math.ceil(remaining / 1000),
@@ -537,6 +564,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
       active: true,
       tableId: cfg.tableId,
       label: formatActiveLabel(cycle?.active ?? result.active, cycle?.recovery ?? result.recovery ?? 0),
+      axis: axisFromActive(cycle?.active ?? result.active),
       recovery: cycle?.recovery ?? result.recovery ?? 0,
       waitingBet: true,
       waitingReference: false,
@@ -629,6 +657,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
     await writeIce2fStatus({
       active: true,
       label,
+      axis: axisFromActive(result.active),
       recovery: displayRecovery,
       lastTrigger: result.active.triggerNumbers ?? null,
       tableId: cfg.tableId,

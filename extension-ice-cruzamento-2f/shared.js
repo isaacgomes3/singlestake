@@ -13,10 +13,16 @@ const GOG = {
   DEFAULT_MODE: "demo",
   /** Fibonacci/Repetição — aguardar após giro antes de nova ficha. */
   FIBONACCI_RECOVERY_SETTLE_MS: 5000,
-  /** 2 Fatores — entre factor-1 e factor-2 (150 ms). */
+  /** 2 Fatores — entre fichas (entrada/gale 1–3). */
   CROSSING_FACTOR_CLICK_STAGGER_MS: 150,
-  /** Bridge factor-1 → factor-2 (ICE/KTO 2F). */
-  ICE2F_FACTOR_BRIDGE_STAGGER_MS: 30,
+  /** Bridge factor-1 → factor-2 (2F). */
+  ICE2F_FACTOR_BRIDGE_STAGGER_MS: 5,
+  /** Intervalo entre fichas — gale 4 (recovery 4). */
+  ICE2F_GALE4_CHIP_STAGGER_MS: 15,
+  /** Intervalo entre fichas — gale 5 (recovery 5). */
+  ICE2F_GALE5_CHIP_STAGGER_MS: 8,
+  /** Intervalo entre cliques em Dobrar (gale). */
+  ICE2F_DOUBLE_CLICK_STAGGER_MS: 20,
   /** Stake base real (R$) — enviado pela automação global. */
   REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
@@ -144,14 +150,12 @@ function ktoStakeUnitsForRecovery(recovery) {
 /** Gale 3 (8 unidades) — referência de ritmo de digitação ICE 3F. */
 const ICE2F_GALE3_REFERENCE_UNITS = 8;
 
-/** Gales altos — ritmo de clique baseado nas unidades do nível (ref. 8×150 ms). */
-function ice2fUnitClickStaggerMs(recovery) {
-  const base = GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150;
-  const units = ktoStakeUnitsForRecovery(recovery);
-  if (units <= ICE2F_GALE3_REFERENCE_UNITS) return base;
-  const refUnits = ICE2F_GALE3_REFERENCE_UNITS;
-  const refFillMs = (refUnits - 1) * base;
-  return Math.max(25, Math.round(refFillMs / (units - 1)));
+/** Intervalo entre cliques de ficha — 2F (gale 4/5 fixos). */
+function ice2fChipClickStaggerMs(recovery) {
+  const r = Math.max(0, Math.floor(recovery));
+  if (r >= 5) return GOG.ICE2F_GALE5_CHIP_STAGGER_MS ?? 8;
+  if (r >= 4) return GOG.ICE2F_GALE4_CHIP_STAGGER_MS ?? 15;
+  return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150;
 }
 
 /** Repetição — 3 últimas entradas Fibonacci (8/13/21 cliques): ritmo mais rápido na janela de apostas. */
@@ -161,17 +165,10 @@ function clickStaggerMsForContext(context, recovery) {
       ? Math.max(0, Math.floor(recovery))
       : 0;
   if (isIce2fCrossingContext(context) && context?.singleFactorMode !== true) {
-    const units =
-      typeof context?.units === "number" && Number.isFinite(context.units) && context.units > 0
-        ? Math.floor(context.units)
-        : 1;
-    if (units > ICE2F_GALE3_REFERENCE_UNITS) return ice2fUnitClickStaggerMs(units);
-    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_BASE_MS / 3;
+    return ice2fChipClickStaggerMs(r);
   }
   if (isDois2FatoresCrossingContext(context)) {
-    if (r >= 4) {
-      return ice2fUnitClickStaggerMs(r);
-    }
+    if (r >= 4) return ice2fChipClickStaggerMs(r);
     return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_BASE_MS * 2;
   }
   if (!isRepeticaoContext(context) || r < 5) return CLICK_STAGGER_BASE_MS;

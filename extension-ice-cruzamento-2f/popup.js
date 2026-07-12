@@ -184,9 +184,28 @@ document.querySelectorAll(".cal").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const betKey = btn.getAttribute("data-cal");
     const label = btn.getAttribute("data-cal-label");
+    if (calStatus) calStatus.textContent = "A activar overlay azul…";
     const r = await send("arm-calibration", { betKey, label });
-    if (calStatus) calStatus.textContent = r.detail ?? r.error ?? "Overlay activo";
-    await loadStatus();
+    const detail = r.detail ?? r.error ?? (r.ok ? "Overlay activo" : "Falha no overlay");
+    if (calStatus) {
+      calStatus.textContent = r.ok ? detail : `⚠ ${detail}`;
+      calStatus.style.color = r.ok ? "#93c5fd" : "#fca5a5";
+    }
+    // Não chamar loadStatus de imediato — ele apagava o erro/sucesso do overlay.
+    const status = await send("get-status");
+    if (out) {
+      const lines = [];
+      lines.push(`Overlay: ${r.ok ? "OK" : "FALHOU"}`);
+      lines.push(detail);
+      if (r.tabId != null) lines.push(`Aba: ${r.tabId}`);
+      if (r.frames != null) lines.push(`Frames pintados: ${r.frames}`);
+      if (r.interactive != null) lines.push(`Frames com clique: ${r.interactive}`);
+      if (Array.isArray(r.probe)) lines.push(`Probe: ${JSON.stringify(r.probe).slice(0, 400)}`);
+      if (status?.calibrationArmed) {
+        lines.push(`Armado: ${status.calibrationArmed.label}`);
+      }
+      out.textContent = lines.join("\n");
+    }
   });
 });
 

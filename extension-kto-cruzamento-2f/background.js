@@ -451,6 +451,9 @@ function bridgeActionStaggerMs(prevAction, action, context) {
     }
     return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_MS * 2;
   }
+  if (isDois2FatoresBridgeContext(context) && action?.target === "repeat-bet") {
+    return GOG.ICE2F_DOUBLE_CLICK_STAGGER_MS ?? 20;
+  }
   return CLICK_STAGGER_MS;
 }
 
@@ -491,6 +494,7 @@ async function runBridgePlan(payload, sourceTabId) {
     });
   }
 
+  let cdpBarSettled = false;
   for (let i = 0; i < filtered.length; i++) {
     if (i > 0) {
       await sleep(bridgeActionDelayMs(filtered[i - 1], filtered[i], payload.context));
@@ -503,9 +507,17 @@ async function runBridgePlan(payload, sourceTabId) {
       }
     }
     const action = filtered[i];
-    const result = await dispatchClickAction(action, payload.context, sourceTabId);
+    const betting = isBettingClickTarget(action?.target);
+    const result = await dispatchClickAction(action, payload.context, sourceTabId, {
+      keepPlanSession: true,
+      skipBetDelay: i > 0,
+      // 1.º clique de aposta espera a barra «A depurar»; seguintes já têm CDP ligado.
+      skipBarSettle: cdpBarSettled,
+    });
+    if (betting) cdpBarSettled = true;
     results.push(result);
   }
+  await releaseCdpSession();
 
   if (filtered.length === 0 && payload.actions?.length) {
     results.push({
@@ -552,26 +564,31 @@ async function waitForBetDelaySettle(context) {
   await waitForFibonacciRecoverySettle(context);
 }
 
-async function dispatchClickAction(action, context, sourceTabId) {
+async function dispatchClickAction(action, context, sourceTabId, execOpts = {}) {
   if (action.target === "repeat-bet") {
     const targetTabId = await ensureMesaTab(context, sourceTabId);
     if (targetTabId == null) {
       return {
         target: action.target,
         ok: false,
-        detail: "Mesa não aberta — calibre «Repetir/Dobrar» e abra a mesa num separador",
+        detail: "Mesa não aberta — calibre «Dobrar» e abra a mesa num separador",
       };
     }
 
     const dryRun = await isDryRun(context);
-    await waitForBetDelaySettle(context);
+    if (execOpts?.skipBetDelay !== true) {
+      await waitForBetDelaySettle(context);
+    }
 
     if (targetTabId != null && context?.currentTableId != null) {
       registerMesaTab(context.currentTableId, targetTabId);
     }
 
-    const label = action.label ?? "Repetir/Dobrar";
-    const clickResult = await executeRepeatBetOnTab(targetTabId, label, dryRun);
+    const label = action.label ?? "Dobrar";
+    const clickResult = await executeRepeatBetOnTab(targetTabId, label, dryRun, {
+      skipBarSettle: execOpts?.skipBarSettle === true,
+      keepPlanSession: execOpts?.keepPlanSession === true,
+    });
 
     return {
       target: action.target,
@@ -675,7 +692,9 @@ async function dispatchClickAction(action, context, sourceTabId) {
     };
   }
 
-  await waitForBetDelaySettle(context);
+  if (execOpts?.skipBetDelay !== true) {
+    await waitForBetDelaySettle(context);
+  }
 
   if (targetTabId != null && context?.currentTableId != null) {
     registerMesaTab(context.currentTableId, targetTabId);
@@ -688,8 +707,8 @@ async function dispatchClickAction(action, context, sourceTabId) {
     dryRun,
     context,
     {
-      skipBarSettle:
-        action.target === "factor-2" && isDois2FatoresBridgeContext(context),
+      skipBarSettle: execOpts?.skipBarSettle === true,
+      keepPlanSession: execOpts?.keepPlanSession === true,
     },
   );
 
@@ -823,11 +842,14 @@ async function shouldClickChipBeforeBet() {
 async function focusMesaTab(tabId) {
   try {
     const tab = await chrome.tabs.get(tabId);
+    const alreadyActive = tab.active === true;
     if (tab.windowId != null) {
       await chrome.windows.update(tab.windowId, { focused: true });
     }
-    await chrome.tabs.update(tabId, { active: true });
-    await sleep(280);
+    if (!alreadyActive) {
+      await chrome.tabs.update(tabId, { active: true });
+    }
+    // Sem sleep fixo — o atraso ~1s entre F1/F2/Dobrar vinha daqui + ensureMesaTab.
   } catch {
     /* tab closed */
   }
@@ -924,12 +946,12 @@ async function cdpViewportClick(tabId, x, y, keepSession = false) {
       x: px,
       y: py,
     });
-    await sleep(40);
+    await sleep(10);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mousePressed",
       ...base,
     });
-    await sleep(90);
+    await sleep(25);
     await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", {
       type: "mouseReleased",
       x: px,
@@ -1161,6 +1183,7 @@ function stakeUnitsForContext(context, chip) {
 
 async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpts = {}) {
   const skipBarSettle = execOpts.skipBarSettle === true;
+  const keepPlanSession = execOpts.keepPlanSession === true;
   let chipResult = {
     ok: true,
     skipped: true,
@@ -1201,9 +1224,15 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
     const chip = await getSavedChipForTab(tabId);
     const { stakeAmount, chipValue, units, recovery } = stakeUnitsForContext(context ?? {}, chip);
     const staggerMs = clickStaggerMsForContext(context ?? {}, recovery);
+    const useDoubleGale = context?.useDoubleGale === true;
+    const chipClicks = useDoubleGale
+      ? 1
+      : typeof context?.chipClicks === "number" && context.chipClicks > 0
+        ? Math.max(1, Math.floor(context.chipClicks))
+        : units;
 
     let clickResult = { ok: false, detail: "Aposta não executada" };
-    for (let u = 0; u < units; u++) {
+    for (let u = 0; u < chipClicks; u++) {
       if (u > 0) await sleep(staggerMs);
       clickResult = await executeExteriorBetOnTab(tabId, betKey, label, dryRun, cdpOpts);
       if (!clickResult.ok) break;
@@ -1212,8 +1241,8 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
     if (isKto2fCrossingContext(context ?? {})) {
       const padMs =
         typeof SinglestakeKto2f?.ice2fPadFactorPlacementMs === "function"
-          ? SinglestakeKto2f.ice2fPadFactorPlacementMs(units)
-          : Math.max(0, (8 - units) * (GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150));
+          ? SinglestakeKto2f.ice2fPadFactorPlacementMs(useDoubleGale ? Math.max(1, units) : chipClicks)
+          : Math.max(0, (8 - (useDoubleGale ? Math.max(1, units) : chipClicks)) * (GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150));
       if (padMs > 0) await sleep(padMs);
     }
 
@@ -1224,12 +1253,16 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
       : recovery > 0
         ? ` · gale ${recovery}`
         : "";
+    const doubleNote =
+      useDoubleGale && (context?.doubleClicks ?? 0) > 0
+        ? ` · dobrar ×${context.doubleClicks}`
+        : "";
     const stakeNote =
       units > 1
-        ? ` · R$${stakeAmount} (${units}× R$${chipValue})${recoveryNote}`
+        ? ` · R$${stakeAmount} (${useDoubleGale ? `1 ficha→${units}u` : `${units}×`} R$${chipValue})${recoveryNote}${doubleNote}`
         : stakeAmount
-          ? ` · R$${stakeAmount}${recoveryNote}`
-          : recoveryNote;
+          ? ` · R$${stakeAmount}${recoveryNote}${doubleNote}`
+          : `${recoveryNote}${doubleNote}`;
     const chipNote =
       chipResult?.ok && !chipResult.skipped ? `Ficha R$${chipValue} → ` : "";
 
@@ -1241,7 +1274,7 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
       detail: `${chipNote}${clickResult.detail ?? ""}${stakeNote}`,
     };
   } finally {
-    if (!dryRun) await releaseCdpSession();
+    if (!dryRun && !keepPlanSession) await releaseCdpSession();
   }
 }
 
@@ -1423,7 +1456,6 @@ async function ensureMesaTab(context, preferredTabId) {
       }
       await chrome.tabs.update(tabId, { active: true });
       lastMesaTabReused = true;
-      await sleep(500);
       return tabId;
     } catch {
       tabId = null;
@@ -1433,7 +1465,6 @@ async function ensureMesaTab(context, preferredTabId) {
   if (tabId != null) {
     await chrome.tabs.update(tabId, { active: true });
     lastMesaTabReused = true;
-    await sleep(500);
     return tabId;
   }
 
@@ -1624,7 +1655,9 @@ function betGroupFromKey(betKey) {
   return null;
 }
 
-async function executeRepeatBetOnTab(tabId, label, dryRun) {
+async function executeRepeatBetOnTab(tabId, label, dryRun, execOpts = {}) {
+  const skipBarSettle = execOpts.skipBarSettle === true;
+  const keepPlanSession = execOpts.keepPlanSession === true;
   const cdpOpts = { keepSession: !dryRun };
   try {
     if (!dryRun) {
@@ -1636,18 +1669,18 @@ async function executeRepeatBetOnTab(tabId, label, dryRun) {
           detail: `Debugger: ${attach.detail} — feche DevTools nessa aba`,
         };
       }
-      await sleep(CDP_BAR_SETTLE_MS);
+      if (!skipBarSettle) await sleep(CDP_BAR_SETTLE_MS);
     }
 
     const clickResult = await executeExteriorBetOnTab(tabId, "repeat", label, dryRun, cdpOpts);
     return {
       ...clickResult,
       detail: clickResult.detail
-        ? `Repetir/Dobrar · ${clickResult.detail}`
-        : "Repetir/Dobrar não executado — calibre 📍 Repetir/Dobrar no popup",
+        ? `Dobrar · ${clickResult.detail}`
+        : "Dobrar não executado — calibre 📍 Dobrar no popup",
     };
   } finally {
-    if (!dryRun) await releaseCdpSession();
+    if (!dryRun && !keepPlanSession) await releaseCdpSession();
   }
 }
 

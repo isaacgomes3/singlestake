@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "stake37 — ICE Cruzamento 2F",
-  "version": "1.0.0",
-  "description": "Posições críticas 5·6·7·9·10·11 — falha cruzamento cor/altura ou paridade/altura (4×) → entrada 2 fatores. Gales até 5.",
+  "version": "1.0.2",
+  "description": "Posições críticas 5·7·9·11 — falha cruzamento cor/altura ou paridade/altura (5×) → entrada 2 fatores. Gales até 5.",
   "permissions": [
     "tabs",
     "storage",
@@ -37,10 +37,11 @@
         "https://*.pragmaticplay.net/*"
       ],
       "js": [
+        "content-casino.js",
         "calibration-relay.js"
       ],
       "all_frames": true,
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ],
   "action": {

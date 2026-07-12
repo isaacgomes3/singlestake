@@ -1,4 +1,4 @@
-importScripts("shared.js", "ice2f-engine.js", "dga-hub.js", "ice2f-signal-runner.js");
+importScripts("shared.js", "kto1f-engine.js", "dga-hub.js", "kto1f-signal-runner.js");
 
 const CLICK_STAGGER_MS = 450;
 const DEFAULT_CHIP_VALUE = 0.5;
@@ -26,103 +26,90 @@ const mesaTabCloseTimers = new Map();
 const STORAGE_BRIDGE_ENABLED = "gogBridgeEnabled";
 const CLOSE_MESA_DELAY_MS = GOG.CLOSE_MESA_DELAY_MS ?? 2500;
 
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === "install") {
-    void setStoredMode(GOG.DEFAULT_MODE);
-    void chrome.storage.local.set({ gogIce2fAutopilotEnabled: false });
-  }
-  void ensureIce2fPanelOnOpenTabs();
-});
+/** Janela fixa do painel KTO 1F (não fecha ao clicar na mesa). */
+let kto1fPanelWindowId = null;
 
-chrome.runtime.onStartup.addListener(() => {
-  void ensureIce2fPanelOnOpenTabs();
-});
-
-/** Janela fixa do painel ICE 3F (não fecha ao clicar na mesa). */
-let ice2fPanelWindowId = null;
-
-async function openOrFocusIce2fPanel() {
-  if (ice2fPanelWindowId != null) {
+async function openOrFocusKto1fPanel() {
+  if (kto1fPanelWindowId != null) {
     try {
-      const existing = await chrome.windows.get(ice2fPanelWindowId);
+      const existing = await chrome.windows.get(kto1fPanelWindowId);
       if (existing?.id != null) {
         await chrome.windows.update(existing.id, { focused: true });
         return;
       }
     } catch {
-      ice2fPanelWindowId = null;
+      kto1fPanelWindowId = null;
     }
   }
-
   const url = chrome.runtime.getURL("popup.html");
   const win = await chrome.windows.create({
     url,
     type: "popup",
     width: 400,
-    height: 720,
+    height: 780,
     focused: true,
   });
-  ice2fPanelWindowId = win?.id ?? null;
+  kto1fPanelWindowId = win?.id ?? null;
 }
 
 chrome.action.onClicked.addListener(() => {
-  void openOrFocusIce2fPanel();
+  void openOrFocusKto1fPanel();
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
-  if (windowId === ice2fPanelWindowId) ice2fPanelWindowId = null;
+  if (windowId === kto1fPanelWindowId) kto1fPanelWindowId = null;
 });
 
-const ICE2F_DEFAULT_TABLE_ID = 201;
-/** Chave única de calibração — o ICE muda o pathname ao carregar o jogo. */
-const ICE_CALIB_SITE_KEY = "ice.bet.br|pragmatic-roulette";
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    void setStoredMode(GOG.DEFAULT_MODE);
+    void chrome.storage.local.set({ gogKto1fAutopilotEnabled: false });
+  }
+  void ensureKto1fPanelOnOpenTabs();
+});
 
-function isIceHost(url) {
+chrome.runtime.onStartup.addListener(() => {
+  void ensureKto1fPanelOnOpenTabs();
+});
+
+const KTO1F_DEFAULT_TABLE_ID = 230;
+
+function isKto1fRoulettePageUrl(url) {
   if (!url) return false;
   try {
-    return /(^|\.)ice\.bet\.br$/i.test(new URL(url).hostname);
-  } catch {
-    return /ice\.bet\.br/i.test(url);
-  }
-}
-
-function isIce2fRoulettePageUrl(url) {
-  if (!isIceHost(url)) return false;
-  try {
     const u = new URL(url);
-    const path = `${u.pathname}${u.hash}${u.search}`.toLowerCase();
-    if (/\/games\//i.test(path)) return true;
-    if (/\/play\/pragmatic\//i.test(path)) return true;
-    return /liveroulettea-pragmaticexternal|pragmaticexternal|roulette|liveroulette/i.test(path);
+    if (!/(^|\.)kto\.bet\.br$/i.test(u.hostname)) return false;
+    const path = `${u.pathname}${u.hash}${u.search}`;
+    return /\/app\/cassino\/game\/(roulette-3-ppl|roleta-ao-vivo)/i.test(path);
   } catch {
-    return /liveroulettea|pragmaticexternal|\/games\//i.test(url);
+    return /kto\.bet\.br/i.test(url) && /(roulette-3-ppl|roleta-ao-vivo)/i.test(url);
   }
 }
 
-async function ensureIce2fPanelOnTab(tabId) {
+async function ensureKto1fPanelOnTab(tabId) {
   if (tabId == null) return;
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (!isIce2fRoulettePageUrl(tab.url)) return;
+    if (!isKto1fRoulettePageUrl(tab.url)) return;
     const live = await chrome.tabs
-      .sendMessage(tabId, { kind: "ice2f-panel-ping" })
+      .sendMessage(tabId, { kind: "kto1f-panel-ping" })
       .then((r) => r?.ok === true)
       .catch(() => false);
     if (live) return;
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ["content-ice2f-panel.js"],
+      files: ["content-kto1f-panel.js"],
     });
   } catch {
     /* aba restrita */
   }
 }
 
-async function ensureIce2fPanelOnOpenTabs() {
+async function ensureKto1fPanelOnOpenTabs() {
   const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
-    if (tab.id != null && isIce2fRoulettePageUrl(tab.url)) {
-      await ensureIce2fPanelOnTab(tab.id);
+    if (tab.id != null && isKto1fRoulettePageUrl(tab.url)) {
+      await ensureKto1fPanelOnTab(tab.id);
     }
   }
 }
@@ -131,10 +118,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const url = changeInfo.url ?? tab.url;
   if (
     (changeInfo.status === "complete" || changeInfo.url) &&
-    isIce2fRoulettePageUrl(url)
+    isKto1fRoulettePageUrl(url)
   ) {
-    registerMesaTab(ICE2F_DEFAULT_TABLE_ID, tabId);
-    void ensureIce2fPanelOnTab(tabId);
+    registerMesaTab(KTO1F_DEFAULT_TABLE_ID, tabId);
+    void ensureKto1fPanelOnTab(tabId);
   }
 });
 
@@ -161,31 +148,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.kind === "set-ice2f-autopilot") {
-    void SinglestakeIce2fSignalRunner.setIce2fAutopilotEnabled(message.enabled === true).then(async (resp) => {
-      if (message.enabled === true) await ensureIce2fPanelOnTab(sender.tab?.id ?? null);
+  if (message.kind === "set-kto1f-autopilot") {
+    void SinglestakeKto1fSignalRunner.setKto1fAutopilotEnabled(message.enabled === true).then(async (resp) => {
+      if (message.enabled === true) await ensureKto1fPanelOnTab(sender.tab?.id ?? null);
       sendResponse(resp);
     });
     return true;
   }
 
-  if (message.kind === "get-ice2f-autopilot") {
-    void SinglestakeIce2fSignalRunner.getIce2fAutopilotStatus().then(sendResponse);
+  if (message.kind === "get-kto1f-autopilot") {
+    void SinglestakeKto1fSignalRunner.getKto1fAutopilotStatus().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "reset-ice2f-stats") {
-    void SinglestakeIce2fSignalRunner.resetIce2fStats().then(sendResponse);
+  if (message.kind === "reset-kto1f-stats") {
+    void SinglestakeKto1fSignalRunner.resetKto1fStats().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "get-ice2f-config") {
-    void SinglestakeIce2fSignalRunner.getIce2fConfigForPopup().then(sendResponse);
+  if (message.kind === "get-kto1f-config") {
+    void SinglestakeKto1fSignalRunner.getKto1fConfigForPopup().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "set-ice2f-config") {
-    void SinglestakeIce2fSignalRunner.setIce2fConfigFromPopup(message.config ?? {}).then(sendResponse);
+  if (message.kind === "set-kto1f-config") {
+    void SinglestakeKto1fSignalRunner.setKto1fConfigFromPopup(message.config ?? {}).then(sendResponse);
     return true;
   }
 
@@ -238,8 +225,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "ping") {
-    if (sender.tab?.id != null && isIce2fRoulettePageUrl(sender.tab.url)) {
-      registerMesaTab(ICE2F_DEFAULT_TABLE_ID, sender.tab.id);
+    if (sender.tab?.id != null && isKto1fRoulettePageUrl(sender.tab.url)) {
+      registerMesaTab(KTO1F_DEFAULT_TABLE_ID, sender.tab.id);
     }
     void readStoredMode().then((mode) =>
       sendResponse({ ok: true, lastBridge, mode, version: chrome.runtime.getManifest().version }),
@@ -253,7 +240,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "calibration-click") {
-    void saveCalibrationClick(message, message.tabId ?? sender.tab?.id ?? null).then(sendResponse);
+    void saveCalibrationClick(message, sender.tab?.id ?? null).then(sendResponse);
     return true;
   }
 
@@ -348,26 +335,17 @@ async function buildStatus() {
     "gogBetCalibration",
     "gogCalibrationArmed",
     "gogClickChipBeforeBet",
-    "gogLastCalibSave",
   ]);
-  const tabs = await chrome.tabs.query({});
-  const mesaTab =
-    tabs.find((t) => t.url && isIce2fRoulettePageUrl(t.url)) ??
-    (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
-  const calibUrl = mesaTab?.url ?? null;
-  const store = stored.gogBetCalibration ?? { sites: {} };
-  const calibLookup = calibUrl
-    ? lookupSiteCalib(store, calibUrl)
-    : lookupAnyIceCalib(store);
-  const siteKey = calibLookup.siteKey;
-  const siteCalib = calibLookup.site;
-  const ice2fAutopilot = await SinglestakeIce2fSignalRunner.getIce2fAutopilotStatus();
-  const ice2fConfig = await SinglestakeIce2fSignalRunner.getIce2fConfigForPopup();
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const siteKey = activeTabs[0]?.url ? siteKeyFromUrl(activeTabs[0].url) : null;
+  const siteCalib = siteKey ? stored.gogBetCalibration?.sites?.[siteKey] : null;
+  const kto1fAutopilot = await SinglestakeKto1fSignalRunner.getKto1fAutopilotStatus();
+  const kto1fConfig = await SinglestakeKto1fSignalRunner.getKto1fConfigForPopup();
   return {
     ok: true,
     mode,
-    ice2fAutopilot,
-    ice2fConfig,
+    kto1fAutopilot,
+    kto1fConfig,
     lastBridge: stored.gogLastBridge ?? null,
     lastContext: stored.gogLastContext ?? null,
     lastResults: stored.gogLastResults ?? null,
@@ -375,7 +353,6 @@ async function buildStatus() {
     calibration: siteCalib ?? null,
     calibrationSiteKey: siteKey,
     calibrationArmed: stored.gogCalibrationArmed ?? null,
-    lastCalibSave: stored.gogLastCalibSave ?? null,
     clickChipBeforeBet: stored.gogClickChipBeforeBet === true,
   };
 }
@@ -442,7 +419,7 @@ async function handleBridgePayload(payload, sourceTabId) {
       (r) =>
         (r.target === "factor-1" ||
           r.target === "factor-2" ||
-          r.r.target === "repeat-bet") &&
+          r.target === "repeat-bet") &&
         r.ok === true &&
         r.skipped !== true,
     );
@@ -457,38 +434,31 @@ async function handleBridgePayload(payload, sourceTabId) {
 
 function isDois2FatoresBridgeContext(context) {
   return (
-    (context?.strategy === "dois2fatores" || context?.strategy === "ice2fcruzamento") &&
+    (context?.strategy === "dois2fatores" || context?.strategy === "kto1fator") &&
     context?.singleFactorMode !== true
   );
 }
 
-function isIce2fCrossingContext(context) {
-  return context?.strategy === "ice2fcruzamento";
-}
-
-/** Pausa entre cliques do plano bridge — 3F/2F usam ritmo de cruzamento entre factores. */
+/** Pausa entre cliques do plano bridge — 2F usa dobro entre factor-1 e factor-2. */
 function bridgeActionStaggerMs(prevAction, action, context) {
   if (
-    (isDois2FatoresBridgeContext(context) || isIce2fCrossingContext(context)) &&
-    ((prevAction?.target === "factor-1" && action?.target === "factor-2"))
+    isDois2FatoresBridgeContext(context) &&
+    prevAction?.target === "factor-1" &&
+    action?.target === "factor-2"
   ) {
-    return GOG.ICE2F_FACTOR_BRIDGE_STAGGER_MS ?? 5;
+    if (context?.strategy === "kto1fator") {
+      return kto1fFactorClickStaggerMs(recoveryFromContext(context));
+    }
+    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_MS * 2;
   }
-  if (
-    (isDois2FatoresBridgeContext(context) || isIce2fCrossingContext(context)) &&
-    action?.target === "repeat-bet"
-  ) {
+  if (isDois2FatoresBridgeContext(context) && action?.target === "repeat-bet") {
     return GOG.ICE2F_DOUBLE_CLICK_STAGGER_MS ?? 20;
   }
   return CLICK_STAGGER_MS;
 }
 
 function isBettingClickTarget(target) {
-  return (
-    target === "factor-1" ||
-    target === "factor-2"  ||
-    target === "repeat-bet"
-  );
+  return target === "factor-1" || target === "factor-2" || target === "repeat-bet";
 }
 
 /** Stagger + pausa antes do 1.º clique de aposta após abrir a mesa. */
@@ -577,7 +547,7 @@ async function waitForFibonacciRecoverySettle(context) {
 }
 
 async function waitForCrossingBetDelay(context) {
-  if (context?.strategy === "dois2fatores" || context?.strategy === "tres3fatores" || context?.strategy === "ice2fcruzamento") return;
+  if (context?.strategy !== "dois2fatores") return;
   const candidates = [context?.betDelayUntilMs, context?.postResultHoldUntilMs].filter(
     (value) => typeof value === "number" && Number.isFinite(value),
   );
@@ -706,11 +676,11 @@ async function dispatchClickAction(action, context, sourceTabId, execOpts = {}) 
     signalId && (action.target === "factor-1" || action.target === "factor-2")
       ? `${signalId}:${action.target}`
       : null;
-  const isIce2fSignal =
-    isIce2fCrossingContext(context) &&
+  const isKto1fSignal =
+    isKto1fCrossingContext(context) &&
     typeof context?.signalId === "string" &&
-    context.signalId.startsWith("ice2f:");
-  if (clickDedupeKey && lastExecutedClickKeys.has(clickDedupeKey) && !isIce2fSignal) {
+    context.signalId.startsWith("kto1f:");
+  if (clickDedupeKey && lastExecutedClickKeys.has(clickDedupeKey) && !isKto1fSignal) {
     return {
       target: action.target,
       ok: true,
@@ -742,7 +712,7 @@ async function dispatchClickAction(action, context, sourceTabId, execOpts = {}) 
     },
   );
 
-  if (clickResult.ok && clickDedupeKey && !isIce2fSignal) {
+  if (clickResult.ok && clickDedupeKey && !isKto1fSignal) {
     lastExecutedClickKeys.add(clickDedupeKey);
   }
 
@@ -827,7 +797,7 @@ async function resolveMesaTabIdForClose(tableId, mesaUrl) {
   }
 
   const tabs = await chrome.tabs.query({});
-  const rouletteTab = tabs.find((t) => t.url && isIce2fRoulettePageUrl(t.url));
+  const rouletteTab = tabs.find((t) => t.url && isKto1fRoulettePageUrl(t.url));
   if (rouletteTab?.id != null) return rouletteTab.id;
 
   return null;
@@ -856,9 +826,9 @@ async function closeMesaTabNow(tableId, mesaUrl = null) {
 async function getSavedChipForTab(tabId) {
   const tab = await chrome.tabs.get(tabId);
   if (!tab.url) return null;
+  const siteKey = siteKeyFromUrl(tab.url);
   const store = await readCalibrationStore();
-  const { site } = lookupSiteCalib(store, tab.url);
-  const chip = site?.chip ?? null;
+  const chip = store.sites?.[siteKey]?.chip ?? null;
   if (!chip) return null;
   if (chip.value === 50) return { ...chip, value: DEFAULT_CHIP_VALUE };
   return chip;
@@ -899,154 +869,8 @@ function rankResolvedPixels(savedCoord, pixels) {
   return score;
 }
 
-/** Offset acumulado do iframe do jogo até ao topo do separador ICE (sem webNavigation). */
-async function measureGameIframeOffsetFromTop(tabId, frameHref) {
-  let host = "";
-  try {
-    host = new URL(frameHref || "https://local/").hostname.toLowerCase();
-  } catch {
-    host = "";
-  }
-
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: (hostArg) => {
-        function findOffset(doc, depth) {
-          if (!doc || depth > 10) return null;
-          const iframes = Array.from(doc.querySelectorAll("iframe"));
-          for (const iframe of iframes) {
-            const r = iframe.getBoundingClientRect();
-            const src = (iframe.src || iframe.getAttribute("src") || "").toLowerCase();
-            const isGame =
-              (hostArg && src.includes(hostArg)) ||
-              src.includes("pragmatic") ||
-              src.includes("game") ||
-              src.includes("launch") ||
-              src.includes("casino");
-            if (isGame && r.width * r.height > 40000) {
-              return { left: r.left, top: r.top };
-            }
-            try {
-              const childDoc = iframe.contentDocument;
-              if (childDoc) {
-                const inner = findOffset(childDoc, depth + 1);
-                if (inner) {
-                  return { left: r.left + inner.left, top: r.top + inner.top };
-                }
-              }
-            } catch {
-              if (isGame) return { left: r.left, top: r.top };
-            }
-          }
-          let best = null;
-          let area = 0;
-          for (const iframe of iframes) {
-            const r = iframe.getBoundingClientRect();
-            const a = r.width * r.height;
-            if (a > area) {
-              area = a;
-              best = { left: r.left, top: r.top };
-            }
-          }
-          return best;
-        }
-        return findOffset(document, 0);
-      },
-      args: [host],
-    });
-    return results[0]?.result ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Converte clique no iframe do jogo para coordenadas absolutas do separador. */
-async function computeTabAbsCoords(tabId, localX, localY, frameHref) {
-  const lx = Number(localX);
-  const ly = Number(localY);
-  if (!Number.isFinite(lx) || !Number.isFinite(ly)) {
-    return { x: Number(localX) || 0, y: Number(localY) || 0 };
-  }
-
-  let host = "";
-  try {
-    host = new URL(frameHref || "https://local/").hostname.toLowerCase();
-  } catch {
-    host = "";
-  }
-
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: (x, y, hostArg, hrefArg) => {
-        const href = String(hrefArg || "").toLowerCase();
-        const here = location.href.toLowerCase();
-        const h = String(hostArg || "").toLowerCase();
-        const inTarget =
-          (h && here.includes(h)) ||
-          (href && (here === href || here.startsWith(href))) ||
-          /pragmaticplay/i.test(here);
-        if (!inTarget) return null;
-
-        let tx = x;
-        let ty = y;
-        let win = window;
-        let partial = false;
-        for (let i = 0; i < 20 && win !== win.top; i++) {
-          const fe = win.frameElement;
-          if (!fe) {
-            partial = true;
-            break;
-          }
-          const r = fe.getBoundingClientRect();
-          tx += r.left;
-          ty += r.top;
-          try {
-            win = win.parent;
-          } catch {
-            partial = true;
-            break;
-          }
-        }
-        return { x: tx, y: ty, partial, href: location.href };
-      },
-      args: [lx, ly, host, frameHref || ""],
-    });
-
-    const hits = (results || [])
-      .map((r) => r.result)
-      .filter((h) => h && Number.isFinite(h.x) && Number.isFinite(h.y));
-
-    const full = hits.find((h) => h.partial !== true);
-    if (full) return { x: full.x, y: full.y };
-
-    const off = await measureGameIframeOffsetFromTop(tabId, frameHref);
-    if (off) return { x: lx + off.left, y: ly + off.top };
-
-    if (hits[0]) return { x: hits[0].x, y: hits[0].y };
-  } catch {
-    /* fallback abaixo */
-  }
-
-  const off = await measureGameIframeOffsetFromTop(tabId, frameHref);
-  if (off) return { x: lx + off.left, y: ly + off.top };
-  return { x: lx, y: ly };
-}
-
 async function resolveSavedClickPixelsInTab(tabId, savedCoord) {
   if (!savedCoord) return null;
-
-  if (savedCoord.tabX != null && savedCoord.tabY != null) {
-    return {
-      x: savedCoord.tabX,
-      y: savedCoord.tabY,
-      via: `tab-abs@${Math.round(savedCoord.tabX)},${Math.round(savedCoord.tabY)}`,
-      href: savedCoord.frameHref || "",
-      isTop: true,
-      pragmatic: /pragmatic/i.test(String(savedCoord.frameHref || savedCoord.frameHint || "")),
-    };
-  }
 
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: true },
@@ -1055,33 +879,16 @@ async function resolveSavedClickPixelsInTab(tabId, savedCoord) {
 
   const frameResults = await chrome.scripting.executeScript({
     target: { tabId, allFrames: true },
-    func: (saved) => window.__gogResolveSavedClickPixels?.(saved),
+    func: (saved) => window.__gogResolveSavedClickTabPixels?.(saved),
     args: [savedCoord],
   });
 
-  const ranked = frameResults
-    .map((r) => ({ frameId: r.frameId, pixels: r.result }))
-    .filter((r) => r.pixels && r.pixels.x != null && r.pixels.y != null)
-    .sort(
-      (a, b) => rankResolvedPixels(savedCoord, b.pixels) - rankResolvedPixels(savedCoord, a.pixels),
-    );
+  const candidates = frameResults.map((r) => r.result).filter((p) => p && p.x != null && p.y != null);
+  if (candidates.length === 0) return null;
 
-  if (ranked.length === 0) return null;
-
-  const best = ranked[0];
-  const tab = await computeTabAbsCoords(
-    tabId,
-    best.pixels.x,
-    best.pixels.y,
-    savedCoord.frameHref || "",
-  );
-
-  return {
-    ...best.pixels,
-    x: tab.x,
-    y: tab.y,
-    via: `${best.pixels.via} → tab(${Math.round(tab.x)},${Math.round(tab.y)})`,
-  };
+  return candidates.sort(
+    (a, b) => rankResolvedPixels(savedCoord, b) - rankResolvedPixels(savedCoord, a),
+  )[0];
 }
 
 let cdpAttach = null;
@@ -1303,36 +1110,14 @@ async function selectChipOnTab(tabId, dryRun, options = {}) {
   }
 }
 
-function isKtoCrossingContext(context) {
-  return (
-    context?.strategy === "dois2fatores" &&
-    context?.singleFactorMode !== true &&
-    typeof context?.signalId === "string" &&
-    context.signalId.startsWith("kto:")
-  );
+function isKto1fCrossingContext(context) {
+  return context?.strategy === "kto1fator";
 }
 
 function stakeUnitsForContext(context, chip) {
   const recovery = recoveryFromContext(context);
 
-  if (isIce2fCrossingContext(context)) {
-    const baseStake =
-      typeof context?.baseStake === "number" && context.baseStake > 0 ? context.baseStake : 0.5;
-    const units =
-      typeof context?.units === "number" && Number.isFinite(context.units) && context.units > 0
-        ? Math.max(1, Math.floor(context.units))
-        : 1;
-    const stakeAmount =
-      typeof context?.stakeAmount === "number" && context.stakeAmount > 0
-        ? context.stakeAmount
-        : baseStake * units;
-    const rawChip = chip?.value === 50 ? DEFAULT_CHIP_VALUE : chip?.value;
-    const chipValue =
-      typeof rawChip === "number" && rawChip > 0 ? rawChip : baseStake;
-    return { stakeAmount, chipValue, units, recovery };
-  }
-
-  if (isKtoCrossingContext(context)) {
+  if (isKto1fCrossingContext(context)) {
     const baseStake =
       typeof context?.baseStake === "number" && context.baseStake > 0 ? context.baseStake : 0.5;
     const KTO_UNITS = [1, 1, 2, 4, 8, 16, 32];
@@ -1453,12 +1238,11 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
       if (!clickResult.ok) break;
     }
 
-    if (isIce2fCrossingContext(context ?? {})) {
-      const padUnits = useDoubleGale ? Math.max(1, units) : chipClicks;
+    if (isKto1fCrossingContext(context ?? {})) {
       const padMs =
-        typeof SinglestakeIce2f?.ice2fPadFactorPlacementMs === "function"
-          ? SinglestakeIce2f.ice2fPadFactorPlacementMs(padUnits)
-          : Math.max(0, (ICE2F_GALE3_REFERENCE_UNITS - padUnits) * (GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150));
+        typeof SinglestakeKto1f?.kto1fPadFactorPlacementMs === "function"
+          ? SinglestakeKto1f.kto1fPadFactorPlacementMs(useDoubleGale ? Math.max(1, units) : chipClicks)
+          : Math.max(0, (8 - (useDoubleGale ? Math.max(1, units) : chipClicks)) * (GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150));
       if (padMs > 0) await sleep(padMs);
     }
 
@@ -1692,7 +1476,7 @@ async function ensureMesaTab(context, preferredTabId) {
 }
 
 function isCasinoPlayUrl(url) {
-  return isIce2fRoulettePageUrl(url);
+  return isKto1fRoulettePageUrl(url);
 }
 
 function isLobbyPokerUrl(url) {
@@ -1972,47 +1756,12 @@ async function importCalibration(raw) {
 function siteKeyFromUrl(url) {
   try {
     const u = new URL(url);
-    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
-
-    if (host === "ice.bet.br" || host.endsWith(".ice.bet.br")) {
-      return ICE_CALIB_SITE_KEY;
-    }
-
     const m = u.pathname.match(/\/play\/(pragmatic|playtech)\//i);
-    if (m) return `${host}|/play/${m[1].toLowerCase()}/`;
-
-    const path = u.pathname.replace(/\/+$/, "") || "/";
-    return `${host}|${path}`;
+    if (m) return `${u.hostname}|/play/${m[1].toLowerCase()}/`;
+    return `${u.hostname}|${u.pathname}`;
   } catch {
     return "unknown";
   }
-}
-
-function lookupAnyIceCalib(store) {
-  const sites = store?.sites ?? {};
-  if (sites[ICE_CALIB_SITE_KEY]) {
-    return { siteKey: ICE_CALIB_SITE_KEY, site: sites[ICE_CALIB_SITE_KEY] };
-  }
-  for (const [key, site] of Object.entries(sites)) {
-    if (/ice\.bet\.br/i.test(key)) return { siteKey: key, site };
-  }
-  return { siteKey: ICE_CALIB_SITE_KEY, site: null };
-}
-
-/** Resolve calibração mesmo com chaves antigas (www vs apex, pathname antes/depois do redirect). */
-function lookupSiteCalib(store, url) {
-  const siteKey = siteKeyFromUrl(url);
-  const sites = store?.sites ?? {};
-  if (sites[siteKey]) return { siteKey, site: sites[siteKey] };
-
-  if (isIceHost(url)) {
-    for (const [key, site] of Object.entries(sites)) {
-      if (/ice\.bet\.br/i.test(key)) return { siteKey: key, site };
-    }
-    if (sites[ICE_CALIB_SITE_KEY]) return { siteKey: ICE_CALIB_SITE_KEY, site: sites[ICE_CALIB_SITE_KEY] };
-  }
-
-  return { siteKey, site: null };
 }
 
 function frameHintFromHref(href) {
@@ -2028,42 +1777,23 @@ async function readCalibrationStore() {
   return data[CALIB_STORAGE_KEY] ?? { version: 1, sites: {} };
 }
 
-async function applyTabAbsCoords(tabId, entry, frameHref, clientX, clientY) {
-  if (!entry || clientX == null || clientY == null) return entry;
-  try {
-    const tab = await computeTabAbsCoords(tabId, clientX, clientY, frameHref);
-    entry.tabX = Math.round(tab.x);
-    entry.tabY = Math.round(tab.y);
-  } catch {
-    /* mantém coords relativas */
-  }
-  return entry;
-}
-
 async function getSavedCoordForTab(tabId, betKey) {
   const tab = await chrome.tabs.get(tabId);
   if (!tab.url) return null;
+  const siteKey = siteKeyFromUrl(tab.url);
   const store = await readCalibrationStore();
-  const { site } = lookupSiteCalib(store, tab.url);
-  return site?.bets?.[betKey] ?? null;
+  return store.sites?.[siteKey]?.bets?.[betKey] ?? null;
 }
 
 /** Evita gravação duplicada (pointerdown + click). */
 let calibrationSaveLock = null;
 
 async function saveCalibrationClick(message, tabId) {
-  try {
-  tabId =
-    tabId ??
-    (typeof message.tabId === "number" ? message.tabId : null) ??
-    null;
   if (!tabId) {
     const armed = (await chrome.storage.local.get("gogCalibrationArmed")).gogCalibrationArmed;
     tabId = armed?.tabId ?? null;
   }
-  if (!tabId) {
-    return { ok: false, detail: "Separador desconhecido — clique na aba da mesa primeiro" };
-  }
+  if (!tabId) return { ok: false, detail: "Separador desconhecido — clique na aba da mesa primeiro" };
 
   const lockKey = `${tabId}:${message.betKey}`;
   if (
@@ -2082,21 +1812,11 @@ async function saveCalibrationClick(message, tabId) {
     return { ok: false, detail: "Coordenadas inválidas" };
   }
 
-  const siteKey = isIceHost(tab.url) ? ICE_CALIB_SITE_KEY : siteKeyFromUrl(tab.url);
+  const siteKey = siteKeyFromUrl(tab.url);
   const store = await readCalibrationStore();
   if (!store.sites) store.sites = {};
   if (!store.sites[siteKey]) {
     store.sites[siteKey] = { label: siteKey, bets: {}, updatedAt: null };
-  }
-
-  if (siteKey === ICE_CALIB_SITE_KEY && isIceHost(tab.url)) {
-    for (const [legacyKey, legacySite] of Object.entries({ ...store.sites })) {
-      if (legacyKey === siteKey || !/ice\.bet\.br/i.test(legacyKey)) continue;
-      const target = store.sites[siteKey];
-      target.bets = { ...legacySite.bets, ...target.bets };
-      if (!target.chip && legacySite.chip) target.chip = legacySite.chip;
-      delete store.sites[legacyKey];
-    }
   }
 
   let detail;
@@ -2113,13 +1833,6 @@ async function saveCalibrationClick(message, tabId) {
       frameHref: message.frameHref,
       at: new Date().toISOString(),
     };
-    await applyTabAbsCoords(
-      tabId,
-      store.sites[siteKey].chip,
-      message.frameHref,
-      message.clickClientX,
-      message.clickClientY,
-    );
     detail = `Ficha R$ ${chipValue} gravada (${Math.round(coord.x * 100)}%, ${Math.round(coord.y * 100)}%)`;
   } else {
     const group = betGroupFromKey(betKey);
@@ -2132,13 +1845,6 @@ async function saveCalibrationClick(message, tabId) {
       frameHref: message.frameHref,
       at: new Date().toISOString(),
     };
-    await applyTabAbsCoords(
-      tabId,
-      store.sites[siteKey].bets[betKey],
-      message.frameHref,
-      message.clickClientX,
-      message.clickClientY,
-    );
     const groupLabel =
       group === "cor"
         ? "cor"
@@ -2160,16 +1866,6 @@ async function saveCalibrationClick(message, tabId) {
   await chrome.storage.local.set({
     [CALIB_STORAGE_KEY]: store,
     gogCalibrationArmed: null,
-    gogLastCalibSave: {
-      ok: true,
-      siteKey,
-      betKey,
-      tabId,
-      tabUrl: tab.url,
-      tabX: store.sites[siteKey].bets?.[betKey]?.tabX ?? store.sites[siteKey].chip?.tabX ?? null,
-      tabY: store.sites[siteKey].bets?.[betKey]?.tabY ?? store.sites[siteKey].chip?.tabY ?? null,
-      at: new Date().toISOString(),
-    },
   });
 
   calibrationSaveLock = { key: lockKey, at: Date.now() };
@@ -2182,12 +1878,6 @@ async function saveCalibrationClick(message, tabId) {
     siteKey,
     betKey,
   };
-  } catch (e) {
-    return {
-      ok: false,
-      detail: e instanceof Error ? e.message : String(e),
-    };
-  }
 }
 
 async function clearCalibration(siteKey) {
@@ -2205,20 +1895,7 @@ async function countCalibrationActiveFrames(tabId) {
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
-      func: () => Boolean(window.__gogCalibrationInteractive || window.__gogCalibrationActive),
-    });
-    return results.filter((r) => r.result === true).length;
-  } catch {
-    return 0;
-  }
-}
-
-/** Prefer frames que realmente capturam o clique (não só tint no shell ICE). */
-async function countCalibrationInteractiveFrames(tabId) {
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () => Boolean(window.__gogCalibrationInteractive),
+      func: () => Boolean(window.__gogCalibrationActive),
     });
     return results.filter((r) => r.result === true).length;
   } catch {
@@ -2232,16 +1909,7 @@ async function disarmCalibration(tabId) {
     await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
       func: () => {
-        if (typeof window.__gogStopCalibrationOverlay === "function") {
-          window.__gogStopCalibrationOverlay();
-        } else if (typeof window.__gogStopCalibration === "function") {
-          window.__gogStopCalibration();
-        }
-        document.getElementById("gog-ext-cal-root")?.remove();
-        document.getElementById("gog-ext-cal-banner")?.remove();
-        document.getElementById("gog-ext-cal-cancel")?.remove();
-        window.__gogCalibrationActive = false;
-        window.__gogCalibrationInteractive = false;
+        if (typeof window.__gogStopCalibration === "function") window.__gogStopCalibration();
       },
     });
   } catch {
@@ -2249,84 +1917,20 @@ async function disarmCalibration(tabId) {
   }
 }
 
-async function findIceCalibrationTabId(preferredId) {
-  const tabs = await chrome.tabs.query({});
-  const scored = [];
-  for (const t of tabs) {
-    if (t.id == null || !t.url) continue;
-    if (/^(chrome|chrome-extension|edge|about):/i.test(t.url)) continue;
-    if (isIce2fRoulettePageUrl(t.url)) scored.push({ id: t.id, score: 5, url: t.url });
-    else if (isIceHost(t.url)) scored.push({ id: t.id, score: 4, url: t.url });
-    else if (/pragmaticplaylive\.net|pragmaticplay\.net/i.test(t.url)) {
-      scored.push({ id: t.id, score: 2, url: t.url });
-    }
-  }
-  scored.sort((a, b) => b.score - a.score);
-  if (preferredId != null && scored.some((s) => s.id === preferredId)) return preferredId;
-
-  // Preferir aba activa numa janela normal (não o painel popup da extensão).
-  const windows = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] });
-  for (const w of windows) {
-    const active = (w.tabs || []).find((t) => t.active && t.id != null);
-    if (active?.id != null && scored.some((s) => s.id === active.id)) return active.id;
-  }
-  return scored[0]?.id ?? null;
-}
-
-async function probeCalibrationFrames(tabId) {
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () => ({
-        href: String(location.href || "").slice(0, 120),
-        host: location.hostname,
-        active: Boolean(window.__gogCalibrationActive),
-        interactive: Boolean(window.__gogCalibrationInteractive),
-        hasMount: typeof window.__gogMountCalibrationOverlay === "function",
-        hasBody: Boolean(document.body),
-      }),
-    });
-    return results.map((r) => r.result).filter(Boolean);
-  } catch (e) {
-    return [{ error: e instanceof Error ? e.message : String(e) }];
-  }
-}
-
 async function armCalibration(betKey, label, chipValue) {
-  // preferredId: ignorar o painel da extensão (janela popup).
-  let preferredId = null;
-  try {
-    const normalWins = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] });
-    for (const w of normalWins) {
-      const active = (w.tabs || []).find((t) => t.active && t.url && !/^chrome-extension:/i.test(t.url));
-      if (active?.id != null && (isIceHost(active.url) || /pragmaticplay/i.test(active.url || ""))) {
-        preferredId = active.id;
-        break;
-      }
-    }
-  } catch {
-    preferredId = null;
-  }
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const preferredId = activeTabs[0]?.id ?? null;
+  let tabId = await resolveMesaTabId({ mesaEmbedUrl: null, mesaProvider: null }, preferredId);
 
-  let tabId = await findIceCalibrationTabId(preferredId);
   if (tabId == null) {
-    tabId = await resolveMesaTabId(
-      {
-        mesaEmbedUrl:
-          (typeof SinglestakeIce2f !== "undefined" && SinglestakeIce2f.ICE2F_MESA_URL) ||
-          "https://ice.bet.br/games/tag/roulette/liveroulettea-pragmaticexternal",
-        mesaProvider: null,
-        currentTableId: ICE2F_DEFAULT_TABLE_ID,
-      },
-      preferredId,
-    );
+    const anyPlay = (await chrome.tabs.query({})).find((t) => t.url && isCasinoPlayUrl(t.url));
+    tabId = anyPlay?.id ?? null;
   }
 
   if (tabId == null) {
     return {
       ok: false,
-      detail:
-        "Nenhuma aba ICE encontrada. Abra ice.bet.br com a roleta num separador normal do Chrome (não neste painel).",
+      detail: "Abra a Roulette 3 KTO (kto.bet.br/roulette-3-ppl) num separador e aguarde carregar.",
     };
   }
 
@@ -2335,7 +1939,56 @@ async function armCalibration(betKey, label, chipValue) {
     label ??
     (betKey === "chip" ? `Ficha R$ ${resolvedChipValue}` : betKey);
 
+  await chrome.tabs.update(tabId, { active: true });
   await disarmCalibration(tabId);
+
+  async function injectOverlay() {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => window.__gogClearVisualArtifacts?.(),
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["exterior-bets.js"],
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: (bk, lb) => {
+        window.__gogCalBetKey = bk;
+        window.__gogCalLabel = lb;
+      },
+      args: [betKey, resolvedLabel],
+    });
+
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["calibrate-bets.js"],
+    });
+  }
+
+  try {
+    await injectOverlay();
+    let activeFrames = await countCalibrationActiveFrames(tabId);
+    if (activeFrames === 0) {
+      await sleep(2500);
+      await injectOverlay();
+      activeFrames = await countCalibrationActiveFrames(tabId);
+    }
+    if (activeFrames === 0) {
+      return {
+        ok: false,
+        detail: "Jogo ainda não carregou — aguarde a roleta e tente 📍 outra vez.",
+        tabId,
+      };
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
 
   await chrome.storage.local.set({
     gogCalibrationArmed: {
@@ -2347,124 +2000,11 @@ async function armCalibration(betKey, label, chipValue) {
     },
   });
 
-  async function injectAndMount(forceInteractive) {
-    // Garante content-casino (mount) em todos os frames acessíveis.
-    await chrome.scripting
-      .executeScript({
-        target: { tabId, allFrames: true },
-        files: ["content-casino.js"],
-      })
-      .catch(() => {});
-
-    await chrome.scripting
-      .executeScript({
-        target: { tabId, allFrames: true },
-        files: ["calibration-relay.js"],
-      })
-      .catch(() => {});
-
-    const mounted = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: (bk, lb, tid, force) => {
-        const host = location.hostname || "";
-        const isPrag = /pragmaticplaylive\.net|pragmaticplay\.net/i.test(host);
-        const isIce = /ice\.bet\.br/i.test(host);
-        const hasCanvas = Boolean(document.querySelector("canvas"));
-        const hasIframe = Boolean(document.querySelector("iframe"));
-        // Shell ICE: tint sem capturar. Pragmatic/canvas/force: captura clique.
-        const interactive =
-          force === true || isPrag || hasCanvas || (isIce && !hasIframe) || window !== window.top;
-
-        if (typeof window.__gogMountCalibrationOverlay === "function") {
-          const ok = window.__gogMountCalibrationOverlay({
-            betKey: bk,
-            label: lb,
-            tabId: tid,
-            interactive,
-          });
-          return { ok: ok === true, host, interactive, via: "mount" };
-        }
-
-        // Fallback mínimo se o content script não carregou.
-        const mount = document.body || document.documentElement;
-        if (!mount) return { ok: false, host, reason: "no-body" };
-        document.getElementById("gog-ext-cal-root")?.remove();
-        const root = document.createElement("div");
-        root.id = "gog-ext-cal-root";
-        root.style.cssText =
-          "position:fixed;inset:0;z-index:2147483646;background:rgba(37,99,235,0.55);pointer-events:" +
-          (interactive ? "auto" : "none");
-        const banner = document.createElement("div");
-        banner.id = "gog-ext-cal-banner";
-        banner.style.cssText =
-          "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;padding:12px 16px;border-radius:10px;background:#0f172a;color:#dbeafe;font:700 13px system-ui;pointer-events:none;border:2px solid #60a5fa";
-        banner.textContent = `Calibrar: ${lb}`;
-        mount.append(root, banner);
-        window.__gogCalibrationActive = true;
-        window.__gogCalibrationInteractive = interactive;
-        return { ok: true, host, interactive, via: "fallback" };
-      },
-      args: [betKey, resolvedLabel, tabId, forceInteractive === true],
-    });
-    return mounted.map((r) => r.result).filter(Boolean);
-  }
-
-  try {
-    let results = await injectAndMount(false);
-    let okCount = results.filter((r) => r?.ok).length;
-    let interactiveCount = results.filter((r) => r?.ok && r.interactive).length;
-
-    if (okCount === 0) {
-      await sleep(1200);
-      results = await injectAndMount(false);
-      okCount = results.filter((r) => r?.ok).length;
-      interactiveCount = results.filter((r) => r?.ok && r.interactive).length;
-    }
-    if (okCount === 0) {
-      await sleep(2000);
-      results = await injectAndMount(true);
-      okCount = results.filter((r) => r?.ok).length;
-      interactiveCount = results.filter((r) => r?.ok && r.interactive).length;
-    }
-
-    if (okCount === 0) {
-      const probe = await probeCalibrationFrames(tabId);
-      await chrome.storage.local.set({ gogCalibrationArmed: null });
-      const hosts = probe.map((p) => p?.host || p?.error || "?").slice(0, 8).join(", ");
-      return {
-        ok: false,
-        detail: `Falha ao pintar overlay. Frames: ${hosts || "inacessíveis"}. Recarregue a aba da roleta (F5) e a extensão.`,
-        tabId,
-        probe,
-        results,
-      };
-    }
-
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
-      await chrome.tabs.update(tabId, { active: true });
-    } catch {
-      /* ignore */
-    }
-
-    return {
-      ok: true,
-      detail:
-        interactiveCount > 0
-          ? `Overlay AZUL activo — clique em ${resolvedLabel} no tapete`
-          : `Overlay AZUL no ICE — se o clique não gravar, aguarde o jogo carregar e clique 📍 outra vez`,
-      tabId,
-      frames: okCount,
-      interactive: interactiveCount,
-    };
-  } catch (e) {
-    await chrome.storage.local.set({ gogCalibrationArmed: null });
-    return {
-      ok: false,
-      detail: e instanceof Error ? e.message : String(e),
-    };
-  }
+  return {
+    ok: true,
+    detail: `Overlay activo — clique em ${resolvedLabel} na roleta (aba ${tabId})`,
+    tabId,
+  };
 }
 
-SinglestakeIce2fSignalRunner.initIce2fSignalRunner(handleBridgePayload);
+SinglestakeKto1fSignalRunner.initKto1fSignalRunner(handleBridgePayload);

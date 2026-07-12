@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <title>stake37 KTO 1F</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 14px;
+        width: 360px;
+        font: 12px/1.4 system-ui, sans-serif;
+        background: #f3f4f6;
+        color: #111827;
+      }
+      h1 { margin: 0 0 2px; font-size: 15px; color: #0f172a; }
+      .sub { margin: 0 0 10px; font-size: 10px; color: #6b7280; }
+      .pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+        margin-left: 6px;
+      }
+      .pill.demo { background: #dbeafe; color: #1d4ed8; }
+      .pill.real { background: #dcfce7; color: #15803d; }
+      .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+      .mode {
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #6b7280;
+        border-radius: 10px;
+        padding: 10px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+      }
+      .mode.active-demo { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+      .mode.active-real { border-color: #16a34a; background: #f0fdf4; color: #166534; }
+      .factor-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin: 8px 0 12px;
+      }
+      .fcard {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px 10px 8px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      }
+      .fcard.best {
+        background: #fffbeb;
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
+      }
+      .fcard h3 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #111827;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .fcard.best h3::after { content: "⚡"; font-size: 11px; }
+      .frow {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 11px;
+        margin: 3px 0;
+        color: #374151;
+      }
+      .frow .v { font-weight: 700; }
+      .frow .win { color: #16a34a; }
+      .frow .loss { color: #dc2626; }
+      .frow .last-red { color: #dc2626; font-weight: 700; }
+      .general {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        margin-bottom: 10px;
+      }
+      .general h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #111827;
+      }
+      .grow {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin: 4px 0;
+        color: #374151;
+      }
+      .grow .win { color: #16a34a; font-weight: 700; }
+      .grow .gale { color: #dc2626; font-weight: 700; }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      button {
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #111827;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      button:hover { background: #f9fafb; }
+      .muted { color: #6b7280; font-size: 10px; margin-top: 6px; line-height: 1.45; }
+      pre {
+        margin: 8px 0 0;
+        padding: 8px;
+        border-radius: 8px;
+        background: #111827;
+        color: #e5e7eb;
+        border: 1px solid #1f2937;
+        font-size: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 100px;
+        overflow: auto;
+      }
+      details { margin-top: 10px; }
+      details summary { cursor: pointer; color: #6b7280; font-size: 10px; font-weight: 600; }
+      .field { margin-top: 8px; }
+      .field label {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+      .field input, .field select {
+        width: 100%;
+        font-size: 10px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #111827;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="muted" style="margin:0 0 8px">Janela fixa — não fecha ao clicar fora. Ícone da extensão reabre/foca esta janela.</p>
+    <h1>stake37 · KTO 1F <span id="modePill" class="pill demo">DEMO</span></h1>
+    <p class="sub">1 Fator · pos 1×13 score → alerta pos 12 · 5 gales · mesa 230 · janela fixa</p>
+
+    <div class="modes">
+      <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
+      <button type="button" id="modeReal" class="mode">Real</button>
+    </div>
+
+    <div class="factor-grid">
+      <div class="fcard" id="cardParidade">
+        <h3>Paridade</h3>
+        <div class="frow"><span>Vitórias:</span><span class="v win" id="parWins">0</span></div>
+        <div class="frow"><span>Derrotas:</span><span class="v loss" id="parLosses">0</span></div>
+        <div class="frow"><span>Último:</span><span class="v" id="parLast">—</span></div>
+      </div>
+      <div class="fcard" id="cardCor">
+        <h3>Cor</h3>
+        <div class="frow"><span>Vitórias:</span><span class="v win" id="corWins">0</span></div>
+        <div class="frow"><span>Derrotas:</span><span class="v loss" id="corLosses">0</span></div>
+        <div class="frow"><span>Último:</span><span class="v" id="corLast">—</span></div>
+      </div>
+      <div class="fcard" id="cardAltura">
+        <h3>Altura</h3>
+        <div class="frow"><span>Vitórias:</span><span class="v win" id="altWins">0</span></div>
+        <div class="frow"><span>Derrotas:</span><span class="v loss" id="altLosses">0</span></div>
+        <div class="frow"><span>Último:</span><span class="v" id="altLast">—</span></div>
+      </div>
+    </div>
+
+    <div class="general">
+      <h2>Estatísticas Gerais</h2>
+      <div class="grow"><span>Rodadas Totais:</span><span id="totalRounds">0</span></div>
+      <div class="grow"><span>Vitórias:</span><span class="win" id="wins">0</span></div>
+      <div class="grow"><span>Gale Atual:</span><span class="gale" id="galeAtual">0</span></div>
+      <div class="grow"><span>Máximo Gale:</span><span id="maxGale">5</span></div>
+    </div>
+
+    <p id="kto1fStatus" class="muted" style="margin-top:0">A carregar…</p>
+    <div class="row">
+      <button type="button" id="kto1fOn" class="mode" style="flex:1">Ligar</button>
+      <button type="button" id="kto1fOff" class="mode" style="flex:1">Parar</button>
+      <button type="button" id="kto1fReset">Zerar</button>
+    </div>
+
+    <h2 style="font-size:11px;color:#6b7280;margin:12px 0 6px">Testar mesa</h2>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Verm.</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="low" data-label="Baixo">Baixo</button>
+      <button type="button" data-bet="high" data-label="Alto">Alto</button>
+      <button type="button" id="refresh">Actualizar</button>
+    </div>
+    <pre id="out">A carregar…</pre>
+
+    <details>
+      <summary>Calibrar / config</summary>
+      <p id="calStatus" class="muted">Abra a roleta KTO, aguarde carregar, e use 📍.</p>
+      <div class="row">
+        <button type="button" class="cal" data-cal="even" data-cal-label="Par">📍 Par</button>
+        <button type="button" class="cal" data-cal="odd" data-cal-label="Ímpar">📍 Ímpar</button>
+        <button type="button" class="cal" data-cal="red" data-cal-label="Vermelho">📍 Verm.</button>
+        <button type="button" class="cal" data-cal="black" data-cal-label="Preto">📍 Preto</button>
+      </div>
+      <div class="row">
+        <button type="button" class="cal" data-cal="low" data-cal-label="Baixo">📍 Baixo</button>
+        <button type="button" class="cal" data-cal="high" data-cal-label="Alto">📍 Alto</button>
+        <button type="button" class="cal" data-cal="repeat" data-cal-label="Dobrar">📍 Dobrar</button>
+      </div>
+      <div class="field">
+        <label>Casino ID</label>
+        <input id="kto1fCasinoId" type="text" />
+      </div>
+      <div class="row">
+        <button type="button" id="kto1fSave">Guardar config</button>
+      </div>
+      <p id="kto1fConfigStatus" class="muted"></p>
+    </details>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
