@@ -6,7 +6,6 @@ import type { StrategyGlobalKind, StrategyGlobalSnapshot } from "@/lib/roulette/
 import {
   evaluateFibonacciRound,
   fibonacciActiveFromSignalId,
-  ROTATING_ROOM_FIBONACCI_MAX_RECOVERY,
   type FibonacciZone,
   type RotatingRoomFibonacciActive,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
@@ -24,7 +23,8 @@ export type ZoneFibonacciSessionSlice = Pick<
   "showTapeteSignal" | "currentTableId" | "currentRecovery" | "cycleSeq"
 >;
 
-export const ZONE_FIBONACCI_MAX_RECOVERY = ROTATING_ROOM_FIBONACCI_MAX_RECOVERY;
+/** Igual a `ROTATING_ROOM_FIBONACCI_MAX_RECOVERY` — literal para evitar TDZ em ciclo ESM. */
+export const ZONE_FIBONACCI_MAX_RECOVERY = 7;
 
 export function isZoneFibonacciStrategy(
   strategy?: StrategyGlobalKind | string | null,

@@ -364,11 +364,43 @@ export function getStrategyGlobalState(): StrategyGlobalPersistedState {
   if (!globalThis.__strategyGlobalPersisted) {
     throw new Error("Strategy global não inicializado no servidor");
   }
-  return globalThis.__strategyGlobalPersisted;
+  return ensureStrategyGlobalStateShape(globalThis.__strategyGlobalPersisted);
+}
+
+/**
+ * Migra estado em memória / disco antigo (sem fibonacci, kto2f, tres3fatores, etc.)
+ * para a forma actual — evita crash após hot-reload ou deploy.
+ */
+export function ensureStrategyGlobalStateShape(
+  state: StrategyGlobalPersistedState,
+): StrategyGlobalPersistedState {
+  const blank = emptyStrategyGlobalState(state.rotatingRoomTableIds ?? []);
+  const s = state as StrategyGlobalPersistedState & Record<string, unknown>;
+
+  if (!s.fibonacci) s.fibonacci = blank.fibonacci;
+  if (!s.repeticao) s.repeticao = blank.repeticao;
+  if (!s.rotacao) s.rotacao = blank.rotacao;
+  if (!s.kto2fcruzamento) s.kto2fcruzamento = blank.kto2fcruzamento;
+  if (!s.tres3fatores) s.tres3fatores = blank.tres3fatores;
+
+  s.lifetime = {
+    ...blank.lifetime,
+    ...(s.lifetime ?? {}),
+  };
+  s.ledger = {
+    ...blank.ledger,
+    ...(s.ledger ?? {}),
+  };
+
+  globalThis.__strategyGlobalPersisted = s;
+  return s;
 }
 
 export async function initStrategyGlobalState(fallbackTableIds: readonly number[]): Promise<void> {
-  if (globalThis.__strategyGlobalPersisted) return;
+  if (globalThis.__strategyGlobalPersisted) {
+    ensureStrategyGlobalStateShape(globalThis.__strategyGlobalPersisted);
+    return;
+  }
   try {
     const fromDisk = await loadFromDisk();
     globalThis.__strategyGlobalPersisted = parsePersistedState(fromDisk, fallbackTableIds);
@@ -376,6 +408,7 @@ export async function initStrategyGlobalState(fallbackTableIds: readonly number[
     console.warn("[StrategyGlobal] estado em disco inválido — a reiniciar:", err);
     globalThis.__strategyGlobalPersisted = emptyStrategyGlobalState(fallbackTableIds);
   }
+  ensureStrategyGlobalStateShape(globalThis.__strategyGlobalPersisted);
   console.info(
     "[StrategyGlobal] estado carregado — revisão",
     globalThis.__strategyGlobalPersisted.revision,

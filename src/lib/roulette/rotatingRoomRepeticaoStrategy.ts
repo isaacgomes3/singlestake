@@ -39,7 +39,8 @@ export {
 
 export const ROTATING_ROOM_REPETICAO_PREPARE_ABSENCE_SPINS = 12;
 export const ROTATING_ROOM_REPETICAO_ALERT_ABSENCE_SPINS = 12;
-export const ROTATING_ROOM_REPETICAO_MAX_RECOVERY = FIBONACCI_LEVELS.length - 1;
+/** Igual a `FIBONACCI_LEVELS.length - 1` — literal para evitar TDZ em ciclo ESM com Fibonacci. */
+export const ROTATING_ROOM_REPETICAO_MAX_RECOVERY = 7;
 
 export type RotatingRoomRepeticaoPick = {
   tableId: number;

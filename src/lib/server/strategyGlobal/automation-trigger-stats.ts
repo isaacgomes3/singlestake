@@ -1,14 +1,21 @@
 import type { AutomationStatsDto } from "@/lib/back-office/automation-stats-types";
 import { buildRotatingRoomGatilhoTriggerReport } from "@/lib/roulette/umFatorTriggerTiers";
-import { emptyZoneAbsenceFilterStats } from "@/lib/roulette/zoneAbsenceFilterStats";
-import { emptyCrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
-import { emptyCrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
+import {
+  ABSENCE_FILTER_STATS_MAX_EVENTS,
+  ABSENCE_FILTER_STATS_SPIN_WINDOW,
+  type ZoneAbsenceFilterStatsBlock,
+} from "@/lib/roulette/zoneAbsenceFilterStats";
+import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
+import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
+import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
+import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import { emptyCrossingReturnStreakStats } from "@/lib/roulette/crossingReturnStreakStats";
 import {
   buildIce3fOccurrenceStats,
   emptyIce3fOccurrenceStats,
   ICE3F_OCCURRENCE_TABLE_ID,
 } from "@/lib/roulette/ice3fOccurrenceStats";
+import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
@@ -17,6 +24,17 @@ function sessionAccuracyPct(wins: number, losses: number): number | null {
   const total = wins + losses;
   if (total <= 0) return null;
   return (100 * wins) / total;
+}
+
+function emptyZoneBlock(): ZoneAbsenceFilterStatsBlock {
+  return {
+    spinWindow: ABSENCE_FILTER_STATS_SPIN_WINDOW,
+    maxEvents: ABSENCE_FILTER_STATS_MAX_EVENTS,
+    maxAbsenceInWindow: 0,
+    maxAbsenceInWindowDozen: 0,
+    maxAbsenceInWindowColumn: 0,
+    filters: [],
+  };
 }
 
 function emptyZoneRow(): AutomationStatsDto["fibonacci"]["dozen"] {
@@ -42,7 +60,14 @@ function deprecatedLegacyBlocks(): Pick<
   | "tableCrossingOppositeAbsenceTriggers"
   | "absenceFilterStats"
 > {
-  const emptyZone = emptyZoneAbsenceFilterStats();
+  const emptyCrossing: CrossingAbsenceFilterStats = {
+    corAltura: emptyZoneBlock(),
+    alturaParidade: emptyZoneBlock(),
+  };
+  const emptyOpposite: CrossingOppositeAbsenceFilterStats = {
+    corAltura: emptyZoneBlock(),
+    alturaParidade: emptyZoneBlock(),
+  };
   return {
     fibonacci: {
       enabled: false,
@@ -67,9 +92,10 @@ function deprecatedLegacyBlocks(): Pick<
     tableCrossingAbsenceTriggers: [],
     tableCrossingOppositeAbsenceTriggers: [],
     absenceFilterStats: {
-      ...emptyZone,
-      crossing: emptyCrossingAbsenceFilterStats(),
-      crossingOpposite: emptyCrossingOppositeAbsenceFilterStats(),
+      fibonacci: emptyZoneBlock(),
+      repeticao: emptyZoneBlock(),
+      crossing: emptyCrossing,
+      crossingOpposite: emptyOpposite,
       crossingReturnStreak: emptyCrossingReturnStreakStats(),
     },
   };
@@ -77,9 +103,9 @@ function deprecatedLegacyBlocks(): Pick<
 
 export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const state = getStrategyGlobalState();
-  const ice3fStats = state.tres3fatores.stats;
-  const wins = Math.max(0, ice3fStats.wins);
-  const losses = Math.max(0, ice3fStats.losses);
+  const ice3fStats = state.tres3fatores?.stats ?? emptyRotatingRoomSessionStats(5);
+  const wins = Math.max(0, ice3fStats.wins ?? 0);
+  const losses = Math.max(0, ice3fStats.losses ?? 0);
   const extension = getExtensionSourceStatus();
   const config = getAutomationConfig();
   const enabledTriggers = config.enabledTriggers;

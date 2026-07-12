@@ -157,6 +157,7 @@ import {
   appendLedger,
   appendTableSpin,
   emptyStrategyGlobalState,
+  ensureStrategyGlobalStateShape,
   getStrategyGlobalState,
   historiesRecord,
   initStrategyGlobalState,
@@ -945,6 +946,7 @@ function buildIce3fClientView(state: StrategyGlobalPersistedState): StrategyGlob
 }
 
 export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState): StrategyGlobalSnapshot {
+  state = ensureStrategyGlobalStateShape(state);
   const histories = historiesRecord(state);
   const tableHistories: Record<number, number[]> = {};
   for (const [id, list] of Object.entries(histories)) {
