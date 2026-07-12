@@ -4,7 +4,10 @@
 (function () {
   if (window !== window.top) return;
 
-  function pageIsIce2fRoulette() {
+  /**
+ * Painel flutuante na ICE 2F — activar estratégia 2 Fatores · cruzamento sequencial (mesa 201).
+ */
+function pageIsIce2fRoulette() {
     if (!/ice\.bet\.br/i.test(location.hostname)) return false;
     const path = `${location.pathname}${location.hash}${location.search}`.toLowerCase();
     return /roulette|liveroulette|pragmatic/i.test(path);
@@ -99,8 +102,8 @@
       top: 12px;
       right: 12px;
       z-index: 2147483640;
-      width: min(300px, calc(100vw - 24px));
-      font: 12px/1.4 system-ui, -apple-system, sans-serif;
+      width: min(360px, calc(100vw - 24px));
+      font: 13px/1.45 system-ui, -apple-system, sans-serif;
       color: #e2e8f0;
       pointer-events: none;
     }
@@ -143,16 +146,87 @@
     #${PANEL_ID} .ss-ice2f-body { padding: 10px 12px 12px; }
     #${PANEL_ID} .ss-ice2f-sub {
       margin: 0 0 8px;
-      font-size: 10px;
+      font-size: 11px;
       color: #94a3b8;
       line-height: 1.45;
     }
+    #${PANEL_ID} .ss-ice2f-signal {
+      margin: 0 0 10px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      background: rgba(4, 22, 18, 0.92);
+      text-align: center;
+    }
+    #${PANEL_ID} .ss-ice2f-signal-idle {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+    #${PANEL_ID} .ss-ice2f-watch {
+      margin-top: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      color: #64748b;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    #${PANEL_ID} .ss-ice2f-pos {
+      font-size: 28px;
+      font-weight: 800;
+      color: #6ee7b7;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+    #${PANEL_ID} .ss-ice2f-axis {
+      margin: 4px 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #a7f3d0;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    #${PANEL_ID} .ss-ice2f-indication {
+      font-size: 20px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    #${PANEL_ID} .ss-ice2f-gale {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #${PANEL_ID} .ss-ice2f-gale.entry {
+      background: #172554;
+      color: #bfdbfe;
+      border: 1px solid #2563eb;
+    }
+    #${PANEL_ID} .ss-ice2f-gale.recovery {
+      background: #451a03;
+      color: #fcd34d;
+      border: 1px solid #b45309;
+    }
+    #${PANEL_ID} .ss-ice2f-gale.wait {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #475569;
+    }
     #${PANEL_ID} .ss-ice2f-status {
       margin: 0 0 10px;
-      font-size: 10px;
+      font-size: 11px;
       color: #cbd5e1;
-      min-height: 2.8em;
-      line-height: 1.45;
+      min-height: 2.2em;
+      line-height: 1.5;
     }
     #${PANEL_ID} .ss-ice2f-status.err { color: #fca5a5; }
     #${PANEL_ID} .ss-ice2f-stats {
@@ -170,11 +244,11 @@
     }
     #${PANEL_ID} .ss-ice2f-stat strong {
       display: block;
-      font-size: 18px;
+      font-size: 22px;
       color: #f8fafc;
     }
     #${PANEL_ID} .ss-ice2f-stat small {
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 700;
       text-transform: uppercase;
       color: #94a3b8;
@@ -193,8 +267,8 @@
       min-width: 72px;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 7px 8px;
-      font-size: 10px;
+      padding: 8px 10px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       cursor: pointer;
@@ -236,7 +310,23 @@
   head.append(title, minBtn);
 
   const body = el("div", "ss-ice2f-body");
-  const sub = el("p", "ss-ice2f-sub", "Roulette 2 Extra Time · mesa 201 · stake 1·2·4·8·16·32");
+  const sub = el("p", "ss-ice2f-sub", "Roulette 2 Extra Time · mesa 201 · stake 2·4·8·16·32·64");
+
+  const signalBox = el("div", "ss-ice2f-signal");
+  const signalIdle = el("div", "ss-ice2f-signal-idle", "Sem sinal — aguarda 4 falhas");
+  const signalWatch = el("div", "ss-ice2f-watch", "");
+  const signalPos = el("div", "ss-ice2f-pos", "—");
+  const signalAxis = el("div", "ss-ice2f-axis", "");
+  const signalIndication = el("div", "ss-ice2f-indication", "—");
+  const signalGale = el("div", "ss-ice2f-gale entry", "ENTRADA");
+  signalBox.append(signalIdle, signalWatch, signalPos, signalAxis, signalIndication, signalGale);
+  signalIdle.classList.add("ss-ice2f-hidden");
+  signalWatch.classList.add("ss-ice2f-hidden");
+  signalPos.classList.add("ss-ice2f-hidden");
+  signalAxis.classList.add("ss-ice2f-hidden");
+  signalIndication.classList.add("ss-ice2f-hidden");
+  signalGale.classList.add("ss-ice2f-hidden");
+
   const statusEl = el("p", "ss-ice2f-status", "A ligar à extensão…");
 
   const stats = el("div", "ss-ice2f-stats");
@@ -259,7 +349,7 @@
   btnReload.type = "button";
   btnReload.addEventListener("click", () => location.reload());
   actions.append(btnDemo, btnReal, btnToggle, btnReload);
-  body.append(sub, statusEl, stats, actions);
+  body.append(sub, signalBox, statusEl, stats, actions);
   card.append(head, body);
   root.append(card);
 
@@ -297,6 +387,119 @@
     await refresh();
   });
 
+  function axisLabel(short) {
+    const s = String(short ?? "").toLowerCase();
+    if (s === "c/a" || s === "cor-altura") return "Cor / Altura";
+    if (s === "p/a" || s === "altura-paridade") return "Paridade / Altura";
+    if (s === "c/p" || s === "cor-paridade") return "Cor / Paridade";
+    return short ? String(short) : "";
+  }
+
+  function parseSignalFromStatus(st) {
+    const label = String(st.label ?? "");
+    const posFromLabel = label.match(/pos\s*(\d+)/i);
+    const axisFromLabel = label.match(/pos\s*\d+\s*(c\/a|p\/a)/i);
+    const galeFromLabel = label.match(/gale\s*(\d+)/i);
+    const recovery =
+      typeof st.recovery === "number" && Number.isFinite(st.recovery)
+        ? Math.max(0, Math.floor(st.recovery))
+        : galeFromLabel
+          ? Number(galeFromLabel[1])
+          : 0;
+
+    let indication = "";
+    const posIdx = label.search(/\s·\s*pos\s*\d/i);
+    if (posIdx > 0) {
+      indication = label
+        .slice(0, posIdx)
+        .replace(/\s*·\s*gale\s*\d+/gi, "")
+        .trim();
+    } else if (label && !/aguarda refer/i.test(label)) {
+      indication = label.replace(/\s*·\s*gale\s*\d+/gi, "").trim();
+    }
+
+    const pausePos = label.match(/pos(\d+)/i);
+    return {
+      position: posFromLabel?.[1] ?? pausePos?.[1] ?? null,
+      axis: axisFromLabel?.[1] ?? null,
+      indication,
+      recovery,
+      isPause: st.waitingReference === true || /aguarda refer/i.test(label),
+    };
+  }
+
+  function renderSignalBlock(st) {
+    const hasActive = st.active === true || st.waitingReference === true;
+    const parsed = parseSignalFromStatus(st);
+
+    signalIdle.classList.add("ss-ice2f-hidden");
+    signalWatch.classList.add("ss-ice2f-hidden");
+    signalPos.classList.add("ss-ice2f-hidden");
+    signalAxis.classList.add("ss-ice2f-hidden");
+    signalIndication.classList.add("ss-ice2f-hidden");
+    signalGale.classList.add("ss-ice2f-hidden");
+
+    if (!hasActive) {
+      signalIdle.classList.remove("ss-ice2f-hidden");
+      if (st.recovery > 0 && !st.active) {
+        signalIdle.textContent = `Sem sinal · gale ${st.recovery} pendente`;
+      } else if (st.lastFlash === "win") {
+        signalIdle.textContent = "Sem sinal — vitória registada";
+      } else {
+        const inactive = st.inactiveSpins ?? 0;
+        if (inactive >= 5) {
+          signalIdle.textContent = "Sem sinal — modo 3 falhas (5+ rodadas sem aposta)";
+        } else if (inactive > 0) {
+          signalIdle.textContent = `Sem sinal — inactivo ${inactive}/5 rodadas`;
+        } else {
+          signalIdle.textContent = "Sem sinal — aguarda 4 falhas de cruzamento";
+        }
+      }
+      if (st.watchLabel) {
+        signalWatch.classList.remove("ss-ice2f-hidden");
+        signalWatch.textContent = `Placar: ${st.watchLabel}`;
+      }
+      return;
+    }
+
+    signalPos.classList.remove("ss-ice2f-hidden");
+    signalGale.classList.remove("ss-ice2f-hidden");
+
+    signalPos.textContent = parsed.position ? `POSIÇÃO ${parsed.position}` : "POSIÇÃO —";
+
+    if (parsed.axis) {
+      signalAxis.classList.remove("ss-ice2f-hidden");
+      signalAxis.textContent = axisLabel(parsed.axis);
+    }
+
+    if (parsed.isPause) {
+      signalIndication.classList.remove("ss-ice2f-hidden");
+      signalIndication.textContent = "ZERO — PAUSA";
+      signalGale.className = "ss-ice2f-gale wait";
+      signalGale.textContent = parsed.recovery > 0 ? `GALE ${parsed.recovery} MANTIDO` : "AGUARDA REF.";
+    } else if (parsed.indication) {
+      signalIndication.classList.remove("ss-ice2f-hidden");
+      signalIndication.textContent = parsed.indication.replace(/\s*·\s*/g, " + ");
+    } else if (st.label) {
+      signalIndication.classList.remove("ss-ice2f-hidden");
+      signalIndication.textContent = st.label;
+    }
+
+    if (st.waitingBet && !parsed.isPause) {
+      signalGale.className = "ss-ice2f-gale wait";
+      signalGale.textContent =
+        st.waitRemainingSec != null
+          ? `AGUARDA ${st.waitRemainingSec}s`
+          : "AGUARDA JANELA";
+    } else if (parsed.recovery > 0) {
+      signalGale.className = "ss-ice2f-gale recovery";
+      signalGale.textContent = `GALE ${parsed.recovery}`;
+    } else {
+      signalGale.className = "ss-ice2f-gale entry";
+      signalGale.textContent = "ENTRADA";
+    }
+  }
+
   function renderStatus(data) {
     statusEl.classList.remove("err");
 
@@ -318,13 +521,14 @@
     const st = ice2f?.status ?? {};
     const on = ice2f?.enabled === true;
     const running = st.running === true;
+    const engaged = on && (running || st.active === true || st.waitingBet === true);
 
     btnDemo.className = `ss-ice2f-btn ${mode === "demo" ? "on-demo" : ""}`;
     btnReal.className = `ss-ice2f-btn ${mode === "real" ? "on-real" : ""}`;
 
-    if (on && running) {
+    if (engaged) {
       btnToggle.className = "ss-ice2f-btn on-active";
-      btnToggle.textContent = "Activo";
+      btnToggle.textContent = running ? "Activo" : "A ligar…";
     } else if (on) {
       btnToggle.className = "ss-ice2f-btn on-warn";
       btnToggle.textContent = "A ligar…";
@@ -336,34 +540,26 @@
     winNum.textContent = String(st.wins ?? 0);
     lossNum.textContent = String(st.losses ?? 0);
 
+    renderSignalBlock(st);
+
     const parts = [];
     parts.push(mode === "real" ? "Modo REAL" : "Modo DEMO");
     if (on && running) parts.push("DGA mesa 201 ligada");
+    else if (on && st.active) parts.push("sinal activo");
     else if (on) parts.push("A iniciar motor…");
     else parts.push("estratégia parada");
 
-    if (st.waitingBet) parts.push(`aguarda ${st.waitRemainingSec ?? "?"}s`);
-    if (st.active && st.label) parts.push(`sinal: ${st.label}`);
-    else if (st.active && st.lastTrigger?.length === 2) {
-      parts.push(`gatilho: ${st.lastTrigger[1]}, ${st.lastTrigger[0]}`);
-    }
-    if (st.recovery > 0 && !st.active) {
-      parts.push(`gale pendente ${st.recovery}/${st.maxRecovery ?? 6}`);
-    } else if (st.recovery > 0) {
-      parts.push(`gale ${st.recovery}/${st.maxRecovery ?? 6}`);
-    }
-    if (st.lastFlash === "tie" && !st.active) {
-      parts.push(`último: empate (${st.lastResult ?? "?"})`);
-    } else if (st.lastFlash) {
+    if (st.lastFlash) {
       parts.push(`último: ${st.lastFlash}${st.lastResult != null ? ` (${st.lastResult})` : ""}`);
     }
     if (st.lastBetDetail && st.active) parts.push(st.lastBetDetail);
-    if (st.reason && !st.active) parts.push(st.reason);
-    if (st.lastError) parts.push(`erro: ${st.lastError}`);
+    if (st.reason && !st.active && !running) parts.push(st.reason);
+    if (st.lastError && !st.active) parts.push(`aviso: ${st.lastError}`);
     if (st.extensionVersion) parts.push(`v${st.extensionVersion}`);
 
     statusEl.textContent = parts.join(" · ");
-    if (st.lastError || (on && !running && st.reason)) statusEl.classList.add("err");
+    if (!data.error && !on && st.lastError) statusEl.classList.add("err");
+    else if (!data.error && on && !engaged && st.reason && !st.active) statusEl.classList.add("err");
   }
 
   async function refresh() {

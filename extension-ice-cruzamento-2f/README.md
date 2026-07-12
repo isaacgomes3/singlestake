@@ -4,16 +4,21 @@ Extensão Chrome para **ICE** (mesa **201** · Roulette 2 Extra Time).
 
 ## Estratégia
 
-- Posições críticas **5, 6, 7, 9, 10, 11**
-- Monitoriza falha de cruzamento **cor/altura** e **paridade/altura**
-- Após **4 derrotas** (empate não conta; zero neutro na observação) → entrada nos 2 factores do número na posição
-- Gales até **5** (unidades 1·2·4·8·16·32)
-- Zero com indicação activa = derrota na aposta
+- Compara as posições críticas **11** e **22** no histórico
+- Alerta os **2 factores em comum** quando o par partilha:
+  - **cor/altura**, ou
+  - **paridade/altura**, ou
+  - **cor/paridade**
+- Se partilham **3** factores → prioriza **cor/paridade**
+- Aposta esses 2 factores no tapete
+- Após derrota: espera novo match 11/22 + gale (Dobrar)
+- Vitória: zera gale; empate: re-aposta os mesmos factores
+- **Zero** = derrota (gale normal)
+- Gales até **5** via **Dobrar** (1 ficha/factor + N× Dobrar)
 
 ## Instalação
 
 ```bash
-npm run extension:ice2f:setup
 npm run extension:ice2f:build
 ```
 

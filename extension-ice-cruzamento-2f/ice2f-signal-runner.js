@@ -92,20 +92,72 @@ async function readIce2fMachineState() {
     typeof raw.lastSpinHead === "string" && raw.lastSpinHead.trim()
       ? raw.lastSpinHead.trim()
       : null;
-  return { recovery, lastSpinHead };
+  const phase =
+    raw.phase === "awaiting_bet" ||
+    raw.phase === "awaiting_result" ||
+    raw.phase === "awaiting_reference"
+      ? raw.phase
+      : null;
+  const criticalPosition =
+    typeof raw.criticalPosition === "number" && Number.isFinite(raw.criticalPosition)
+      ? Math.floor(raw.criticalPosition)
+      : null;
+  const lockedPosition =
+    typeof raw.lockedPosition === "number" && Number.isFinite(raw.lockedPosition)
+      ? Math.floor(raw.lockedPosition)
+      : null;
+  const pendingRecovery =
+    typeof raw.pendingRecovery === "number" && Number.isFinite(raw.pendingRecovery)
+      ? Math.max(0, Math.floor(raw.pendingRecovery))
+      : 0;
+  const axis =
+    raw.axis === "cor-altura" ||
+    raw.axis === "altura-paridade" ||
+    raw.axis === "cor-paridade"
+      ? raw.axis
+      : null;
+  const nextEntryAxis =
+    raw.nextEntryAxis === "cor-altura" ||
+    raw.nextEntryAxis === "altura-paridade" ||
+    raw.nextEntryAxis === "cor-paridade"
+      ? raw.nextEntryAxis
+      : null;
+  const relaxedEntry = raw.relaxedEntry === true;
+  return {
+    recovery,
+    lastSpinHead,
+    phase,
+    criticalPosition,
+    axis,
+    nextEntryAxis,
+    lockedPosition,
+    pendingRecovery,
+    relaxedEntry,
+  };
 }
 
 async function persistIce2fMachineState(machine) {
   if (!machine || typeof machine !== "object") return;
-  const cycleRecovery = machine.cycle?.recovery;
+  const cycle = machine.cycle;
+  const cycleRecovery = cycle?.recovery;
   await chrome.storage.local.set({
     [STORAGE_ICE2F_MACHINE]: {
       recovery:
         typeof cycleRecovery === "number" && Number.isFinite(cycleRecovery)
           ? Math.max(0, Math.floor(cycleRecovery))
-          : 0,
+          : typeof machine.pendingRecovery === "number"
+            ? Math.max(0, Math.floor(machine.pendingRecovery))
+            : 0,
       lastSpinHead:
         typeof machine.lastSpinHead === "string" ? machine.lastSpinHead : null,
+      phase: cycle?.phase ?? null,
+      criticalPosition: cycle?.active?.criticalPosition ?? null,
+      axis: cycle?.active?.axis ?? null,
+      nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
+      lockedPosition: machine.lockedPosition ?? cycle?.active?.criticalPosition ?? null,
+      pendingRecovery:
+        typeof machine.pendingRecovery === "number" ? machine.pendingRecovery : 0,
+      relaxedEntry: cycle?.relaxedEntry === true,
       updatedAt: new Date().toISOString(),
     },
   });
@@ -160,11 +212,13 @@ function summarizeBridgeBetResults(results) {
   const clicks = (results ?? []).filter(
     (r) => r?.target === "factor-1" || r?.target === "factor-2",
   );
+  const doubles = (results ?? []).filter((r) => r?.target === "repeat-bet");
   const f1 = clicks.find((r) => r?.target === "factor-1");
   const f2 = clicks.find((r) => r?.target === "factor-2");
   const ok = (r) => r?.ok === true && r?.skipped !== true;
-  const placed = ok(f1) && ok(f2);
-  const detail = clicks
+  const doublesOk = doubles.length === 0 || doubles.every(ok);
+  const placed = ok(f1) && ok(f2) && doublesOk;
+  const detail = [...clicks, ...doubles]
     .map((r) => `${r.target}: ${r.ok ? "ok" : "falhou"}${r.skipped ? " (ignorado)" : ""} — ${r.detail ?? ""}`)
     .join(" | ");
   return { placed, detail, f1, f2 };
@@ -180,15 +234,16 @@ function formatActiveLabel(active, recovery) {
 }
 
 function idleRecoveryFromResult(result, engine) {
-  if (result.flash?.kind === "win") return 0;
-  return result.recovery ?? engine?.getState?.()?.machine?.cycle?.recovery ?? 0;
+  const cycle = cycleFromResult(result);
+  if (result.flash?.kind === "win" && !cycle) return 0;
+  return cycle?.recovery ?? result.recovery ?? engine?.getState?.()?.machine?.cycle?.recovery ?? 0;
 }
 
 function resolvedRecoveryForStatus(result, engine) {
-  if (result?.flash?.kind === "win") return 0;
   const cycle = cycleFromResult(result);
-  if (isAwaitingReference(cycle)) return cycle.recovery ?? 0;
-  if (result?.active) return result.recovery ?? cycle?.recovery ?? 0;
+  if (result?.flash?.kind === "win" && !cycle) return 0;
+  if (cycle) return cycle.recovery ?? 0;
+  if (result?.active) return result.recovery ?? 0;
   return idleRecoveryFromResult(result, engine);
 }
 
@@ -204,7 +259,7 @@ function referencePauseLabel(cycle) {
   const pos = cycle?.active?.criticalPosition ?? "?";
   const recovery = cycle?.recovery ?? 0;
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
-  return `Zero na pos${pos}${gale} — aguarda próxima rodada`;
+  return `Aguarda referência na pos${pos}${gale}`;
 }
 
 function liveAwaitingBetCycle() {
@@ -245,9 +300,7 @@ async function executeBridgePayload(payload, mesaUrl) {
   const active = cycle?.active;
   const label =
     payload.context.factor1Label && payload.context.factor2Label
-      ? `${payload.context.factor1Label} · ${payload.context.factor2Label}${
-          String(payload.context.signalId || "").includes(":opp") ? " · oposto" : ""
-        }`
+      ? `${payload.context.factor1Label} · ${payload.context.factor2Label}`
       : formatActiveLabel(active, recovery);
 
   await writeIce2fStatus({
@@ -262,6 +315,7 @@ async function executeBridgePayload(payload, mesaUrl) {
   });
 
   engine?.beginBetCommit?.();
+  const commitArmedHead = cycle?.armedHead ?? null;
 
   try {
     const bridgeResult = await bridgeHandler(payload, null);
@@ -271,17 +325,33 @@ async function executeBridgePayload(payload, mesaUrl) {
       if (
         !liveCycle ||
         liveCycle.phase !== "awaiting_bet" ||
-        (liveCycle.recovery ?? 0) !== recovery
+        (liveCycle.recovery ?? 0) !== recovery ||
+        (commitArmedHead != null && liveCycle.armedHead !== commitArmedHead)
       ) {
         engine?.abortBetCommit?.();
         if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+        await writeIce2fStatus({
+          lastError: "Janela de aposta expirou — giro novo antes dos cliques confirmados",
+          lastBetDetail: detail || null,
+          waitingBet: true,
+        });
         return;
       }
-      engine.markBetPlaced();
+      const confirmed = engine.markBetPlaced();
+      if (confirmed === false) {
+        engine?.abortBetCommit?.();
+        if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+        await writeIce2fStatus({
+          lastError: "Aposta não confirmada — histórico mudou durante os cliques",
+          lastBetDetail: detail || null,
+          waitingBet: true,
+        });
+        return;
+      }
       const live = engine.getState?.();
       if (live?.machine) await persistIce2fMachineState(live.machine);
       await writeIce2fStatus({
-        lastBetDetail: detail || "Aposta enviada (factor-1 + factor-2)",
+        lastBetDetail: detail || "Aposta enviada (factor-1 + factor-2 + dobrar)",
         lastError: null,
         recovery: liveRecoveryForStatus(),
       });
@@ -322,18 +392,22 @@ async function executeBridgePayload(payload, mesaUrl) {
 
 function betDelayRemainingMs(result) {
   const state = engine?.getState?.();
-  const recovery =
-    result?.recovery ??
-    state?.machine?.cycle?.recovery ??
-    0;
+  const cycle = state?.machine?.cycle ?? result?.machine?.cycle ?? null;
+  const recovery = result?.recovery ?? cycle?.recovery ?? 0;
   const at = state?.lastLiveSpinAt;
-  if (at == null) return BET_RETRY_MS;
+  const immediate = cycle?.immediateBet === true;
+  if (at == null) return immediate ? 0 : BET_RETRY_MS;
 
   const settleMs =
-    recovery > 0
-      ? SinglestakeIce2f?.ROTATING_ROOM_CROSSING_BET_DELAY_MS ?? 5000
-      : SinglestakeIce2f?.ICE_2F_FIRST_BET_SETTLE_MS ?? 13000;
-  return Math.max(BET_RETRY_MS, settleMs - (Date.now() - at));
+    typeof SinglestakeIce2f?.ice2fBetDelayMs === "function"
+      ? SinglestakeIce2f.ice2fBetDelayMs(recovery, immediate)
+      : immediate
+        ? (SinglestakeIce2f?.ICE_2F_IMMEDIATE_REBET_DELAY_MS ?? 6000)
+        : (SinglestakeIce2f?.ROTATING_ROOM_CROSSING_BET_DELAY_MS ??
+          SinglestakeIce2f?.ICE_2F_RECOVERY_BET_DELAY_MS ?? 6000);
+  const remaining = settleMs - (Date.now() - at);
+  if (immediate) return Math.max(0, remaining);
+  return Math.max(BET_RETRY_MS, remaining);
 }
 
 async function syncReferencePauseStatus(result, cfg) {
@@ -351,7 +425,7 @@ async function syncReferencePauseStatus(result, cfg) {
     waitingReference: true,
     lastError: null,
     lastBetDetail: null,
-    reason: `Gale ${cycle?.recovery ?? 0} mantido — zero na posição crítica`,
+    reason: `Gale ${cycle?.recovery ?? 0} mantido — aguarda referência na posição crítica`,
   });
   return true;
 }
@@ -365,7 +439,33 @@ async function scheduleBetAttempt(result, mesaUrl, cfg) {
     return;
   }
 
-  if (!result?.active) {
+  // Ciclo aberto à espera do resultado da aposta — não ir para idle.
+  if (cycle?.phase === "awaiting_result") {
+    await writeIce2fStatus({
+      active: true,
+      tableId: cfg.tableId,
+      recovery: cycle.recovery ?? 0,
+      waitingBet: false,
+      waitingReference: false,
+      lastError: null,
+    });
+    return;
+  }
+
+  const active = result?.active ?? (cycle?.phase === "awaiting_bet" ? cycle.active : null);
+  if (!active) {
+    // Só idle quando o ciclo realmente terminou (não confundir empate/pausa com fim).
+    if (cycle) {
+      await writeIce2fStatus({
+        active: true,
+        tableId: cfg.tableId,
+        recovery: cycle.recovery ?? 0,
+        waitingBet: cycle.phase === "awaiting_bet",
+        waitingReference: false,
+        lastError: null,
+      });
+      return;
+    }
     clearPendingBetTimers();
     lastEmittedSignalId = null;
     await writeIce2fStatus({
@@ -378,6 +478,11 @@ async function scheduleBetAttempt(result, mesaUrl, cfg) {
       recovery: resolvedRecoveryForStatus(result, engine),
     });
     return;
+  }
+
+  // Garante result.active para o resto do fluxo (empate pode ter active só no cycle).
+  if (!result.active) {
+    result = { ...result, active, recovery: cycle?.recovery ?? result.recovery ?? 0 };
   }
 
   const payload = engine.buildBridgePayload(mesaUrl);
@@ -423,25 +528,45 @@ async function processEngineResult(result, mesaUrl, cfg) {
     await persistIce2fStats(result.stats, cfg.maxRecovery);
   }
 
+  if (result.missedBetWindow) {
+    lastEmittedSignalId = null;
+    engine.abortBetCommit?.();
+    clearPendingBetTimers();
+    const cycle = cycleFromResult(result);
+    await writeIce2fStatus({
+      active: true,
+      tableId: cfg.tableId,
+      label: formatActiveLabel(cycle?.active ?? result.active, cycle?.recovery ?? result.recovery ?? 0),
+      recovery: cycle?.recovery ?? result.recovery ?? 0,
+      waitingBet: true,
+      waitingReference: false,
+      lastError: "Giro novo antes da aposta — não contou; a tentar de novo",
+      reason: "Janela de aposta perdida (sem cliques confirmados)",
+    });
+  }
+
   if (isAwaitingReference(cycleFromResult(result)) && !result.flash) {
     await syncReferencePauseStatus(result, cfg);
   }
 
   if (result.flash) {
-    const ended = result.flash.kind === "win" || result.flash.kind === "tie" || result.flash.kind === "loss";
-    if (ended && !result.active) {
-      clearPendingBetTimers();
-      lastEmittedSignalId = null;
-    }
-    const idleRecovery = idleRecoveryFromResult(result, engine);
     const flashKind = result.flash.kind;
     const pausedCycle = cycleFromResult(result);
-    const idleReason =
-      isAwaitingReference(pausedCycle)
-        ? flashKind === "tie"
-          ? `Empate (${result.flash.resultNumber}) — gale ${pausedCycle.recovery ?? 0} mantido · zero na pos${pausedCycle.active?.criticalPosition ?? "?"}`
-          : `Gale ${pausedCycle.recovery ?? 0} mantido — zero na posição crítica`
-        : flashKind === "tie"
+    const cycleOpen = pausedCycle != null;
+    // result.active só existe em awaiting_bet — empate/vitória parcial podem
+    // ficar em awaiting_reference com ciclo aberto; não tratar como fim de ciclo.
+    const cycleClosed = !cycleOpen;
+    if (cycleClosed) {
+      clearPendingBetTimers();
+      lastEmittedSignalId = null;
+    } else if (result.flash) {
+      // Nova aposta do mesmo ciclo (empate / gale) — permite reemitir o mesmo signalId.
+      lastEmittedSignalId = null;
+      clearPendingBetTimers();
+    }
+    const idleRecovery = idleRecoveryFromResult(result, engine);
+    const idleReason = cycleClosed
+      ? flashKind === "tie"
         ? idleRecovery > 0
           ? `Empate — gale ${idleRecovery} mantido · aguarda novo gatilho`
           : "Empate — aguarda novo gatilho (4 falhas cruzamento)"
@@ -455,31 +580,41 @@ async function processEngineResult(result, mesaUrl, cfg) {
             ? "Vitória — aguarda novo gatilho"
             : idleRecovery > 0
               ? `Aguarda novo gatilho · próxima entrada gale ${idleRecovery}`
-              : "Aguarda novo gatilho (4 falhas cruzamento)";
+              : "Aguarda novo gatilho (4 falhas cruzamento)"
+      : isAwaitingReference(pausedCycle)
+        ? `Aguarda referência na pos${pausedCycle.active?.criticalPosition ?? "?"} · gale ${pausedCycle.recovery ?? 0}`
+        : null;
     await writeIce2fStatus({
       lastFlash: flashKind,
       lastResult: result.flash.resultNumber,
-      ...(flashKind === "win" ? { recovery: 0 } : {}),
-      ...(ended && !result.active
-        ? isAwaitingReference(pausedCycle)
-          ? {
-              active: true,
-              label: referencePauseLabel(pausedCycle),
-              recovery: pausedCycle.recovery ?? 0,
-              waitingBet: true,
-              waitingReference: true,
-              lastError: null,
-              reason: idleReason,
-            }
-          : {
-              active: false,
-              label: null,
-              lastTrigger: null,
-              signalId: null,
-              waitingBet: false,
-              recovery: idleRecovery,
-              reason: idleReason,
-            }
+      // Só zera recovery no status quando o ciclo fechou de verdade.
+      ...(flashKind === "win" && cycleClosed ? { recovery: 0 } : {}),
+      ...(cycleOpen && pausedCycle
+        ? {
+            recovery: pausedCycle.recovery ?? result.recovery ?? 0,
+            ...(isAwaitingReference(pausedCycle)
+              ? {
+                  active: true,
+                  label: referencePauseLabel(pausedCycle),
+                  waitingBet: true,
+                  waitingReference: true,
+                  lastError: null,
+                  reason: idleReason,
+                }
+              : {}),
+          }
+        : {}),
+      ...(cycleClosed && idleReason
+        ? {
+            active: false,
+            label: null,
+            lastTrigger: null,
+            signalId: null,
+            waitingBet: false,
+            waitingReference: false,
+            recovery: flashKind === "win" ? 0 : idleRecovery,
+            reason: idleReason,
+          }
         : {}),
     });
   }
@@ -490,8 +625,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
       lastEmittedSignalId = null;
     }
     const label = formatActiveLabel(result.active, result.recovery ?? 0);
-    const displayRecovery =
-      result.flash?.kind === "win" ? 0 : (result.recovery ?? 0);
+    const displayRecovery = result.recovery ?? 0;
     await writeIce2fStatus({
       active: true,
       label,
@@ -505,7 +639,25 @@ async function processEngineResult(result, mesaUrl, cfg) {
     });
   }
 
-  if (!bridgeHandler) return;
+  const machineState =
+    result.machine ?? engine?.getState?.()?.machine ?? null;
+  if (machineState?.watch) {
+    const watchLabelFn =
+      SinglestakeIce2f?.ice2fWatchLabelForMachine ??
+      SinglestakeIce2f?.formatIce2fWatchLabel;
+    if (typeof watchLabelFn === "function") {
+      await writeIce2fStatus({
+        watchLabel: watchLabelFn(
+          SinglestakeIce2f?.ice2fWatchLabelForMachine ? machineState : machineState.watch,
+        ),
+        inactiveSpins: machineState.inactiveSpinsWithoutEntry ?? 0,
+        relaxedEntry: machineState.cycle?.relaxedEntry === true,
+        zeroDebt: machineState.zeroDebtUnits ?? 0,
+        zeroRecovered: machineState.zeroRecoveredUnits ?? 0,
+        zeroShift: machineState.zeroShift ?? 0,
+      });
+    }
+  }
 
   await scheduleBetAttempt(result, mesaUrl, cfg);
 }

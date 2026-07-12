@@ -8,14 +8,20 @@ import {
   defaultIce2fMachineState,
   emptyIce2fStats,
   formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
   ICE_2F_BET_DELAY_MS,
   ICE_2F_FIRST_BET_SETTLE_MS,
+  ICE_2F_IMMEDIATE_REBET_DELAY_MS,
   ICE_2F_MAX_RECOVERY,
+  ICE_2F_MIN_HISTORY,
   ICE_2F_RECOVERY_BET_DELAY_MS,
   ICE_2F_ROULETTE_MESA_URL,
   ICE_2F_ROULETTE_TABLE_ID,
   ice2fBetDelayMs,
   ice2fBetDelayUntilMs,
+  ice2fBuildActiveFromHistory,
+  ice2fDoubleClicks,
+  ice2fEffectiveZeroShift,
   ice2fPadFactorPlacementMs,
   ice2fStakeUnits,
   parseIce2fStats,
@@ -23,6 +29,10 @@ import {
   tickIce2fPlacar,
   tryArmCycleFromWatch,
   type Ice2fActive,
+  type Ice2fCrossingAxis,
+  type Ice2fCriticalPosition,
+  type Ice2fCycle,
+  type Ice2fCyclePhase,
   type Ice2fMachineState,
 } from "../src/lib/roulette/iceCruzamento2fStrategy";
 import type { RotatingRoomSessionStats } from "../src/lib/roulette/rotatingRoomStrategy";
@@ -35,10 +45,25 @@ export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
 const BASE_STAKE = 0.5;
 
+const ICE2F_POSITIONS = new Set([11, 22]);
+const ICE2F_AXES = new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
+
+export type Ice2fPersistedMachine = {
+  lastSpinHead?: string | null;
+  recovery?: number;
+  phase?: Ice2fCyclePhase | null;
+  criticalPosition?: number | null;
+  axis?: Ice2fCrossingAxis | null;
+  relaxedEntry?: boolean;
+  nextEntryAxis?: Ice2fCrossingAxis | null;
+  lockedPosition?: number | null;
+  pendingRecovery?: number;
+};
+
 export type CreateIce2fEngineOptions = {
   maxRecovery?: number;
   initialStats?: RotatingRoomSessionStats | null;
-  initialMachine?: { lastSpinHead?: string | null } | null;
+  initialMachine?: Ice2fPersistedMachine | null;
 };
 
 function clampMaxRecovery(value: unknown, fallback = ICE_2F_MAX_RECOVERY): number {
@@ -47,20 +72,101 @@ function clampMaxRecovery(value: unknown, fallback = ICE_2F_MAX_RECOVERY): numbe
   return Math.min(ICE_2F_MAX_RECOVERY, Math.max(0, Math.floor(n)));
 }
 
+function placeholderActive(
+  position: Ice2fCriticalPosition,
+  axis: Ice2fCrossingAxis,
+): Ice2fActive {
+  return {
+    criticalPosition: position,
+    axis,
+    factor1: { kind: "cor", value: "Vermelho" },
+    factor2: { kind: "altura", value: "Baixo" },
+    pairKind: axis,
+    referenceNumber: 0,
+    armingDescription: "restored",
+  };
+}
+
+function restoreCycleFromSaved(
+  saved: Ice2fPersistedMachine,
+  history: readonly number[],
+  head: string,
+): Ice2fCycle | null {
+  const recovery =
+    typeof saved.recovery === "number" && Number.isFinite(saved.recovery)
+      ? Math.max(0, Math.floor(saved.recovery))
+      : 0;
+  const position = saved.criticalPosition;
+  const axis = saved.axis;
+  const phaseOpen =
+    saved.phase === "awaiting_bet" ||
+    saved.phase === "awaiting_result" ||
+    saved.phase === "awaiting_reference";
+  if (!phaseOpen && recovery <= 0) return null;
+  if (
+    typeof position !== "number" ||
+    !ICE2F_POSITIONS.has(position) ||
+    !axis ||
+    !ICE2F_AXES.has(axis)
+  ) {
+    return null;
+  }
+  const pos = position as Ice2fCriticalPosition;
+  const rebuilt = history.length
+    ? ice2fBuildActiveFromHistory(history, pos, axis)
+    : null;
+  if (rebuilt) {
+    return {
+      active: rebuilt,
+      recovery,
+      // Após restart, re-aposta (não fica preso em awaiting_result).
+      phase: "awaiting_bet",
+      armedHead: head,
+      relaxedEntry: saved.relaxedEntry === true,
+    };
+  }
+  return {
+    active: placeholderActive(pos, axis),
+    recovery,
+    phase: "awaiting_reference",
+    armedHead: head,
+    relaxedEntry: saved.relaxedEntry === true,
+  };
+}
+
 export type Ice2fEngineSpinResult = {
   active: Ice2fActive | null;
   recovery: number;
   machine: Ice2fMachineState;
   stats: RotatingRoomSessionStats;
   flash: ReturnType<typeof tickIce2fPlacar>["flash"];
+  missedBetWindow?: boolean;
 };
 
 export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
   const maxRecovery = clampMaxRecovery(options.maxRecovery);
   let machine = defaultIce2fMachineState();
-  if (options.initialMachine?.lastSpinHead) {
-    machine = { ...machine, lastSpinHead: options.initialMachine.lastSpinHead };
+  if (options.initialMachine) {
+    const saved = options.initialMachine;
+    machine = {
+      ...machine,
+      lastSpinHead: saved.lastSpinHead ?? null,
+      nextEntryAxis:
+        saved.nextEntryAxis && ICE2F_AXES.has(saved.nextEntryAxis)
+          ? saved.nextEntryAxis
+          : "cor-altura",
+      lockedPosition:
+        typeof saved.lockedPosition === "number" &&
+        ICE2F_POSITIONS.has(saved.lockedPosition)
+          ? saved.lockedPosition
+          : null,
+      pendingRecovery:
+        typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery)
+          ? Math.max(0, Math.floor(saved.pendingRecovery))
+          : 0,
+    };
   }
+  let pendingRestore: Ice2fPersistedMachine | null = options.initialMachine ?? null;
   let stats =
     options.initialStats != null
       ? parseIce2fStats(options.initialStats, maxRecovery)
@@ -86,6 +192,7 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
       machine: tick.machine,
       stats: tick.stats,
       flash: tick.flash,
+      missedBetWindow: tick.missedBetWindow === true,
     };
   }
 
@@ -102,14 +209,70 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
     }
     const head = spinHead();
     const watch = primeIce2fWatchFromHistory(history);
+    const preservedCycle = machine.cycle;
     machine = {
       ...defaultIce2fMachineState(),
       watch,
       lastSpinHead: head,
     };
-    if (history.length >= 12) {
+
+    if (preservedCycle) {
+      const rebuilt = ice2fBuildActiveFromHistory(
+        history,
+        preservedCycle.active.criticalPosition,
+        preservedCycle.active.axis,
+      );
+      machine = {
+        ...machine,
+        lockedPosition: preservedCycle.active.criticalPosition,
+        nextEntryAxis: preservedCycle.active.axis,
+        cycle: rebuilt
+          ? {
+              ...preservedCycle,
+              active: rebuilt,
+              phase: "awaiting_bet",
+              armedHead: head,
+            }
+          : {
+              ...preservedCycle,
+              phase: "awaiting_reference",
+              armedHead: head,
+            },
+      };
+    } else if (pendingRestore) {
+      const restored = restoreCycleFromSaved(pendingRestore, history, head);
+      const axis =
+        (pendingRestore.nextEntryAxis && ICE2F_AXES.has(pendingRestore.nextEntryAxis)
+          ? pendingRestore.nextEntryAxis
+          : null) ??
+        (pendingRestore.axis && ICE2F_AXES.has(pendingRestore.axis)
+          ? pendingRestore.axis
+          : null) ??
+        "cor-altura";
+      const locked =
+        typeof pendingRestore.lockedPosition === "number" &&
+        ICE2F_POSITIONS.has(pendingRestore.lockedPosition)
+          ? pendingRestore.lockedPosition
+          : restored?.active.criticalPosition ?? null;
+      pendingRestore = null;
+      machine = {
+        ...machine,
+        nextEntryAxis: axis,
+        lockedPosition: locked,
+        pendingRecovery:
+          typeof options.initialMachine?.pendingRecovery === "number"
+            ? Math.max(0, Math.floor(options.initialMachine.pendingRecovery))
+            : 0,
+      };
+      if (restored) {
+        machine = { ...machine, cycle: restored };
+      } else if (history.length >= ICE_2F_MIN_HISTORY) {
+        machine = tryArmCycleFromWatch(machine, history, head);
+      }
+    } else if (history.length >= ICE_2F_MIN_HISTORY) {
       machine = tryArmCycleFromWatch(machine, history, head);
     }
+
     lastLiveSpinAt = Date.now();
     const tick = tickIce2fPlacar(history, machine, stats, maxRecovery);
     machine = tick.machine;
@@ -119,6 +282,7 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
       machine: tick.machine,
       stats: tick.stats,
       flash: tick.flash,
+      missedBetWindow: tick.missedBetWindow === true,
     };
   }
 
@@ -138,30 +302,56 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
 
   function canPlaceBet(nowMs = Date.now()): boolean {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-    return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs);
+    return canPlaceIce2fBet(machine.cycle.recovery, lastLiveSpinAt, nowMs, machine.cycle.immediateBet === true);
   }
 
   function beginBetCommit() {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-    machine = { ...machine, betCommitInFlight: true };
+    machine = {
+      ...machine,
+      betCommitInFlight: true,
+      betCommitArmedHead: machine.cycle.armedHead,
+    };
     return true;
   }
 
   function abortBetCommit() {
-    if (!machine.betCommitInFlight) return;
-    machine = { ...machine, betCommitInFlight: false };
+    if (!machine.betCommitInFlight && machine.betCommitArmedHead == null) return;
+    machine = {
+      ...machine,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+    };
   }
 
   function markBetPlaced() {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") {
-      machine = { ...machine, betCommitInFlight: false };
-      return;
+      machine = {
+        ...machine,
+        betCommitInFlight: false,
+        betCommitArmedHead: null,
+      };
+      return false;
+    }
+    // Giro novo entretanto — não confirmar aposta da janela antiga.
+    if (
+      machine.betCommitArmedHead != null &&
+      machine.cycle.armedHead !== machine.betCommitArmedHead
+    ) {
+      machine = {
+        ...machine,
+        betCommitInFlight: false,
+        betCommitArmedHead: null,
+      };
+      return false;
     }
     machine = {
       ...machine,
       betCommitInFlight: false,
-      cycle: { ...machine.cycle, phase: "awaiting_result" },
+      betCommitArmedHead: null,
+      cycle: { ...machine.cycle, phase: "awaiting_result", immediateBet: false },
     };
+    return true;
   }
 
   function buildBridgePayload(mesaEmbedUrl: string | null = ICE2F_MESA_URL) {
@@ -169,34 +359,51 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
     if (!canPlaceBet()) return null;
 
     const { active, recovery } = machine.cycle;
-    const units = ice2fStakeUnits(recovery);
+    const zeroShift = ice2fEffectiveZeroShift(machine);
+    const units = ice2fStakeUnits(recovery, zeroShift);
+    const doubles = ice2fDoubleClicks(recovery, zeroShift);
     const signalId = `ice2f:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}`;
     const f1Key = pragmaticExteriorBetKeyFromFactor(active.factor1);
     const f2Key = pragmaticExteriorBetKeyFromFactor(active.factor2);
     const f1Label = doisFatoresFactorLabel(active.factor1);
     const f2Label = doisFatoresFactorLabel(active.factor2);
     const stakeAmount = BASE_STAKE * units;
-    const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt);
+    const betDelayUntilMs = ice2fBetDelayUntilMs(recovery, lastLiveSpinAt, machine.cycle.immediateBet === true);
     const galeSuffix = recovery > 0 ? ` · gale ${recovery}` : " · entrada";
+
+    const actions: Array<{
+      kind: "click";
+      target: "factor-1" | "factor-2" | "repeat-bet";
+      label: string;
+      reason: string;
+    }> = [
+      {
+        kind: "click",
+        target: "factor-1",
+        label: f1Label,
+        reason: `ICE 2F · ${f1Label}${galeSuffix}`,
+      },
+      {
+        kind: "click",
+        target: "factor-2",
+        label: f2Label,
+        reason: `ICE 2F · ${f2Label}${galeSuffix}`,
+      },
+    ];
+    for (let i = 0; i < doubles; i++) {
+      actions.push({
+        kind: "click",
+        target: "repeat-bet",
+        label: "Dobrar",
+        reason: `ICE 2F · Dobrar ${i + 1}/${doubles}${galeSuffix}`,
+      });
+    }
 
     return {
       type: "game-odds-glow/rotating-room-extension" as const,
       version: 1 as const,
       fingerprint: signalId,
-      actions: [
-        {
-          kind: "click" as const,
-          target: "factor-1" as const,
-          label: f1Label,
-          reason: `ICE 2F · ${f1Label}${galeSuffix}`,
-        },
-        {
-          kind: "click" as const,
-          target: "factor-2" as const,
-          label: f2Label,
-          reason: `ICE 2F · ${f2Label}${galeSuffix}`,
-        },
-      ],
+      actions,
       context: {
         sessionMode: "active" as const,
         prepareTableId: null,
@@ -211,6 +418,9 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
         signalId,
         stakeAmount,
         units,
+        chipClicks: 1,
+        useDoubleGale: true,
+        doubleClicks: doubles,
         currentRecovery: recovery,
         baseStake: BASE_STAKE,
         maxRecovery,
@@ -251,6 +461,7 @@ export function createIce2fEngine(options: CreateIce2fEngineOptions = {}) {
       spinBaselined = false;
       liveSpinSeen = false;
       lastLiveSpinAt = null;
+      pendingRestore = null;
     },
   };
 }
@@ -261,14 +472,19 @@ const api = {
   ICE2F_MAX_GALES,
   ICE_2F_BET_DELAY_MS,
   ICE_2F_FIRST_BET_SETTLE_MS,
+  ICE_2F_IMMEDIATE_REBET_DELAY_MS,
   ICE_2F_MAX_RECOVERY,
   ICE_2F_RECOVERY_BET_DELAY_MS,
   ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
   ROTATING_ROOM_CROSSING_BET_DELAY_MS,
   formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
   ice2fBetDelayMs,
   ice2fBetDelayUntilMs,
   ice2fPadFactorPlacementMs,
+  ice2fDoubleClicks,
+  ice2fEffectiveZeroShift,
+  ice2fStakeUnits,
   createIce2fEngine,
 };
 
