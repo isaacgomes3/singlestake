@@ -19,6 +19,7 @@ import {
   enabledRepeticaoZoneKindsFromMap,
   isRotacaoGatilhoEnabled,
   isKto2fGatilhoEnabled,
+  isTres3fatoresGatilhoEnabled,
 } from "@/lib/roulette/umFatorTriggerEnable";
 import { parseLiveTableIdFromCompositeGameId } from "@/lib/roulette/liveTableConfig";
 import { resolveRotatingRoomTableIds } from "@/lib/roulette/lobbyTables";
@@ -92,6 +93,24 @@ import {
   tickKto2fPlacar,
   type Kto2fPlacarFlash,
 } from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import {
+  ICE3F_MAX_RECOVERY,
+  ICE3F_TABLE_ID,
+  ice3fActiveToCrossing,
+  ice3fAlertLabel,
+  ice3fBetDelayUntilMs,
+  ice3fCurrentRecovery,
+  ice3fCurrentUnitScale,
+  ice3fGlobalActive,
+  ice3fHasOpenCycle,
+  ice3fShowTapeteSignal,
+  ice3fWatchLabel,
+  seedIce3fMachineAfterPlacarReset,
+  stakeForIce3fRecovery,
+  tickIce3fRotatingPlacar,
+  type Ice3fPlacarFlash,
+} from "@/lib/roulette/rotatingRoomIce3fStrategy";
+import { ice3fEntryUnitsOf } from "@/lib/roulette/iceTresFatoresStrategy";
 import { ice2fBetDelayUntilMs } from "@/lib/roulette/iceCruzamento2fStrategy";
 import {
   ROTACAO_MAX_RECOVERY,
@@ -118,6 +137,7 @@ import type {
   StrategyGlobalFibonacciClientView,
   StrategyGlobalRepeticaoClientView,
   StrategyGlobalKto2fClientView,
+  StrategyGlobalIce3fClientView,
   StrategyGlobalRotacaoClientView,
   StrategyGlobalKind,
   StrategyGlobalLedgerEntry,
@@ -239,6 +259,31 @@ function appendKto2fLedgerIfNeeded(
     stakeForKto2fRecovery(kto2f.recoveryBefore),
   );
   appendLedger(state, "kto2fcruzamento", ledgerEntry, KTO2F_MAX_RECOVERY);
+  return [ledgerEntry];
+}
+
+function appendIce3fLedgerIfNeeded(
+  state: StrategyGlobalPersistedState,
+  ice3f: { flash: Ice3fPlacarFlash; recoveryBefore: number; entryUnits: number },
+): StrategyGlobalLedgerEntry[] {
+  if (automationBlocksNewEntries(getAutomationConfig(), 0)) {
+    return [];
+  }
+  if (
+    !ice3f.flash ||
+    (ice3f.flash.kind !== "win" &&
+      ice3f.flash.kind !== "loss" &&
+      ice3f.flash.kind !== "recovery")
+  ) {
+    return [];
+  }
+  const ledgerEntry = ledgerFromFlash(
+    ice3f.flash,
+    ice3f.recoveryBefore,
+    "tres3fatores",
+    stakeForIce3fRecovery(ice3f.recoveryBefore, ice3f.entryUnits),
+  );
+  appendLedger(state, "tres3fatores", ledgerEntry, ICE3F_MAX_RECOVERY);
   return [ledgerEntry];
 }
 
@@ -496,6 +541,29 @@ function driveKto2f(
   state.kto2fcruzamento.machine = result.nextMachine;
   state.kto2fcruzamento.stats = result.stats;
   return { flash: result.flash, recoveryBefore };
+}
+
+function driveIce3f(
+  state: StrategyGlobalPersistedState,
+  histories: Record<number, readonly number[]>,
+  spinTableId?: number,
+): { flash: Ice3fPlacarFlash; recoveryBefore: number; entryUnits: number } {
+  const recoveryBefore = ice3fCurrentRecovery(state.tres3fatores.machine);
+  const entryUnits = ice3fEntryUnitsOf(state.tres3fatores.machine);
+  const ice3fTriggerOn = isTres3fatoresGatilhoEnabled();
+  const allowNewArming =
+    ice3fTriggerOn && !automationBlocksNewEntries(getAutomationConfig(), 0);
+  const result = tickIce3fRotatingPlacar(
+    histories,
+    state.tres3fatores.machine,
+    state.tres3fatores.stats,
+    ICE3F_MAX_RECOVERY,
+    allowNewArming,
+    spinTableId,
+  );
+  state.tres3fatores.machine = result.nextMachine;
+  state.tres3fatores.stats = result.stats;
+  return { flash: result.flash, recoveryBefore, entryUnits };
 }
 
 async function pushAutomationSimSettlements(
@@ -850,6 +918,32 @@ function buildKto2fClientView(state: StrategyGlobalPersistedState): StrategyGlob
   };
 }
 
+function buildIce3fClientView(state: StrategyGlobalPersistedState): StrategyGlobalIce3fClientView {
+  const machine = state.tres3fatores.machine;
+  const ice3fActive = ice3fGlobalActive(machine);
+  const showTapeteSignal = ice3fShowTapeteSignal(machine);
+  const hasOpenCycle = ice3fHasOpenCycle(machine);
+  const activeCrossing = ice3fActive ? ice3fActiveToCrossing(ice3fActive) : null;
+  const recovery = ice3fCurrentRecovery(machine);
+  return {
+    phase: showTapeteSignal ? "active" : hasOpenCycle ? "waiting" : "waiting",
+    sessionStats: state.tres3fatores.stats,
+    showTapeteSignal,
+    ice3fMode: true,
+    currentRecovery: recovery,
+    currentUnitScale: ice3fCurrentUnitScale(machine),
+    currentTableId: hasOpenCycle ? ICE3F_TABLE_ID : null,
+    alertCategory: ice3fActive ? ice3fAlertLabel(ice3fActive) : null,
+    sessionMode: showTapeteSignal ? "active" : hasOpenCycle ? "waiting" : "scanning",
+    hasOpenCycle,
+    watchLabel: hasOpenCycle ? null : ice3fWatchLabel(machine),
+    activeCrossing,
+    ice3fActive,
+    lastSpinAtMs: machine.lastSpinAtMs,
+    betDelayUntilMs: ice3fBetDelayUntilMs(machine),
+  };
+}
+
 export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState): StrategyGlobalSnapshot {
   const histories = historiesRecord(state);
   const tableHistories: Record<number, number[]> = {};
@@ -869,6 +963,7 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
     repeticao: buildRepeticaoClientView(state, histories),
     rotacao: buildRotacaoClientView(state),
     kto2fcruzamento: buildKto2fClientView(state),
+    tres3fatores: buildIce3fClientView(state),
     lifetime: state.lifetime,
     ledgerTail: {
       dois2fatores: state.ledger.dois2fatores.slice(-120),
@@ -877,6 +972,7 @@ export function buildStrategyGlobalSnapshot(state: StrategyGlobalPersistedState)
       repeticao: state.ledger.repeticao.slice(-120),
       rotacao: state.ledger.rotacao.slice(-120),
       kto2fcruzamento: state.ledger.kto2fcruzamento.slice(-120),
+      tres3fatores: state.ledger.tres3fatores.slice(-120),
     },
     extensionSource: {
       active: extensionSource.active,
@@ -917,6 +1013,7 @@ function toFlashPayload(
   repeticao: RotatingRoomRepeticaoPlacarFlash = null,
   rotacao: RotacaoPlacarFlash = null,
   kto2f: Kto2fPlacarFlash = null,
+  ice3f: Ice3fPlacarFlash = null,
 ): StrategyGlobalFlashPayload {
   return {
     dois2fatores: crossing
@@ -967,6 +1064,14 @@ function toFlashPayload(
           kind: kto2f.kind,
         }
       : null,
+    tres3fatores: ice3f
+      ? {
+          resultNumber: ice3f.resultNumber,
+          won: ice3f.won,
+          tableId: ice3f.tableId,
+          kind: ice3f.kind,
+        }
+      : null,
   };
 }
 
@@ -978,6 +1083,7 @@ function bumpAndBroadcast(
   repeticaoFlash: RotatingRoomRepeticaoPlacarFlash = null,
   rotacaoFlash: RotacaoPlacarFlash = null,
   kto2fFlash: Kto2fPlacarFlash = null,
+  ice3fFlash: Ice3fPlacarFlash = null,
 ): StrategyGlobalSnapshot {
   state.revision += 1;
   state.updatedAt = Date.now();
@@ -990,6 +1096,7 @@ function bumpAndBroadcast(
     repeticaoFlash,
     rotacaoFlash,
     kto2fFlash,
+    ice3fFlash,
   );
   broadcastStrategyGlobal({ type: "update", revision: snapshot.revision, snapshot, flashes });
   void import("@/lib/server/automationSim/engine").then((m) => {
@@ -1026,6 +1133,8 @@ export function ingestStrategyGlobalSpin(
   const rotacaoLedgerEntries = appendRotacaoLedgerIfNeeded(state, rotacao);
   const kto2f = driveKto2f(state, histories, tableId);
   const kto2fLedgerEntries = appendKto2fLedgerIfNeeded(state, kto2f);
+  const ice3f = driveIce3f(state, histories, tableId);
+  const ice3fLedgerEntries = appendIce3fLedgerIfNeeded(state, ice3f);
 
   if (extensionActive) {
     const snapshot = bumpAndBroadcast(
@@ -1036,6 +1145,7 @@ export function ingestStrategyGlobalSpin(
       repeticao.flash,
       rotacao.flash,
       kto2f.flash,
+      ice3f.flash,
     );
     const automationEntries = [
       ...crossingLedgerEntries,
@@ -1043,6 +1153,7 @@ export function ingestStrategyGlobalSpin(
       ...repeticaoLedgerEntries,
       ...rotacaoLedgerEntries,
       ...kto2fLedgerEntries,
+      ...ice3fLedgerEntries,
     ];
     if (automationEntries.length > 0) {
       void pushAutomationSimSettlements(automationEntries, snapshot);
@@ -1066,6 +1177,7 @@ export function ingestStrategyGlobalSpin(
     repeticao.flash,
     rotacao.flash,
     kto2f.flash,
+    ice3f.flash,
   );
   const automationEntries = [
     ...crossingLedgerEntries,
@@ -1074,6 +1186,7 @@ export function ingestStrategyGlobalSpin(
     ...repeticaoLedgerEntries,
     ...rotacaoLedgerEntries,
     ...kto2fLedgerEntries,
+    ...ice3fLedgerEntries,
   ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
@@ -1168,6 +1281,9 @@ export async function ingestStrategyGlobalExtensionSync(
   const kto2f = driveKto2f(state, histories);
   const kto2fLedgerEntries = appendKto2fLedgerIfNeeded(state, kto2f);
   let kto2fFlash: Kto2fPlacarFlash = kto2f.flash;
+  const ice3f = driveIce3f(state, histories);
+  const ice3fLedgerEntries = appendIce3fLedgerIfNeeded(state, ice3f);
+  let ice3fFlash: Ice3fPlacarFlash = ice3f.flash;
 
   const umLedgerEntries: StrategyGlobalLedgerEntry[] = [];
   const crossLedgerFromExtension: StrategyGlobalLedgerEntry[] = [];
@@ -1188,7 +1304,9 @@ export async function ingestStrategyGlobalExtensionSync(
               ? "rotacao"
               : trigger === "kto2fcruzamento"
                 ? "kto2fcruzamento"
-                : "um1fator";
+                : trigger === "tres3fatores"
+                  ? "tres3fatores"
+                  : "um1fator";
     const ledgerEntry = ledgerFromFlash(
       settlement.flash,
       settlement.recoveryBefore,
@@ -1206,7 +1324,9 @@ export async function ingestStrategyGlobalExtensionSync(
               ? ROTACAO_MAX_RECOVERY
               : kind === "kto2fcruzamento"
                 ? KTO2F_MAX_RECOVERY
-                : maxRecovery;
+                : kind === "tres3fatores"
+                  ? ICE3F_MAX_RECOVERY
+                  : maxRecovery;
     appendLedger(state, kind, ledgerEntry, maxR);
     if (kind === "dois2fatores") {
       crossLedgerFromExtension.push(ledgerEntry);
@@ -1221,6 +1341,8 @@ export async function ingestStrategyGlobalExtensionSync(
       rotacaoFlash = settlement.flash;
     } else if (kind === "kto2fcruzamento") {
       kto2fFlash = settlement.flash;
+    } else if (kind === "tres3fatores") {
+      ice3fFlash = settlement.flash;
     } else {
       umLedgerEntries.push(ledgerEntry);
       umFlash = settlement.flash;
@@ -1235,6 +1357,7 @@ export async function ingestStrategyGlobalExtensionSync(
     repeticaoFlash,
     rotacaoFlash,
     kto2fFlash,
+    ice3fFlash,
   );
   const automationEntries = [
     ...crossingLedgerEntries,
@@ -1246,6 +1369,7 @@ export async function ingestStrategyGlobalExtensionSync(
     ...repLedgerFromExtension,
     ...rotacaoLedgerEntries,
     ...kto2fLedgerEntries,
+    ...ice3fLedgerEntries,
   ];
   if (automationEntries.length > 0) {
     void pushAutomationSimSettlements(automationEntries, snapshot);
@@ -1280,7 +1404,8 @@ export function ingestStrategyGlobalHistorySnapshot(
   driveRepeticao(state, histories);
   driveRotacao(state, histories);
   driveKto2f(state, histories);
-  bumpAndBroadcast(state, null, null, null, null, null, null);
+  driveIce3f(state, histories);
+  bumpAndBroadcast(state, null, null, null, null, null, null, null);
 }
 
 export function ingestStrategyGlobalReplayBatch(
@@ -1310,7 +1435,8 @@ export function ingestStrategyGlobalReplayBatch(
   driveRepeticao(state, histories);
   driveRotacao(state, histories);
   driveKto2f(state, histories);
-  bumpAndBroadcast(state, null, null, null, null, null, null);
+  driveIce3f(state, histories);
+  bumpAndBroadcast(state, null, null, null, null, null, null, null);
 }
 
 export function getStrategyGlobalSnapshotOrThrow(): StrategyGlobalSnapshot {
@@ -1354,6 +1480,9 @@ export function resetStrategyGlobalSession(
     } else if (k === "kto2fcruzamento") {
       state.kto2fcruzamento.stats = emptyRotatingRoomSessionStats(KTO2F_MAX_RECOVERY);
       state.kto2fcruzamento.machine = seedKto2fMachineAfterPlacarReset(histories);
+    } else if (k === "tres3fatores") {
+      state.tres3fatores.stats = emptyRotatingRoomSessionStats(ICE3F_MAX_RECOVERY);
+      state.tres3fatores.machine = seedIce3fMachineAfterPlacarReset(histories);
     } else {
       state.um1fator.stats = emptyRotatingRoomSessionStats(UM_FATOR_MAX_RECOVERY);
       state.um1fator.machine = seedUmFatorMachineAfterPlacarReset(
@@ -1371,11 +1500,12 @@ export function resetStrategyGlobalSession(
     resetOne("repeticao");
     resetOne("rotacao");
     resetOne("kto2fcruzamento");
+    resetOne("tres3fatores");
   } else {
     resetOne(kind);
   }
 
-  return bumpAndBroadcast(state, null, null, null, null, null, null);
+  return bumpAndBroadcast(state, null, null, null, null, null, null, null);
 }
 
 export function wipeStrategyGlobalState(liveTableIds: readonly number[]): StrategyGlobalSnapshot {

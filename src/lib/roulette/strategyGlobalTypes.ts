@@ -19,7 +19,8 @@ export type StrategyGlobalKind =
   | "fibonacci"
   | "repeticao"
   | "rotacao"
-  | "kto2fcruzamento";
+  | "kto2fcruzamento"
+  | "tres3fatores";
 
 export type StrategyGlobalLedgerEntry = {
   ts: number;
@@ -163,6 +164,24 @@ export type StrategyGlobalKto2fClientView = {
   betDelayUntilMs: number | null;
 };
 
+export type StrategyGlobalIce3fClientView = {
+  phase: RotatingRoomPhase;
+  sessionStats: RotatingRoomSessionStats;
+  showTapeteSignal: boolean;
+  ice3fMode: true;
+  currentRecovery: number;
+  currentUnitScale: number;
+  currentTableId: number | null;
+  alertCategory: string | null;
+  sessionMode: "scanning" | "waiting" | "active";
+  hasOpenCycle: boolean;
+  watchLabel: string | null;
+  activeCrossing: DoisFatoresActive | null;
+  ice3fActive: import("@/lib/roulette/iceTresFatoresStrategy").Ice3fActive | null;
+  lastSpinAtMs: number | null;
+  betDelayUntilMs: number | null;
+};
+
 /** Snapshot servido a todos os clientes (fonte única de verdade). */
 export type StrategyGlobalSnapshot = {
   revision: number;
@@ -175,6 +194,7 @@ export type StrategyGlobalSnapshot = {
   repeticao: StrategyGlobalRepeticaoClientView;
   rotacao: StrategyGlobalRotacaoClientView;
   kto2fcruzamento: StrategyGlobalKto2fClientView;
+  tres3fatores: StrategyGlobalIce3fClientView;
   lifetime: Record<StrategyGlobalKind, StrategyGlobalLifetimeAggregate>;
   /** Últimas entradas liquidadas (para painel de estatísticas). */
   ledgerTail: Record<StrategyGlobalKind, StrategyGlobalLedgerEntry[]>;
@@ -236,6 +256,12 @@ export type StrategyGlobalFlashPayload = {
     kind: "win" | "loss" | "recovery";
   } | null;
   kto2fcruzamento: {
+    resultNumber: number;
+    won: boolean;
+    tableId: number;
+    kind: "win" | "loss" | "recovery";
+  } | null;
+  tres3fatores: {
     resultNumber: number;
     won: boolean;
     tableId: number;

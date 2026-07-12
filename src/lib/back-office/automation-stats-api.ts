@@ -29,6 +29,7 @@ export async function setAutomationTriggerEnabled(
     | "repeticao"
     | "rotacao"
     | "kto2fcruzamento"
+    | "tres3fatores"
     | "fibonacciDozen"
     | "fibonacciColumn"
     | "repeticaoDozen"

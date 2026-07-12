@@ -5,6 +5,7 @@ import type { RotatingRoomUmFatorSession } from "@/hooks/useRotatingRoomUmFatorS
 import type { DoisFatoresActive } from "@/lib/roulette/doisFatoresStrategy";
 import { activeCrossingFromAutomationBet } from "@/lib/roulette/automationBetCrossing";
 import { kto2fActiveToCrossing } from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import { ice3fActiveToCrossing } from "@/lib/roulette/rotatingRoomIce3fStrategy";
 import { rotacaoActiveToCrossing } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { activeFibonacciViewFromBet, isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
 import { isRotatingRoomCrossingPrepareIndication } from "@/lib/roulette/rotatingRoomCrossingStrategy";
@@ -179,18 +180,29 @@ export function lobbyTableHasRotatingRoomSignal(
 
 /** Alinha o cartão da sala com entrada em jogo da automação financeira (quando o motor ainda não expõe mesa). */
 export function alignRotatingRoomSessionWithAutomationBet<
-  T extends RotatingRoomLobbySession & { rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" },
+  T extends RotatingRoomLobbySession & {
+    rotativaTrigger?: "umFator" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | "tres3fatores";
+  },
 >(
   session: T,
   bet:
     | {
         tableId: number;
         recovery: number;
-        strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
+        strategy?:
+          | "um1fator"
+          | "dois2fatores"
+          | "fibonacci"
+          | "repeticao"
+          | "rotacao"
+          | "kto2fcruzamento"
+          | "tres3fatores";
         signalId?: string;
         alertLabel?: string;
         umActive?: import("@/lib/roulette/umFatorStrategy").UmFatorActive;
         rotacaoActive?: import("@/lib/roulette/rotatingRoomRotacaoStrategy").RotacaoActive;
+        kto2fActive?: import("@/lib/roulette/iceCruzamento2fStrategy").Ice2fActive;
+        ice3fActive?: import("@/lib/roulette/iceTresFatoresStrategy").Ice3fActive;
         activeCrossing?: DoisFatoresActive | null;
         activeFibonacci?: import("@/lib/roulette/rotatingRoomFibonacciStrategy").RotatingRoomFibonacciActive;
         activeRepeticao?: import("@/lib/roulette/rotatingRoomRepeticaoStrategy").RotatingRoomRepeticaoActive;
@@ -199,7 +211,14 @@ export function alignRotatingRoomSessionWithAutomationBet<
     | undefined,
   options?: {
     /** Só alinha quando a aposta é desta estratégia (evita sinal de 1F/2F sobrepor Fibonacci). */
-    roomStrategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
+    roomStrategy?:
+      | "um1fator"
+      | "dois2fatores"
+      | "fibonacci"
+      | "repeticao"
+      | "rotacao"
+      | "kto2fcruzamento"
+      | "tres3fatores";
   },
 ): T {
   if (!bet?.tableId) return session;
@@ -264,6 +283,20 @@ export function alignRotatingRoomSessionWithAutomationBet<
       activeCrossing,
       sessionMode: "active",
       rotativaTrigger: "kto2fcruzamento",
+    } as T;
+  }
+
+  if (bet.strategy === "tres3fatores" && bet.ice3fActive) {
+    const activeCrossing = ice3fActiveToCrossing(bet.ice3fActive);
+    return {
+      ...session,
+      currentTableId: bet.tableId,
+      showTapeteSignal: true,
+      prepareTableId: null,
+      currentRecovery: bet.recovery,
+      activeCrossing,
+      sessionMode: "active",
+      rotativaTrigger: "tres3fatores",
     } as T;
   }
 

@@ -24,7 +24,7 @@ export type ExtensionSyncSettlement = {
   stake: number;
   dedupeKey: string;
   /** um1fator | dois2fatores | fibonacci | repeticao | rotacao — por defeito um1fator */
-  trigger?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao";
+  trigger?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | "tres3fatores";
 };
 
 /** Payload enviado pela extensão Chrome — motor da sala rotativa como fonte de verdade. */

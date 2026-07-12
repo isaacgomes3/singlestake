@@ -55,7 +55,7 @@ function accuracyTone(pct: number | null): string {
 
 function automationTriggerToggleId(
   rowId: UmFatorTriggerTierReportRow["id"],
-): "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | "crossingCorAltura" | "crossingAlturaParidade" | "crossingCorAlturaOpposite" | "crossingAlturaParidadeOpposite" | null {
+): "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | "tres3fatores" | "crossingCorAltura" | "crossingAlturaParidade" | "crossingCorAlturaOpposite" | "crossingAlturaParidadeOpposite" | null {
   if (rowId === "three") return "three";
   if (rowId === "crossing-primary") return "crossing";
   if (rowId === "crossing-cor-altura") return "crossingCorAltura";
@@ -66,6 +66,7 @@ function automationTriggerToggleId(
   if (rowId === "repeticao") return "repeticao";
   if (rowId === "rotacao") return "rotacao";
   if (rowId === "kto2fcruzamento") return "kto2fcruzamento";
+  if (rowId === "tres3fatores") return "tres3fatores";
   return null;
 }
 
@@ -168,7 +169,7 @@ export function BackOfficeAutomationStatsPanel() {
   }
 
   async function handleToggleTrigger(
-    id: "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | ZoneToggleId,
+    id: "three" | "crossing" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento" | "tres3fatores" | ZoneToggleId,
     enabled: boolean,
   ) {
     setTogglingId(id);

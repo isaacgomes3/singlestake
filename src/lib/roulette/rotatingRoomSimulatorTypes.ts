@@ -5,8 +5,8 @@ import type { RotatingRoomPhase } from "@/lib/roulette/rotatingRoomStrategy";
 export type RotatingRoomSimulatorIndication = {
   revision: number;
   updatedAt: number;
-  strategy: "um1fator" | "dois2fatores" | "kto2fcruzamento";
-  rotativaTrigger: "umFator" | "crossing" | "kto2fcruzamento";
+  strategy: "um1fator" | "dois2fatores" | "kto2fcruzamento" | "tres3fatores";
+  rotativaTrigger: "umFator" | "crossing" | "kto2fcruzamento" | "tres3fatores";
   phase: RotatingRoomPhase;
   /** Texto principal (ex.: «Aguarde no Lobby» ou «Macao · Vermelho»). */
   lobbyMessage: string;

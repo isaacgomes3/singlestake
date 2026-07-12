@@ -17,6 +17,11 @@ import {
   kto2fSignalId,
   stakeForKto2fRecovery,
 } from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import {
+  ice3fAlertLabel,
+  ice3fSignalId,
+  stakeForIce3fUnitScale,
+} from "@/lib/roulette/rotatingRoomIce3fStrategy";
 import type { StrategyGlobalSnapshot } from "@/lib/roulette/strategyGlobalTypes";
 import { doisFatoresFactorLabel } from "@/lib/roulette/doisFatoresStrategy";
 import { umFatorAlertLabel } from "@/lib/roulette/umFatorStrategy";
@@ -195,13 +200,64 @@ function buildFromKto2f(
   };
 }
 
+function buildFromIce3f(
+  snapshot: StrategyGlobalSnapshot,
+  ice3f: StrategyGlobalSnapshot["tres3fatores"],
+): RotatingRoomSimulatorIndication {
+  const tableId = ice3f.showTapeteSignal ? ice3f.currentTableId : null;
+  const active = ice3f.ice3fActive;
+  const tableLabel = tableId != null ? lobbyTableDisplayName(tableId) : null;
+
+  let lobbyMessage = "Aguarde no Lobby";
+  if (tableLabel && active) {
+    lobbyMessage = ice3f.showTapeteSignal
+      ? `${tableLabel} · ${ice3fAlertLabel(active)}`
+      : tableLabel;
+  } else if (ice3f.hasOpenCycle && tableLabel) {
+    lobbyMessage = `${tableLabel} · ICE 3F · aguardando janela`;
+  }
+
+  const betExteriorKey =
+    ice3f.showTapeteSignal && active
+      ? pragmaticExteriorBetKeyFromFactor(active.factors[0])
+      : null;
+
+  const signalId =
+    ice3f.showTapeteSignal && active && tableId != null
+      ? ice3fSignalId(active, ice3f.currentUnitScale)
+      : null;
+
+  return {
+    revision: snapshot.revision,
+    updatedAt: snapshot.updatedAt,
+    strategy: "tres3fatores",
+    rotativaTrigger: "tres3fatores",
+    phase: ice3f.phase,
+    lobbyMessage,
+    hasSignal: ice3f.showTapeteSignal,
+    showTapeteSignal: ice3f.showTapeteSignal,
+    tableId,
+    tableLabel,
+    aproveitamentoPct: rotatingRoomSessionAproveitamentoPct(ice3f.sessionStats),
+    wins: ice3f.sessionStats.wins,
+    losses: ice3f.sessionStats.losses,
+    recovery: ice3f.currentRecovery,
+    suggestedStake: stakeForIce3fUnitScale(ice3f.currentUnitScale),
+    alertLabel: active ? ice3fAlertLabel(active) : ice3f.watchLabel,
+    betExteriorKey,
+    signalId,
+    action: ice3f.showTapeteSignal && active && tableId != null ? "bet" : "wait",
+  };
+}
+
 export function buildRotatingRoomSimulatorIndication(
   snapshot: StrategyGlobalSnapshot,
   automationBalance?: number,
-  options?: { crossingEnabled?: boolean; kto2fEnabled?: boolean },
+  options?: { crossingEnabled?: boolean; kto2fEnabled?: boolean; tres3fEnabled?: boolean },
 ): RotatingRoomSimulatorIndication {
   const crossingEnabled = options?.crossingEnabled !== false;
   const kto2fEnabled = options?.kto2fEnabled === true;
+  const tres3fEnabled = options?.tres3fEnabled === true;
   const trigger = resolveRotativaTriggerFromSnapshot(
     snapshot,
     crossingEnabled,
@@ -209,12 +265,16 @@ export function buildRotatingRoomSimulatorIndication(
     false,
     false,
     kto2fEnabled,
+    tres3fEnabled,
   );
   if (trigger === "crossing") {
     return buildFromCrossing(snapshot, snapshot.dois2fatores, automationBalance);
   }
   if (trigger === "kto2fcruzamento") {
     return buildFromKto2f(snapshot, snapshot.kto2fcruzamento);
+  }
+  if (trigger === "tres3fatores") {
+    return buildFromIce3f(snapshot, snapshot.tres3fatores);
   }
   return buildFromUmFator(snapshot, snapshot.um1fator, automationBalance);
 }

@@ -30,7 +30,14 @@ import {
   kto2fSignalId,
   stakeForKto2fRecovery,
 } from "@/lib/roulette/rotatingRoomKto2fStrategy";
+import {
+  ice3fActiveToCrossing,
+  ice3fAlertLabel,
+  ice3fSignalId,
+  stakeForIce3fUnitScale,
+} from "@/lib/roulette/rotatingRoomIce3fStrategy";
 import type { Ice2fActive } from "@/lib/roulette/iceCruzamento2fStrategy";
+import type { Ice3fActive } from "@/lib/roulette/iceTresFatoresStrategy";
 import {
   fibonacciSignalId,
   type RotatingRoomFibonacciActive,
@@ -90,13 +97,21 @@ export type AutomationPendingSignal = {
   alertLabel: string;
   recovery: number;
   stake: number;
-  strategy?: "um1fator" | "dois2fatores" | "fibonacci" | "repeticao" | "rotacao" | "kto2fcruzamento";
+  strategy?:
+    | "um1fator"
+    | "dois2fatores"
+    | "fibonacci"
+    | "repeticao"
+    | "rotacao"
+    | "kto2fcruzamento"
+    | "tres3fatores";
   umActive?: UmFatorActive;
   activeCrossing?: DoisFatoresActive;
   activeFibonacci?: RotatingRoomFibonacciActive;
   activeRepeticao?: RotatingRoomRepeticaoActive;
   rotacaoActive?: RotacaoActive;
   kto2fActive?: Ice2fActive;
+  ice3fActive?: Ice3fActive;
   /** 2F — empate (repetir) vs derrota (dobrar) no hold pós-giro. */
   crossingHoldReason?: "draw" | "loss";
   /** 2F ausência oposta — repetir aposta após vitória na entrada (R0). */
@@ -284,6 +299,7 @@ export function pendingSignalFromSnapshot(
     repeticaoEnabled?: boolean;
     rotacaoEnabled?: boolean;
     kto2fEnabled?: boolean;
+    tres3fEnabled?: boolean;
   },
 ): AutomationPendingSignal | null {
   if (options?.blockNewEntries) return null;
@@ -293,6 +309,7 @@ export function pendingSignalFromSnapshot(
   const repeticaoEnabled = options?.repeticaoEnabled === true;
   const rotacaoEnabled = options?.rotacaoEnabled === true;
   const kto2fEnabled = options?.kto2fEnabled === true;
+  const tres3fEnabled = options?.tres3fEnabled === true;
   const trigger = resolveRotativaTriggerFromSnapshot(
     snapshot,
     crossingEnabled,
@@ -300,6 +317,7 @@ export function pendingSignalFromSnapshot(
     rotacaoEnabled,
     repeticaoEnabled,
     kto2fEnabled,
+    tres3fEnabled,
   );
   if (trigger === "crossing") {
     return pendingSignalFromCrossingSession(
@@ -339,6 +357,10 @@ export function pendingSignalFromSnapshot(
 
   if (trigger === "kto2fcruzamento") {
     return pendingSignalFromKto2fSession(snapshot.kto2fcruzamento, balance);
+  }
+
+  if (trigger === "tres3fatores") {
+    return pendingSignalFromIce3fSession(snapshot.tres3fatores, balance);
   }
 
   return pendingSignalFromUmFatorSession(
@@ -758,6 +780,36 @@ export function pendingSignalFromKto2fSession(
     strategy: "kto2fcruzamento",
     kto2fActive: active,
     activeCrossing: kto2fActiveToCrossing(active),
+  };
+}
+
+/** Sinal activo ICE 3F — Roulette 2 Extra Time, eco → cor/altura. */
+export function pendingSignalFromIce3fSession(
+  session: Pick<
+    StrategyGlobalSnapshot["tres3fatores"],
+    "showTapeteSignal" | "currentTableId" | "currentRecovery" | "currentUnitScale" | "ice3fActive"
+  >,
+  _balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+): AutomationPendingSignal | null {
+  if (!session.showTapeteSignal || session.currentTableId == null || !session.ice3fActive) {
+    return null;
+  }
+
+  const tableId = session.currentTableId;
+  const active = session.ice3fActive;
+  const recovery = session.currentRecovery;
+  const unitScale = session.currentUnitScale;
+
+  return {
+    signalId: ice3fSignalId(active, unitScale),
+    tableId,
+    tableLabel: lobbyTableDisplayName(tableId),
+    alertLabel: ice3fAlertLabel(active),
+    recovery,
+    stake: stakeForIce3fUnitScale(unitScale),
+    strategy: "tres3fatores",
+    ice3fActive: active,
+    activeCrossing: ice3fActiveToCrossing(active),
   };
 }
 

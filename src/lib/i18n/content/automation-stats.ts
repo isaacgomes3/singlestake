@@ -43,6 +43,7 @@ export const automationStatsContent = {
       repeticaoColumn: "Repetição · colunas",
       rotacao: "Rotação · altura/paridade/cor (Roulette 1)",
       kto2fcruzamento: "KTO 2F · cruzamento posições críticas (Roulette 3)",
+      tres3fatores: "ICE 3F · eco cor/altura (Roulette 2 Extra Time)",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
@@ -139,6 +140,7 @@ export const automationStatsContent = {
       fibonacciColumn: "Fibonacci · columns",
       rotacao: "Rotation · high/parity/color (Roulette 1)",
       kto2fcruzamento: "KTO 2F · critical-position crossing (Roulette 3)",
+      tres3fatores: "ICE 3F · echo color/height (Roulette 2 Extra Time)",
     },
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
@@ -235,6 +237,7 @@ export const automationStatsContent = {
       fibonacciColumn: "Fibonacci · columnas",
       rotacao: "Rotación · altura/paridad/color (Roulette 1)",
       kto2fcruzamento: "KTO 2F · cruce posiciones críticas (Roulette 3)",
+      tres3fatores: "ICE 3F · eco color/altura (Roulette 2 Extra Time)",
     },
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:

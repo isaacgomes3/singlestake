@@ -56,6 +56,17 @@ export function formatGlobalAutomationSettleDescription(
     return parts.join(" · ");
   }
 
+  if (input.strategy === "tres3fatores") {
+    const parts = [input.tableLabel, "ICE 3F"];
+    if (input.resultNumber != null) {
+      parts.push(`Giro ${input.resultNumber}`);
+    }
+    if (input.recovery > 0 || input.kind === "recovery" || input.kind === "loss") {
+      parts.push(`gale ${input.recovery}`);
+    }
+    return parts.join(" · ");
+  }
+
   const recoveryNote = input.recovery > 0 ? ` · gale ${input.recovery}` : "";
   const baseDesc = `Automação global — ${input.tableLabel}${recoveryNote}`;
 
