@@ -105,8 +105,9 @@ import {
   ice3fHasOpenCycle,
   ice3fShowTapeteSignal,
   ice3fWatchLabel,
+  markIce3fRotatingBetPlaced,
   seedIce3fMachineAfterPlacarReset,
-  stakeForIce3fRecovery,
+  stakeForIce3fAutomation,
   tickIce3fRotatingPlacar,
   type Ice3fPlacarFlash,
 } from "@/lib/roulette/rotatingRoomIce3fStrategy";
@@ -122,6 +123,7 @@ import {
   type RotacaoPlacarFlash,
 } from "@/lib/roulette/rotatingRoomRotacaoStrategy";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
+import { reconcileHistoryWithApiSnapshot } from "@/lib/roulette/historyReconcile";
 import { STRATEGY_PLACAR_DRAIN_MAX_STEPS, drainPlacarSteps } from "@/lib/roulette/strategySessionDrive";
 import { crossingMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomCrossingPlacarDrive";
 import { umFatorMachinePlacarStepProgressed } from "@/lib/roulette/rotatingRoomUmFatorPlacarDrive";
@@ -278,11 +280,14 @@ function appendIce3fLedgerIfNeeded(
   ) {
     return [];
   }
+  const unitScale =
+    Math.max(1, Math.floor(ice3f.entryUnits)) * 2 ** Math.max(0, Math.floor(ice3f.recoveryBefore));
+  const baseStake = getAutomationConfig().baseStake;
   const ledgerEntry = ledgerFromFlash(
     ice3f.flash,
     ice3f.recoveryBefore,
     "tres3fatores",
-    stakeForIce3fRecovery(ice3f.recoveryBefore, ice3f.entryUnits),
+    stakeForIce3fAutomation(unitScale, baseStake),
   );
   appendLedger(state, "tres3fatores", ledgerEntry, ICE3F_MAX_RECOVERY);
   return [ledgerEntry];
@@ -1379,7 +1384,7 @@ export async function ingestStrategyGlobalExtensionSync(
   return snapshot;
 }
 
-/** Sem dedupe — usado para snapshot `last20Results` ao ligar o WS. */
+/** Sem dedupe — reconcilia sempre com `last20Results` (prefixo Pragmatic). */
 export function ingestStrategyGlobalHistorySnapshot(
   tableId: number,
   spins: RouletteSpin[],
@@ -1391,10 +1396,13 @@ export function ingestStrategyGlobalHistorySnapshot(
 
   const key = String(tableId);
   const existing = state.tableHistories[key] ?? [];
-  if (existing.length > 0) return;
-
   const numbers = spins.map((s) => s.number);
-  state.tableHistories[key] = numbers.slice(0, 4_000);
+  const next = reconcileHistoryWithApiSnapshot(existing, numbers);
+  const changed =
+    next.length !== existing.length || next.some((n, i) => n !== existing[i]);
+  if (!changed && existing.length > 0) return;
+
+  state.tableHistories[key] = next.slice(0, 4_000);
   for (const s of spins) {
     rememberGameId(state, s.gameId);
   }
@@ -1408,6 +1416,7 @@ export function ingestStrategyGlobalHistorySnapshot(
   driveKto2f(state, histories);
   driveIce3f(state, histories);
   bumpAndBroadcast(state, null, null, null, null, null, null, null);
+  schedulePersist(state);
 }
 
 export function ingestStrategyGlobalReplayBatch(
@@ -1443,6 +1452,19 @@ export function ingestStrategyGlobalReplayBatch(
 
 export function getStrategyGlobalSnapshotOrThrow(): StrategyGlobalSnapshot {
   return buildStrategyGlobalSnapshot(getStrategyGlobalState());
+}
+
+/**
+ * Confirma aposta ICE 3F na máquina global (automação / extensão).
+ * Sem isto o ciclo fica em awaiting_bet e o próximo giro cancela sem placar.
+ */
+export function markStrategyGlobalIce3fBetPlaced(): boolean {
+  const state = getStrategyGlobalState();
+  const before = state.tres3fatores.machine;
+  if (!before.cycle || before.cycle.phase !== "awaiting_bet") return false;
+  state.tres3fatores.machine = markIce3fRotatingBetPlaced(before);
+  schedulePersist(state);
+  return true;
 }
 
 export function resetStrategyGlobalSession(

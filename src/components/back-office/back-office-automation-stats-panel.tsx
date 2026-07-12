@@ -30,12 +30,22 @@ function accuracyTone(pct: number | null): string {
 
 function formatOccurrenceCell(
   position: number | undefined,
-  precededBy: number | null | undefined,
+  leftNumber: number | null | undefined,
   dash: string,
-): string {
-  if (position == null) return dash;
-  if (precededBy == null) return `#${position} · ${dash}`;
-  return `#${position} · ← ${precededBy}`;
+): { primary: string; secondary: string | null } {
+  if (leftNumber == null && position == null) {
+    return { primary: dash, secondary: null };
+  }
+  if (leftNumber == null) {
+    return {
+      primary: dash,
+      secondary: position != null ? `giro #${position}` : null,
+    };
+  }
+  return {
+    primary: `← ${leftNumber}`,
+    secondary: position != null ? `giro #${position}` : null,
+  };
 }
 
 export function BackOfficeAutomationStatsPanel() {
@@ -228,16 +238,28 @@ export function BackOfficeAutomationStatsPanel() {
                 <tbody>
                   {occurrences.rows.map((row) => {
                     const [last, prev] = row.occurrences;
+                    const lastCell = formatOccurrenceCell(last?.position, last?.precededBy, dash);
+                    const prevCell = formatOccurrenceCell(prev?.position, prev?.precededBy, dash);
                     return (
                       <tr key={row.number} className="border-t border-border-color">
                         <td className="px-3 py-2 font-semibold tabular-nums text-text-primary">
                           {row.number}
                         </td>
                         <td className="px-3 py-2 tabular-nums text-text-secondary">
-                          {formatOccurrenceCell(last?.position, last?.precededBy, dash)}
+                          <span className="font-semibold text-text-primary">{lastCell.primary}</span>
+                          {lastCell.secondary ? (
+                            <span className="mt-0.5 block text-[11px] text-text-secondary">
+                              {lastCell.secondary}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-3 py-2 tabular-nums text-text-secondary">
-                          {formatOccurrenceCell(prev?.position, prev?.precededBy, dash)}
+                          <span className="font-semibold text-text-primary">{prevCell.primary}</span>
+                          {prevCell.secondary ? (
+                            <span className="mt-0.5 block text-[11px] text-text-secondary">
+                              {prevCell.secondary}
+                            </span>
+                          ) : null}
                         </td>
                       </tr>
                     );

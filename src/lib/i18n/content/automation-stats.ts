@@ -47,11 +47,11 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — ocorrências no histórico",
     ice3fOccurrencesHint:
-      "Para cada número (0–36), as duas últimas saídas na Roulette 2 Extra Time e o número à esquerda de cada uma (mesmo vizinho do eco ICE 3F).",
+      "Para cada número (0–36), as duas últimas saídas e o número à esquerda de cada uma (vizinho do eco). Ex.: 8 · 0 → mostra ← 8.",
     ice3fOccurrencesHistoryLength: "{{n}} giros no buffer",
     ice3fOccurrencesColNumber: "Número",
-    ice3fOccurrencesColLast: "Última ocorrência",
-    ice3fOccurrencesColPrev: "2.ª ocorrência",
+    ice3fOccurrencesColLast: "À esquerda (última)",
+    ice3fOccurrencesColPrev: "À esquerda (2.ª)",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (dúzia ou coluna) tem o seu limiar de giros ausentes. A indicação dispara só com ausência exactamente igual ao valor confirmado (ex.: 3 giros = exactamente 3, não 4+).",
@@ -151,11 +151,11 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — history occurrences",
     ice3fOccurrencesHint:
-      "For each number (0–36), the two latest hits on Roulette 2 Extra Time and the number to the left of each (same ICE 3F echo neighbor).",
+      "For each number (0–36), the two latest hits and the number to the left of each (ICE 3F echo neighbor). E.g. 8 · 0 → shows ← 8.",
     ice3fOccurrencesHistoryLength: "{{n}} spins in buffer",
     ice3fOccurrencesColNumber: "Number",
-    ice3fOccurrencesColLast: "Latest occurrence",
-    ice3fOccurrencesColPrev: "2nd occurrence",
+    ice3fOccurrencesColLast: "Left (latest)",
+    ice3fOccurrencesColPrev: "Left (2nd)",
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
       "Each type (dozen or column) has its own absence spin threshold. Confirm after changing the value in each card.",
@@ -255,11 +255,11 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — ocurrencias en el historial",
     ice3fOccurrencesHint:
-      "Para cada número (0–36), las dos últimas salidas en Roulette 2 Extra Time y el número a la izquierda de cada una (mismo vecino del eco ICE 3F).",
+      "Para cada número (0–36), las dos últimas salidas y el número a la izquierda de cada una (vecino del eco). Ej.: 8 · 0 → muestra ← 8.",
     ice3fOccurrencesHistoryLength: "{{n}} giros en el buffer",
     ice3fOccurrencesColNumber: "Número",
-    ice3fOccurrencesColLast: "Última ocurrencia",
-    ice3fOccurrencesColPrev: "2.ª ocurrencia",
+    ice3fOccurrencesColLast: "A la izquierda (última)",
+    ice3fOccurrencesColPrev: "A la izquierda (2.ª)",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (docena o columna) tiene su propio umbral de giros ausentes. Confirme tras cambiar el valor en cada tarjeta.",

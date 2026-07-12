@@ -12,6 +12,7 @@ import {
   ice3fEntryUnitsOf,
   ice3fUnitScaleForCycle,
   ice3fWatchLabelForMachine,
+  markIce3fBetPlaced,
   parseIce3fStats,
   tickIce3fPlacar,
   type Ice3fActive,
@@ -157,6 +158,21 @@ export function stakeForIce3fRecovery(recovery: number, entryUnits = 1): number 
   const gale = Math.max(0, Math.floor(recovery));
   const entry = Math.max(1, Math.floor(entryUnits));
   return stakeForIce3fUnitScale(entry * 2 ** gale);
+}
+
+/** Stake da automação / extrato: baseStake × escala (entrada × gale). */
+export function stakeForIce3fAutomation(
+  unitScale: number,
+  baseStake: number,
+): number {
+  return Math.max(0, baseStake) * Math.max(1, Math.floor(unitScale));
+}
+
+export function markIce3fRotatingBetPlaced(
+  machine: Ice3fRotatingMachineState,
+): Ice3fRotatingMachineState {
+  const { lastSpinAtMs, ...core } = machine;
+  return { ...markIce3fBetPlaced(core), lastSpinAtMs };
 }
 
 function mapIce3fFlash(

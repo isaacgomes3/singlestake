@@ -417,7 +417,8 @@ export async function syncAutomationSimWithStrategy(
   }
   if (
     openBet?.strategy === "tres3fatores" &&
-    !strategySnapshot.tres3fatores.showTapeteSignal
+    !strategySnapshot.tres3fatores.showTapeteSignal &&
+    !strategySnapshot.tres3fatores.hasOpenCycle
   ) {
     state = { ...state, openBet: null };
     replaceAutomationSimState(state);
@@ -470,6 +471,12 @@ export async function syncAutomationSimWithStrategy(
 
   if (next !== state) {
     replaceAutomationSimState(next);
+    if (next.openBet?.strategy === "tres3fatores") {
+      const { markStrategyGlobalIce3fBetPlaced } = await import(
+        "@/lib/server/strategyGlobal/engine"
+      );
+      markStrategyGlobalIce3fBetPlaced();
+    }
   }
 
   const snapshot = await buildFinalizedSnapshotBody(strategySnapshot);

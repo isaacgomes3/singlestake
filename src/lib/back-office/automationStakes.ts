@@ -3,7 +3,6 @@ import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
 import { stakeUnitsAtRecovery } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
 import { stakeForKto2fRecovery } from "@/lib/roulette/rotatingRoomKto2fStrategy";
-import { stakeForIce3fRecovery } from "@/lib/roulette/rotatingRoomIce3fStrategy";
 
 /** Stake base da automação e extensão: R$ 50 → 100 → 200 → 400 → 800 → 1600. */
 export const EXTENSION_REAL_BASE_STAKE = 50;
@@ -43,7 +42,8 @@ export function resolveLedgerEntryStake(
     return stakeForKto2fRecovery(entry.recovery);
   }
   if (entry.strategy === "tres3fatores") {
-    return stakeForIce3fRecovery(entry.recovery);
+    // Preferir stake do extrato; fallback gale × baseStake (entrada 1u).
+    return stakeForRecovery(entry.recovery, undefined, baseStake);
   }
   return stakeForRecovery(entry.recovery, undefined, baseStake);
 }

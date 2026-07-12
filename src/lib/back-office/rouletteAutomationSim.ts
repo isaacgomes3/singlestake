@@ -34,7 +34,7 @@ import {
   ice3fActiveToCrossing,
   ice3fAlertLabel,
   ice3fSignalId,
-  stakeForIce3fUnitScale,
+  stakeForIce3fAutomation,
 } from "@/lib/roulette/rotatingRoomIce3fStrategy";
 import type { Ice2fActive } from "@/lib/roulette/iceCruzamento2fStrategy";
 import type { Ice3fActive } from "@/lib/roulette/iceTresFatoresStrategy";
@@ -360,7 +360,11 @@ export function pendingSignalFromSnapshot(
   }
 
   if (trigger === "tres3fatores") {
-    return pendingSignalFromIce3fSession(snapshot.tres3fatores, balance);
+    return pendingSignalFromIce3fSession(
+      snapshot.tres3fatores,
+      balance,
+      options?.baseStake,
+    );
   }
 
   return pendingSignalFromUmFatorSession(
@@ -790,6 +794,7 @@ export function pendingSignalFromIce3fSession(
     "showTapeteSignal" | "currentTableId" | "currentRecovery" | "currentUnitScale" | "ice3fActive"
   >,
   _balance = ROULETTE_AUTOMATION_INITIAL_BANK,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
 ): AutomationPendingSignal | null {
   if (!session.showTapeteSignal || session.currentTableId == null || !session.ice3fActive) {
     return null;
@@ -806,7 +811,7 @@ export function pendingSignalFromIce3fSession(
     tableLabel: lobbyTableDisplayName(tableId),
     alertLabel: ice3fAlertLabel(active),
     recovery,
-    stake: stakeForIce3fUnitScale(unitScale),
+    stake: stakeForIce3fAutomation(unitScale, baseStake),
     strategy: "tres3fatores",
     ice3fActive: active,
     activeCrossing: ice3fActiveToCrossing(active),
@@ -1029,8 +1034,8 @@ export function pendingConflictsWithSettledHead(
     return false;
   }
 
-  // 2 Fatores / cruzamento — aposta no giro seguinte (empate mantém indicação).
-  if (pending.strategy === "dois2fatores") {
+  // 2 Fatores / cruzamento / ICE 3F — aposta no giro seguinte.
+  if (pending.strategy === "dois2fatores" || pending.strategy === "tres3fatores") {
     return false;
   }
 

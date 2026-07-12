@@ -107,6 +107,35 @@ export function reviewMartingaleSettlement(
   entry: StrategyGlobalLedgerEntry,
   baseStake: number = ROULETTE_AUTOMATION_BASE_STAKE,
 ): MartingaleReviewResult {
+  if (entry.strategy === "tres3fatores") {
+    const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
+    const recovery = Math.max(0, Math.floor(entry.recovery));
+    const maxR = 5;
+    const net = entry.won ? stake : -stake;
+    if (entry.won) {
+      if (entry.kind !== "win") {
+        return { accepted: false, reason: `vitória ICE 3F com kind inválido (${entry.kind})` };
+      }
+      return { accepted: true, stake, net };
+    }
+    if (entry.kind === "recovery") {
+      if (recovery >= maxR) {
+        return { accepted: false, reason: "recuperação ICE 3F inválida no gale máximo" };
+      }
+      return { accepted: true, stake, net };
+    }
+    if (entry.kind === "loss") {
+      if (recovery < maxR) {
+        return {
+          accepted: false,
+          reason: `derrota ICE 3F só no gale ${maxR}, recebido gale ${recovery}`,
+        };
+      }
+      return { accepted: true, stake, net };
+    }
+    return { accepted: false, reason: `tipo de liquidação ICE 3F desconhecido (${entry.kind})` };
+  }
+
   if (isZoneFibonacciStrategy(entry.strategy)) {
     const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
     const recovery = Math.max(0, Math.floor(entry.recovery));

@@ -7,18 +7,18 @@ import {
 } from "@/lib/roulette/zoneAbsenceFilterStats";
 import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
 import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
-import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
-import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import { emptyCrossingReturnStreakStats } from "@/lib/roulette/crossingReturnStreakStats";
 import {
   buildIce3fOccurrenceStats,
   emptyIce3fOccurrenceStats,
   ICE3F_OCCURRENCE_TABLE_ID,
 } from "@/lib/roulette/ice3fOccurrenceStats";
+import { reconcileHistoryWithApiSnapshot } from "@/lib/roulette/historyReconcile";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
 import { getAutomationConfig, initAutomationConfig } from "@/lib/server/automationSim/config";
 import { getStrategyGlobalState } from "@/lib/server/strategyGlobal/persistence";
+import { getRouletteHubHistories } from "@/lib/server/rouletteHub";
 
 function sessionAccuracyPct(wins: number, losses: number): number | null {
   const total = wins + losses;
@@ -109,7 +109,9 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const extension = getExtensionSourceStatus();
   const config = getAutomationConfig();
   const enabledTriggers = config.enabledTriggers;
-  const history201 = state.tableHistories[String(ICE3F_OCCURRENCE_TABLE_ID)] ?? [];
+  const historyPersisted = state.tableHistories[String(ICE3F_OCCURRENCE_TABLE_ID)] ?? [];
+  const hub201 = getRouletteHubHistories()[ICE3F_OCCURRENCE_TABLE_ID] ?? [];
+  const history201 = reconcileHistoryWithApiSnapshot(historyPersisted, hub201);
 
   let ice3fOccurrences = emptyIce3fOccurrenceStats(ICE3F_OCCURRENCE_TABLE_ID);
   try {

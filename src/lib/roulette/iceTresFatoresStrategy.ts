@@ -453,6 +453,24 @@ export function canPlaceIce3fBet(
   return nowMs - lastSpinAtMs >= ice3fBetDelayMs(unitScale);
 }
 
+/** Marca envio de aposta em curso (CDP / automação). */
+export function beginIce3fBetCommit(machine: Ice3fMachineState): Ice3fMachineState {
+  if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return machine;
+  return { ...machine, betCommitInFlight: true };
+}
+
+/** Confirma aposta colocada — passa a aguardar resultado para contar placar. */
+export function markIce3fBetPlaced(machine: Ice3fMachineState): Ice3fMachineState {
+  if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") {
+    return { ...machine, betCommitInFlight: false };
+  }
+  return {
+    ...machine,
+    betCommitInFlight: false,
+    cycle: { ...machine.cycle, phase: "awaiting_result" },
+  };
+}
+
 export type Ice3fTickResult = {
   machine: Ice3fMachineState;
   stats: RotatingRoomSessionStats;
@@ -485,19 +503,28 @@ export function tickIce3fPlacar(
     headChanged &&
     nextMachine.cycle.armedHead !== head
   ) {
-    // Janela perdida — não conta placar; cancela indicação e espera eco novo
-    // (mantém escala de gale se já havia stake > 1).
-    missedBetWindow = true;
-    const missedScale = ice3fUnitScaleForCycle(nextMachine.cycle);
-    nextMachine = {
-      ...nextMachine,
-      betCommitInFlight: false,
-      cycle: null,
-      pendingUnitScale: Math.max(nextMachine.pendingUnitScale ?? 0, missedScale),
-      pendingGaleStreak: nextMachine.cycle.galeStreak,
-      pendingConsecutiveTriples: nextMachine.cycle.consecutiveTriples,
-      pendingGalesSinceTriple: nextMachine.cycle.galesSinceTriple,
-    };
+    if (nextMachine.betCommitInFlight) {
+      // Aposta confirmada (extensão/automação) — promove e liquida no mesmo tick.
+      nextMachine = {
+        ...nextMachine,
+        betCommitInFlight: false,
+        cycle: { ...nextMachine.cycle, phase: "awaiting_result" },
+      };
+    } else {
+      // Janela perdida — não conta placar; cancela indicação e espera eco novo
+      // (mantém escala de gale se já havia stake > 1).
+      missedBetWindow = true;
+      const missedScale = ice3fUnitScaleForCycle(nextMachine.cycle);
+      nextMachine = {
+        ...nextMachine,
+        betCommitInFlight: false,
+        cycle: null,
+        pendingUnitScale: Math.max(nextMachine.pendingUnitScale ?? 0, missedScale),
+        pendingGaleStreak: nextMachine.cycle.galeStreak,
+        pendingConsecutiveTriples: nextMachine.cycle.consecutiveTriples,
+        pendingGalesSinceTriple: nextMachine.cycle.galesSinceTriple,
+      };
+    }
   }
 
   if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
