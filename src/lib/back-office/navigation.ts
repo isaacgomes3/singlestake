@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   ArrowDownToLine,
   ArrowUpFromLine,
   BarChart3,
@@ -42,8 +43,8 @@ export type BackOfficeModuleId =
   | "painel-financeiro"
   | "automacao-config"
   | "automacao-estatisticas"
+  | "automacao-sequencias"
   | "auditoria";
-
 export type BackOfficeGroupId =
   | "produtos"
   | "rede"
@@ -120,7 +121,15 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     path: "/back-office/administracao",
     icon: Shield,
     description: "Automação global, painel admin e auditoria.",
-    moduleIds: ["automacao-config", "automacao-estatisticas", "painel-financeiro", "gestao-clientes", "admin", "auditoria"],
+    moduleIds: [
+      "automacao-config",
+      "automacao-estatisticas",
+      "automacao-sequencias",
+      "painel-financeiro",
+      "gestao-clientes",
+      "admin",
+      "auditoria",
+    ],
   },
 ];
 
@@ -129,7 +138,7 @@ export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [];
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   {
     key: "automacao",
-    moduleIds: ["automacao-config", "automacao-estatisticas"],
+    moduleIds: ["automacao-config", "automacao-estatisticas", "automacao-sequencias"],
   },
   {
     key: "gestao",
@@ -220,6 +229,11 @@ const MODULE_META: Record<
     label: "Estatísticas automação",
     icon: Percent,
     description: "Percentual de acerto por gatilho 1 Fator.",
+  },
+  "automacao-sequencias": {
+    label: "Sequências",
+    icon: Activity,
+    description: "Monitor cor / altura / paridade por sequência limpa ou suja.",
   },
   admin: {
     label: "Painel administrativo",

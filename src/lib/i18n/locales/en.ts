@@ -75,6 +75,7 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       "painel-financeiro": "Financial panel",
       "automacao-config": "Global automation",
       "automacao-estatisticas": "Automation statistics",
+      "automacao-sequencias": "Sequences",
       auditoria: "Audit & logs",
       "casino-ao-vivo": "Live casino",
     },

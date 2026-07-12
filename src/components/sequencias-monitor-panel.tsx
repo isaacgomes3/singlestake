@@ -16,6 +16,8 @@ type Props = {
   tableId: number | null;
   history: readonly number[];
   onReset: () => void;
+  /** Dentro do módulo do back office (evita título duplicado). */
+  embedded?: boolean;
 };
 
 function FactorCard({
@@ -71,7 +73,13 @@ function FactorCard({
   );
 }
 
-export function SequenciasMonitorPanel({ state, tableId, history, onReset }: Props) {
+export function SequenciasMonitorPanel({
+  state,
+  tableId,
+  history,
+  onReset,
+  embedded = false,
+}: Props) {
   const best = sequenciasBestCardKind(state);
   const alert = state.alert;
   const recent = history.slice(0, 16);
@@ -80,16 +88,36 @@ export function SequenciasMonitorPanel({ state, tableId, history, onReset }: Pro
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-text-primary">Automação · Sequências</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Monitor cor / altura / paridade — sequência limpa (≥2) ou suja (A·A·B·A)
-            {tableId != null ? (
-              <>
-                {" "}
-                · mesa <span className="font-semibold text-text-primary">{lobbyTableDisplayName(tableId)}</span>
-              </>
-            ) : null}
-          </p>
+          {embedded ? (
+            <p className="text-sm text-text-secondary">
+              Monitor cor / altura / paridade — sequência limpa (≥2) ou suja (A·A·B·A)
+              {tableId != null ? (
+                <>
+                  {" "}
+                  · mesa{" "}
+                  <span className="font-semibold text-text-primary">
+                    {lobbyTableDisplayName(tableId)}
+                  </span>
+                </>
+              ) : null}
+            </p>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold text-text-primary">Automação · Sequências</h1>
+              <p className="mt-1 text-sm text-text-secondary">
+                Monitor cor / altura / paridade — sequência limpa (≥2) ou suja (A·A·B·A)
+                {tableId != null ? (
+                  <>
+                    {" "}
+                    · mesa{" "}
+                    <span className="font-semibold text-text-primary">
+                      {lobbyTableDisplayName(tableId)}
+                    </span>
+                  </>
+                ) : null}
+              </p>
+            </>
+          )}
         </div>
         <button
           type="button"
