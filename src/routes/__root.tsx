@@ -19,7 +19,7 @@ import { DeferredMount } from "@/components/deferred-mount";
 import { RouteSoundGate } from "@/components/route-sound-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { useAppProfile } from "@/hooks/useAppProfile";
-import { isBackOfficeWorkspacePath } from "@/lib/back-office/routes";
+import { isBackOfficeWorkspacePath, isBackOfficeLiveRoulettePath } from "@/lib/back-office/routes";
 import { isBackOfficeAppPath, isLegacyCasinoPath } from "@/lib/auth/guards";
 import { RouletteLiveApiProvider } from "@/lib/roulette/rouletteLiveApiContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme/theme-provider";
@@ -165,6 +165,7 @@ function RootComponent() {
   const profile = useAppProfile();
   const isAutomation = profile === "automation";
   const workspacePath = isBackOfficeWorkspacePath(pathname);
+  const liveRouletteAdmin = isBackOfficeLiveRoulettePath(pathname);
   const backOfficeApp = isBackOfficeAppPath(pathname);
   const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
@@ -172,10 +173,12 @@ function RootComponent() {
     !isAutomation &&
     backOfficeApp &&
     (pathname === "/back-office" || pathname === "/back-office/");
-  /** Motor global + automação — visão geral, salas rotativas e subdomínio automação. */
-  const needsGlobalAutomation = isAutomation || backOfficeOverview || workspacePath;
-  /** SSE roleta — mesas da sala rotativa (visão geral + salas + subdomínio automação). */
-  const needsRouletteStream = isAutomation || backOfficeOverview || workspacePath;
+  /** Motor global + automação — visão geral, salas rotativas, monitor Sequências e subdomínio automação. */
+  const needsGlobalAutomation =
+    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin;
+  /** SSE roleta — mesas ao vivo (visão geral + salas + Sequências + subdomínio automação). */
+  const needsRouletteStream =
+    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin;
   /** Ponte extensão — visão geral (painel automação) + salas + subdomínio automação. */
   const needsExtensionBridge = isAutomation || backOfficeOverview || workspacePath;
 

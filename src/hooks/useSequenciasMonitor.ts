@@ -36,6 +36,9 @@ export function useSequenciasMonitor(
     [histories, tableId],
   );
 
+  /** Assinatura do cabeçalho — garante tick mesmo se a referência do array for estável. */
+  const historySig = `${tableId ?? "x"}:${history.length}:${history[0] ?? ""}:${history[1] ?? ""}`;
+
   const [state, setState] = useState(() => defaultSequenciasMonitorState());
   const [epoch, setEpoch] = useState(0);
 
@@ -45,7 +48,7 @@ export function useSequenciasMonitor(
 
   useEffect(() => {
     setState((prev) => tickSequenciasMonitor(history, prev));
-  }, [history, epoch, tableId]);
+  }, [history, historySig, epoch, tableId]);
 
   return {
     state,

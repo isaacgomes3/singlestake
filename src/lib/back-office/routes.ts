@@ -25,3 +25,12 @@ export function isBackOfficeWorkspacePath(pathname: string): boolean {
     pathname.startsWith("/sala-rotativa")
   );
 }
+
+/** Módulos do back office que precisam de histórico/SSE de roleta ao vivo. */
+export function isBackOfficeLiveRoulettePath(pathname: string): boolean {
+  return (
+    isBackOfficeWorkspacePath(pathname) ||
+    pathname === "/back-office/administracao/automacao-sequencias" ||
+    pathname.startsWith("/back-office/administracao/automacao-sequencias/")
+  );
+}
