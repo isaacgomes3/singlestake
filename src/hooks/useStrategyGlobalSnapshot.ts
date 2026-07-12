@@ -22,9 +22,7 @@ export function StrategyGlobalSseBridge() {
     const source = new EventSource(url);
 
     const bootstrapTimer = window.setInterval(() => {
-      if (!closed && getStrategyGlobalSnapshot() == null) {
-        void bootstrapStrategyGlobalSnapshot();
-      }
+      if (!closed) void bootstrapStrategyGlobalSnapshot();
     }, BOOTSTRAP_INTERVAL_MS);
 
     source.onmessage = (event: MessageEvent) => {

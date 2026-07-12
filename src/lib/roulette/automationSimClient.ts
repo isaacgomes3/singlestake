@@ -35,6 +35,10 @@ export function applyAutomationSimStreamMessage(msg: AutomationSimStreamMessage)
   }
 }
 
+export function markAutomationSimDisconnected(): void {
+  connected = false;
+}
+
 export function clearAutomationSimClientState(): void {
   snapshot = null;
   connected = false;

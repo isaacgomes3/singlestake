@@ -427,7 +427,10 @@ export async function syncAutomationSimWithStrategy(
   }
   if (openBet?.tableId != null && !blockNewEntries) {
     const head = strategySnapshot.tableHistories[openBet.tableId]?.[0];
-    if (head != null && isSpinResultAlreadySettled(state, openBet.tableId, head)) {
+    if (
+      head != null &&
+      isSpinResultAlreadySettled(state, openBet.tableId, head, openBet.openedHead)
+    ) {
       state = { ...state, openBet: null };
       replaceAutomationSimState(state);
       openBet = null;

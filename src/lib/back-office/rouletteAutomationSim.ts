@@ -850,7 +850,15 @@ export function ledgerResultKey(
   return `${entry.tableId}:${entry.resultNumber}:${entry.ts}`;
 }
 
-export function spinSettleKey(tableId: number, resultNumber: number): string {
+/** Chave de liquidação por giro — inclui openedHead porque números da roleta repetem. */
+export function spinSettleKey(
+  tableId: number,
+  resultNumber: number,
+  openedHead?: string | null,
+): string {
+  if (openedHead != null && openedHead !== "" && openedHead !== "0") {
+    return `spin:${tableId}:${resultNumber}:${openedHead}`;
+  }
   return `spin:${tableId}:${resultNumber}`;
 }
 
@@ -987,7 +995,7 @@ export function placeOpenBet(
       const head = histories?.[state.openBet.tableId]?.[0];
       if (
         head == null ||
-        !isSpinResultAlreadySettled(state, state.openBet.tableId, head)
+        !isSpinResultAlreadySettled(state, state.openBet.tableId, head, state.openBet.openedHead)
       ) {
         if (
           !(
@@ -1014,14 +1022,25 @@ export function placeOpenBet(
   };
 }
 
+/**
+ * Já liquidámos este giro?
+ * Com `openedHead` — chave estável (número + cabeça do histórico ao abrir a aposta).
+ * Sem head — só chave legacy; **nunca** `rounds.some(número)` (números repetem e congelam histórico/indicações).
+ */
 export function isSpinResultAlreadySettled(
   state: RouletteAutomationSimState,
   tableId: number,
   resultNumber: number,
+  openedHead?: string | null,
 ): boolean {
-  const spinKey = spinSettleKey(tableId, resultNumber);
+  const spinKey = spinSettleKey(tableId, resultNumber, openedHead);
   if (state.processedKeys.includes(spinKey)) return true;
-  return state.rounds.some((r) => r.tableId === tableId && r.resultNumber === resultNumber);
+  // Head-scoped key also covers legacy bare key when head is present.
+  if (openedHead != null && openedHead !== "" && openedHead !== "0") {
+    const legacy = spinSettleKey(tableId, resultNumber);
+    if (state.processedKeys.includes(legacy)) return true;
+  }
+  return false;
 }
 
 /** Não abrir aposta se o giro actual da mesa já foi liquidado no histórico. */
@@ -1040,6 +1059,11 @@ export function pendingConflictsWithSettledHead(
 
   // 2 Fatores / cruzamento / ICE 3F — aposta no giro seguinte.
   if (pending.strategy === "dois2fatores" || pending.strategy === "tres3fatores") {
+    return false;
+  }
+
+  // 1F / KTO 2F — também apostam no giro seguinte; números repetem.
+  if (pending.strategy === "um1fator" || pending.strategy === "kto2fcruzamento") {
     return false;
   }
 
@@ -1103,7 +1127,7 @@ export function settleIce3fOpenBetFromHistories(
 
   const arrived = openBetSpinArrived(bet, histories);
   if (!arrived) return state;
-  if (isSpinResultAlreadySettled(state, bet.tableId, arrived.resultNumber)) {
+  if (isSpinResultAlreadySettled(state, bet.tableId, arrived.resultNumber, bet.openedHead)) {
     return { ...state, openBet: null };
   }
 
@@ -1179,6 +1203,10 @@ export function settleOpenBetEntry(
 
   const processedKeys = [...state.processedKeys, key];
   if (settleKey != null) processedKeys.push(settleKey);
+  const openedHead = state.openBet?.openedHead;
+  if (entry.resultNumber != null && openedHead) {
+    processedKeys.push(spinSettleKey(entry.tableId, entry.resultNumber, openedHead));
+  }
 
   const next: RouletteAutomationSimState = {
     ...state,
@@ -1374,7 +1402,9 @@ export function trySettleOpenBetFromLedger(
 
   const entry = findLedgerEntryForOpenBet(bet, ledger);
   if (!entry || entry.resultNumber == null) return state;
-  if (isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber)) return state;
+  if (isSpinResultAlreadySettled(state, entry.tableId, entry.resultNumber, bet.openedHead)) {
+    return state;
+  }
   const next = settleOpenBetEntry(state, entry, bet.tableLabel);
   if (next !== state) onSettled?.(entry);
   return next;
@@ -1402,7 +1432,9 @@ export function trySettleOpenBetFromSpin(
   if (!arrived) return state;
 
   const { resultNumber, head } = arrived;
-  if (isSpinResultAlreadySettled(state, bet.tableId, resultNumber)) return state;
+  if (isSpinResultAlreadySettled(state, bet.tableId, resultNumber, bet.openedHead)) {
+    return state;
+  }
 
   const key = `spin:${bet.tableId}:${resultNumber}:${head}`;
   if (localProcessed.has(key)) return state;
@@ -1461,7 +1493,9 @@ export function applyCapturedUmFatorFlashes(
   for (const flash of flashes) {
     if (!next.openBet || next.openBet.tableId !== flash.tableId) continue;
     const bet = next.openBet;
-    if (isSpinResultAlreadySettled(next, flash.tableId, flash.resultNumber)) continue;
+    if (isSpinResultAlreadySettled(next, flash.tableId, flash.resultNumber, bet.openedHead)) {
+      continue;
+    }
 
     const arrived = openBetSpinArrived(bet, histories);
     if (!arrived || arrived.resultNumber !== flash.resultNumber) continue;

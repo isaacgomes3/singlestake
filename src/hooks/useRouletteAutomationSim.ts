@@ -44,7 +44,7 @@ export function useRouletteAutomationSim() {
   useEffect(() => {
     void bootstrapAutomationSimSnapshot();
     const id = window.setInterval(() => {
-      if (!isAutomationSimConnected()) void bootstrapAutomationSimSnapshot();
+      void bootstrapAutomationSimSnapshot();
     }, BOOTSTRAP_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, []);
