@@ -1,13 +1,16 @@
 /**
- * Estatística ICE 3F — para cada número 0–36, as duas últimas ocorrências
+ * Estatística ICE 3F — para cada número 0–36, as três últimas ocorrências
  * no histórico (newest-first) e o número à **esquerda** de cada uma
- * (`history[i-1]`), o mesmo vizinho que o eco usa como sinal cor/altura.
+ * (`history[i-1]`), o mesmo vizinho que o eco usa como sinal.
  */
 
 /** Mesa Roulette 2 Extra Time — literal para evitar ciclo de init. */
 export const ICE3F_OCCURRENCE_TABLE_ID = 201 as const;
 
 export const ICE3F_OCCURRENCE_NUMBERS = Array.from({ length: 37 }, (_, n) => n);
+
+/** Quantas ocorrências recentes mostrar por número (última / 2.ª / 3.ª). */
+export const ICE3F_OCCURRENCE_MAX_PER_NUMBER = 3;
 
 export type Ice3fNumberOccurrence = {
   /** Índice 0-based no histórico newest-first. */
@@ -44,14 +47,17 @@ export function emptyIce3fOccurrenceStats(
 
 /**
  * @param historyNewestFirst histórico da mesa (mais recente primeiro)
- * @param maxPerNumber quantas ocorrências recentes guardar (default 2)
+ * @param maxPerNumber quantas ocorrências recentes guardar (default 3)
  */
 export function buildIce3fOccurrenceStats(
   historyNewestFirst: readonly number[],
   options?: { tableId?: number; maxPerNumber?: number },
 ): Ice3fOccurrenceStats {
   const tableId = options?.tableId ?? ICE3F_OCCURRENCE_TABLE_ID;
-  const maxPerNumber = Math.max(1, Math.floor(options?.maxPerNumber ?? 2));
+  const maxPerNumber = Math.max(
+    1,
+    Math.floor(options?.maxPerNumber ?? ICE3F_OCCURRENCE_MAX_PER_NUMBER),
+  );
   const history = historyNewestFirst.filter((n) => Number.isFinite(n));
   const buckets = new Map<number, Ice3fNumberOccurrence[]>();
 

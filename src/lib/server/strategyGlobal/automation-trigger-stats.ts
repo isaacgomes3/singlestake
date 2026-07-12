@@ -117,6 +117,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   try {
     ice3fOccurrences = buildIce3fOccurrenceStats(history201, {
       tableId: ICE3F_OCCURRENCE_TABLE_ID,
+      maxPerNumber: 3,
     });
   } catch (err) {
     console.warn("[AutomationStats] ice3fOccurrences falhou — fallback vazio:", err);

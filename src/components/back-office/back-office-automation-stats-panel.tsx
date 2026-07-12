@@ -233,13 +233,21 @@ export function BackOfficeAutomationStatsPanel() {
                     <th className="px-3 py-2 font-semibold">
                       {t("automationStats.ice3fOccurrencesColPrev")}
                     </th>
+                    <th className="px-3 py-2 font-semibold">
+                      {t("automationStats.ice3fOccurrencesColThird")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {occurrences.rows.map((row) => {
-                    const [last, prev] = row.occurrences;
+                    const [last, prev, third] = row.occurrences;
                     const lastCell = formatOccurrenceCell(last?.position, last?.precededBy, dash);
                     const prevCell = formatOccurrenceCell(prev?.position, prev?.precededBy, dash);
+                    const thirdCell = formatOccurrenceCell(
+                      third?.position,
+                      third?.precededBy,
+                      dash,
+                    );
                     return (
                       <tr key={row.number} className="border-t border-border-color">
                         <td className="px-3 py-2 font-semibold tabular-nums text-text-primary">
@@ -258,6 +266,16 @@ export function BackOfficeAutomationStatsPanel() {
                           {prevCell.secondary ? (
                             <span className="mt-0.5 block text-[11px] text-text-secondary">
                               {prevCell.secondary}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-text-secondary">
+                          <span className="font-semibold text-text-primary">
+                            {thirdCell.primary}
+                          </span>
+                          {thirdCell.secondary ? (
+                            <span className="mt-0.5 block text-[11px] text-text-secondary">
+                              {thirdCell.secondary}
                             </span>
                           ) : null}
                         </td>
