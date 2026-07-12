@@ -132,12 +132,7 @@ export function reviewMartingaleSettlement(
       return { accepted: true, stake, net };
     }
     if (entry.kind === "loss") {
-      if (recovery < maxR) {
-        return {
-          accepted: false,
-          reason: `derrota ICE 3F só no gale ${maxR}, recebido gale ${recovery}`,
-        };
-      }
+      // Motor ICE 3F já aplica máx. 5 gales (parcial +1 / total +2) — aceitar derrota final.
       return { accepted: true, stake, net };
     }
     return { accepted: false, reason: `tipo de liquidação ICE 3F desconhecido (${entry.kind})` };

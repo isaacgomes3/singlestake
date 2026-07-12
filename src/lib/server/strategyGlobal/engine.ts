@@ -1472,6 +1472,28 @@ export function markStrategyGlobalIce3fBetPlaced(): boolean {
   return true;
 }
 
+/** Desbloqueia ciclo ICE 3F preso em awaiting_result (openBet órfão / head sem liquidar). */
+export function nudgeStrategyGlobalIce3fAwaitingSettle(): boolean {
+  const state = getStrategyGlobalState();
+  const machine = state.tres3fatores.machine;
+  if (machine.cycle?.phase !== "awaiting_result") return false;
+  const histories = historiesRecord(state);
+  const history = histories[ICE3F_TABLE_ID] ?? [];
+  if (history.length === 0) return false;
+  const ice3f = driveIce3f(state, histories, ICE3F_TABLE_ID);
+  const ledgerEntries = appendIce3fLedgerIfNeeded(state, ice3f);
+  if (ice3f.flash || ledgerEntries.length > 0 || state.tres3fatores.machine.cycle == null) {
+    const snapshot = bumpAndBroadcast(state, null, null, null, null, null, null, ice3f.flash);
+    if (ledgerEntries.length > 0) {
+      void pushAutomationSimSettlements(ledgerEntries, snapshot);
+    } else {
+      schedulePersist(state);
+    }
+    return true;
+  }
+  return false;
+}
+
 export function resetStrategyGlobalSession(
   kind: StrategyGlobalKind | "all",
   liveTableIds: readonly number[],

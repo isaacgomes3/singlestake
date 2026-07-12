@@ -39,6 +39,10 @@ import {
 import type { Ice2fActive } from "@/lib/roulette/iceCruzamento2fStrategy";
 import type { Ice3fActive } from "@/lib/roulette/iceTresFatoresStrategy";
 import {
+  ice3fClassifyBetRound,
+  ice3fHitsForOutcome,
+} from "@/lib/roulette/iceTresFatoresStrategy";
+import {
   fibonacciSignalId,
   type RotatingRoomFibonacciActive,
 } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
@@ -1083,6 +1087,53 @@ export function releaseCrossingOpenBetAfterContinue(
   }
 
   return { ...state, openBet: null };
+}
+
+/**
+ * ICE 3F — se o giro seguinte à aposta já saiu e o openBet ficou preso em «EM JOGO»,
+ * liquida com as regras 3F (1:1 por factor).
+ */
+export function settleIce3fOpenBetFromHistories(
+  state: RouletteAutomationSimState,
+  histories: Record<number, readonly number[]>,
+  baseStake = ROULETTE_AUTOMATION_BASE_STAKE,
+): RouletteAutomationSimState {
+  const bet = state.openBet;
+  if (bet?.strategy !== "tres3fatores" || !bet.ice3fActive) return state;
+
+  const arrived = openBetSpinArrived(bet, histories);
+  if (!arrived) return state;
+  if (isSpinResultAlreadySettled(state, bet.tableId, arrived.resultNumber)) {
+    return { ...state, openBet: null };
+  }
+
+  const outcome = ice3fClassifyBetRound(
+    arrived.resultNumber,
+    bet.ice3fActive.referenceNumber,
+  );
+  if (outcome == null) return { ...state, openBet: null };
+
+  const won = outcome === "total_win" || outcome === "partial_win";
+  const factorHits = ice3fHitsForOutcome(outcome);
+  const kind = won ? "win" : "recovery";
+
+  return settleOpenBetEntry(
+    state,
+    {
+      ts: Date.now(),
+      tableId: bet.tableId,
+      won,
+      recovery: bet.recovery,
+      kind,
+      strategy: "tres3fatores",
+      resultNumber: arrived.resultNumber,
+      stake: bet.stake,
+      factorHits,
+    },
+    bet.tableLabel,
+    undefined,
+    baseStake,
+  );
 }
 
 /** Liquida aposta — saldo da linha = cadeia cumulativa (anterior + net). */

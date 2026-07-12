@@ -133,6 +133,18 @@ const afterBet = {
   cycle: { ...machine.cycle!, phase: "awaiting_result" as const },
 };
 
+// Stuck recovery: lastSpinHead já no head novo sem liquidar
+const stuckHead = "11:33";
+const stuckMachine = {
+  ...afterBet,
+  lastSpinHead: stuckHead,
+  cycle: { ...afterBet.cycle, armedHead: `${hist.length}:${hist[0]}` },
+};
+const unstuck = tickIce3fPlacar([33, ...hist], stuckMachine, emptyIce3fStats());
+assert.equal(unstuck.flash?.kind, "loss");
+assert.equal(unstuck.flash?.matchOutcome, "partial_loss");
+assert.equal(unstuck.machine.pendingUnitScale, 2);
+
 // Parcial (33 vs 8: só cor): ×2 / +1 gale; 33 sem eco no hist → só escala pendente
 const afterPartial = tickIce3fPlacar([33, ...hist], afterBet, emptyIce3fStats());
 assert.equal(afterPartial.flash?.kind, "loss");

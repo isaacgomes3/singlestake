@@ -517,6 +517,8 @@ export function markIce3fBetPlaced(machine: Ice3fMachineState): Ice3fMachineStat
   return {
     ...machine,
     betCommitInFlight: false,
+    // Garante âncora do giro da aposta — sem isto o 1.º resultado pode não liquidar.
+    lastSpinHead: machine.lastSpinHead ?? machine.cycle.armedHead,
     cycle: { ...machine.cycle, phase: "awaiting_result" },
   };
 }
@@ -537,11 +539,24 @@ export function tickIce3fPlacar(
   stats: RotatingRoomSessionStats,
 ): Ice3fTickResult {
   const head = spinHead(historyNewestFirst);
-  const headChanged = machine.lastSpinHead != null && machine.lastSpinHead !== head;
+  let working: Ice3fMachineState = machine;
+
+  // Recuperação: awaiting_result em que lastSpinHead já acompanhou o head novo
+  // sem liquidar (ex.: lastSpinHead era null no 1.º giro após a aposta).
+  if (
+    working.cycle?.phase === "awaiting_result" &&
+    working.cycle.armedHead !== head &&
+    historyNewestFirst.length > 0 &&
+    (working.lastSpinHead == null || working.lastSpinHead === head)
+  ) {
+    working = { ...working, lastSpinHead: working.cycle.armedHead };
+  }
+
+  const headChanged = working.lastSpinHead != null && working.lastSpinHead !== head;
   let nextMachine: Ice3fMachineState = {
-    ...machine,
+    ...working,
     lastSpinHead: head,
-    watch: cloneWatch(machine.watch ?? emptyWatch()),
+    watch: cloneWatch(working.watch ?? emptyWatch()),
   };
   let nextStats = stats;
   let statsChanged = false;

@@ -16,6 +16,7 @@ import {
   pendingSignalFromSnapshot,
   rebuildAutomationSimDisplayFromLedger,
   releaseCrossingOpenBetAfterContinue,
+  settleIce3fOpenBetFromHistories,
   settleOpenBetEntry,
   spinHead,
   syncOpenBetFromPending,
@@ -438,6 +439,22 @@ export async function syncAutomationSimWithStrategy(
       state = released;
       replaceAutomationSimState(state);
       openBet = null;
+    }
+  }
+  if (openBet?.strategy === "tres3fatores") {
+    const settled = settleIce3fOpenBetFromHistories(
+      state,
+      strategySnapshot.tableHistories,
+      configDto.baseStake,
+    );
+    if (settled !== state) {
+      state = settled;
+      replaceAutomationSimState(state);
+      openBet = state.openBet;
+      const { nudgeStrategyGlobalIce3fAwaitingSettle } = await import(
+        "@/lib/server/strategyGlobal/engine"
+      );
+      nudgeStrategyGlobalIce3fAwaitingSettle();
     }
   }
 
