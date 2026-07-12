@@ -13,6 +13,10 @@ import {
   emptyIce3fOccurrenceStats,
   ICE3F_OCCURRENCE_TABLE_ID,
 } from "@/lib/roulette/ice3fOccurrenceStats";
+import {
+  buildIce3fRepetitionStats,
+  emptyIce3fRepetitionStats,
+} from "@/lib/roulette/ice3fRepetitionStats";
 import { reconcileHistoryWithApiSnapshot } from "@/lib/roulette/historyReconcile";
 import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown";
 import { getExtensionSourceStatus } from "@/lib/server/extensionSource";
@@ -114,13 +118,18 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
   const history201 = reconcileHistoryWithApiSnapshot(historyPersisted, hub201);
 
   let ice3fOccurrences = emptyIce3fOccurrenceStats(ICE3F_OCCURRENCE_TABLE_ID);
+  let ice3fRepetitions = emptyIce3fRepetitionStats(ICE3F_OCCURRENCE_TABLE_ID);
   try {
     ice3fOccurrences = buildIce3fOccurrenceStats(history201, {
       tableId: ICE3F_OCCURRENCE_TABLE_ID,
       maxPerNumber: 3,
     });
+    ice3fRepetitions = buildIce3fRepetitionStats(history201, {
+      tableId: ICE3F_OCCURRENCE_TABLE_ID,
+      maxPerNumber: 3,
+    });
   } catch (err) {
-    console.warn("[AutomationStats] ice3fOccurrences falhou — fallback vazio:", err);
+    console.warn("[AutomationStats] ice3fOccurrences/repetitions falhou — fallback vazio:", err);
   }
 
   return {
@@ -143,6 +152,7 @@ export function buildAutomationTriggerStatsDto(): AutomationStatsDto {
       ice3fStats,
     ),
     ice3fOccurrences,
+    ice3fRepetitions,
     ...deprecatedLegacyBlocks(),
   };
 }

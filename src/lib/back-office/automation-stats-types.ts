@@ -4,6 +4,7 @@ import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceF
 import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import type { CrossingReturnStreakStats } from "@/lib/roulette/crossingReturnStreakStats";
 import type { Ice3fOccurrenceStats } from "@/lib/roulette/ice3fOccurrenceStats";
+import type { Ice3fRepetitionStats } from "@/lib/roulette/ice3fRepetitionStats";
 
 export type AutomationStatsFibonacciZoneRow = {
   wins: number;
@@ -40,8 +41,10 @@ export type AutomationStatsDto = {
     accuracyPct: number | null;
   };
   triggers: UmFatorTriggerTierReportRow[];
-  /** Ocorrências ICE 3F na mesa 201 — duas últimas por número + antecedentes. */
+  /** Ocorrências ICE 3F na mesa 201 — três últimas por número + vizinho à esquerda. */
   ice3fOccurrences: Ice3fOccurrenceStats;
+  /** Repetições consecutivas na mesa 201 — três últimas por número + vizinho à esquerda. */
+  ice3fRepetitions: Ice3fRepetitionStats;
   /** @deprecated Mantido para compatibilidade — UI já não usa. */
   fibonacci: {
     enabled: boolean;

@@ -53,6 +53,9 @@ export const automationStatsContent = {
     ice3fOccurrencesColLast: "À esquerda (última)",
     ice3fOccurrencesColPrev: "À esquerda (2.ª)",
     ice3fOccurrencesColThird: "À esquerda (3.ª)",
+    ice3fRepetitionsTitle: "ICE 3F — repetições consecutivas",
+    ice3fRepetitionsHint:
+      "Para cada número (0–36), as três últimas vezes em que saiu em sequência (N, N) e o número à esquerda dessa repetição. Ex.: 22 · 5 · 5 → mostra ← 22.",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (dúzia ou coluna) tem o seu limiar de giros ausentes. A indicação dispara só com ausência exactamente igual ao valor confirmado (ex.: 3 giros = exactamente 3, não 4+).",
@@ -158,6 +161,9 @@ export const automationStatsContent = {
     ice3fOccurrencesColLast: "Left (latest)",
     ice3fOccurrencesColPrev: "Left (2nd)",
     ice3fOccurrencesColThird: "Left (3rd)",
+    ice3fRepetitionsTitle: "ICE 3F — consecutive repeats",
+    ice3fRepetitionsHint:
+      "For each number (0–36), the three latest consecutive repeats (N, N) and the number to the left of that streak. E.g. 22 · 5 · 5 → shows ← 22.",
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
       "Each type (dozen or column) has its own absence spin threshold. Confirm after changing the value in each card.",
@@ -263,6 +269,9 @@ export const automationStatsContent = {
     ice3fOccurrencesColLast: "A la izquierda (última)",
     ice3fOccurrencesColPrev: "A la izquierda (2.ª)",
     ice3fOccurrencesColThird: "A la izquierda (3.ª)",
+    ice3fRepetitionsTitle: "ICE 3F — repeticiones consecutivas",
+    ice3fRepetitionsHint:
+      "Para cada número (0–36), las tres últimas veces que salió en secuencia (N, N) y el número a la izquierda de esa repetición. Ej.: 22 · 5 · 5 → muestra ← 22.",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (docena o columna) tiene su propio umbral de giros ausentes. Confirme tras cambiar el valor en cada tarjeta.",

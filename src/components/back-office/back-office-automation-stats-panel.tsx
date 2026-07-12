@@ -119,7 +119,90 @@ export function BackOfficeAutomationStatsPanel() {
   const triggerLabels = messages.automationStats.triggers as Record<string, string>;
   const tres3fLabel = triggerLabels.tres3fatores ?? "ICE 3F";
   const occurrences = data?.ice3fOccurrences;
+  const repetitions = data?.ice3fRepetitions;
   const dash = "—";
+
+  function renderNeighborStatsSection(
+    stats: NonNullable<typeof occurrences>,
+    titleKey: "ice3fOccurrencesTitle" | "ice3fRepetitionsTitle",
+    hintKey: "ice3fOccurrencesHint" | "ice3fRepetitionsHint",
+  ) {
+    return (
+      <section className="theme-card rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-text-primary">{t(`automationStats.${titleKey}`)}</h2>
+        <p className="mt-1 text-xs text-text-secondary">{t(`automationStats.${hintKey}`)}</p>
+        <p className="mt-3 text-[11px] text-text-secondary">
+          {lobbyTableDisplayName(stats.tableId)} ·{" "}
+          {t("automationStats.ice3fOccurrencesHistoryLength", {
+            n: stats.historyLength,
+          })}
+        </p>
+        <div className="mt-3 max-h-[36rem] overflow-auto rounded-xl border border-border-color">
+          <table className="min-w-full text-left text-sm">
+            <thead className="sticky top-0 bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
+              <tr>
+                <th className="px-3 py-2 font-semibold">
+                  {t("automationStats.ice3fOccurrencesColNumber")}
+                </th>
+                <th className="px-3 py-2 font-semibold">
+                  {t("automationStats.ice3fOccurrencesColLast")}
+                </th>
+                <th className="px-3 py-2 font-semibold">
+                  {t("automationStats.ice3fOccurrencesColPrev")}
+                </th>
+                <th className="px-3 py-2 font-semibold">
+                  {t("automationStats.ice3fOccurrencesColThird")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.rows.map((row) => {
+                const [last, prev, third] = row.occurrences;
+                const lastCell = formatOccurrenceCell(last?.position, last?.precededBy, dash);
+                const prevCell = formatOccurrenceCell(prev?.position, prev?.precededBy, dash);
+                const thirdCell = formatOccurrenceCell(
+                  third?.position,
+                  third?.precededBy,
+                  dash,
+                );
+                return (
+                  <tr key={row.number} className="border-t border-border-color">
+                    <td className="px-3 py-2 font-semibold tabular-nums text-text-primary">
+                      {row.number}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-text-secondary">
+                      <span className="font-semibold text-text-primary">{lastCell.primary}</span>
+                      {lastCell.secondary ? (
+                        <span className="mt-0.5 block text-[11px] text-text-secondary">
+                          {lastCell.secondary}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-text-secondary">
+                      <span className="font-semibold text-text-primary">{prevCell.primary}</span>
+                      {prevCell.secondary ? (
+                        <span className="mt-0.5 block text-[11px] text-text-secondary">
+                          {prevCell.secondary}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-text-secondary">
+                      <span className="font-semibold text-text-primary">{thirdCell.primary}</span>
+                      {thirdCell.secondary ? (
+                        <span className="mt-0.5 block text-[11px] text-text-secondary">
+                          {thirdCell.secondary}
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -205,91 +288,41 @@ export function BackOfficeAutomationStatsPanel() {
         )}
       </section>
 
-      <section className="theme-card rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-text-primary">
-          {t("automationStats.ice3fOccurrencesTitle")}
-        </h2>
-        <p className="mt-1 text-xs text-text-secondary">
-          {t("automationStats.ice3fOccurrencesHint")}
-        </p>
-        {!loading && occurrences ? (
-          <>
-            <p className="mt-3 text-[11px] text-text-secondary">
-              {lobbyTableDisplayName(occurrences.tableId)} ·{" "}
-              {t("automationStats.ice3fOccurrencesHistoryLength", {
-                n: occurrences.historyLength,
-              })}
-            </p>
-            <div className="mt-3 max-h-[36rem] overflow-auto rounded-xl border border-border-color">
-              <table className="min-w-full text-left text-sm">
-                <thead className="sticky top-0 bg-bg-secondary text-[11px] uppercase tracking-wide text-text-secondary">
-                  <tr>
-                    <th className="px-3 py-2 font-semibold">
-                      {t("automationStats.ice3fOccurrencesColNumber")}
-                    </th>
-                    <th className="px-3 py-2 font-semibold">
-                      {t("automationStats.ice3fOccurrencesColLast")}
-                    </th>
-                    <th className="px-3 py-2 font-semibold">
-                      {t("automationStats.ice3fOccurrencesColPrev")}
-                    </th>
-                    <th className="px-3 py-2 font-semibold">
-                      {t("automationStats.ice3fOccurrencesColThird")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {occurrences.rows.map((row) => {
-                    const [last, prev, third] = row.occurrences;
-                    const lastCell = formatOccurrenceCell(last?.position, last?.precededBy, dash);
-                    const prevCell = formatOccurrenceCell(prev?.position, prev?.precededBy, dash);
-                    const thirdCell = formatOccurrenceCell(
-                      third?.position,
-                      third?.precededBy,
-                      dash,
-                    );
-                    return (
-                      <tr key={row.number} className="border-t border-border-color">
-                        <td className="px-3 py-2 font-semibold tabular-nums text-text-primary">
-                          {row.number}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-text-secondary">
-                          <span className="font-semibold text-text-primary">{lastCell.primary}</span>
-                          {lastCell.secondary ? (
-                            <span className="mt-0.5 block text-[11px] text-text-secondary">
-                              {lastCell.secondary}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-text-secondary">
-                          <span className="font-semibold text-text-primary">{prevCell.primary}</span>
-                          {prevCell.secondary ? (
-                            <span className="mt-0.5 block text-[11px] text-text-secondary">
-                              {prevCell.secondary}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-text-secondary">
-                          <span className="font-semibold text-text-primary">
-                            {thirdCell.primary}
-                          </span>
-                          {thirdCell.secondary ? (
-                            <span className="mt-0.5 block text-[11px] text-text-secondary">
-                              {thirdCell.secondary}
-                            </span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        ) : (
+      {!loading && occurrences ? (
+        renderNeighborStatsSection(
+          occurrences,
+          "ice3fOccurrencesTitle",
+          "ice3fOccurrencesHint",
+        )
+      ) : (
+        <section className="theme-card rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-text-primary">
+            {t("automationStats.ice3fOccurrencesTitle")}
+          </h2>
+          <p className="mt-1 text-xs text-text-secondary">
+            {t("automationStats.ice3fOccurrencesHint")}
+          </p>
           <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
-        )}
-      </section>
+        </section>
+      )}
+
+      {!loading && repetitions ? (
+        renderNeighborStatsSection(
+          repetitions,
+          "ice3fRepetitionsTitle",
+          "ice3fRepetitionsHint",
+        )
+      ) : (
+        <section className="theme-card rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-text-primary">
+            {t("automationStats.ice3fRepetitionsTitle")}
+          </h2>
+          <p className="mt-1 text-xs text-text-secondary">
+            {t("automationStats.ice3fRepetitionsHint")}
+          </p>
+          <p className="mt-4 text-sm text-text-secondary">{panelBodyMessage}</p>
+        </section>
+      )}
     </div>
   );
 }
