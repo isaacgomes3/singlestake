@@ -47,7 +47,7 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — ocorrências no histórico",
     ice3fOccurrencesHint:
-      "Para cada número (0–36), as duas últimas saídas na Roulette 2 Extra Time e o número que as antecedeu (giro imediatamente anterior).",
+      "Para cada número (0–36), as duas últimas saídas na Roulette 2 Extra Time e o número à esquerda de cada uma (mesmo vizinho do eco ICE 3F).",
     ice3fOccurrencesHistoryLength: "{{n}} giros no buffer",
     ice3fOccurrencesColNumber: "Número",
     ice3fOccurrencesColLast: "Última ocorrência",
@@ -151,7 +151,7 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — history occurrences",
     ice3fOccurrencesHint:
-      "For each number (0–36), the two latest hits on Roulette 2 Extra Time and the number that preceded each (immediately older spin).",
+      "For each number (0–36), the two latest hits on Roulette 2 Extra Time and the number to the left of each (same ICE 3F echo neighbor).",
     ice3fOccurrencesHistoryLength: "{{n}} spins in buffer",
     ice3fOccurrencesColNumber: "Number",
     ice3fOccurrencesColLast: "Latest occurrence",
@@ -255,7 +255,7 @@ export const automationStatsContent = {
     },
     ice3fOccurrencesTitle: "ICE 3F — ocurrencias en el historial",
     ice3fOccurrencesHint:
-      "Para cada número (0–36), las dos últimas salidas en Roulette 2 Extra Time y el número que las antecedió (giro inmediatamente anterior).",
+      "Para cada número (0–36), las dos últimas salidas en Roulette 2 Extra Time y el número a la izquierda de cada una (mismo vecino del eco ICE 3F).",
     ice3fOccurrencesHistoryLength: "{{n}} giros en el buffer",
     ice3fOccurrencesColNumber: "Número",
     ice3fOccurrencesColLast: "Última ocurrencia",

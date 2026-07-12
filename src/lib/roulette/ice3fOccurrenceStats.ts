@@ -1,7 +1,7 @@
 /**
  * Estatística ICE 3F — para cada número 0–36, as duas últimas ocorrências
- * no histórico (newest-first) e o número que as antecedeu (giro imediatamente
- * anterior no tempo = índice i+1).
+ * no histórico (newest-first) e o número à **esquerda** de cada uma
+ * (`history[i-1]`), o mesmo vizinho que o eco usa como sinal cor/altura.
  */
 
 /** Mesa Roulette 2 Extra Time — literal para evitar ciclo de init. */
@@ -14,7 +14,10 @@ export type Ice3fNumberOccurrence = {
   index: number;
   /** Posição 1-based (1 = giro mais recente). */
   position: number;
-  /** Número que saiu imediatamente antes deste (mais antigo). Null se for o mais antigo do buffer. */
+  /**
+   * Número imediatamente à esquerda desta ocorrência (`history[i-1]`).
+   * Null se for o giro mais recente do buffer (não há esquerda).
+   */
   precededBy: number | null;
 };
 
@@ -57,12 +60,12 @@ export function buildIce3fOccurrenceStats(
     if (number < 0 || number > 36) continue;
     const list = buckets.get(number) ?? [];
     if (list.length >= maxPerNumber) continue;
-    const precededBy = i + 1 < history.length ? history[i + 1]! : null;
+    // Esquerda no histórico newest-first (= sinal do eco ICE 3F), não a direita.
+    const left = i > 0 ? history[i - 1]! : null;
     list.push({
       index: i,
       position: i + 1,
-      precededBy:
-        precededBy != null && Number.isFinite(precededBy) ? precededBy : null,
+      precededBy: left != null && Number.isFinite(left) ? left : null,
     });
     buckets.set(number, list);
   }
