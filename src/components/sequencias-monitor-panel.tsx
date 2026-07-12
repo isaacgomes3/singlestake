@@ -90,7 +90,7 @@ export function SequenciasMonitorPanel({
         <div>
           {embedded ? (
             <p className="text-sm text-text-secondary">
-              Monitor cor / altura / paridade — sequência limpa (≥2) ou suja (A·A·B·A)
+              Monitor cor / altura / paridade — sequência limpa (≥2 à cabeça) ou suja (retoma A·A·B·A)
               {tableId != null ? (
                 <>
                   {" "}
@@ -105,7 +105,7 @@ export function SequenciasMonitorPanel({
             <>
               <h1 className="text-xl font-bold text-text-primary">Automação · Sequências</h1>
               <p className="mt-1 text-sm text-text-secondary">
-                Monitor cor / altura / paridade — sequência limpa (≥2) ou suja (A·A·B·A)
+                Monitor cor / altura / paridade — sequência limpa (≥2 à cabeça) ou suja (retoma A·A·B·A)
                 {tableId != null ? (
                   <>
                     {" "}

@@ -1,8 +1,8 @@
 /**
  * Estratégia **Sequências** (cor / altura / paridade).
  *
- * - Sequência limpa: ≥2 valores iguais consecutivos (newest-first).
- * - Sequência suja: padrão A,A,B,A (retoma após 1 perda).
+ * - Sequência limpa: ≥2 iguais **à cabeça** do histórico (newest-first).
+ * - Sequência suja: cronológico A·A·B·A ≡ newest-first A·B·A·A nos 4 mais recentes.
  * - Alerta activo mantém-se enquanto ganha; perde → procura novo padrão.
  * - Zero é filtrado da análise de sequência.
  */
@@ -126,45 +126,39 @@ function calculateDynamicAssertiveness(recentHits: readonly number[]): number {
   return Math.max(30, Math.min(95, Math.round(assertiveness)));
 }
 
+/** Corrida limpa a partir do giro mais recente (índice 0). */
 function findCleanSequence(
   values: readonly boolean[],
 ): { found: boolean; group: boolean; count: number } {
-  let maxCount = 0;
-  let currentCount = 0;
-  let dominantGroup = false;
+  if (values.length === 0) return { found: false, group: false, count: 0 };
 
-  for (let i = 0; i < values.length; i++) {
-    if (i === 0 || values[i] === values[i - 1]) {
-      currentCount++;
-      if (currentCount > maxCount) {
-        maxCount = currentCount;
-        dominantGroup = values[i]!;
-      }
-    } else {
-      currentCount = 1;
-    }
+  const group = values[0]!;
+  let count = 1;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i] !== group) break;
+    count++;
   }
 
   return {
-    found: maxCount >= 2,
-    group: dominantGroup,
-    count: maxCount,
+    found: count >= 2,
+    group,
+    count,
   };
 }
 
+/** Padrão sujo cronológico A·A·B·A → em newest-first: A·B·A·A (só nos 4 mais recentes). */
 function findDirtySequence(
   values: readonly boolean[],
 ): { found: boolean; group: boolean } {
   if (values.length < 4) return { found: false, group: false };
 
-  for (let i = 0; i <= values.length - 4; i++) {
-    const a = values[i]!;
-    const b = values[i + 1]!;
-    const c = values[i + 2]!;
-    const d = values[i + 3]!;
-    if (a === b && b !== c && c !== d && a === d) {
-      return { found: true, group: a };
-    }
+  const newest = values[0]!;
+  const prev = values[1]!;
+  const older = values[2]!;
+  const oldest = values[3]!;
+  // Chrono A,A,B,A ↔ newest-first A,B,A,A
+  if (newest === older && older === oldest && prev !== newest) {
+    return { found: true, group: newest };
   }
   return { found: false, group: false };
 }
