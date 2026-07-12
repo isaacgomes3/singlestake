@@ -1,5 +1,5 @@
 /**
- * ICE · 3 Fatores (eco → cor/altura) — mesa Roulette 2 Extra Time (201).
+ * ICE · 3 Fatores (eco → cor/altura/paridade) — mesa Roulette 2 Extra Time (201).
  * Adapter sala rotativa / automação global (padrão KTO 2F).
  */
 
@@ -9,7 +9,10 @@ import { emptyRotatingRoomSessionStats } from "@/lib/roulette/entryWinBreakdown"
 import {
   canPlaceIce3fBet,
   defaultIce3fMachineState,
+  ICE_3F_FACTORS_PER_BET,
   ice3fEntryUnitsOf,
+  ice3fHitsForOutcome,
+  ice3fSettlementNet,
   ice3fUnitScaleForCycle,
   ice3fWatchLabelForMachine,
   markIce3fBetPlaced,
@@ -18,8 +21,11 @@ import {
   type Ice3fActive,
   type Ice3fFlash,
   type Ice3fMachineState,
+  type Ice3fMatchOutcome,
 } from "@/lib/roulette/iceTresFatoresStrategy";
 import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
+
+export { ice3fSettlementNet, ice3fHitsForOutcome, ICE_3F_FACTORS_PER_BET };
 
 /** Mesa Roulette 2 Extra Time — literal para evitar ciclo de init com iceTresFatores. */
 export const ICE3F_TABLE_ID = 201 as const;
@@ -41,6 +47,10 @@ export type Ice3fPlacarFlash = {
   alertLabel?: string;
   factor1?: Ice3fActive["factors"][0];
   factor2?: Ice3fActive["factors"][1];
+  factor3?: Ice3fActive["factors"][2];
+  matchOutcome?: Ice3fMatchOutcome;
+  /** Acertos 0…3 — PnL 1:1 por factor. */
+  factorHits?: number;
 } | null;
 
 export function defaultIce3fRotatingMachineState(): Ice3fRotatingMachineState {
@@ -87,7 +97,7 @@ export function ice3fActiveToCrossing(active: Ice3fActive): DoisFatoresActive {
   const [factor1, factor2] = active.factors;
   return {
     pairKind: "cor-altura",
-    pairKindLabel: "Cor/Altura",
+    pairKindLabel: "3 Fatores",
     patternMode: "convergence",
     patternStats: { convergence: 0, divergence: 0, alternation: 0, safetyMode: false },
     referenceNumber: active.referenceNumber,
@@ -99,10 +109,10 @@ export function ice3fActiveToCrossing(active: Ice3fActive): DoisFatoresActive {
 }
 
 export function ice3fAlertLabel(active: Ice3fActive): string {
-  const [f1, f2] = active.factors;
+  const labels = active.factors.map(doisFatoresFactorLabel).join(" · ");
   const eco =
     active.triggerNumber != null ? ` · eco ${active.triggerNumber}` : "";
-  return `Pos ${active.criticalPosition}${eco} · ${doisFatoresFactorLabel(f1)} · ${doisFatoresFactorLabel(f2)}`;
+  return `Pos ${active.criticalPosition}${eco} · ${labels}`;
 }
 
 export function ice3fSignalId(active: Ice3fActive, unitScale: number): string {
@@ -151,7 +161,11 @@ export function ice3fBetDelayUntilMs(machine: Ice3fRotatingMachineState): number
 }
 
 export function stakeForIce3fUnitScale(unitScale: number): number {
-  return ICE3F_BASE_STAKE * Math.max(1, Math.floor(unitScale));
+  return (
+    ICE3F_BASE_STAKE *
+    ICE_3F_FACTORS_PER_BET *
+    Math.max(1, Math.floor(unitScale))
+  );
 }
 
 export function stakeForIce3fRecovery(recovery: number, entryUnits = 1): number {
@@ -160,12 +174,16 @@ export function stakeForIce3fRecovery(recovery: number, entryUnits = 1): number 
   return stakeForIce3fUnitScale(entry * 2 ** gale);
 }
 
-/** Stake da automação / extrato: baseStake × escala (entrada × gale). */
+/** Stake da automação / extrato: baseStake × 3 factores × escala (entrada × gale). */
 export function stakeForIce3fAutomation(
   unitScale: number,
   baseStake: number,
 ): number {
-  return Math.max(0, baseStake) * Math.max(1, Math.floor(unitScale));
+  return (
+    Math.max(0, baseStake) *
+    ICE_3F_FACTORS_PER_BET *
+    Math.max(1, Math.floor(unitScale))
+  );
 }
 
 export function markIce3fRotatingBetPlaced(
@@ -180,9 +198,10 @@ function mapIce3fFlash(
   recoveryBefore: number,
   recoveryAfter: number,
 ): Ice3fPlacarFlash {
-  if (!flash || flash.kind === "tie") return null;
-  const [factor1, factor2] = flash.factors;
-  const alertLabel = `Cor/Altura · pos ${flash.criticalPosition}`;
+  if (!flash) return null;
+  const [factor1, factor2, factor3] = flash.factors;
+  const alertLabel = `3F · pos ${flash.criticalPosition}`;
+  const factorHits = ice3fHitsForOutcome(flash.matchOutcome);
   if (flash.kind === "win") {
     return {
       resultNumber: flash.resultNumber,
@@ -192,6 +211,9 @@ function mapIce3fFlash(
       alertLabel,
       factor1,
       factor2,
+      factor3,
+      matchOutcome: flash.matchOutcome,
+      factorHits,
     };
   }
   const kind =
@@ -208,6 +230,9 @@ function mapIce3fFlash(
     alertLabel,
     factor1,
     factor2,
+    factor3,
+    matchOutcome: flash.matchOutcome,
+    factorHits,
   };
 }
 

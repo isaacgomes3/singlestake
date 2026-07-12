@@ -39,6 +39,10 @@ var SinglestakeSportingbet3f = (() => {
     if (n === 0) return "Zero";
     return n <= 18 ? "Baixo" : "Alto";
   }
+  function parityOf(n) {
+    if (n === 0) return "Zero";
+    return n % 2 === 0 ? "Par" : "Impar";
+  }
 
   // src/lib/roulette/doisFatoresStrategy.ts
   var DOIS_FATORES_REFERENCE_INDEX = 4;
@@ -176,6 +180,7 @@ var SinglestakeSportingbet3f = (() => {
   var ICE_3F_REQUIRED_TOTAL_DEFEATS = 2;
   var ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL = 3;
   var ICE_3F_GALE_MULTIPLIER = 2;
+  var ICE_3F_TOTAL_LOSS_MULTIPLIER = 4;
   var ICE_3F_GALE3_REFERENCE_UNITS = 8;
   var ICE_3F_CHIP_CLICK_STAGGER_MS = 150;
   var ICE_3F_BET_DELAY_MS = 5e3;
@@ -198,30 +203,33 @@ var SinglestakeSportingbet3f = (() => {
       case "altura":
         return heightOf(num) === factor.value;
       case "paridade":
-        return false;
+        return parityOf(num) === factor.value;
     }
   }
-  function ice3fPairForNumber(n) {
+  function ice3fTripleForNumber(n) {
     if (n === 0) return null;
     const col = colorOf(n);
     const alt = heightOf(n);
-    if (col === "Zero" || alt === "Zero") return null;
+    const par = parityOf(n);
+    if (col === "Zero" || alt === "Zero" || par === "Zero") return null;
     return [
       { kind: "cor", value: col },
-      { kind: "altura", value: alt }
+      { kind: "altura", value: alt },
+      { kind: "paridade", value: par }
     ];
   }
   function ice3fMatchCount(result, ref) {
     if (result === 0 || ref === 0) return 0;
-    const pair = ice3fPairForNumber(ref);
-    if (!pair) return 0;
-    return pair.filter((f) => factorWins(result, f)).length;
+    const triple = ice3fTripleForNumber(ref);
+    if (!triple) return 0;
+    return triple.filter((f) => factorWins(result, f)).length;
   }
   function ice3fClassifyMatch(result, ref) {
     if (result === 0 || ref === 0) return null;
     const count = ice3fMatchCount(result, ref);
-    if (count === 2) return "total_win";
-    if (count === 1) return "tie";
+    if (count === 3) return "total_win";
+    if (count === 2) return "partial_win";
+    if (count === 1) return "partial_loss";
     return "total_loss";
   }
   function ice3fClassifyBetRound(result, ref) {
@@ -315,7 +323,7 @@ var SinglestakeSportingbet3f = (() => {
       const signalIndex = i - 1;
       const signalNumber = historyNewestFirst[signalIndex];
       if (!Number.isFinite(signalNumber) || signalNumber === 0) return null;
-      if (!ice3fPairForNumber(signalNumber)) return null;
+      if (!ice3fTripleForNumber(signalNumber)) return null;
       return {
         recentNumber,
         priorIndex: i,
@@ -329,7 +337,7 @@ var SinglestakeSportingbet3f = (() => {
   function ice3fBuildActiveFromHistory(historyNewestFirst, _criticalPosition) {
     const hit = ice3fFindEchoTrigger(historyNewestFirst);
     if (!hit) return null;
-    const factors = ice3fPairForNumber(hit.signalNumber);
+    const factors = ice3fTripleForNumber(hit.signalNumber);
     if (!factors) return null;
     const labels = factors.map(doisFatoresFactorLabel).join(" \xB7 ");
     return {
@@ -385,8 +393,12 @@ var SinglestakeSportingbet3f = (() => {
     if (units <= 1) return 0;
     return Math.max(0, Math.round(Math.log2(units)));
   }
-  function ice3fNextUnitScaleAfterLoss(currentScale) {
-    return Math.max(1, Math.floor(currentScale)) * ICE_3F_GALE_MULTIPLIER;
+  function ice3fNextUnitScaleAfterLoss(currentScale, outcome = "partial_loss") {
+    const base = Math.max(1, Math.floor(currentScale));
+    return outcome === "total_loss" ? base * ICE_3F_TOTAL_LOSS_MULTIPLIER : base * ICE_3F_GALE_MULTIPLIER;
+  }
+  function ice3fGaleStepsAfterLoss(outcome) {
+    return outcome === "total_loss" ? 2 : 1;
   }
   function ice3fPadFactorPlacementMs(unitScale) {
     const units = Math.max(1, Math.floor(unitScale));
@@ -413,17 +425,25 @@ var SinglestakeSportingbet3f = (() => {
     let flash = null;
     let missedBetWindow = false;
     if (nextMachine.cycle?.phase === "awaiting_bet" && headChanged && nextMachine.cycle.armedHead !== head) {
-      missedBetWindow = true;
-      const missedScale = ice3fUnitScaleForCycle(nextMachine.cycle);
-      nextMachine = {
-        ...nextMachine,
-        betCommitInFlight: false,
-        cycle: null,
-        pendingUnitScale: Math.max(nextMachine.pendingUnitScale ?? 0, missedScale),
-        pendingGaleStreak: nextMachine.cycle.galeStreak,
-        pendingConsecutiveTriples: nextMachine.cycle.consecutiveTriples,
-        pendingGalesSinceTriple: nextMachine.cycle.galesSinceTriple
-      };
+      if (nextMachine.betCommitInFlight) {
+        nextMachine = {
+          ...nextMachine,
+          betCommitInFlight: false,
+          cycle: { ...nextMachine.cycle, phase: "awaiting_result" }
+        };
+      } else {
+        missedBetWindow = true;
+        const missedScale = ice3fUnitScaleForCycle(nextMachine.cycle);
+        nextMachine = {
+          ...nextMachine,
+          betCommitInFlight: false,
+          cycle: null,
+          pendingUnitScale: Math.max(nextMachine.pendingUnitScale ?? 0, missedScale),
+          pendingGaleStreak: nextMachine.cycle.galeStreak,
+          pendingConsecutiveTriples: nextMachine.cycle.consecutiveTriples,
+          pendingGalesSinceTriple: nextMachine.cycle.galesSinceTriple
+        };
+      }
     }
     if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
       const cycle = nextMachine.cycle;
@@ -456,29 +476,10 @@ var SinglestakeSportingbet3f = (() => {
           unitScale: cycle.unitScale,
           factors: cycle.active.factors
         };
-      } else if (outcome === "tie") {
-        nextMachine = {
-          ...nextMachine,
-          betCommitInFlight: false,
-          cycle: {
-            ...cycle,
-            phase: "awaiting_bet",
-            armedHead: head
-          }
-        };
-        flash = {
-          resultNumber,
-          won: false,
-          kind: "tie",
-          matchOutcome: "tie",
-          criticalPosition: cycle.active.criticalPosition,
-          unitScale: cycle.unitScale,
-          factors: cycle.active.factors
-        };
       } else if (outcome === "total_loss" || outcome === "partial_loss") {
         const failedScale = ice3fUnitScaleForCycle(cycle);
-        const nextScale = ice3fNextUnitScaleAfterLoss(failedScale);
-        const nextGaleStreak = cycle.galeStreak + 1;
+        const nextScale = ice3fNextUnitScaleAfterLoss(failedScale, outcome);
+        const nextGaleStreak = cycle.galeStreak + ice3fGaleStepsAfterLoss(outcome);
         if (nextGaleStreak > ICE_3F_MAX_GALES) {
           nextStats = recordRotatingRoomSessionFinalLoss(
             nextStats,
@@ -686,15 +687,17 @@ var SinglestakeSportingbet3f = (() => {
       const { active } = machine.cycle;
       const unitScale = ice3fUnitScaleForCycle(machine.cycle);
       const doubles = ice3fDoubleClicks(unitScale);
-      const [f1, f2] = active.factors;
+      const [f1, f2, f3] = active.factors;
       const signalId = `sportingbet3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
       const f1Key = pragmaticExteriorBetKeyFromFactor(f1);
       const f2Key = pragmaticExteriorBetKeyFromFactor(f2);
+      const f3Key = pragmaticExteriorBetKeyFromFactor(f3);
       const f1Label = doisFatoresFactorLabel(f1);
       const f2Label = doisFatoresFactorLabel(f2);
-      const stakeAmount = BASE_STAKE * unitScale;
+      const f3Label = doisFatoresFactorLabel(f3);
+      const stakeAmount = BASE_STAKE * 3 * unitScale;
       const betDelayUntilMs = lastLiveSpinAt != null ? lastLiveSpinAt + ICE_3F_BET_DELAY_MS : null;
-      const scaleSuffix = unitScale > 1 ? ` \xB7 ${unitScale}\xD7${doubles > 0 ? ` \xB7 dobrar \xD7${doubles}` : ""}` : " \xB7 entrada";
+      const scaleSuffix = unitScale > 1 ? ` \xB7 ${unitScale}\xD7${doubles > 0 ? ` \xB7 dobrar \xD7${doubles}` : ""}` : " \xB7 entrada 3u";
       const actions = [
         {
           kind: "click",
@@ -707,6 +710,12 @@ var SinglestakeSportingbet3f = (() => {
           target: "factor-2",
           label: f2Label,
           reason: `ICE 3F \xB7 ${f2Label}${scaleSuffix}`
+        },
+        {
+          kind: "click",
+          target: "factor-3",
+          label: f3Label,
+          reason: `ICE 3F \xB7 ${f3Label}${scaleSuffix}`
         }
       ];
       for (let i = 0; i < doubles; i++) {
@@ -730,10 +739,12 @@ var SinglestakeSportingbet3f = (() => {
           mesaProvider: "outro",
           factor1Label: f1Label,
           factor2Label: f2Label,
+          factor3Label: f3Label,
           factor1BetKey: f1Key,
           factor2BetKey: f2Key,
+          factor3BetKey: f3Key,
           singleFactorMode: false,
-          threeFactorMode: false,
+          threeFactorMode: true,
           signalId,
           stakeAmount,
           units: unitScale,

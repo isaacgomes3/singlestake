@@ -787,7 +787,7 @@ export function pendingSignalFromKto2fSession(
   };
 }
 
-/** Sinal activo ICE 3F — Roulette 2 Extra Time, eco → cor/altura. */
+/** Sinal activo ICE 3F — Roulette 2 Extra Time, eco → 3 factores (ficha × 3). */
 export function pendingSignalFromIce3fSession(
   session: Pick<
     StrategyGlobalSnapshot["tres3fatores"],

@@ -196,24 +196,26 @@ export function createSportingbet3fEngine(options: CreateSportingbet3fEngineOpti
     const { active } = machine.cycle;
     const unitScale = ice3fUnitScaleForCycle(machine.cycle);
     const doubles = ice3fDoubleClicks(unitScale);
-    const [f1, f2] = active.factors;
+    const [f1, f2, f3] = active.factors;
     const signalId = `sportingbet3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
     const f1Key = pragmaticExteriorBetKeyFromFactor(f1);
     const f2Key = pragmaticExteriorBetKeyFromFactor(f2);
+    const f3Key = pragmaticExteriorBetKeyFromFactor(f3);
     const f1Label = doisFatoresFactorLabel(f1);
     const f2Label = doisFatoresFactorLabel(f2);
-    const stakeAmount = BASE_STAKE * unitScale;
+    const f3Label = doisFatoresFactorLabel(f3);
+    const stakeAmount = BASE_STAKE * 3 * unitScale;
     const betDelayUntilMs =
       lastLiveSpinAt != null ? lastLiveSpinAt + ICE_3F_BET_DELAY_MS : null;
 
     const scaleSuffix =
       unitScale > 1
         ? ` · ${unitScale}×${doubles > 0 ? ` · dobrar ×${doubles}` : ""}`
-        : " · entrada";
+        : " · entrada 3u";
 
     const actions: Array<{
       kind: "click";
-      target: "factor-1" | "factor-2" | "repeat-bet";
+      target: "factor-1" | "factor-2" | "factor-3" | "repeat-bet";
       label: string;
       reason: string;
     }> = [
@@ -228,6 +230,12 @@ export function createSportingbet3fEngine(options: CreateSportingbet3fEngineOpti
         target: "factor-2",
         label: f2Label,
         reason: `ICE 3F · ${f2Label}${scaleSuffix}`,
+      },
+      {
+        kind: "click",
+        target: "factor-3",
+        label: f3Label,
+        reason: `ICE 3F · ${f3Label}${scaleSuffix}`,
       },
     ];
     for (let i = 0; i < doubles; i++) {
@@ -252,10 +260,12 @@ export function createSportingbet3fEngine(options: CreateSportingbet3fEngineOpti
         mesaProvider: "outro" as const,
         factor1Label: f1Label,
         factor2Label: f2Label,
+        factor3Label: f3Label,
         factor1BetKey: f1Key,
         factor2BetKey: f2Key,
+        factor3BetKey: f3Key,
         singleFactorMode: false,
-        threeFactorMode: false,
+        threeFactorMode: true,
         signalId,
         stakeAmount,
         units: unitScale,

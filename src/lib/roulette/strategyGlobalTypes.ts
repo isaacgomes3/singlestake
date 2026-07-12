@@ -40,6 +40,8 @@ export type StrategyGlobalLedgerEntry = {
   zoneLabel?: string;
   /** Stake real da extensão (ex. R$ 0,50 × 2^gale) — quando presente, extrato usa este valor. */
   stake?: number;
+  /** ICE 3F — acertos 0…3 (PnL 1:1 por factor sobre stake/3). */
+  factorHits?: number;
 };
 
 export type StrategyGlobalLifetimeAggregate = {

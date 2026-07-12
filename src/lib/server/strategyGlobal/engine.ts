@@ -315,7 +315,7 @@ function appendFibonacciLedgerIfNeeded(
 
 function ledgerFromFlash(
   flash: NonNullable<
-    RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash | RotatingRoomFibonacciPlacarFlash
+    RotatingRoomCrossingPlacarFlash | UmFatorPlacarFlash | RotatingRoomFibonacciPlacarFlash | Ice3fPlacarFlash
   >,
   recovery: number,
   strategy: StrategyGlobalKind,
@@ -335,6 +335,11 @@ function ledgerFromFlash(
     bucketGap: "bucketGap" in flash ? flash.bucketGap : undefined,
     zoneLabel: "zoneLabel" in flash ? flash.zoneLabel : undefined,
     ...(typeof stake === "number" && stake > 0 && Number.isFinite(stake) ? { stake } : {}),
+    ...("factorHits" in flash &&
+    typeof flash.factorHits === "number" &&
+    Number.isFinite(flash.factorHits)
+      ? { factorHits: Math.max(0, Math.min(3, Math.floor(flash.factorHits))) }
+      : {}),
   };
 }
 

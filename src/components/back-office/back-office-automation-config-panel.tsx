@@ -177,7 +177,8 @@ export function BackOfficeAutomationConfigPanel() {
             onChange={(e) => setBaseStake(e.target.value)}
           />
           <p className="text-[11px] text-text-secondary">
-            Base do martingale: stake × 2^gale (máx. gale 5). Deve coincidir com a ficha da extensão (R$ 50).
+            Ficha por factor (ex. R$ 50). No ICE 3F a aposta inicial total é ficha × 3 (= R$ 150);
+            cada factor paga 1:1. Em gale, multiplica a escala (×2 / ×4).
           </p>
         </div>
 

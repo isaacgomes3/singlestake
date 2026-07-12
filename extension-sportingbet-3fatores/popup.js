@@ -114,7 +114,7 @@ function renderKtoAutopilot(sportingbet3f, mode) {
     const watch = st.watchLabel ? ` · ${st.watchLabel}` : "";
     const ver = st.extensionVersion ? ` · v${st.extensionVersion}` : "";
     sportingbet3fStatus.textContent =
-      (st.reason ?? "A monitorizar eco → cor/altura…") + watch + ver;
+      (st.reason ?? "A monitorizar eco → 3F…") + watch + ver;
     return;
   }
 

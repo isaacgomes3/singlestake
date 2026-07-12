@@ -452,7 +452,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
                   }`
                 : unitScale > 1
                   ? `Aguarda eco · gale ${unitScale}×`
-                  : "Aguarda eco (última ocorrência → cor/altura)";
+                  : "Aguarda eco (última ocorrência → 3F)";
     await writeSportingbet3fStatus({
       lastFlash: flashKind,
       lastResult: result.flash.resultNumber,

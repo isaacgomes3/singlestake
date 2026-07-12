@@ -1,15 +1,17 @@
 /**
- * ICE · 3 Fatores (eco) — indicação em **2 factores cor/altura**.
+ * ICE · 3 Fatores (eco) — aposta **cor + altura + paridade** (3 unidades).
  *
  * **Gatilho:** no número mais recente do histórico, procura a **última ocorrência**
- * anterior desse mesmo número. Alerta **cor + altura** do número imediatamente
+ * anterior desse mesmo número. Alerta os **3 factores** do número imediatamente
  * à **esquerda** dessa ocorrência (mais recente que ela na grelha newest-first).
  *
  * Ex.: histórico [22, 5, 8, 22, …] → recente 22, ocorrência anterior na pos4,
- * número à esquerda = 8 → aposta cor/altura do 8.
+ * número à esquerda = 8 → aposta cor/altura/paridade do 8 (3 un.).
  *
- * **Placar:** vitória = 2 factores; **empate** = 1 factor (repete mesma indicação);
- * derrota = 0 factores ou zero → gale normal **×2**.
+ * **Placar:** vitória se acertar ≥2 factores.
+ * Derrota parcial (1 factor / falham 2) → **+1 gale (×2)**.
+ * Derrota total (0 factores ou zero / falham 3) → **+2 gales consecutivos (×4)**.
+ * Após derrota fecha a indicação e espera **novo eco** com a escala pendente.
  * Recuperação até **5 gales**; depois → derrota final.
  */
 
@@ -17,7 +19,7 @@ import {
   doisFatoresFactorLabel,
   type DoisFatoresFactor,
 } from "@/lib/roulette/doisFatoresStrategy";
-import { colorOf, heightOf } from "@/lib/roulette/streetPairTrigger";
+import { colorOf, heightOf, parityOf } from "@/lib/roulette/streetPairTrigger";
 import {
   emptyRotatingRoomSessionStats,
   parseRotatingRoomSessionStats,
@@ -40,9 +42,11 @@ export const ICE_3F_MIN_HISTORY = 3;
 export const ICE_3F_REQUIRED_TOTAL_DEFEATS = 2;
 /** @deprecated Contadores de observação removidos. */
 export const ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL = 3;
+/** Factores / unidades na aposta de entrada. */
+export const ICE_3F_FACTORS_PER_BET = 3;
 export const ICE_3F_GALE_MULTIPLIER = 2;
-/** @deprecated Gale normal é sempre ×2 — já não há ×4. */
-export const ICE_3F_TOTAL_LOSS_MULTIPLIER = ICE_3F_GALE_MULTIPLIER;
+/** Derrota total — avança 2 gales sobre a última entrada (×4: 1→4, 2→8…). */
+export const ICE_3F_TOTAL_LOSS_MULTIPLIER = 4;
 export const ICE_3F_GALE3_REFERENCE_UNITS = 8;
 export const ICE_3F_CHIP_CLICK_STAGGER_MS = 150;
 export const ICE_3F_BET_DELAY_MS = 5_000;
@@ -69,17 +73,18 @@ export type Ice3fCriticalPosition = number;
 
 export type Ice3fMatchOutcome =
   | "total_win"
-  | "tie"
-  | "total_loss"
-  /** @deprecated */
   | "partial_win"
-  /** @deprecated */
-  | "partial_loss";
+  | "partial_loss"
+  | "total_loss";
 
-/** Par cor/altura (indicação actual). */
-export type Ice3fPairFactors = readonly [DoisFatoresFactor, DoisFatoresFactor];
-/** @deprecated Alias — a indicação passou a 2 factores. */
-export type Ice3fTripleFactors = Ice3fPairFactors;
+/** Três factores: cor + altura + paridade. */
+export type Ice3fTripleFactors = readonly [
+  DoisFatoresFactor,
+  DoisFatoresFactor,
+  DoisFatoresFactor,
+];
+/** @deprecated Alias — usar {@link Ice3fTripleFactors}. */
+export type Ice3fPairFactors = Ice3fTripleFactors;
 
 export type Ice3fEchoHit = {
   /** Número mais recente (history[0]). */
@@ -88,7 +93,7 @@ export type Ice3fEchoHit = {
   priorIndex: number;
   /** Índice 0-based do nº à esquerda dessa ocorrência. */
   signalIndex: number;
-  /** Número cujos factores cor/altura se apostam. */
+  /** Número cujos 3 factores se apostam. */
   signalNumber: number;
   /** Posição 1-based do sinal na grelha. */
   signalPosition: number;
@@ -97,7 +102,7 @@ export type Ice3fEchoHit = {
 export type Ice3fActive = {
   /** Posição 1-based do nº sinal (à esquerda da última ocorrência). */
   criticalPosition: number;
-  factors: Ice3fPairFactors;
+  factors: Ice3fTripleFactors;
   referenceNumber: number;
   armingDescription: string;
   triggerNumber?: number;
@@ -145,11 +150,11 @@ export type Ice3fMachineState = {
 export type Ice3fFlash = {
   resultNumber: number;
   won: boolean;
-  kind: "win" | "loss" | "tie" | "cycle_fail";
+  kind: "win" | "loss" | "cycle_fail";
   matchOutcome: Ice3fMatchOutcome;
   criticalPosition: number;
   unitScale: number;
-  factors: Ice3fPairFactors;
+  factors: Ice3fTripleFactors;
 };
 
 function spinHead(history: readonly number[]): string {
@@ -165,39 +170,42 @@ function factorWins(num: number, factor: DoisFatoresFactor): boolean {
     case "altura":
       return heightOf(num) === factor.value;
     case "paridade":
-      return false;
+      return parityOf(num) === factor.value;
   }
 }
 
-/** Factores da indicação: cor + altura. */
-export function ice3fPairForNumber(n: number): Ice3fPairFactors | null {
+/** Factores da indicação: cor + altura + paridade. */
+export function ice3fTripleForNumber(n: number): Ice3fTripleFactors | null {
   if (n === 0) return null;
   const col = colorOf(n);
   const alt = heightOf(n);
-  if (col === "Zero" || alt === "Zero") return null;
+  const par = parityOf(n);
+  if (col === "Zero" || alt === "Zero" || par === "Zero") return null;
   return [
     { kind: "cor", value: col },
     { kind: "altura", value: alt },
+    { kind: "paridade", value: par },
   ] as const;
 }
 
-/** @deprecated Usar {@link ice3fPairForNumber}. */
-export function ice3fTripleForNumber(n: number): Ice3fPairFactors | null {
-  return ice3fPairForNumber(n);
+/** @deprecated Usar {@link ice3fTripleForNumber}. */
+export function ice3fPairForNumber(n: number): Ice3fTripleFactors | null {
+  return ice3fTripleForNumber(n);
 }
 
 export function ice3fMatchCount(result: number, ref: number): number {
   if (result === 0 || ref === 0) return 0;
-  const pair = ice3fPairForNumber(ref);
-  if (!pair) return 0;
-  return pair.filter((f) => factorWins(result, f)).length;
+  const triple = ice3fTripleForNumber(ref);
+  if (!triple) return 0;
+  return triple.filter((f) => factorWins(result, f)).length;
 }
 
 export function ice3fClassifyMatch(result: number, ref: number): Ice3fMatchOutcome | null {
   if (result === 0 || ref === 0) return null;
   const count = ice3fMatchCount(result, ref);
-  if (count === 2) return "total_win";
-  if (count === 1) return "tie";
+  if (count === 3) return "total_win";
+  if (count === 2) return "partial_win";
+  if (count === 1) return "partial_loss";
   return "total_loss";
 }
 
@@ -205,6 +213,35 @@ export function ice3fClassifyBetRound(result: number, ref: number): Ice3fMatchOu
   if (ref === 0) return null;
   if (result === 0) return "total_loss";
   return ice3fClassifyMatch(result, ref);
+}
+
+/** Acertos 0…3 a partir do outcome do placar. */
+export function ice3fHitsForOutcome(outcome: Ice3fMatchOutcome): number {
+  switch (outcome) {
+    case "total_win":
+      return 3;
+    case "partial_win":
+      return 2;
+    case "partial_loss":
+      return 1;
+    case "total_loss":
+      return 0;
+  }
+}
+
+/**
+ * PnL líquido: cada factor paga **1:1** sobre `totalStake / 3`.
+ * Ex.: ficha 50 → total 150 → 3 acertos +150; 2 acertos +50; 1 acerto −50; 0 → −150.
+ */
+export function ice3fSettlementNet(totalStake: number, factorHits: number): number {
+  const stake = Math.max(0, totalStake);
+  if (!(stake > 0) || !Number.isFinite(stake)) return 0;
+  const hits = Math.max(
+    0,
+    Math.min(ICE_3F_FACTORS_PER_BET, Math.floor(factorHits)),
+  );
+  const perFactor = stake / ICE_3F_FACTORS_PER_BET;
+  return (2 * hits - ICE_3F_FACTORS_PER_BET) * perFactor;
 }
 
 export function normalizeIce3fWatchSlot(
@@ -325,7 +362,7 @@ export function ice3fFindEchoTrigger(
     const signalIndex = i - 1;
     const signalNumber = historyNewestFirst[signalIndex]!;
     if (!Number.isFinite(signalNumber) || signalNumber === 0) return null;
-    if (!ice3fPairForNumber(signalNumber)) return null;
+    if (!ice3fTripleForNumber(signalNumber)) return null;
     return {
       recentNumber,
       priorIndex: i,
@@ -343,7 +380,7 @@ export function ice3fBuildActiveFromHistory(
 ): Ice3fActive | null {
   const hit = ice3fFindEchoTrigger(historyNewestFirst);
   if (!hit) return null;
-  const factors = ice3fPairForNumber(hit.signalNumber);
+  const factors = ice3fTripleForNumber(hit.signalNumber);
   if (!factors) return null;
   const labels = factors.map(doisFatoresFactorLabel).join(" · ");
   return {
@@ -428,10 +465,23 @@ export function ice3fDoubleClicks(unitScale: number): number {
 }
 
 /**
- * Gale normal ×2 após falha dos 2 factores (0/2 ou zero).
+ * Após derrota: parcial (falham 2) → ×2 (+1 gale); total (falham 3 / zero) → ×4 (+2 gales).
  */
-export function ice3fNextUnitScaleAfterLoss(currentScale: number): number {
-  return Math.max(1, Math.floor(currentScale)) * ICE_3F_GALE_MULTIPLIER;
+export function ice3fNextUnitScaleAfterLoss(
+  currentScale: number,
+  outcome: "partial_loss" | "total_loss" = "partial_loss",
+): number {
+  const base = Math.max(1, Math.floor(currentScale));
+  return outcome === "total_loss"
+    ? base * ICE_3F_TOTAL_LOSS_MULTIPLIER
+    : base * ICE_3F_GALE_MULTIPLIER;
+}
+
+/** Passos de gale a somar após a derrota (1 parcial / 2 total). */
+export function ice3fGaleStepsAfterLoss(
+  outcome: "partial_loss" | "total_loss",
+): number {
+  return outcome === "total_loss" ? 2 : 1;
 }
 
 export function ice3fPadFactorPlacementMs(unitScale: number): number {
@@ -559,30 +609,10 @@ export function tickIce3fPlacar(
         unitScale: cycle.unitScale,
         factors: cycle.active.factors,
       };
-    } else if (outcome === "tie") {
-      // 1 factor — empate: mesma indicação e stake; volta a awaiting_bet.
-      nextMachine = {
-        ...nextMachine,
-        betCommitInFlight: false,
-        cycle: {
-          ...cycle,
-          phase: "awaiting_bet",
-          armedHead: head,
-        },
-      };
-      flash = {
-        resultNumber,
-        won: false,
-        kind: "tie",
-        matchOutcome: "tie",
-        criticalPosition: cycle.active.criticalPosition,
-        unitScale: cycle.unitScale,
-        factors: cycle.active.factors,
-      };
     } else if (outcome === "total_loss" || outcome === "partial_loss") {
       const failedScale = ice3fUnitScaleForCycle(cycle);
-      const nextScale = ice3fNextUnitScaleAfterLoss(failedScale);
-      const nextGaleStreak = cycle.galeStreak + 1;
+      const nextScale = ice3fNextUnitScaleAfterLoss(failedScale, outcome);
+      const nextGaleStreak = cycle.galeStreak + ice3fGaleStepsAfterLoss(outcome);
 
       if (nextGaleStreak > ICE_3F_MAX_GALES) {
         nextStats = recordRotatingRoomSessionFinalLoss(
@@ -616,7 +646,7 @@ export function tickIce3fPlacar(
           ICE_3F_MAX_GALES,
         );
         statsChanged = true;
-        // Gale ×2: fecha ciclo e espera NOVA indicação (eco do nº novo).
+        // Fecha ciclo e espera NOVA indicação (eco) com escala ×2 ou ×4.
         nextMachine = {
           ...nextMachine,
           cycle: null,
@@ -689,7 +719,7 @@ export function ice3fWatchLabelForMachine(machine: Ice3fMachineState): string {
   const mode = ice3fStakeModeOf(machine);
   const toward = Math.max(0, Math.floor(machine.winsTowardEntryBump ?? 0));
   if (mode === "auto") {
-    return `eco → cor/altura · entrada ${entry}u auto (${toward}/${ICE_3F_WINS_PER_ENTRY_BUMP})`;
+    return `eco → 3F · entrada ${entry}u×3 auto (${toward}/${ICE_3F_WINS_PER_ENTRY_BUMP}) · parcial×2 / total×4`;
   }
-  return `eco → cor/altura · entrada ${entry}u manual · máx. 5 gales`;
+  return `eco → 3F · entrada ${entry}u×3 manual · parcial×2 / total×4 · máx. 5 gales`;
 }

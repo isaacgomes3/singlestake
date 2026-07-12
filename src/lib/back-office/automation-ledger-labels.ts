@@ -64,7 +64,11 @@ export function formatGlobalAutomationSettleDescription(
     if (input.recovery > 0 || input.kind === "recovery" || input.kind === "loss") {
       parts.push(`gale ${input.recovery}`);
     }
-    return parts.join(" · ");
+    const stakeNote =
+      typeof input.stake === "number" && input.stake > 0
+        ? ` · R$ ${formatLedgerStake(input.stake)}`
+        : "";
+    return parts.join(" · ") + stakeNote;
   }
 
   const recoveryNote = input.recovery > 0 ? ` · gale ${input.recovery}` : "";

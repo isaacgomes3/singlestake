@@ -114,7 +114,7 @@ function renderKtoAutopilot(ice3f, mode) {
     const watch = st.watchLabel ? ` · ${st.watchLabel}` : "";
     const ver = st.extensionVersion ? ` · v${st.extensionVersion}` : "";
     ice3fStatus.textContent =
-      (st.reason ?? "A monitorizar eco → cor/altura…") + watch + ver;
+      (st.reason ?? "A monitorizar eco → 3F…") + watch + ver;
     return;
   }
 

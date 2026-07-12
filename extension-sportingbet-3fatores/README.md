@@ -2,7 +2,7 @@
 
 Extensão Chrome para **Sportingbet** (mesa **201** · Roulette 2 Extra Time).
 
-Mesma estratégia da ICE 3F: eco → **cor/altura** + Dobrar · máx. **5 gales**.
+Mesma estratégia da ICE 3F: eco → **3 factores** · parcial **×2** / total **×4** · máx. **5 gales**.
 
 ## Abertura manual
 
@@ -16,11 +16,11 @@ A DGA segue a mesa **201** independentemente do URL.
 
 ## Estratégia
 
-- Eco da última ocorrência → **cor + altura** do nº à esquerda
+- Eco da última ocorrência → **cor + altura + paridade** do nº à esquerda (**3 un.**)
 - Sem eco em número consecutivo (`22, 22` → espera próximo)
+- Vitória se ≥2 factores; parcial (1) → **+1 gale ×2**; total (0 / zero) → **+2 gales ×4**
 - Entrada em **unidades** (auto a cada 63 vitórias / manual no popup)
-- Gale **×2** · máx. **5 gales**; em auto, gale 5 com ≥2u → volta a 1u
-- **Empate** (1 factor) → repete; **derrota** (0 / zero) → dobra
+- Máx. **5 gales**; em auto, gale 5 com ≥2u → volta a 1u
 
 ## Instalação
 

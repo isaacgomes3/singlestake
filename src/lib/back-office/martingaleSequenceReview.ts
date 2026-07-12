@@ -2,6 +2,7 @@ import type { StrategyGlobalLedgerEntry } from "@/lib/roulette/strategyGlobalTyp
 import { UM_FATOR_MAX_RECOVERY } from "@/lib/roulette/umFatorStrategy";
 import { ROTATING_ROOM_FIBONACCI_MAX_RECOVERY } from "@/lib/roulette/rotatingRoomFibonacciStrategy";
 import { isZoneFibonacciStrategy } from "@/lib/roulette/zoneFibonacciFamily";
+import { ice3fSettlementNet } from "@/lib/roulette/iceTresFatoresStrategy";
 
 import {
   resolveLedgerEntryStake,
@@ -111,7 +112,13 @@ export function reviewMartingaleSettlement(
     const stake = resolveLedgerEntryStake(entry, undefined, baseStake);
     const recovery = Math.max(0, Math.floor(entry.recovery));
     const maxR = 5;
-    const net = entry.won ? stake : -stake;
+    const hits =
+      typeof entry.factorHits === "number" && Number.isFinite(entry.factorHits)
+        ? Math.max(0, Math.min(3, Math.floor(entry.factorHits)))
+        : entry.won
+          ? 3
+          : 0;
+    const net = ice3fSettlementNet(stake, hits);
     if (entry.won) {
       if (entry.kind !== "win") {
         return { accepted: false, reason: `vitória ICE 3F com kind inválido (${entry.kind})` };

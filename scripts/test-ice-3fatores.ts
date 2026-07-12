@@ -1,27 +1,35 @@
 /**
- * Smoke — ICE 3F eco → cor/altura · empate 1F · gale ×2 · máx. 5 gales.
+ * Smoke — ICE 3F eco → 3 factores · parcial ×2 (+1 gale) · total ×4 (+2 gales).
  */
 import assert from "node:assert/strict";
 import {
   defaultIce3fMachineState,
   emptyIce3fStats,
+  ICE_3F_FACTORS_PER_BET,
   ICE_3F_MAX_GALES,
+  ICE_3F_TOTAL_LOSS_MULTIPLIER,
   ice3fBuildActiveFromHistory,
   ice3fClassifyBetRound,
   ice3fClassifyMatch,
   ice3fDoubleClicks,
   ice3fFindEchoTrigger,
+  ice3fGaleStepsAfterLoss,
   ice3fNextUnitScaleAfterLoss,
   ice3fPadFactorPlacementMs,
-  ice3fPairForNumber,
+  ice3fTripleForNumber,
   tickIce3fPlacar,
   tryArmCycleFromWatch,
 } from "../src/lib/roulette/iceTresFatoresStrategy.ts";
 
 assert.equal(ICE_3F_MAX_GALES, 5);
-assert.equal(ice3fNextUnitScaleAfterLoss(1), 2);
-assert.equal(ice3fNextUnitScaleAfterLoss(2), 4);
-assert.equal(ice3fNextUnitScaleAfterLoss(4), 8);
+assert.equal(ICE_3F_FACTORS_PER_BET, 3);
+assert.equal(ICE_3F_TOTAL_LOSS_MULTIPLIER, 4);
+assert.equal(ice3fNextUnitScaleAfterLoss(1, "partial_loss"), 2);
+assert.equal(ice3fNextUnitScaleAfterLoss(1, "total_loss"), 4);
+assert.equal(ice3fNextUnitScaleAfterLoss(2, "partial_loss"), 4);
+assert.equal(ice3fNextUnitScaleAfterLoss(2, "total_loss"), 8);
+assert.equal(ice3fGaleStepsAfterLoss("partial_loss"), 1);
+assert.equal(ice3fGaleStepsAfterLoss("total_loss"), 2);
 
 import {
   ICE_3F_WINS_PER_ENTRY_BUMP,
@@ -35,7 +43,12 @@ assert.equal(ICE_3F_WINS_PER_ENTRY_BUMP, 63);
 assert.equal(ice3fNormalizeEntryUnits(3), 4);
 assert.equal(ice3fNormalizeEntryUnits(2), 2);
 
-let stakeM = { ...defaultIce3fMachineState(), stakeMode: "auto" as const, entryUnits: 1, winsTowardEntryBump: 62 };
+let stakeM = {
+  ...defaultIce3fMachineState(),
+  stakeMode: "auto" as const,
+  entryUnits: 1,
+  winsTowardEntryBump: 62,
+};
 stakeM = ice3fApplyWinEntryProgress(stakeM);
 assert.equal(ice3fEntryUnitsOf(stakeM), 2);
 assert.equal(stakeM.winsTowardEntryBump, 0);
@@ -63,7 +76,7 @@ assert.equal(ice3fDoubleClicks(1), 0);
 assert.equal(ice3fDoubleClicks(2), 1);
 assert.equal(ice3fDoubleClicks(4), 2);
 
-// [22, 5, 8, 22, …] → recente 22, ocorrência em i=3, esquerda = 8 → cor/altura do 8
+// [22, 5, 8, 22, …] → recente 22, ocorrência em i=3, esquerda = 8 → 3F do 8
 const hist = [22, 5, 8, 22, 3, 1, 9, 11, 7, 4];
 const hit = ice3fFindEchoTrigger(hist);
 assert.ok(hit);
@@ -71,13 +84,32 @@ assert.equal(hit!.signalNumber, 8);
 
 const active = ice3fBuildActiveFromHistory(hist);
 assert.ok(active);
-assert.deepEqual(active!.factors, ice3fPairForNumber(8));
-assert.equal(active!.factors.length, 2);
+assert.deepEqual(active!.factors, ice3fTripleForNumber(8));
+assert.equal(active!.factors.length, 3);
 
-// 8 = Preto · Baixo — vitória 2/2; 5 = Vermelho · Baixo → empate; 19 = Vermelho · Alto → derrota
+// 8 = Preto · Baixo · Par
+// 8 vs 8 → 3/3 vitória; nº com 2 factores → partial_win;
+// 5 = Vermelho · Baixo · Ímpar → só altura → partial_loss (+1 gale);
+// 19 = Vermelho · Alto · Ímpar → 0 → total_loss (+2 gales)
 assert.equal(ice3fClassifyMatch(8, 8), "total_win");
-assert.equal(ice3fClassifyMatch(5, 8), "tie");
+assert.equal(ice3fClassifyMatch(11, 8), "partial_win"); // 11 preto baixo ímpar → cor+altura
+assert.equal(ice3fClassifyMatch(5, 8), "partial_loss");
+assert.equal(ice3fClassifyMatch(33, 8), "partial_loss");
 assert.equal(ice3fClassifyMatch(19, 8), "total_loss");
+
+import { ice3fSettlementNet, ice3fHitsForOutcome } from "../src/lib/roulette/iceTresFatoresStrategy.ts";
+import { stakeForIce3fAutomation } from "../src/lib/roulette/rotatingRoomIce3fStrategy.ts";
+
+assert.equal(stakeForIce3fAutomation(1, 50), 150);
+assert.equal(stakeForIce3fAutomation(2, 50), 300);
+assert.equal(ice3fHitsForOutcome("total_win"), 3);
+assert.equal(ice3fHitsForOutcome("partial_win"), 2);
+assert.equal(ice3fHitsForOutcome("partial_loss"), 1);
+assert.equal(ice3fHitsForOutcome("total_loss"), 0);
+assert.equal(ice3fSettlementNet(150, 3), 150);
+assert.equal(ice3fSettlementNet(150, 2), 50);
+assert.equal(ice3fSettlementNet(150, 1), -50);
+assert.equal(ice3fSettlementNet(150, 0), -150);
 
 assert.equal(ice3fFindEchoTrigger([22, 22, 5, 8, 22]), null);
 
@@ -86,7 +118,6 @@ machine = tryArmCycleFromWatch(machine, hist, `${hist.length}:${hist[0]}`);
 assert.ok(machine.cycle);
 assert.equal(machine.cycle!.galeStreak, 0);
 
-// Entrada 2u: armagem usa 2
 let m2 = {
   ...defaultIce3fMachineState(),
   entryUnits: 2,
@@ -102,23 +133,23 @@ const afterBet = {
   cycle: { ...machine.cycle!, phase: "awaiting_result" as const },
 };
 
-// Empate (5 vs 8): mesma indicação, sem gale
-const afterTie = tickIce3fPlacar([5, ...hist], afterBet, emptyIce3fStats());
-assert.equal(afterTie.flash?.kind, "tie");
-assert.ok(afterTie.machine.cycle);
-assert.equal(afterTie.machine.cycle!.phase, "awaiting_bet");
-assert.equal(afterTie.machine.cycle!.active.referenceNumber, 8);
-assert.equal(afterTie.machine.cycle!.unitScale, 1);
-assert.equal(afterTie.machine.cycle!.galeStreak, 0);
+// Parcial (33 vs 8: só cor): ×2 / +1 gale; 33 sem eco no hist → só escala pendente
+const afterPartial = tickIce3fPlacar([33, ...hist], afterBet, emptyIce3fStats());
+assert.equal(afterPartial.flash?.kind, "loss");
+assert.equal(afterPartial.flash?.matchOutcome, "partial_loss");
+assert.equal(afterPartial.machine.cycle, null);
+assert.equal(afterPartial.machine.pendingUnitScale, 2);
+assert.equal(afterPartial.machine.pendingGaleStreak, 1);
 
-// Derrota total (19 vs 8): gale ×2; sem eco do 19 no histórico → só escala pendente
-const afterLoss = tickIce3fPlacar([19, ...hist], afterBet, emptyIce3fStats());
-assert.equal(afterLoss.flash?.kind, "loss");
-assert.equal(afterLoss.machine.cycle, null);
-assert.equal(afterLoss.machine.pendingUnitScale, 2);
-assert.equal(afterLoss.machine.pendingGaleStreak, 1);
+// Total (19 vs 8): ×4 / +2 gales
+const afterTotal = tickIce3fPlacar([19, ...hist], afterBet, emptyIce3fStats());
+assert.equal(afterTotal.flash?.kind, "loss");
+assert.equal(afterTotal.flash?.matchOutcome, "total_loss");
+assert.equal(afterTotal.machine.cycle, null);
+assert.equal(afterTotal.machine.pendingUnitScale, 4);
+assert.equal(afterTotal.machine.pendingGaleStreak, 2);
 
-// Com eco do nº derrotado: [19, 7, 19, …] → sinal 7 com gale ×2
+// Com eco do nº derrotado: [19, 7, 19, …] → sinal 7 com gale ×4 (total)
 const lossWithEcho = tickIce3fPlacar(
   [19, 7, 19, 3, 1],
   {
@@ -130,10 +161,10 @@ const lossWithEcho = tickIce3fPlacar(
 assert.equal(lossWithEcho.flash?.kind, "loss");
 assert.ok(lossWithEcho.machine.cycle);
 assert.equal(lossWithEcho.machine.cycle!.active.referenceNumber, 7);
-assert.equal(lossWithEcho.machine.cycle!.unitScale, 2);
-assert.equal(lossWithEcho.machine.cycle!.galeStreak, 1);
+assert.equal(lossWithEcho.machine.cycle!.unitScale, 4);
+assert.equal(lossWithEcho.machine.cycle!.galeStreak, 2);
 
-// 5 gales → derrota final
+// 5 gales → derrota final (mesmo com parcial +1)
 const failMachine = {
   ...defaultIce3fMachineState(),
   lastSpinHead: "10:22",
@@ -147,11 +178,22 @@ const failMachine = {
     phase: "awaiting_result" as const,
   },
 };
-const afterFail = tickIce3fPlacar([19, ...hist], failMachine, emptyIce3fStats());
+const afterFail = tickIce3fPlacar([5, ...hist], failMachine, emptyIce3fStats());
 assert.equal(afterFail.flash?.kind, "cycle_fail");
 assert.equal(afterFail.machine.pendingUnitScale ?? 0, 0);
 
-console.log("ok — ice3f eco cor/altura empate/gale×2", {
+// Em gale 4, total (+2) também estoura o máximo
+const failOnTotalJump = tickIce3fPlacar(
+  [19, ...hist],
+  {
+    ...failMachine,
+    cycle: { ...failMachine.cycle, galeStreak: 4, unitScale: 8 },
+  },
+  emptyIce3fStats(),
+);
+assert.equal(failOnTotalJump.flash?.kind, "cycle_fail");
+
+console.log("ok — ice3f eco 3F parcial×2 / total×4", {
   signal: active!.referenceNumber,
   labels: active!.armingDescription,
   maxGales: ICE_3F_MAX_GALES,

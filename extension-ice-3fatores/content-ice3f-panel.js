@@ -238,7 +238,7 @@
   head.append(title, minBtn);
 
   const body = el("div", "ss-ice3f-body");
-  const sub = el("p", "ss-ice3f-sub", "Roulette 2 Extra Time · mesa 201 · stake 1·1·2·4·8·16·32");
+  const sub = el("p", "ss-ice3f-sub", "Roulette 2 Extra Time · mesa 201 · 3u · parcial×2 / total×4");
   const statusEl = el("p", "ss-ice3f-status", "A ligar à extensão…");
 
   const stats = el("div", "ss-ice3f-stats");
