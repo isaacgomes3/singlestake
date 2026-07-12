@@ -4,13 +4,17 @@ Extensão Chrome para **ICE** (mesa **201** · Roulette 2 Extra Time).
 
 ## Estratégia
 
-- Posições críticas **5, 6, 7, 9, 10 e 11** — gatilho: **2 derrotas totais** ou **1 total + 3 parciais**
-- Vitória parcial/total reinicia contadores; derrota parcial (1 factor) e total (0) contam na observação
-- Entrada: **3 factores** do número na **mesma posição crítica** que armou (independentes entre si)
-- Gale parcial (+1 gale, ×2) · derrota total (+2 gales, ×4: 1→4, gale1·2→8)
-- Zero com aposta activa = derrota total · zero na observação = neutro
-- Tempo de digitação igual ao gale 3 (8×) em todos os estágios
-- Falha: 5 gales, 2 triplas, ou 1 tripla + 2 gales
+- **Gatilho:** no nº mais recente do histórico, encontra a **última ocorrência** anterior desse nº
+- Aposta **cor + altura** do número imediatamente à **esquerda** dessa ocorrência
+- Ex.: `[22, 5, 8, 22, …]` → eco do 22 na 4.ª posição → sinal = **8** (cor/altura)
+- Se o nº sai **em sequência** (ex. `22, 22`), **não** busca eco — espera o próximo número
+- Gale: após derrota **espera nova indicação** (eco do nº novo) com stake **×2** via **Dobrar**
+- Entrada em **unidades** (ficha + Dobrar): modo **auto** ou **manual**
+- Auto: a cada **63 vitórias** dobra a entrada (1u → 2u → 4u…); gale 5 com ≥2u → volta a **1u**
+- Manual: escolhe 1/2/4/8/16/32u no popup
+- Ciclo completo a partir de 1u = **63u** (1+2+4+8+16+32)
+
+Calibrar **📍 Dobrar** no popup antes do REAL.
 
 ## Instalação
 

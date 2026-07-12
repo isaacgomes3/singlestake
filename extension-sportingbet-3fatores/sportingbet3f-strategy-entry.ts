@@ -1,5 +1,5 @@
 /**
- * Bundle entry — motor ICE 3 Fatores para extensão Chrome.
+ * Bundle entry — motor Sportingbet 3 Fatores para extensão Chrome.
  */
 import { doisFatoresFactorLabel } from "../src/lib/roulette/doisFatoresStrategy";
 import { pragmaticExteriorBetKeyFromFactor } from "../src/lib/roulette/pragmaticExteriorBetMap";
@@ -16,8 +16,7 @@ import {
   ICE_3F_RECOVERY_BET_DELAY_MS,
   ICE_3F_REQUIRED_TOTAL_DEFEATS,
   ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL,
-  ICE_3F_ROULETTE_MESA_URL,
-  ICE_3F_ROULETTE_TABLE_ID,
+    ICE_3F_ROULETTE_TABLE_ID,
   ICE_3F_MAX_GALES,
   ICE_3F_WINS_PER_ENTRY_BUMP,
   ICE_3F_MAX_ENTRY_UNITS,
@@ -37,14 +36,15 @@ import {
 } from "../src/lib/roulette/iceTresFatoresStrategy";
 import type { RotatingRoomSessionStats } from "../src/lib/roulette/rotatingRoomStrategy";
 
-export const ICE3F_TABLE_ID = ICE_3F_ROULETTE_TABLE_ID;
-export const ICE3F_MESA_URL = ICE_3F_ROULETTE_MESA_URL;
+export const SPORTINGBET3F_TABLE_ID = ICE_3F_ROULETTE_TABLE_ID;
+/** Sportingbet sem URL directa. */
+export const SPORTINGBET3F_MESA_URL = "";
 export const ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS = ICE_3F_FIRST_BET_SETTLE_MS;
 export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_3F_RECOVERY_BET_DELAY_MS;
 
 const BASE_STAKE = 0.5;
 
-export type CreateIce3fEngineOptions = {
+export type CreateSportingbet3fEngineOptions = {
   initialStats?: RotatingRoomSessionStats | null;
   initialMachine?: {
     lastSpinHead?: string | null;
@@ -54,7 +54,7 @@ export type CreateIce3fEngineOptions = {
   } | null;
 };
 
-export type Ice3fEngineSpinResult = {
+export type Sportingbet3fEngineSpinResult = {
   active: Ice3fActive | null;
   unitScale: number;
   recovery: number;
@@ -66,7 +66,7 @@ export type Ice3fEngineSpinResult = {
   flash: ReturnType<typeof tickIce3fPlacar>["flash"];
 };
 
-export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
+export function createSportingbet3fEngine(options: CreateSportingbet3fEngineOptions = {}) {
   let machine = defaultIce3fMachineState();
   if (options.initialMachine) {
     const im = options.initialMachine;
@@ -91,7 +91,7 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
     return `${history.length}:${history[0]}`;
   }
 
-  function toEngineResult(tick: ReturnType<typeof tickIce3fPlacar>): Ice3fEngineSpinResult {
+  function toEngineResult(tick: ReturnType<typeof tickIce3fPlacar>): Sportingbet3fEngineSpinResult {
     const unitScale = tick.globalUnitScale;
     return {
       active: tick.globalActive,
@@ -110,7 +110,7 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
     lastLiveSpinAt = Date.now();
   }
 
-  function runTick(): Ice3fEngineSpinResult {
+  function runTick(): Sportingbet3fEngineSpinResult {
     const tick = tickIce3fPlacar(history, machine, stats);
     machine = tick.machine;
     stats = tick.stats;
@@ -189,7 +189,7 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
     };
   }
 
-  function buildBridgePayload(mesaEmbedUrl: string | null = ICE3F_MESA_URL) {
+  function buildBridgePayload(mesaEmbedUrl: string | null = SPORTINGBET3F_MESA_URL) {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return null;
     if (!canPlaceBet()) return null;
 
@@ -197,7 +197,7 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
     const unitScale = ice3fUnitScaleForCycle(machine.cycle);
     const doubles = ice3fDoubleClicks(unitScale);
     const [f1, f2] = active.factors;
-    const signalId = `ice3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
+    const signalId = `sportingbet3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
     const f1Key = pragmaticExteriorBetKeyFromFactor(f1);
     const f2Key = pragmaticExteriorBetKeyFromFactor(f2);
     const f1Label = doisFatoresFactorLabel(f1);
@@ -247,8 +247,8 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
       context: {
         sessionMode: "active" as const,
         prepareTableId: null,
-        currentTableId: ICE3F_TABLE_ID,
-        mesaEmbedUrl: mesaEmbedUrl ?? ICE3F_MESA_URL,
+        currentTableId: SPORTINGBET3F_TABLE_ID,
+        mesaEmbedUrl: (typeof mesaEmbedUrl === "string" && mesaEmbedUrl.trim() ? mesaEmbedUrl.trim() : SPORTINGBET3F_MESA_URL),
         mesaProvider: "outro" as const,
         factor1Label: f1Label,
         factor2Label: f2Label,
@@ -275,7 +275,7 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
   }
 
   return {
-    tableId: ICE3F_TABLE_ID,
+    tableId: SPORTINGBET3F_TABLE_ID,
     ingestHistorySnapshot,
     ingestSpin,
     runTick,
@@ -345,17 +345,17 @@ export function createIce3fEngine(options: CreateIce3fEngineOptions = {}) {
 
 declare global {
   interface Window {
-    SinglestakeIce3f?: {
-      ICE3F_TABLE_ID: number;
-      ICE3F_MESA_URL: string;
-      createIce3fEngine: typeof createIce3fEngine;
+    SinglestakeSportingbet3f?: {
+      SPORTINGBET3F_TABLE_ID: number;
+      SPORTINGBET3F_MESA_URL: string;
+      createSportingbet3fEngine: typeof createSportingbet3fEngine;
     };
   }
 }
 
 const api = {
-  ICE3F_TABLE_ID,
-  ICE3F_MESA_URL,
+  SPORTINGBET3F_TABLE_ID,
+  SPORTINGBET3F_MESA_URL,
   ICE_3F_REQUIRED_TOTAL_DEFEATS,
   ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL,
   ICE_3F_BET_DELAY_MS,
@@ -369,11 +369,11 @@ const api = {
   ice3fPadFactorPlacementMs,
   ice3fDoubleClicks,
   ice3fNormalizeEntryUnits,
-  createIce3fEngine,
+  createSportingbet3fEngine,
 };
 
 if (typeof globalThis !== "undefined") {
-  (globalThis as unknown as Window).SinglestakeIce3f = api;
+  (globalThis as unknown as Window).SinglestakeSportingbet3f = api;
 }
 
 export default api;

@@ -31,8 +31,11 @@
       if (surface?.el) return true;
     }
     if (isPragmaticGameHost()) return true;
+    if (/br4\.bet\.br/i.test(location.hostname) && /pragmatic|roulette|play/i.test(location.href)) {
+      return true;
+    }
     if (hasLargeCanvas()) return true;
-    if (window === window.top && /ice\.bet\.br/i.test(location.hostname)) {
+    if (window === window.top && /sportingbet\.bet\.br/i.test(location.hostname)) {
       if (document.querySelector("iframe")) return false;
       return true;
     }
@@ -203,7 +206,7 @@
     "position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:min(440px,94vw);padding:14px 18px;border-radius:12px;border:2px solid rgba(59,130,246,0.9);background:rgba(7,16,32,0.97);color:#dbeafe;font:700 14px/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.55);pointer-events:none";
   banner.innerHTML =
     betKey === "repeat"
-      ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">cor/altura · 5 gales · ESC cancela</span>`
+      ? `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">3 Fatores · gales · ESC cancela</span>`
       : `📍 Clique exactamente em <strong>${label}</strong><br><span style="font-size:11px;font-weight:500;opacity:0.88">2 Fatores · ESC cancela</span>`;
 
   const cancel = document.createElement("button");

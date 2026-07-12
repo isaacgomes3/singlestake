@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "stake37 — ICE 3 Fatores",
-  "version": "1.4.0",
-  "description": "ICE mesa 201 · eco cor/altura · stake auto/manual em unidades · máx. 5 gales.",
+  "name": "stake37 — Sportingbet 3 Fatores",
+  "version": "1.2.0",
+  "description": "Sportingbet 201 · eco cor/altura · stake auto/manual em unidades · máx. 5 gales.",
   "permissions": [
     "tabs",
     "storage",
@@ -11,9 +11,11 @@
     "windows"
   ],
   "host_permissions": [
-    "https://www.ice.bet.br/*",
-    "https://ice.bet.br/*",
-    "https://*.pragmaticplaylive.net/*"
+    "https://www.sportingbet.bet.br/*",
+    "https://sportingbet.bet.br/*",
+    "https://*.pragmaticplaylive.net/*",
+    "https://*.pragmaticplay.net/*",
+    "https://*.br4.bet.br/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,8 +23,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.ice.bet.br/*",
-        "https://ice.bet.br/*"
+        "https://www.sportingbet.bet.br/*",
+        "https://sportingbet.bet.br/*"
       ],
       "js": [
         "content-casino.js"
@@ -43,6 +45,6 @@
     }
   ],
   "action": {
-    "default_title": "stake37 ICE 3F"
+    "default_title": "stake37 Sportingbet 3F"
   }
 }

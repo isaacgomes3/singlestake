@@ -1,4 +1,4 @@
-importScripts("shared.js", "ice3f-engine.js", "dga-hub.js", "ice3f-signal-runner.js");
+importScripts("shared.js", "sportingbet3f-engine.js", "dga-hub.js", "sportingbet3f-signal-runner.js");
 
 const CLICK_STAGGER_MS = 450;
 const DEFAULT_CHIP_VALUE = 0.5;
@@ -29,28 +29,28 @@ const CLOSE_MESA_DELAY_MS = GOG.CLOSE_MESA_DELAY_MS ?? 2500;
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     void setStoredMode(GOG.DEFAULT_MODE);
-    void chrome.storage.local.set({ gogIce3fAutopilotEnabled: false });
+    void chrome.storage.local.set({ gogSportingbet3fAutopilotEnabled: false });
   }
-  void ensureIce3fPanelOnOpenTabs();
+  void ensureSportingbet3fPanelOnOpenTabs();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void ensureIce3fPanelOnOpenTabs();
+  void ensureSportingbet3fPanelOnOpenTabs();
 });
 
 /** Janela fixa do painel ICE 3F (não fecha ao clicar na mesa). */
-let ice3fPanelWindowId = null;
+let sportingbet3fPanelWindowId = null;
 
-async function openOrFocusIce3fPanel() {
-  if (ice3fPanelWindowId != null) {
+async function openOrFocusSportingbet3fPanel() {
+  if (sportingbet3fPanelWindowId != null) {
     try {
-      const existing = await chrome.windows.get(ice3fPanelWindowId);
+      const existing = await chrome.windows.get(sportingbet3fPanelWindowId);
       if (existing?.id != null) {
         await chrome.windows.update(existing.id, { focused: true });
         return;
       }
     } catch {
-      ice3fPanelWindowId = null;
+      sportingbet3fPanelWindowId = null;
     }
   }
 
@@ -62,67 +62,74 @@ async function openOrFocusIce3fPanel() {
     height: 720,
     focused: true,
   });
-  ice3fPanelWindowId = win?.id ?? null;
+  sportingbet3fPanelWindowId = win?.id ?? null;
 }
 
 chrome.action.onClicked.addListener(() => {
-  void openOrFocusIce3fPanel();
+  void openOrFocusSportingbet3fPanel();
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
-  if (windowId === ice3fPanelWindowId) ice3fPanelWindowId = null;
+  if (windowId === sportingbet3fPanelWindowId) sportingbet3fPanelWindowId = null;
 });
 
-const ICE3F_DEFAULT_TABLE_ID = 201;
+const SPORTINGBET3F_DEFAULT_TABLE_ID = 201;
 /** Chave única de calibração — o ICE muda o pathname ao carregar o jogo. */
-const ICE_CALIB_SITE_KEY = "ice.bet.br|pragmatic-roulette";
+const SPORTINGBET3F_CALIB_SITE_KEY = "sportingbet.bet.br|pragmatic-roulette";
 
-function isIceHost(url) {
+function isSportingbet3fHost(url) {
   if (!url) return false;
   try {
-    return /(^|\.)ice\.bet\.br$/i.test(new URL(url).hostname);
+    const host = new URL(url).hostname;
+    return (
+      /(^|\.)sportingbet\.bet\.br$/i.test(host) ||
+      /(^|\.)br4\.bet\.br$/i.test(host) ||
+      /pragmaticplaylive\.net/i.test(host)
+    );
   } catch {
-    return /ice\.bet\.br/i.test(url);
+    return /sportingbet\.bet|br4\.bet|pragmaticplaylive/i.test(url);
   }
 }
 
-function isIce3fRoulettePageUrl(url) {
-  if (!isIceHost(url)) return false;
+function isSportingbet3fCasinoUrl(url) {
+  if (!url) return false;
+  if (/pragmaticplaylive\.net/i.test(url)) return true;
   try {
     const u = new URL(url);
-    const path = `${u.pathname}${u.hash}${u.search}`.toLowerCase();
-    if (/\/games\//i.test(path)) return true;
-    if (/\/play\/pragmatic\//i.test(path)) return true;
-    return /liveroulettea-pragmaticexternal|pragmaticexternal|roulette|liveroulette/i.test(path);
+    if (/(^|\.)sportingbet\.bet\.br$/i.test(u.hostname)) return true;
+    if (/(^|\.)br4\.bet\.br$/i.test(u.hostname) && /pragmatic|roulette|play/i.test(u.href)) {
+      return true;
+    }
+    return false;
   } catch {
-    return /liveroulettea|pragmaticexternal|\/games\//i.test(url);
+    return /sportingbet\.bet|br4\.bet/i.test(url);
   }
 }
 
-async function ensureIce3fPanelOnTab(tabId) {
+async function ensureSportingbet3fPanelOnTab(tabId) {
   if (tabId == null) return;
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (!isIce3fRoulettePageUrl(tab.url)) return;
+    if (!isSportingbet3fCasinoUrl(tab.url)) return;
     const live = await chrome.tabs
-      .sendMessage(tabId, { kind: "ice3f-panel-ping" })
+      .sendMessage(tabId, { kind: "sportingbet3f-panel-ping" })
       .then((r) => r?.ok === true)
       .catch(() => false);
     if (live) return;
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ["content-ice3f-panel.js"],
+      files: ["content-sportingbet3f-panel.js"],
     });
   } catch {
     /* aba restrita */
   }
 }
 
-async function ensureIce3fPanelOnOpenTabs() {
+async function ensureSportingbet3fPanelOnOpenTabs() {
   const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
-    if (tab.id != null && isIce3fRoulettePageUrl(tab.url)) {
-      await ensureIce3fPanelOnTab(tab.id);
+    if (tab.id != null && isSportingbet3fCasinoUrl(tab.url)) {
+      await ensureSportingbet3fPanelOnTab(tab.id);
     }
   }
 }
@@ -131,10 +138,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const url = changeInfo.url ?? tab.url;
   if (
     (changeInfo.status === "complete" || changeInfo.url) &&
-    isIce3fRoulettePageUrl(url)
+    isSportingbet3fCasinoUrl(url)
   ) {
-    registerMesaTab(ICE3F_DEFAULT_TABLE_ID, tabId);
-    void ensureIce3fPanelOnTab(tabId);
+    registerMesaTab(SPORTINGBET3F_DEFAULT_TABLE_ID, tabId);
+    void ensureSportingbet3fPanelOnTab(tabId);
   }
 });
 
@@ -161,31 +168,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.kind === "set-ice3f-autopilot") {
-    void SinglestakeIce3fSignalRunner.setIce3fAutopilotEnabled(message.enabled === true).then(async (resp) => {
-      if (message.enabled === true) await ensureIce3fPanelOnTab(sender.tab?.id ?? null);
+  if (message.kind === "set-sportingbet3f-autopilot") {
+    void SinglestakeSportingbet3fSignalRunner.setSportingbet3fAutopilotEnabled(message.enabled === true).then(async (resp) => {
+      if (message.enabled === true) await ensureSportingbet3fPanelOnTab(sender.tab?.id ?? null);
       sendResponse(resp);
     });
     return true;
   }
 
-  if (message.kind === "get-ice3f-autopilot") {
-    void SinglestakeIce3fSignalRunner.getIce3fAutopilotStatus().then(sendResponse);
+  if (message.kind === "get-sportingbet3f-autopilot") {
+    void SinglestakeSportingbet3fSignalRunner.getSportingbet3fAutopilotStatus().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "reset-ice3f-stats") {
-    void SinglestakeIce3fSignalRunner.resetIce3fStats().then(sendResponse);
+  if (message.kind === "reset-sportingbet3f-stats") {
+    void SinglestakeSportingbet3fSignalRunner.resetSportingbet3fStats().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "get-ice3f-config") {
-    void SinglestakeIce3fSignalRunner.getIce3fConfigForPopup().then(sendResponse);
+  if (message.kind === "get-sportingbet3f-config") {
+    void SinglestakeSportingbet3fSignalRunner.getSportingbet3fConfigForPopup().then(sendResponse);
     return true;
   }
 
-  if (message.kind === "set-ice3f-config") {
-    void SinglestakeIce3fSignalRunner.setIce3fConfigFromPopup(message.config ?? {}).then(sendResponse);
+  if (message.kind === "set-sportingbet3f-config") {
+    void SinglestakeSportingbet3fSignalRunner.setSportingbet3fConfigFromPopup(message.config ?? {}).then(sendResponse);
     return true;
   }
 
@@ -238,8 +245,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.kind === "ping") {
-    if (sender.tab?.id != null && isIce3fRoulettePageUrl(sender.tab.url)) {
-      registerMesaTab(ICE3F_DEFAULT_TABLE_ID, sender.tab.id);
+    if (sender.tab?.id != null && isSportingbet3fCasinoUrl(sender.tab.url)) {
+      registerMesaTab(SPORTINGBET3F_DEFAULT_TABLE_ID, sender.tab.id);
     }
     void readStoredMode().then((mode) =>
       sendResponse({ ok: true, lastBridge, mode, version: chrome.runtime.getManifest().version }),
@@ -352,22 +359,22 @@ async function buildStatus() {
   ]);
   const tabs = await chrome.tabs.query({});
   const mesaTab =
-    tabs.find((t) => t.url && isIce3fRoulettePageUrl(t.url)) ??
+    tabs.find((t) => t.url && isSportingbet3fCasinoUrl(t.url)) ??
     (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
   const calibUrl = mesaTab?.url ?? null;
   const store = stored.gogBetCalibration ?? { sites: {} };
   const calibLookup = calibUrl
     ? lookupSiteCalib(store, calibUrl)
-    : lookupAnyIceCalib(store);
+    : lookupAnySportingbet3fCalib(store);
   const siteKey = calibLookup.siteKey;
   const siteCalib = calibLookup.site;
-  const ice3fAutopilot = await SinglestakeIce3fSignalRunner.getIce3fAutopilotStatus();
-  const ice3fConfig = await SinglestakeIce3fSignalRunner.getIce3fConfigForPopup();
+  const sportingbet3fAutopilot = await SinglestakeSportingbet3fSignalRunner.getSportingbet3fAutopilotStatus();
+  const sportingbet3fConfig = await SinglestakeSportingbet3fSignalRunner.getSportingbet3fConfigForPopup();
   return {
     ok: true,
     mode,
-    ice3fAutopilot,
-    ice3fConfig,
+    sportingbet3fAutopilot,
+    sportingbet3fConfig,
     lastBridge: stored.gogLastBridge ?? null,
     lastContext: stored.gogLastContext ?? null,
     lastResults: stored.gogLastResults ?? null,
@@ -702,11 +709,11 @@ async function dispatchClickAction(action, context, sourceTabId) {
       action.target === "factor-3")
       ? `${signalId}:${action.target}`
       : null;
-  const isIce3fSignal =
+  const isSportingbet3fSignal =
     isIce3fCrossingContext(context) &&
     typeof context?.signalId === "string" &&
-    context.signalId.startsWith("ice3f:");
-  if (clickDedupeKey && lastExecutedClickKeys.has(clickDedupeKey) && !isIce3fSignal) {
+    context.signalId.startsWith("sportingbet3f:");
+  if (clickDedupeKey && lastExecutedClickKeys.has(clickDedupeKey) && !isSportingbet3fSignal) {
     return {
       target: action.target,
       ok: true,
@@ -737,7 +744,7 @@ async function dispatchClickAction(action, context, sourceTabId) {
     },
   );
 
-  if (clickResult.ok && clickDedupeKey && !isIce3fSignal) {
+  if (clickResult.ok && clickDedupeKey && !isSportingbet3fSignal) {
     lastExecutedClickKeys.add(clickDedupeKey);
   }
 
@@ -1442,8 +1449,8 @@ async function executeBetWithChip(tabId, betKey, label, dryRun, context, execOpt
 
     if (isIce3fCrossingContext(context ?? {})) {
       const padMs =
-        typeof SinglestakeIce3f?.ice3fPadFactorPlacementMs === "function"
-          ? SinglestakeIce3f.ice3fPadFactorPlacementMs(
+        typeof SinglestakeSportingbet3f?.ice3fPadFactorPlacementMs === "function"
+          ? SinglestakeSportingbet3f.ice3fPadFactorPlacementMs(
               useDoubleGale ? Math.max(1, units) : chipClicks,
             )
           : Math.max(
@@ -1687,7 +1694,7 @@ async function ensureMesaTab(context, preferredTabId) {
 }
 
 function isCasinoPlayUrl(url) {
-  return isIce3fRoulettePageUrl(url);
+  return isSportingbet3fCasinoUrl(url);
 }
 
 function isLobbyPokerUrl(url) {
@@ -1967,8 +1974,13 @@ function siteKeyFromUrl(url) {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./i, "").toLowerCase();
 
-    if (host === "ice.bet.br" || host.endsWith(".ice.bet.br")) {
-      return ICE_CALIB_SITE_KEY;
+    if (
+      host === "sportingbet.bet.br" ||
+      host.endsWith(".sportingbet.bet.br") ||
+      host === "br4.bet.br" ||
+      host.endsWith(".br4.bet.br")
+    ) {
+      return SPORTINGBET3F_CALIB_SITE_KEY;
     }
 
     const m = u.pathname.match(/\/play\/(pragmatic|playtech)\//i);
@@ -1981,15 +1993,15 @@ function siteKeyFromUrl(url) {
   }
 }
 
-function lookupAnyIceCalib(store) {
+function lookupAnySportingbet3fCalib(store) {
   const sites = store?.sites ?? {};
-  if (sites[ICE_CALIB_SITE_KEY]) {
-    return { siteKey: ICE_CALIB_SITE_KEY, site: sites[ICE_CALIB_SITE_KEY] };
+  if (sites[SPORTINGBET3F_CALIB_SITE_KEY]) {
+    return { siteKey: SPORTINGBET3F_CALIB_SITE_KEY, site: sites[SPORTINGBET3F_CALIB_SITE_KEY] };
   }
   for (const [key, site] of Object.entries(sites)) {
-    if (/ice\.bet\.br/i.test(key)) return { siteKey: key, site };
+    if (/sportingbet\.bet\.br|br4\.bet\.br/i.test(key)) return { siteKey: key, site };
   }
-  return { siteKey: ICE_CALIB_SITE_KEY, site: null };
+  return { siteKey: SPORTINGBET3F_CALIB_SITE_KEY, site: null };
 }
 
 /** Resolve calibração mesmo com chaves antigas (www vs apex, pathname antes/depois do redirect). */
@@ -1998,11 +2010,11 @@ function lookupSiteCalib(store, url) {
   const sites = store?.sites ?? {};
   if (sites[siteKey]) return { siteKey, site: sites[siteKey] };
 
-  if (isIceHost(url)) {
+  if (isSportingbet3fHost(url)) {
     for (const [key, site] of Object.entries(sites)) {
-      if (/ice\.bet\.br/i.test(key)) return { siteKey: key, site };
+      if (/sportingbet\.bet\.br|br4\.bet\.br/i.test(key)) return { siteKey: key, site };
     }
-    if (sites[ICE_CALIB_SITE_KEY]) return { siteKey: ICE_CALIB_SITE_KEY, site: sites[ICE_CALIB_SITE_KEY] };
+    if (sites[SPORTINGBET3F_CALIB_SITE_KEY]) return { siteKey: SPORTINGBET3F_CALIB_SITE_KEY, site: sites[SPORTINGBET3F_CALIB_SITE_KEY] };
   }
 
   return { siteKey, site: null };
@@ -2075,14 +2087,14 @@ async function saveCalibrationClick(message, tabId) {
     return { ok: false, detail: "Coordenadas inválidas" };
   }
 
-  const siteKey = isIceHost(tab.url) ? ICE_CALIB_SITE_KEY : siteKeyFromUrl(tab.url);
+  const siteKey = isSportingbet3fHost(tab.url) ? SPORTINGBET3F_CALIB_SITE_KEY : siteKeyFromUrl(tab.url);
   const store = await readCalibrationStore();
   if (!store.sites) store.sites = {};
   if (!store.sites[siteKey]) {
     store.sites[siteKey] = { label: siteKey, bets: {}, updatedAt: null };
   }
 
-  if (siteKey === ICE_CALIB_SITE_KEY && isIceHost(tab.url)) {
+  if (siteKey === SPORTINGBET3F_CALIB_SITE_KEY && isSportingbet3fHost(tab.url)) {
     for (const [legacyKey, legacySite] of Object.entries({ ...store.sites })) {
       if (legacyKey === siteKey || !/ice\.bet\.br/i.test(legacyKey)) continue;
       const target = store.sites[siteKey];
@@ -2233,7 +2245,7 @@ async function armCalibration(betKey, label, chipValue) {
   if (tabId == null) {
     return {
       ok: false,
-      detail: "Abra a roleta ICE (ice.bet.br) num separador e aguarde carregar.",
+      detail: "Abra Roulette 2 Extra Time (mesa 201) manualmente no Sportingbet num separador com o jogo carregado.",
     };
   }
 
@@ -2311,4 +2323,4 @@ async function armCalibration(betKey, label, chipValue) {
   };
 }
 
-SinglestakeIce3fSignalRunner.initIce3fSignalRunner(handleBridgePayload);
+SinglestakeSportingbet3fSignalRunner.initSportingbet3fSignalRunner(handleBridgePayload);

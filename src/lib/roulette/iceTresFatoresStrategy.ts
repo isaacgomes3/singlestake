@@ -1,31 +1,28 @@
 /**
- * ICE · 3 Fatores — posições críticas 5, 6, 7, 9, 10 e 11.
+ * ICE · 3 Fatores (eco) — indicação em **2 factores cor/altura**.
  *
- * **Observação (pré-entrada):** em cada posição crítica P, compara o giro mais recente
- * com os 3 factores (cor, altura, paridade) do número que estava na posição P.
- * Conta **derrotas totais** (0 factores) e **derrotas parciais** (1 factor) por posição;
- * vitória parcial (2) ou total (3) reinicia ambos os contadores.
+ * **Gatilho:** no número mais recente do histórico, procura a **última ocorrência**
+ * anterior desse mesmo número. Alerta **cor + altura** do número imediatamente
+ * à **esquerda** dessa ocorrência (mais recente que ela na grelha newest-first).
  *
- * **Entrada:** após **2 derrotas totais**, ou **1 derrota total + 3 derrotas parciais**
- * na posição P. Aposta os 3 factores do número actual na **mesma posição P**.
+ * Ex.: histórico [22, 5, 8, 22, …] → recente 22, ocorrência anterior na pos4,
+ * número à esquerda = 8 → aposta cor/altura do 8.
  *
- * **Placar na aposta:** vitória se acertar ≥2 factores; derrota parcial (1); derrota total (0).
- * Zero com aposta activa → derrota total. Na observação o zero continua neutro.
- * Derrota parcial → +1 gale (×2); derrota total → +2 gales (×4: 1→4, gale1·2→8).
- *
- * **Falha do ciclo:** 5 gales seguidos, ou 2 triplas seguidas, ou 1 tripla + 2 gales.
- * Ciclo activo bloqueia novo armamento noutra posição.
+ * **Placar:** vitória = 2 factores; **empate** = 1 factor (repete mesma indicação);
+ * derrota = 0 factores ou zero → gale normal **×2**.
+ * Recuperação até **5 gales**; depois → derrota final.
  */
 
 import {
   doisFatoresFactorLabel,
   type DoisFatoresFactor,
 } from "@/lib/roulette/doisFatoresStrategy";
-import { colorOf, heightOf, parityOf } from "@/lib/roulette/streetPairTrigger";
+import { colorOf, heightOf } from "@/lib/roulette/streetPairTrigger";
 import {
   emptyRotatingRoomSessionStats,
   parseRotatingRoomSessionStats,
   recordRotatingRoomSessionFinalLoss,
+  recordRotatingRoomSessionPartialLoss,
   recordRotatingRoomSessionWin,
   type RotatingRoomSessionStats,
 } from "@/lib/roulette/entryWinBreakdown";
@@ -34,45 +31,77 @@ export const ICE_3F_ROULETTE_TABLE_ID = 201;
 export const ICE_3F_ROULETTE_MESA_URL =
   "https://ice.bet.br/games/tag/roulette/liveroulettea-pragmaticexternal";
 
-/** Posições críticas na grelha (1 = giro mais recente). */
+/** @deprecated UI legado — gatilho já não usa posições fixas. */
 export const ICE_3F_CRITICAL_POSITIONS = [5, 6, 7, 9, 10, 11] as const;
 
-export const ICE_3F_MIN_HISTORY = 12;
+/** Precisa de recente + ocorrência anterior + nº à esquerda (mín. 2 giros; típico ≥3). */
+export const ICE_3F_MIN_HISTORY = 3;
+/** @deprecated Contadores de observação removidos. */
 export const ICE_3F_REQUIRED_TOTAL_DEFEATS = 2;
+/** @deprecated Contadores de observação removidos. */
 export const ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL = 3;
 export const ICE_3F_GALE_MULTIPLIER = 2;
-/** Derrota total — avança 2 gales sobre a última entrada (×4: 1→4, 2→8, 8→32). */
-export const ICE_3F_TOTAL_LOSS_MULTIPLIER = 4;
-/** Gale 3 na progressão 1·2·4·8… — referência de tempo de digitação. */
+/** @deprecated Gale normal é sempre ×2 — já não há ×4. */
+export const ICE_3F_TOTAL_LOSS_MULTIPLIER = ICE_3F_GALE_MULTIPLIER;
 export const ICE_3F_GALE3_REFERENCE_UNITS = 8;
 export const ICE_3F_CHIP_CLICK_STAGGER_MS = 150;
-/** Janela única para apostar após o giro (todos os estágios). */
 export const ICE_3F_BET_DELAY_MS = 5_000;
 export const ICE_3F_FIRST_BET_SETTLE_MS = ICE_3F_BET_DELAY_MS;
 export const ICE_3F_RECOVERY_BET_DELAY_MS = ICE_3F_BET_DELAY_MS;
-export const ICE_3F_MAX_GALE_STREAK = 5;
-export const ICE_3F_MAX_CONSECUTIVE_TRIPLES = 2;
-export const ICE_3F_GALES_AFTER_TRIPLE_LIMIT = 2;
+/** Máximo de gales após a entrada (recuperação). */
+export const ICE_3F_MAX_GALES = 5;
+/**
+ * Soma das unidades num ciclo completo (entrada + 5 gales a partir de 1u):
+ * 1+2+4+8+16+32 = 63. A cada 63 vitórias no modo auto, dobra a entrada.
+ */
+export const ICE_3F_WINS_PER_ENTRY_BUMP = 63;
+export const ICE_3F_FULL_CYCLE_UNITS = 63;
+export const ICE_3F_MAX_ENTRY_UNITS = 32;
+/** @deprecated Usar {@link ICE_3F_MAX_GALES}. */
+export const ICE_3F_MAX_GALE_STREAK = ICE_3F_MAX_GALES;
+/** @deprecated Sem limite de triplas — só {@link ICE_3F_MAX_GALES}. */
+export const ICE_3F_MAX_CONSECUTIVE_TRIPLES = Number.POSITIVE_INFINITY;
+/** @deprecated Sem limite de triplas. */
+export const ICE_3F_GALES_AFTER_TRIPLE_LIMIT = Number.POSITIVE_INFINITY;
 
-export type Ice3fCriticalPosition = (typeof ICE_3F_CRITICAL_POSITIONS)[number];
+/** @deprecated */
+export type Ice3fCriticalPosition = number;
 
 export type Ice3fMatchOutcome =
   | "total_win"
+  | "tie"
+  | "total_loss"
+  /** @deprecated */
   | "partial_win"
-  | "partial_loss"
-  | "total_loss";
+  /** @deprecated */
+  | "partial_loss";
 
-export type Ice3fTripleFactors = readonly [
-  DoisFatoresFactor,
-  DoisFatoresFactor,
-  DoisFatoresFactor,
-];
+/** Par cor/altura (indicação actual). */
+export type Ice3fPairFactors = readonly [DoisFatoresFactor, DoisFatoresFactor];
+/** @deprecated Alias — a indicação passou a 2 factores. */
+export type Ice3fTripleFactors = Ice3fPairFactors;
+
+export type Ice3fEchoHit = {
+  /** Número mais recente (history[0]). */
+  recentNumber: number;
+  /** Índice 0-based da ocorrência anterior do recente. */
+  priorIndex: number;
+  /** Índice 0-based do nº à esquerda dessa ocorrência. */
+  signalIndex: number;
+  /** Número cujos factores cor/altura se apostam. */
+  signalNumber: number;
+  /** Posição 1-based do sinal na grelha. */
+  signalPosition: number;
+};
 
 export type Ice3fActive = {
-  criticalPosition: Ice3fCriticalPosition;
-  factors: Ice3fTripleFactors;
+  /** Posição 1-based do nº sinal (à esquerda da última ocorrência). */
+  criticalPosition: number;
+  factors: Ice3fPairFactors;
   referenceNumber: number;
   armingDescription: string;
+  triggerNumber?: number;
+  priorOccurrencePosition?: number;
 };
 
 export type Ice3fCyclePhase = "awaiting_bet" | "awaiting_result";
@@ -81,37 +110,47 @@ export type Ice3fCycle = {
   active: Ice3fActive;
   armedHead: string;
   unitScale: number;
+  /** 0 = entrada; 1…{@link ICE_3F_MAX_GALES} = gale. */
   galeStreak: number;
   consecutiveTriples: number;
   galesSinceTriple: number;
   phase: Ice3fCyclePhase;
 };
 
+/** Stub de UI legado. */
 export type Ice3fWatchSlot = { total: number; partial: number };
+export type Ice3fWatchCounters = Record<number, Ice3fWatchSlot>;
 
-export type Ice3fWatchCounters = Record<Ice3fCriticalPosition, Ice3fWatchSlot>;
+export type Ice3fStakeMode = "auto" | "manual";
 
 export type Ice3fMachineState = {
   cycle: Ice3fCycle | null;
   watch: Ice3fWatchCounters;
-  pendingCritical: Ice3fCriticalPosition | null;
+  pendingCritical: number | null;
   lastSpinHead: string | null;
   betCommitInFlight?: boolean;
+  /** Escala de gale a aplicar na próxima indicação (eco novo). */
+  pendingUnitScale?: number;
+  pendingGaleStreak?: number;
+  pendingConsecutiveTriples?: number;
+  pendingGalesSinceTriple?: number;
+  /** Unidades de entrada (1, 2, 4, …) — ficha base × Dobrar. */
+  entryUnits?: number;
+  /** auto: sobe a cada 63 vitórias; manual: só via UI. */
+  stakeMode?: Ice3fStakeMode;
+  /** Vitórias desde o último aumento de entrada (modo auto). */
+  winsTowardEntryBump?: number;
 };
 
 export type Ice3fFlash = {
   resultNumber: number;
   won: boolean;
-  kind: "win" | "loss" | "cycle_fail";
+  kind: "win" | "loss" | "tie" | "cycle_fail";
   matchOutcome: Ice3fMatchOutcome;
-  criticalPosition: Ice3fCriticalPosition;
+  criticalPosition: number;
   unitScale: number;
-  factors: Ice3fTripleFactors;
+  factors: Ice3fPairFactors;
 };
-
-function criticalIndex(position: Ice3fCriticalPosition): number {
-  return position - 1;
-}
 
 function spinHead(history: readonly number[]): string {
   if (history.length === 0) return "0";
@@ -123,43 +162,45 @@ function factorWins(num: number, factor: DoisFatoresFactor): boolean {
   switch (factor.kind) {
     case "cor":
       return colorOf(num) === factor.value;
-    case "paridade":
-      return parityOf(num) === factor.value;
     case "altura":
       return heightOf(num) === factor.value;
+    case "paridade":
+      return false;
   }
 }
 
-export function ice3fTripleForNumber(n: number): Ice3fTripleFactors | null {
+/** Factores da indicação: cor + altura. */
+export function ice3fPairForNumber(n: number): Ice3fPairFactors | null {
   if (n === 0) return null;
   const col = colorOf(n);
   const alt = heightOf(n);
-  const par = parityOf(n);
-  if (col === "Zero" || alt === "Zero" || par === "Zero") return null;
+  if (col === "Zero" || alt === "Zero") return null;
   return [
     { kind: "cor", value: col },
     { kind: "altura", value: alt },
-    { kind: "paridade", value: par },
   ] as const;
+}
+
+/** @deprecated Usar {@link ice3fPairForNumber}. */
+export function ice3fTripleForNumber(n: number): Ice3fPairFactors | null {
+  return ice3fPairForNumber(n);
 }
 
 export function ice3fMatchCount(result: number, ref: number): number {
   if (result === 0 || ref === 0) return 0;
-  const triple = ice3fTripleForNumber(ref);
-  if (!triple) return 0;
-  return triple.filter((f) => factorWins(result, f)).length;
+  const pair = ice3fPairForNumber(ref);
+  if (!pair) return 0;
+  return pair.filter((f) => factorWins(result, f)).length;
 }
 
 export function ice3fClassifyMatch(result: number, ref: number): Ice3fMatchOutcome | null {
   if (result === 0 || ref === 0) return null;
   const count = ice3fMatchCount(result, ref);
-  if (count === 3) return "total_win";
-  if (count === 2) return "partial_win";
-  if (count === 1) return "partial_loss";
+  if (count === 2) return "total_win";
+  if (count === 1) return "tie";
   return "total_loss";
 }
 
-/** Placar da aposta — zero com referência válida conta como derrota total. */
 export function ice3fClassifyBetRound(result: number, ref: number): Ice3fMatchOutcome | null {
   if (ref === 0) return null;
   if (result === 0) return "total_loss";
@@ -176,14 +217,11 @@ export function normalizeIce3fWatchSlot(
   };
 }
 
+/** @deprecated Gatilho eco — sempre false. */
 export function ice3fIsPositionArmed(
-  raw: Ice3fWatchSlot | number | null | undefined,
+  _raw: Ice3fWatchSlot | number | null | undefined,
 ): boolean {
-  const slot = normalizeIce3fWatchSlot(raw);
-  return (
-    slot.total >= ICE_3F_REQUIRED_TOTAL_DEFEATS ||
-    (slot.total >= 1 && slot.partial >= ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL)
-  );
+  return false;
 }
 
 function emptyWatchSlot(): Ice3fWatchSlot {
@@ -198,7 +236,10 @@ function emptyWatch(): Ice3fWatchCounters {
 
 function cloneWatch(watch: Ice3fWatchCounters): Ice3fWatchCounters {
   return Object.fromEntries(
-    ICE_3F_CRITICAL_POSITIONS.map((pos) => [pos, { ...normalizeIce3fWatchSlot(watch[pos]) }]),
+    Object.keys(watch).map((k) => {
+      const pos = Number(k);
+      return [pos, { ...normalizeIce3fWatchSlot(watch[pos]) }];
+    }),
   ) as Ice3fWatchCounters;
 }
 
@@ -208,55 +249,111 @@ export function defaultIce3fMachineState(): Ice3fMachineState {
     watch: emptyWatch(),
     pendingCritical: null,
     lastSpinHead: null,
+    betCommitInFlight: false,
+    pendingUnitScale: 0,
+    pendingGaleStreak: 0,
+    pendingConsecutiveTriples: 0,
+    pendingGalesSinceTriple: 0,
+    entryUnits: 1,
+    stakeMode: "auto",
+    winsTowardEntryBump: 0,
   };
 }
 
-/** Número actual na posição P da grelha (1 = giro mais recente). */
-function referenceAtGridPosition(
-  historyNewestFirst: readonly number[],
-  position: Ice3fCriticalPosition,
-): number | null {
-  const idx = criticalIndex(position);
-  if (historyNewestFirst.length <= idx) return null;
-  return historyNewestFirst[idx]!;
+/** Normaliza unidades de entrada para potência de 2 entre 1 e {@link ICE_3F_MAX_ENTRY_UNITS}. */
+export function ice3fNormalizeEntryUnits(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  const floored = Math.max(1, Math.floor(n));
+  const pow = 2 ** Math.round(Math.log2(floored));
+  return Math.min(ICE_3F_MAX_ENTRY_UNITS, Math.max(1, pow));
 }
 
-/** Referência na posição P **antes** do giro que acabou de entrar (índice P após shift). */
-function referenceBeforeSpin(
+export function ice3fEntryUnitsOf(machine: Ice3fMachineState): number {
+  return ice3fNormalizeEntryUnits(machine.entryUnits ?? 1);
+}
+
+export function ice3fStakeModeOf(machine: Ice3fMachineState): Ice3fStakeMode {
+  return machine.stakeMode === "manual" ? "manual" : "auto";
+}
+
+/** Após vitória: conta para bump auto (63 vitórias → dobra entrada). */
+export function ice3fApplyWinEntryProgress(machine: Ice3fMachineState): Ice3fMachineState {
+  if (ice3fStakeModeOf(machine) !== "auto") return machine;
+  const toward = Math.max(0, Math.floor(machine.winsTowardEntryBump ?? 0)) + 1;
+  if (toward < ICE_3F_WINS_PER_ENTRY_BUMP) {
+    return { ...machine, winsTowardEntryBump: toward };
+  }
+  const nextEntry = ice3fNormalizeEntryUnits(ice3fEntryUnitsOf(machine) * 2);
+  return {
+    ...machine,
+    entryUnits: nextEntry,
+    winsTowardEntryBump: 0,
+  };
+}
+
+/** Gale 5 falhou em auto com entrada ≥2 → volta a 1u. */
+export function ice3fApplyFinalLossEntryReset(machine: Ice3fMachineState): Ice3fMachineState {
+  if (ice3fStakeModeOf(machine) !== "auto") return machine;
+  if (ice3fEntryUnitsOf(machine) <= 1) {
+    return { ...machine, winsTowardEntryBump: 0 };
+  }
+  return {
+    ...machine,
+    entryUnits: 1,
+    winsTowardEntryBump: 0,
+  };
+}
+
+/**
+ * Recente = history[0]. Percorre posições 2…N à procura da ocorrência anterior.
+ * Sinal = nº imediatamente à esquerda dessa ocorrência (history[i-1]).
+ * Se o nº sai em sequência (history[0] === history[1], ex. 22,22), não busca
+ * eco no histórico — espera o próximo número.
+ */
+export function ice3fFindEchoTrigger(
   historyNewestFirst: readonly number[],
-  position: Ice3fCriticalPosition,
-): number | null {
-  if (historyNewestFirst.length <= position) return null;
-  return historyNewestFirst[position]!;
+): Ice3fEchoHit | null {
+  if (historyNewestFirst.length < 3) return null;
+  const recentNumber = historyNewestFirst[0]!;
+  if (!Number.isFinite(recentNumber) || recentNumber === 0) return null;
+  // Repetição consecutiva: sem eco
+  if (historyNewestFirst[1] === recentNumber) return null;
+
+  for (let i = 2; i < historyNewestFirst.length; i++) {
+    if (historyNewestFirst[i] !== recentNumber) continue;
+    const signalIndex = i - 1;
+    const signalNumber = historyNewestFirst[signalIndex]!;
+    if (!Number.isFinite(signalNumber) || signalNumber === 0) return null;
+    if (!ice3fPairForNumber(signalNumber)) return null;
+    return {
+      recentNumber,
+      priorIndex: i,
+      signalIndex,
+      signalNumber,
+      signalPosition: signalIndex + 1,
+    };
+  }
+  return null;
 }
 
 export function ice3fBuildActiveFromHistory(
   historyNewestFirst: readonly number[],
-  criticalPosition: Ice3fCriticalPosition,
+  _criticalPosition?: number,
 ): Ice3fActive | null {
-  const refNum = referenceAtGridPosition(historyNewestFirst, criticalPosition);
-  if (refNum == null) return null;
-  const factors = ice3fTripleForNumber(refNum);
+  const hit = ice3fFindEchoTrigger(historyNewestFirst);
+  if (!hit) return null;
+  const factors = ice3fPairForNumber(hit.signalNumber);
   if (!factors) return null;
   const labels = factors.map(doisFatoresFactorLabel).join(" · ");
   return {
-    criticalPosition,
+    criticalPosition: hit.signalPosition,
     factors,
-    referenceNumber: refNum,
-    armingDescription: `ICE 3F pos${criticalPosition}: nº${refNum} → ${labels}`,
+    referenceNumber: hit.signalNumber,
+    triggerNumber: hit.recentNumber,
+    priorOccurrencePosition: hit.priorIndex + 1,
+    armingDescription: `ICE 3F eco nº${hit.recentNumber}→pos${hit.priorIndex + 1} · sinal pos${hit.signalPosition} nº${hit.signalNumber} → ${labels}`,
   };
-}
-
-function cycleFailed(cycle: Ice3fCycle): boolean {
-  if (cycle.galeStreak >= ICE_3F_MAX_GALE_STREAK) return true;
-  if (cycle.consecutiveTriples >= ICE_3F_MAX_CONSECUTIVE_TRIPLES) return true;
-  if (
-    cycle.consecutiveTriples >= 1 &&
-    cycle.galesSinceTriple >= ICE_3F_GALES_AFTER_TRIPLE_LIMIT
-  ) {
-    return true;
-  }
-  return false;
 }
 
 function evaluateBetRound(
@@ -266,97 +363,77 @@ function evaluateBetRound(
   return ice3fClassifyBetRound(result, active.referenceNumber);
 }
 
-function updateWatchOnSpin(
-  watch: Ice3fWatchCounters,
-  historyNewestFirst: readonly number[],
-): Ice3fWatchCounters {
-  const result = historyNewestFirst[0]!;
-  const next = cloneWatch(watch);
-  for (const pos of ICE_3F_CRITICAL_POSITIONS) {
-    const ref = referenceBeforeSpin(historyNewestFirst, pos);
-    if (ref == null) continue;
-    const outcome = ice3fClassifyMatch(result, ref);
-    if (outcome == null) continue;
-    if (outcome === "total_win" || outcome === "partial_win") {
-      next[pos] = emptyWatchSlot();
-    } else if (outcome === "total_loss") {
-      next[pos] = {
-        total: Math.min(ICE_3F_REQUIRED_TOTAL_DEFEATS, next[pos].total + 1),
-        partial: next[pos].partial,
-      };
-    } else if (outcome === "partial_loss") {
-      next[pos] = {
-        total: next[pos].total,
-        partial: next[pos].partial + 1,
-      };
-    }
-  }
-  return next;
-}
-
-/** Reconstrói contadores de observação a partir do histórico (snapshot DGA). */
+/** @deprecated Observação por posição removida. */
 export function primeIce3fWatchFromHistory(
-  historyNewestFirst: readonly number[],
+  _historyNewestFirst: readonly number[],
 ): Ice3fWatchCounters {
-  if (historyNewestFirst.length < ICE_3F_MIN_HISTORY) return emptyWatch();
-  let watch = emptyWatch();
-  const chronological = [...historyNewestFirst].reverse();
-  for (let end = ICE_3F_MIN_HISTORY; end <= chronological.length; end++) {
-    const sliceNewestFirst = chronological.slice(0, end).reverse();
-    watch = updateWatchOnSpin(watch, sliceNewestFirst);
-  }
-  return watch;
+  return emptyWatch();
 }
 
 export function tryArmCycleFromWatch(
   machine: Ice3fMachineState,
   historyNewestFirst: readonly number[],
   head: string,
+  unitScale = 1,
+  galeMeta?: Partial<
+    Pick<Ice3fCycle, "galeStreak" | "consecutiveTriples" | "galesSinceTriple">
+  >,
 ): Ice3fMachineState {
   if (machine.cycle) return machine;
-  const armedPos = firstArmedPosition(machine.watch);
-  if (armedPos == null) return machine;
-  const active = ice3fBuildActiveFromHistory(historyNewestFirst, armedPos);
+  if (historyNewestFirst.length < ICE_3F_MIN_HISTORY) return machine;
+  const active = ice3fBuildActiveFromHistory(historyNewestFirst);
   if (!active) return machine;
+
+  const pendingScale = Math.max(0, Math.floor(machine.pendingUnitScale ?? 0));
+  const entry = ice3fEntryUnitsOf(machine);
+  const scale = Math.max(
+    1,
+    Math.floor(unitScale > 1 ? unitScale : pendingScale > 0 ? pendingScale : entry),
+  );
+
   return {
     ...machine,
     cycle: {
       active,
       armedHead: head,
-      unitScale: 1,
-      galeStreak: 0,
-      consecutiveTriples: 0,
-      galesSinceTriple: 0,
+      unitScale: scale,
+      galeStreak: galeMeta?.galeStreak ?? machine.pendingGaleStreak ?? 0,
+      consecutiveTriples:
+        galeMeta?.consecutiveTriples ?? machine.pendingConsecutiveTriples ?? 0,
+      galesSinceTriple:
+        galeMeta?.galesSinceTriple ?? machine.pendingGalesSinceTriple ?? 0,
       phase: "awaiting_bet",
     },
-    watch: { ...machine.watch, [armedPos]: emptyWatchSlot() },
+    watch: emptyWatch(),
     pendingCritical: null,
+    pendingUnitScale: 0,
+    pendingGaleStreak: 0,
+    pendingConsecutiveTriples: 0,
+    pendingGalesSinceTriple: 0,
   };
-}
-
-function firstArmedPosition(watch: Ice3fWatchCounters): Ice3fCriticalPosition | null {
-  for (const pos of ICE_3F_CRITICAL_POSITIONS) {
-    if (ice3fIsPositionArmed(watch[pos])) return pos;
-  }
-  return null;
 }
 
 export function ice3fUnitScaleForCycle(cycle: Ice3fCycle): number {
   return Math.max(1, Math.floor(cycle.unitScale));
 }
 
-/** Próxima escala após derrota na aposta — baseada na última entrada que falhou. */
-export function ice3fNextUnitScaleAfterLoss(
-  currentScale: number,
-  outcome: "partial_loss" | "total_loss",
-): number {
-  const base = Math.max(1, Math.floor(currentScale));
-  return outcome === "total_loss"
-    ? base * ICE_3F_TOTAL_LOSS_MULTIPLIER
-    : base * ICE_3F_GALE_MULTIPLIER;
+/**
+ * Cliques em Dobrar a partir de 1 unidade (escalas 1·2·4·8…):
+ * escala 1 → 0; 2 → 1; 4 → 2; 8 → 3…
+ */
+export function ice3fDoubleClicks(unitScale: number): number {
+  const units = Math.max(1, Math.floor(unitScale));
+  if (units <= 1) return 0;
+  return Math.max(0, Math.round(Math.log2(units)));
 }
 
-/** Pausa extra após cliques de um factor — iguala entrada/gale1/gale2 ao tempo do gale 3. */
+/**
+ * Gale normal ×2 após falha dos 2 factores (0/2 ou zero).
+ */
+export function ice3fNextUnitScaleAfterLoss(currentScale: number): number {
+  return Math.max(1, Math.floor(currentScale)) * ICE_3F_GALE_MULTIPLIER;
+}
+
 export function ice3fPadFactorPlacementMs(unitScale: number): number {
   const units = Math.max(1, Math.floor(unitScale));
   if (units >= ICE_3F_GALE3_REFERENCE_UNITS) return 0;
@@ -383,6 +460,7 @@ export type Ice3fTickResult = {
   flash: Ice3fFlash | null;
   globalActive: Ice3fActive | null;
   globalUnitScale: number;
+  missedBetWindow?: boolean;
 };
 
 export function tickIce3fPlacar(
@@ -395,26 +473,31 @@ export function tickIce3fPlacar(
   let nextMachine: Ice3fMachineState = {
     ...machine,
     lastSpinHead: head,
-    watch: cloneWatch(machine.watch),
+    watch: cloneWatch(machine.watch ?? emptyWatch()),
   };
   let nextStats = stats;
   let statsChanged = false;
   let flash: Ice3fFlash | null = null;
+  let missedBetWindow = false;
 
   if (
     nextMachine.cycle?.phase === "awaiting_bet" &&
     headChanged &&
     nextMachine.cycle.armedHead !== head
   ) {
-    if (nextMachine.betCommitInFlight) {
-      nextMachine = {
-        ...nextMachine,
-        betCommitInFlight: false,
-        cycle: { ...nextMachine.cycle, phase: "awaiting_result" },
-      };
-    } else {
-      nextMachine = { ...nextMachine, cycle: null };
-    }
+    // Janela perdida — não conta placar; cancela indicação e espera eco novo
+    // (mantém escala de gale se já havia stake > 1).
+    missedBetWindow = true;
+    const missedScale = ice3fUnitScaleForCycle(nextMachine.cycle);
+    nextMachine = {
+      ...nextMachine,
+      betCommitInFlight: false,
+      cycle: null,
+      pendingUnitScale: Math.max(nextMachine.pendingUnitScale ?? 0, missedScale),
+      pendingGaleStreak: nextMachine.cycle.galeStreak,
+      pendingConsecutiveTriples: nextMachine.cycle.consecutiveTriples,
+      pendingGalesSinceTriple: nextMachine.cycle.galesSinceTriple,
+    };
   }
 
   if (nextMachine.cycle && headChanged && nextMachine.cycle.phase === "awaiting_result") {
@@ -423,15 +506,23 @@ export function tickIce3fPlacar(
     const outcome = evaluateBetRound(resultNumber, cycle.active);
 
     if (outcome === "total_win" || outcome === "partial_win") {
-      nextStats = recordRotatingRoomSessionWin(nextStats, 0, 0);
+      nextStats = recordRotatingRoomSessionWin(
+        nextStats,
+        cycle.galeStreak,
+        ICE_3F_MAX_GALES,
+      );
       statsChanged = true;
-      nextMachine = {
+      nextMachine = ice3fApplyWinEntryProgress({
         ...nextMachine,
         cycle: null,
         watch: emptyWatch(),
         pendingCritical: null,
         betCommitInFlight: false,
-      };
+        pendingUnitScale: 0,
+        pendingGaleStreak: 0,
+        pendingConsecutiveTriples: 0,
+        pendingGalesSinceTriple: 0,
+      });
       flash = {
         resultNumber,
         won: true,
@@ -441,50 +532,72 @@ export function tickIce3fPlacar(
         unitScale: cycle.unitScale,
         factors: cycle.active.factors,
       };
-    } else if (outcome === "partial_loss" || outcome === "total_loss") {
-      const isTotal = outcome === "total_loss";
-      const failedScale = ice3fUnitScaleForCycle(cycle);
-      let nextCycle: Ice3fCycle = {
-        ...cycle,
-        unitScale: ice3fNextUnitScaleAfterLoss(failedScale, outcome),
-        galeStreak: isTotal ? 0 : cycle.galeStreak + 1,
-        consecutiveTriples: isTotal ? cycle.consecutiveTriples + 1 : 0,
-        galesSinceTriple: isTotal ? 0 : cycle.galesSinceTriple + 1,
-        phase: "awaiting_bet",
+    } else if (outcome === "tie") {
+      // 1 factor — empate: mesma indicação e stake; volta a awaiting_bet.
+      nextMachine = {
+        ...nextMachine,
+        betCommitInFlight: false,
+        cycle: {
+          ...cycle,
+          phase: "awaiting_bet",
+          armedHead: head,
+        },
       };
+      flash = {
+        resultNumber,
+        won: false,
+        kind: "tie",
+        matchOutcome: "tie",
+        criticalPosition: cycle.active.criticalPosition,
+        unitScale: cycle.unitScale,
+        factors: cycle.active.factors,
+      };
+    } else if (outcome === "total_loss" || outcome === "partial_loss") {
+      const failedScale = ice3fUnitScaleForCycle(cycle);
+      const nextScale = ice3fNextUnitScaleAfterLoss(failedScale);
+      const nextGaleStreak = cycle.galeStreak + 1;
 
-      const rebuilt = ice3fBuildActiveFromHistory(
-        historyNewestFirst,
-        cycle.active.criticalPosition,
-      );
-      if (rebuilt) {
-        nextCycle = { ...nextCycle, active: rebuilt };
-      }
-
-      if (cycleFailed(nextCycle)) {
-        nextStats = recordRotatingRoomSessionFinalLoss(nextStats, 0, 0);
+      if (nextGaleStreak > ICE_3F_MAX_GALES) {
+        nextStats = recordRotatingRoomSessionFinalLoss(
+          nextStats,
+          cycle.galeStreak,
+          ICE_3F_MAX_GALES,
+        );
         statsChanged = true;
-        nextMachine = {
+        nextMachine = ice3fApplyFinalLossEntryReset({
           ...nextMachine,
           cycle: null,
-          watch: emptyWatch(),
-          pendingCritical: null,
           betCommitInFlight: false,
-        };
+          pendingUnitScale: 0,
+          pendingGaleStreak: 0,
+          pendingConsecutiveTriples: 0,
+          pendingGalesSinceTriple: 0,
+        });
         flash = {
           resultNumber,
           won: false,
           kind: "cycle_fail",
           matchOutcome: outcome,
           criticalPosition: cycle.active.criticalPosition,
-          unitScale: nextCycle.unitScale,
+          unitScale: failedScale,
           factors: cycle.active.factors,
         };
       } else {
+        nextStats = recordRotatingRoomSessionPartialLoss(
+          nextStats,
+          cycle.galeStreak,
+          ICE_3F_MAX_GALES,
+        );
+        statsChanged = true;
+        // Gale ×2: fecha ciclo e espera NOVA indicação (eco do nº novo).
         nextMachine = {
           ...nextMachine,
-          cycle: { ...nextCycle, armedHead: head },
+          cycle: null,
           betCommitInFlight: false,
+          pendingUnitScale: nextScale,
+          pendingGaleStreak: nextGaleStreak,
+          pendingConsecutiveTriples: 0,
+          pendingGalesSinceTriple: nextGaleStreak,
         };
         flash = {
           resultNumber,
@@ -492,7 +605,7 @@ export function tickIce3fPlacar(
           kind: "loss",
           matchOutcome: outcome,
           criticalPosition: cycle.active.criticalPosition,
-          unitScale: nextCycle.unitScale,
+          unitScale: nextScale,
           factors: cycle.active.factors,
         };
       }
@@ -500,33 +613,30 @@ export function tickIce3fPlacar(
   }
 
   if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= ICE_3F_MIN_HISTORY) {
-    nextMachine = {
-      ...nextMachine,
-      watch: updateWatchOnSpin(nextMachine.watch, historyNewestFirst),
-    };
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
-  if (nextMachine.cycle && headChanged) {
-    const armedPos = firstArmedPosition(nextMachine.watch);
-    if (armedPos != null && armedPos !== nextMachine.cycle.active.criticalPosition) {
-      nextMachine = { ...nextMachine, pendingCritical: armedPos };
-    }
+  if (
+    !nextMachine.cycle &&
+    machine.lastSpinHead == null &&
+    historyNewestFirst.length >= ICE_3F_MIN_HISTORY
+  ) {
+    nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
-  if (!nextMachine.cycle && nextMachine.pendingCritical != null && headChanged) {
-    const pos = nextMachine.pendingCritical;
-    if (ice3fIsPositionArmed(nextMachine.watch[pos])) {
-      nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
-      if (nextMachine.cycle) {
-        nextMachine = { ...nextMachine, pendingCritical: null };
-      }
-    }
+  // Após derrota no mesmo tick: tentar armar eco do nº resultado de imediato.
+  if (!nextMachine.cycle && flash?.kind === "loss" && historyNewestFirst.length >= ICE_3F_MIN_HISTORY) {
+    nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
   const globalActive =
     nextMachine.cycle?.phase === "awaiting_bet" ? nextMachine.cycle.active : null;
-  const globalUnitScale = nextMachine.cycle ? ice3fUnitScaleForCycle(nextMachine.cycle) : 1;
+  const globalUnitScale = nextMachine.cycle
+    ? ice3fUnitScaleForCycle(nextMachine.cycle)
+    : Math.max(
+        ice3fEntryUnitsOf(nextMachine),
+        Math.floor(nextMachine.pendingUnitScale ?? 0) || 0,
+      ) || ice3fEntryUnitsOf(nextMachine);
 
   return {
     machine: nextMachine,
@@ -535,13 +645,24 @@ export function tickIce3fPlacar(
     flash,
     globalActive,
     globalUnitScale,
+    missedBetWindow,
   };
 }
 
 export function parseIce3fStats(raw: unknown): RotatingRoomSessionStats {
-  return parseRotatingRoomSessionStats(raw, 0);
+  return parseRotatingRoomSessionStats(raw, ICE_3F_MAX_GALES);
 }
 
 export function emptyIce3fStats(): RotatingRoomSessionStats {
-  return emptyRotatingRoomSessionStats(0);
+  return emptyRotatingRoomSessionStats(ICE_3F_MAX_GALES);
+}
+
+export function ice3fWatchLabelForMachine(machine: Ice3fMachineState): string {
+  const entry = ice3fEntryUnitsOf(machine);
+  const mode = ice3fStakeModeOf(machine);
+  const toward = Math.max(0, Math.floor(machine.winsTowardEntryBump ?? 0));
+  if (mode === "auto") {
+    return `eco → cor/altura · entrada ${entry}u auto (${toward}/${ICE_3F_WINS_PER_ENTRY_BUMP})`;
+  }
+  return `eco → cor/altura · entrada ${entry}u manual · máx. 5 gales`;
 }

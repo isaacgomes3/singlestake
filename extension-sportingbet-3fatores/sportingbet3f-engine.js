@@ -1,5 +1,5 @@
 "use strict";
-var SinglestakeIce3f = (() => {
+var SinglestakeSportingbet3f = (() => {
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -18,15 +18,15 @@ var SinglestakeIce3f = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // extension-ice-3fatores/ice3f-strategy-entry.ts
-  var ice3f_strategy_entry_exports = {};
-  __export(ice3f_strategy_entry_exports, {
-    ICE3F_MESA_URL: () => ICE3F_MESA_URL,
-    ICE3F_TABLE_ID: () => ICE3F_TABLE_ID,
+  // extension-sportingbet-3fatores/sportingbet3f-strategy-entry.ts
+  var sportingbet3f_strategy_entry_exports = {};
+  __export(sportingbet3f_strategy_entry_exports, {
     ROTATING_ROOM_CROSSING_BET_DELAY_MS: () => ROTATING_ROOM_CROSSING_BET_DELAY_MS,
     ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS: () => ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
-    createIce3fEngine: () => createIce3fEngine,
-    default: () => ice3f_strategy_entry_default
+    SPORTINGBET3F_MESA_URL: () => SPORTINGBET3F_MESA_URL,
+    SPORTINGBET3F_TABLE_ID: () => SPORTINGBET3F_TABLE_ID,
+    createSportingbet3fEngine: () => createSportingbet3fEngine,
+    default: () => sportingbet3f_strategy_entry_default
   });
 
   // src/lib/roulette/streetPairTrigger.ts
@@ -171,7 +171,6 @@ var SinglestakeIce3f = (() => {
 
   // src/lib/roulette/iceTresFatoresStrategy.ts
   var ICE_3F_ROULETTE_TABLE_ID = 201;
-  var ICE_3F_ROULETTE_MESA_URL = "https://ice.bet.br/games/tag/roulette/liveroulettea-pragmaticexternal";
   var ICE_3F_CRITICAL_POSITIONS = [5, 6, 7, 9, 10, 11];
   var ICE_3F_MIN_HISTORY = 3;
   var ICE_3F_REQUIRED_TOTAL_DEFEATS = 2;
@@ -564,13 +563,13 @@ var SinglestakeIce3f = (() => {
     return emptyRotatingRoomSessionStats(ICE_3F_MAX_GALES);
   }
 
-  // extension-ice-3fatores/ice3f-strategy-entry.ts
-  var ICE3F_TABLE_ID = ICE_3F_ROULETTE_TABLE_ID;
-  var ICE3F_MESA_URL = ICE_3F_ROULETTE_MESA_URL;
+  // extension-sportingbet-3fatores/sportingbet3f-strategy-entry.ts
+  var SPORTINGBET3F_TABLE_ID = ICE_3F_ROULETTE_TABLE_ID;
+  var SPORTINGBET3F_MESA_URL = "";
   var ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS = ICE_3F_FIRST_BET_SETTLE_MS;
   var ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_3F_RECOVERY_BET_DELAY_MS;
   var BASE_STAKE = 0.5;
-  function createIce3fEngine(options = {}) {
+  function createSportingbet3fEngine(options = {}) {
     let machine = defaultIce3fMachineState();
     if (options.initialMachine) {
       const im = options.initialMachine;
@@ -681,14 +680,14 @@ var SinglestakeIce3f = (() => {
         cycle: { ...machine.cycle, phase: "awaiting_result" }
       };
     }
-    function buildBridgePayload(mesaEmbedUrl = ICE3F_MESA_URL) {
+    function buildBridgePayload(mesaEmbedUrl = SPORTINGBET3F_MESA_URL) {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return null;
       if (!canPlaceBet()) return null;
       const { active } = machine.cycle;
       const unitScale = ice3fUnitScaleForCycle(machine.cycle);
       const doubles = ice3fDoubleClicks(unitScale);
       const [f1, f2] = active.factors;
-      const signalId = `ice3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
+      const signalId = `sportingbet3f:pos${active.criticalPosition}:ref${active.referenceNumber}:s${unitScale}:h${machine.cycle.armedHead}`;
       const f1Key = pragmaticExteriorBetKeyFromFactor(f1);
       const f2Key = pragmaticExteriorBetKeyFromFactor(f2);
       const f1Label = doisFatoresFactorLabel(f1);
@@ -726,8 +725,8 @@ var SinglestakeIce3f = (() => {
         context: {
           sessionMode: "active",
           prepareTableId: null,
-          currentTableId: ICE3F_TABLE_ID,
-          mesaEmbedUrl: mesaEmbedUrl ?? ICE3F_MESA_URL,
+          currentTableId: SPORTINGBET3F_TABLE_ID,
+          mesaEmbedUrl: typeof mesaEmbedUrl === "string" && mesaEmbedUrl.trim() ? mesaEmbedUrl.trim() : SPORTINGBET3F_MESA_URL,
           mesaProvider: "outro",
           factor1Label: f1Label,
           factor2Label: f2Label,
@@ -753,7 +752,7 @@ var SinglestakeIce3f = (() => {
       };
     }
     return {
-      tableId: ICE3F_TABLE_ID,
+      tableId: SPORTINGBET3F_TABLE_ID,
       ingestHistorySnapshot,
       ingestSpin,
       runTick,
@@ -810,8 +809,8 @@ var SinglestakeIce3f = (() => {
     };
   }
   var api = {
-    ICE3F_TABLE_ID,
-    ICE3F_MESA_URL,
+    SPORTINGBET3F_TABLE_ID,
+    SPORTINGBET3F_MESA_URL,
     ICE_3F_REQUIRED_TOTAL_DEFEATS,
     ICE_3F_REQUIRED_PARTIAL_WITH_ONE_TOTAL,
     ICE_3F_BET_DELAY_MS,
@@ -825,11 +824,11 @@ var SinglestakeIce3f = (() => {
     ice3fPadFactorPlacementMs,
     ice3fDoubleClicks,
     ice3fNormalizeEntryUnits,
-    createIce3fEngine
+    createSportingbet3fEngine
   };
   if (typeof globalThis !== "undefined") {
-    globalThis.SinglestakeIce3f = api;
+    globalThis.SinglestakeSportingbet3f = api;
   }
-  var ice3f_strategy_entry_default = api;
-  return __toCommonJS(ice3f_strategy_entry_exports);
+  var sportingbet3f_strategy_entry_default = api;
+  return __toCommonJS(sportingbet3f_strategy_entry_exports);
 })();

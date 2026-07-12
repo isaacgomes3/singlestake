@@ -1,9 +1,9 @@
 /** Autopilot ICE — 3 Fatores (201) · cruzamento sequencial 2 fatores. */
-const STORAGE_ICE3F_AUTOPLAY = "gogIce3fAutopilotEnabled";
-const STORAGE_ICE3F_CONFIG = "gogIce3fConfig";
-const STORAGE_ICE3F_STATUS = "gogIce3fAutopilotStatus";
-const STORAGE_ICE3F_STATS = "gogIce3fAutopilotSessionStats";
-const STORAGE_ICE3F_MACHINE = "gogIce3fMachineState";
+const STORAGE_SPORTINGBET3F_AUTOPLAY = "gogSportingbet3fAutopilotEnabled";
+const STORAGE_SPORTINGBET3F_CONFIG = "gogSportingbet3fConfig";
+const STORAGE_SPORTINGBET3F_STATUS = "gogSportingbet3fAutopilotStatus";
+const STORAGE_SPORTINGBET3F_STATS = "gogSportingbet3fAutopilotSessionStats";
+const STORAGE_SPORTINGBET3F_MACHINE = "gogSportingbet3fMachineState";
 
 const DEFAULT_MAX_GALES = 5;
 const BET_RETRY_MS = 1500;
@@ -11,7 +11,7 @@ const ENTRY_UNIT_OPTIONS = [1, 2, 4, 8, 16, 32];
 
 /** @type {ReturnType<import('./dga-hub.js').createDgaHub>|null} */
 let dgaHub = null;
-/** @type {ReturnType<SinglestakeIce3f['createIce3fEngine']>|null} */
+/** @type {ReturnType<SinglestakeSportingbet3f['createSportingbet3fEngine']>|null} */
 let engine = null;
 let lastEmittedSignalId = null;
 /** @type {((payload: unknown, tabId: number|null) => Promise<unknown>)|null} */
@@ -19,11 +19,9 @@ let bridgeHandler = null;
 /** @type {Map<string, ReturnType<typeof setTimeout>>} */
 const pendingBetTimers = new Map();
 
-const ICE3F_DEFAULTS = {
-  tableId: SinglestakeIce3f?.ICE3F_TABLE_ID ?? 201,
-  mesaUrl:
-    SinglestakeIce3f?.ICE3F_MESA_URL ??
-    "https://ice.bet.br/games/tag/roulette/liveroulettea-pragmaticexternal",
+const SPORTINGBET3F_DEFAULTS = {
+  tableId: SinglestakeSportingbet3f?.SPORTINGBET3F_TABLE_ID ?? 201,
+  mesaUrl: SinglestakeSportingbet3f?.SPORTINGBET3F_MESA_URL ?? "",
   wsUrl: SinglestakeDgaHub?.DGA_DEFAULTS?.wsUrl ?? "wss://dga.pragmaticplaylive.net/ws",
   casinoId: SinglestakeDgaHub?.DGA_DEFAULTS?.casinoId ?? "ppcdk00000005148",
   currency: SinglestakeDgaHub?.DGA_DEFAULTS?.currency ?? "BRL",
@@ -39,8 +37,8 @@ function clampMaxGales(value) {
 }
 
 function normalizeEntryUnits(value) {
-  if (typeof SinglestakeIce3f?.ice3fNormalizeEntryUnits === "function") {
-    return SinglestakeIce3f.ice3fNormalizeEntryUnits(value);
+  if (typeof SinglestakeSportingbet3f?.ice3fNormalizeEntryUnits === "function") {
+    return SinglestakeSportingbet3f.ice3fNormalizeEntryUnits(value);
   }
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || n < 1) return 1;
@@ -60,49 +58,49 @@ function clearPendingBetTimers() {
   pendingBetTimers.clear();
 }
 
-async function readIce3fAutopilotEnabled() {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_AUTOPLAY]);
-  return data[STORAGE_ICE3F_AUTOPLAY] === true;
+async function readSportingbet3fAutopilotEnabled() {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_AUTOPLAY]);
+  return data[STORAGE_SPORTINGBET3F_AUTOPLAY] === true;
 }
 
-async function readIce3fConfig() {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_CONFIG]);
-  const stored = data[STORAGE_ICE3F_CONFIG];
-  if (!stored || typeof stored !== "object") return { ...ICE3F_DEFAULTS };
+async function readSportingbet3fConfig() {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_CONFIG]);
+  const stored = data[STORAGE_SPORTINGBET3F_CONFIG];
+  if (!stored || typeof stored !== "object") return { ...SPORTINGBET3F_DEFAULTS };
   const legacyWrong =
     stored.tableId === 237 ||
     (typeof stored.mesaUrl === "string" && stored.mesaUrl.includes("roleta-ao-vivo"));
   return {
     tableId:
       legacyWrong
-        ? ICE3F_DEFAULTS.tableId
+        ? SPORTINGBET3F_DEFAULTS.tableId
         : typeof stored.tableId === "number" && stored.tableId > 0
           ? stored.tableId
-          : ICE3F_DEFAULTS.tableId,
+          : SPORTINGBET3F_DEFAULTS.tableId,
     mesaUrl: legacyWrong
-      ? ICE3F_DEFAULTS.mesaUrl
+      ? SPORTINGBET3F_DEFAULTS.mesaUrl
       : typeof stored.mesaUrl === "string" && stored.mesaUrl.trim()
         ? stored.mesaUrl.trim()
-        : ICE3F_DEFAULTS.mesaUrl,
+        : SPORTINGBET3F_DEFAULTS.mesaUrl,
     wsUrl:
-      typeof stored.wsUrl === "string" && stored.wsUrl.trim() ? stored.wsUrl.trim() : ICE3F_DEFAULTS.wsUrl,
+      typeof stored.wsUrl === "string" && stored.wsUrl.trim() ? stored.wsUrl.trim() : SPORTINGBET3F_DEFAULTS.wsUrl,
     casinoId:
       typeof stored.casinoId === "string" && stored.casinoId.trim()
         ? stored.casinoId.trim()
-        : ICE3F_DEFAULTS.casinoId,
+        : SPORTINGBET3F_DEFAULTS.casinoId,
     currency:
       typeof stored.currency === "string" && stored.currency.trim()
         ? stored.currency.trim()
-        : ICE3F_DEFAULTS.currency,
-    maxRecovery: clampMaxGales(stored.maxRecovery ?? ICE3F_DEFAULTS.maxRecovery),
-    stakeMode: normalizeStakeMode(stored.stakeMode ?? ICE3F_DEFAULTS.stakeMode),
-    entryUnits: normalizeEntryUnits(stored.entryUnits ?? ICE3F_DEFAULTS.entryUnits),
+        : SPORTINGBET3F_DEFAULTS.currency,
+    maxRecovery: clampMaxGales(stored.maxRecovery ?? SPORTINGBET3F_DEFAULTS.maxRecovery),
+    stakeMode: normalizeStakeMode(stored.stakeMode ?? SPORTINGBET3F_DEFAULTS.stakeMode),
+    entryUnits: normalizeEntryUnits(stored.entryUnits ?? SPORTINGBET3F_DEFAULTS.entryUnits),
   };
 }
 
-async function readIce3fMachineState() {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_MACHINE]);
-  const raw = data[STORAGE_ICE3F_MACHINE];
+async function readSportingbet3fMachineState() {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_MACHINE]);
+  const raw = data[STORAGE_SPORTINGBET3F_MACHINE];
   if (!raw || typeof raw !== "object") return null;
   const recovery =
     typeof raw.recovery === "number" && Number.isFinite(raw.recovery)
@@ -121,7 +119,7 @@ async function readIce3fMachineState() {
   };
 }
 
-async function persistIce3fMachineState(machine) {
+async function persistSportingbet3fMachineState(machine) {
   if (!machine || typeof machine !== "object") return;
   const live = machine.cycle ? machine : machine;
   const entryUnits = normalizeEntryUnits(
@@ -137,7 +135,7 @@ async function persistIce3fMachineState(machine) {
     ),
   );
   await chrome.storage.local.set({
-    [STORAGE_ICE3F_MACHINE]: {
+    [STORAGE_SPORTINGBET3F_MACHINE]: {
       recovery:
         typeof machine.recovery === "number" && Number.isFinite(machine.recovery)
           ? Math.max(0, Math.floor(machine.recovery))
@@ -158,41 +156,41 @@ async function persistIce3fMachineState(machine) {
   });
 }
 
-async function clearIce3fMachineState() {
-  await chrome.storage.local.remove([STORAGE_ICE3F_MACHINE]);
+async function clearSportingbet3fMachineState() {
+  await chrome.storage.local.remove([STORAGE_SPORTINGBET3F_MACHINE]);
 }
 
-async function readIce3fStats(maxRecovery) {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_STATS]);
-  const raw = data[STORAGE_ICE3F_STATS];
+async function readSportingbet3fStats(maxRecovery) {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_STATS]);
+  const raw = data[STORAGE_SPORTINGBET3F_STATS];
   if (!raw?.stats || typeof raw.stats !== "object") return null;
   return { stats: raw.stats, maxRecovery: clampMaxGales(raw.maxRecovery ?? maxRecovery) };
 }
 
-async function persistIce3fStats(stats, maxRecovery) {
+async function persistSportingbet3fStats(stats, maxRecovery) {
   const mr = clampMaxGales(maxRecovery);
   await chrome.storage.local.set({
-    [STORAGE_ICE3F_STATS]: { stats, maxRecovery: mr, updatedAt: new Date().toISOString() },
+    [STORAGE_SPORTINGBET3F_STATS]: { stats, maxRecovery: mr, updatedAt: new Date().toISOString() },
   });
-  await writeIce3fStatus({ wins: stats.wins ?? 0, losses: stats.losses ?? 0, maxRecovery: mr });
+  await writeSportingbet3fStatus({ wins: stats.wins ?? 0, losses: stats.losses ?? 0, maxRecovery: mr });
 }
 
-async function resetIce3fStats() {
-  const cfg = await readIce3fConfig();
+async function resetSportingbet3fStats() {
+  const cfg = await readSportingbet3fConfig();
   const empty = { wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] };
-  await persistIce3fStats(empty, cfg.maxRecovery);
-  await clearIce3fMachineState();
+  await persistSportingbet3fStats(empty, cfg.maxRecovery);
+  await clearSportingbet3fMachineState();
   if (engine?.resetStats) engine.resetStats();
   if (engine?.reset) engine.reset();
   return { ok: true, wins: 0, losses: 0, maxRecovery: cfg.maxRecovery };
 }
 
-async function getIce3fConfigForPopup() {
-  return readIce3fConfig();
+async function getSportingbet3fConfigForPopup() {
+  return readSportingbet3fConfig();
 }
 
-async function setIce3fConfigFromPopup(config) {
-  const prev = await readIce3fConfig();
+async function setSportingbet3fConfigFromPopup(config) {
+  const prev = await readSportingbet3fConfig();
   const next = {
     ...prev,
     ...(config && typeof config === "object" ? config : {}),
@@ -200,27 +198,27 @@ async function setIce3fConfigFromPopup(config) {
   next.maxRecovery = clampMaxGales(next.maxRecovery);
   next.stakeMode = normalizeStakeMode(next.stakeMode);
   next.entryUnits = normalizeEntryUnits(next.entryUnits);
-  await chrome.storage.local.set({ [STORAGE_ICE3F_CONFIG]: next });
+  await chrome.storage.local.set({ [STORAGE_SPORTINGBET3F_CONFIG]: next });
   if (engine?.setStakeConfig) {
     engine.setStakeConfig({
       stakeMode: next.stakeMode,
       entryUnits: next.entryUnits,
     });
     const live = engine.getState?.()?.machine;
-    if (live) await persistIce3fMachineState(live);
+    if (live) await persistSportingbet3fMachineState(live);
   }
-  await writeIce3fStatus({
+  await writeSportingbet3fStatus({
     stakeMode: next.stakeMode,
     entryUnits: next.entryUnits,
   });
   return { ok: true, config: next };
 }
 
-async function writeIce3fStatus(patch) {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_STATUS]);
-  const prev = data[STORAGE_ICE3F_STATUS] ?? {};
+async function writeSportingbet3fStatus(patch) {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_STATUS]);
+  const prev = data[STORAGE_SPORTINGBET3F_STATUS] ?? {};
   const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
-  await chrome.storage.local.set({ [STORAGE_ICE3F_STATUS]: next });
+  await chrome.storage.local.set({ [STORAGE_SPORTINGBET3F_STATUS]: next });
   return next;
 }
 
@@ -290,7 +288,7 @@ async function executeBridgePayload(payload, mesaUrl) {
         }`
       : formatActiveLabel(active, unitScale);
 
-  await writeIce3fStatus({
+  await writeSportingbet3fStatus({
     active: true,
     tableId: payload.context.currentTableId,
     label,
@@ -309,8 +307,8 @@ async function executeBridgePayload(payload, mesaUrl) {
     if (placed && engine?.markBetPlaced) {
       engine.markBetPlaced();
       const live = engine.getState?.();
-      if (live?.machine) await persistIce3fMachineState(live.machine);
-      await writeIce3fStatus({
+      if (live?.machine) await persistSportingbet3fMachineState(live.machine);
+      await writeSportingbet3fStatus({
         lastBetDetail: detail || "Aposta enviada (factor-1 + factor-2)",
         lastError: null,
       });
@@ -318,11 +316,11 @@ async function executeBridgePayload(payload, mesaUrl) {
       engine?.abortBetCommit?.();
       lastEmittedSignalId = null;
       const errDetail = detail || "Cliques não confirmados — calibre Preto/Vermelho/Par/Ímpar na mesa";
-      await writeIce3fStatus({
+      await writeSportingbet3fStatus({
         lastError: errDetail,
         lastBetDetail: detail || null,
       });
-      const cfg = await readIce3fConfig();
+      const cfg = await readSportingbet3fConfig();
       const retry = engine.runTick();
       const waitMs = Math.max(BET_RETRY_MS, betDelayRemainingMs(retry));
       const signalKey = `retry:${payload.context.signalId}`;
@@ -339,10 +337,10 @@ async function executeBridgePayload(payload, mesaUrl) {
     engine?.abortBetCommit?.();
     lastEmittedSignalId = null;
     const msg = e instanceof Error ? e.message : String(e);
-    await writeIce3fStatus({
+    await writeSportingbet3fStatus({
       lastError: msg,
     });
-    const cfg = await readIce3fConfig();
+    const cfg = await readSportingbet3fConfig();
     scheduleBetAttempt(engine.runTick(), mesaUrl, cfg);
   }
 }
@@ -352,7 +350,7 @@ function betDelayRemainingMs(result) {
   const at = state?.lastLiveSpinAt;
   if (at == null) return BET_RETRY_MS;
 
-  const settleMs = SinglestakeIce3f?.ICE_3F_BET_DELAY_MS ?? 5000;
+  const settleMs = SinglestakeSportingbet3f?.ICE_3F_BET_DELAY_MS ?? 5000;
   const elapsed = Date.now() - at;
   return Math.max(BET_RETRY_MS, settleMs - elapsed);
 }
@@ -361,7 +359,7 @@ function scheduleBetAttempt(result, mesaUrl, cfg) {
   if (!engine || !result?.active) {
     clearPendingBetTimers();
     lastEmittedSignalId = null;
-    void writeIce3fStatus({
+    void writeSportingbet3fStatus({
       active: false,
       tableId: null,
       label: null,
@@ -380,7 +378,7 @@ function scheduleBetAttempt(result, mesaUrl, cfg) {
     const unitScale = result.unitScale ?? result.recovery ?? 1;
     const label = formatActiveLabel(active, unitScale);
 
-    void writeIce3fStatus({
+    void writeSportingbet3fStatus({
       active: true,
       tableId,
       label,
@@ -390,7 +388,7 @@ function scheduleBetAttempt(result, mesaUrl, cfg) {
       watch: engine?.getState?.()?.machine?.watch ?? null,
     });
 
-    const signalKey = `ice3f:pos${active?.criticalPosition ?? "?"}:ref${active?.referenceNumber ?? "?"}:s${unitScale}`;
+    const signalKey = `sportingbet3f:pos${active?.criticalPosition ?? "?"}:ref${active?.referenceNumber ?? "?"}:s${unitScale}`;
     if (pendingBetTimers.has(signalKey)) return;
 
     const timer = setTimeout(() => {
@@ -409,10 +407,10 @@ function scheduleBetAttempt(result, mesaUrl, cfg) {
 async function processEngineResult(result, mesaUrl, cfg) {
   if (!result || !engine) return;
   if (result.machine) {
-    await persistIce3fMachineState(result.machine);
+    await persistSportingbet3fMachineState(result.machine);
   }
   if (result.stats) {
-    await persistIce3fStats(result.stats, cfg.maxRecovery);
+    await persistSportingbet3fStats(result.stats, cfg.maxRecovery);
   }
 
   const stakeSnap = {
@@ -420,7 +418,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
     entryUnits: result.entryUnits ?? result.machine?.entryUnits ?? cfg.entryUnits ?? 1,
     winsTowardEntryBump:
       result.winsTowardEntryBump ?? result.machine?.winsTowardEntryBump ?? 0,
-    winsPerBump: SinglestakeIce3f?.ICE_3F_WINS_PER_ENTRY_BUMP ?? 63,
+    winsPerBump: SinglestakeSportingbet3f?.ICE_3F_WINS_PER_ENTRY_BUMP ?? 63,
   };
 
   if (result.flash) {
@@ -455,7 +453,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
                 : unitScale > 1
                   ? `Aguarda eco · gale ${unitScale}×`
                   : "Aguarda eco (última ocorrência → cor/altura)";
-    await writeIce3fStatus({
+    await writeSportingbet3fStatus({
       lastFlash: flashKind,
       lastResult: result.flash.resultNumber,
       ...stakeSnap,
@@ -474,7 +472,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
           : {}),
     });
   } else {
-    await writeIce3fStatus(stakeSnap);
+    await writeSportingbet3fStatus(stakeSnap);
   }
 
   const watch = result.machine?.watch ?? engine?.getState?.()?.machine?.watch ?? null;
@@ -489,7 +487,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
       lastEmittedSignalId = null;
     }
     const label = formatActiveLabel(result.active, result.unitScale ?? result.recovery ?? 1);
-    await writeIce3fStatus({
+    await writeSportingbet3fStatus({
       active: true,
       label,
       unitScale: result.unitScale ?? result.recovery ?? 1,
@@ -500,7 +498,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
       waitingBet: false,
     });
   } else if (watchLabel) {
-    await writeIce3fStatus({
+    await writeSportingbet3fStatus({
       watch,
       watchLabel,
       reason: watchLabel,
@@ -512,31 +510,31 @@ async function processEngineResult(result, mesaUrl, cfg) {
   scheduleBetAttempt(result, mesaUrl, cfg);
 }
 
-async function startIce3fAutopilot(handleBridgePayload) {
+async function startSportingbet3fAutopilot(handleBridgePayload) {
   if (typeof handleBridgePayload === "function") {
     bridgeHandler = handleBridgePayload;
-    globalThis.__singlestakeIce3fBridgeHandler = handleBridgePayload;
+    globalThis.__SinglestakeSportingbet3fBridgeHandler = handleBridgePayload;
   }
-  const enabled = await readIce3fAutopilotEnabled();
+  const enabled = await readSportingbet3fAutopilotEnabled();
   if (!enabled) {
-    await writeIce3fStatus({ running: false, reason: "autopilot ICE 3F desligado" });
+    await writeSportingbet3fStatus({ running: false, reason: "autopilot Sportingbet 3F desligado" });
     return;
   }
 
-  if (!globalThis.SinglestakeIce3f?.createIce3fEngine) {
-    await writeIce3fStatus({
+  if (!globalThis.SinglestakeSportingbet3f?.createSportingbet3fEngine) {
+    await writeSportingbet3fStatus({
       running: false,
-      reason: "ice3f-engine.js em falta — corra npm run extension:ice3f:build",
+      reason: "sportingbet3f-engine.js em falta — corra npm run extension:sportingbet3f:build",
     });
     return;
   }
 
-  stopIce3fAutopilot();
+  stopSportingbet3fAutopilot();
 
-  const cfg = await readIce3fConfig();
-  const saved = await readIce3fStats(cfg.maxRecovery);
-  const savedMachine = await readIce3fMachineState();
-  engine = SinglestakeIce3f.createIce3fEngine({
+  const cfg = await readSportingbet3fConfig();
+  const saved = await readSportingbet3fStats(cfg.maxRecovery);
+  const savedMachine = await readSportingbet3fMachineState();
+  engine = SinglestakeSportingbet3f.createSportingbet3fEngine({
     maxRecovery: cfg.maxRecovery,
     initialStats: saved?.stats ?? null,
     initialMachine: {
@@ -571,26 +569,26 @@ async function startIce3fAutopilot(handleBridgePayload) {
       casinoId: cfg.casinoId,
       currency: cfg.currency,
     },
-    onLog: (msg) => void writeIce3fStatus({ log: msg }),
-    onStatus: (status) => void writeIce3fStatus({ dga: status }),
+    onLog: (msg) => void writeSportingbet3fStatus({ log: msg }),
+    onStatus: (status) => void writeSportingbet3fStatus({ dga: status }),
     onHistorySnapshot: async (_tableId, spins) => {
       if (!engine) return;
       const result = engine.ingestHistorySnapshot(spins);
-      const cfgNow = await readIce3fConfig();
+      const cfgNow = await readSportingbet3fConfig();
       void processEngineResult(result, cfgNow.mesaUrl, cfgNow);
     },
     onSpin: (_tableId, spin) => {
       if (!engine) return;
       const result = engine.ingestSpin(spin.number, spin.gameId);
       if (!result) return;
-      void readIce3fConfig().then((cfgNow) =>
+      void readSportingbet3fConfig().then((cfgNow) =>
         processEngineResult(result, cfgNow.mesaUrl, cfgNow),
       );
     },
   });
 
   dgaHub.start();
-  await writeIce3fStatus({
+  await writeSportingbet3fStatus({
     running: true,
     reason: null,
     tableId: cfg.tableId,
@@ -601,77 +599,77 @@ async function startIce3fAutopilot(handleBridgePayload) {
     stakeMode: stake.stakeMode,
     entryUnits: stake.entryUnits,
     winsTowardEntryBump: stake.winsTowardEntryBump ?? 0,
-    winsPerBump: SinglestakeIce3f?.ICE_3F_WINS_PER_ENTRY_BUMP ?? 63,
+    winsPerBump: SinglestakeSportingbet3f?.ICE_3F_WINS_PER_ENTRY_BUMP ?? 63,
     watch: engine?.getState?.()?.machine?.watch ?? null,
     watchLabel: formatWatchCounters(engine?.getState?.()?.machine?.watch),
   });
 }
 
-function stopIce3fAutopilot() {
+function stopSportingbet3fAutopilot() {
   clearPendingBetTimers();
   dgaHub?.stop();
   dgaHub = null;
   engine = null;
   lastEmittedSignalId = null;
-  void writeIce3fStatus({ running: false, active: false, waitingBet: false });
+  void writeSportingbet3fStatus({ running: false, active: false, waitingBet: false });
 }
 
-async function setIce3fAutopilotEnabled(enabled) {
-  await chrome.storage.local.set({ [STORAGE_ICE3F_AUTOPLAY]: enabled === true });
+async function setSportingbet3fAutopilotEnabled(enabled) {
+  await chrome.storage.local.set({ [STORAGE_SPORTINGBET3F_AUTOPLAY]: enabled === true });
   if (enabled) {
-    await startIce3fAutopilot(bridgeHandler ?? globalThis.__singlestakeIce3fBridgeHandler ?? null);
-    if (!bridgeHandler && !globalThis.__singlestakeIce3fBridgeHandler) {
-      await writeIce3fStatus({
+    await startSportingbet3fAutopilot(bridgeHandler ?? globalThis.__SinglestakeSportingbet3fBridgeHandler ?? null);
+    if (!bridgeHandler && !globalThis.__SinglestakeSportingbet3fBridgeHandler) {
+      await writeSportingbet3fStatus({
         running: false,
         reason: "Extensão a iniciar — clique Parado/Activo outra vez",
       });
     }
   } else {
-    stopIce3fAutopilot();
-    await writeIce3fStatus({ running: false, reason: "autopilot ICE 3F desligado" });
+    stopSportingbet3fAutopilot();
+    await writeSportingbet3fStatus({ running: false, reason: "autopilot Sportingbet 3F desligado" });
   }
-  return getIce3fAutopilotStatus();
+  return getSportingbet3fAutopilotStatus();
 }
 
-async function getIce3fAutopilotStatus() {
-  const data = await chrome.storage.local.get([STORAGE_ICE3F_STATUS, STORAGE_ICE3F_AUTOPLAY, STORAGE_ICE3F_STATS]);
-  const statsPack = data[STORAGE_ICE3F_STATS];
+async function getSportingbet3fAutopilotStatus() {
+  const data = await chrome.storage.local.get([STORAGE_SPORTINGBET3F_STATUS, STORAGE_SPORTINGBET3F_AUTOPLAY, STORAGE_SPORTINGBET3F_STATS]);
+  const statsPack = data[STORAGE_SPORTINGBET3F_STATS];
   const live = engine?.getState?.();
-  const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_ICE3F_STATUS]?.wins ?? 0;
-  const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_ICE3F_STATUS]?.losses ?? 0;
-  const watch = live?.machine?.watch ?? data[STORAGE_ICE3F_STATUS]?.watch ?? null;
+  const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_SPORTINGBET3F_STATUS]?.wins ?? 0;
+  const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_SPORTINGBET3F_STATUS]?.losses ?? 0;
+  const watch = live?.machine?.watch ?? data[STORAGE_SPORTINGBET3F_STATUS]?.watch ?? null;
   const watchLabel = formatWatchCounters(watch);
   const pendingRecovery =
     live?.machine?.cycle?.unitScale ??
     live?.unitScale ??
-    (await readIce3fMachineState())?.recovery ??
+    (await readSportingbet3fMachineState())?.recovery ??
     0;
   const stake = engine?.getStakeConfig?.() ?? null;
   const maxRecovery =
-    live?.maxRecovery ?? statsPack?.maxRecovery ?? data[STORAGE_ICE3F_STATUS]?.maxRecovery ?? DEFAULT_MAX_GALES;
+    live?.maxRecovery ?? statsPack?.maxRecovery ?? data[STORAGE_SPORTINGBET3F_STATUS]?.maxRecovery ?? DEFAULT_MAX_GALES;
   return {
-    enabled: data[STORAGE_ICE3F_AUTOPLAY] === true,
+    enabled: data[STORAGE_SPORTINGBET3F_AUTOPLAY] === true,
     status: {
-      ...(data[STORAGE_ICE3F_STATUS] ?? { running: false }),
+      ...(data[STORAGE_SPORTINGBET3F_STATUS] ?? { running: false }),
       wins,
       losses,
       maxRecovery,
       recovery: pendingRecovery,
       stakeMode:
         stake?.stakeMode ??
-        data[STORAGE_ICE3F_STATUS]?.stakeMode ??
+        data[STORAGE_SPORTINGBET3F_STATUS]?.stakeMode ??
         "auto",
       entryUnits:
         stake?.entryUnits ??
-        data[STORAGE_ICE3F_STATUS]?.entryUnits ??
+        data[STORAGE_SPORTINGBET3F_STATUS]?.entryUnits ??
         1,
       winsTowardEntryBump:
         stake?.winsTowardEntryBump ??
-        data[STORAGE_ICE3F_STATUS]?.winsTowardEntryBump ??
+        data[STORAGE_SPORTINGBET3F_STATUS]?.winsTowardEntryBump ??
         0,
       winsPerBump:
         stake?.winsPerBump ??
-        SinglestakeIce3f?.ICE_3F_WINS_PER_ENTRY_BUMP ??
+        SinglestakeSportingbet3f?.ICE_3F_WINS_PER_ENTRY_BUMP ??
         63,
       watch,
       watchLabel,
@@ -680,40 +678,40 @@ async function getIce3fAutopilotStatus() {
   };
 }
 
-function initIce3fSignalRunner(handleBridgePayload) {
+function initSportingbet3fSignalRunner(handleBridgePayload) {
   bridgeHandler = handleBridgePayload;
-  globalThis.__singlestakeIce3fBridgeHandler = handleBridgePayload;
-  void readIce3fAutopilotEnabled().then((on) => {
-    if (on) void startIce3fAutopilot(handleBridgePayload);
+  globalThis.__SinglestakeSportingbet3fBridgeHandler = handleBridgePayload;
+  void readSportingbet3fAutopilotEnabled().then((on) => {
+    if (on) void startSportingbet3fAutopilot(handleBridgePayload);
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes[STORAGE_ICE3F_AUTOPLAY] && bridgeHandler) {
-      if (changes[STORAGE_ICE3F_AUTOPLAY].newValue === true) {
-        void startIce3fAutopilot(bridgeHandler);
+    if (changes[STORAGE_SPORTINGBET3F_AUTOPLAY] && bridgeHandler) {
+      if (changes[STORAGE_SPORTINGBET3F_AUTOPLAY].newValue === true) {
+        void startSportingbet3fAutopilot(bridgeHandler);
       } else {
-        stopIce3fAutopilot();
+        stopSportingbet3fAutopilot();
       }
     }
-    if (changes[STORAGE_ICE3F_CONFIG] && bridgeHandler) {
-      void readIce3fAutopilotEnabled().then((on) => {
-        if (on) void startIce3fAutopilot(bridgeHandler);
+    if (changes[STORAGE_SPORTINGBET3F_CONFIG] && bridgeHandler) {
+      void readSportingbet3fAutopilotEnabled().then((on) => {
+        if (on) void startSportingbet3fAutopilot(bridgeHandler);
       });
     }
   });
 }
 
 if (typeof globalThis !== "undefined") {
-  globalThis.SinglestakeIce3fSignalRunner = {
-    initIce3fSignalRunner,
-    startIce3fAutopilot,
-    stopIce3fAutopilot,
-    setIce3fAutopilotEnabled,
-    getIce3fAutopilotStatus,
-    getIce3fConfigForPopup,
-    setIce3fConfigFromPopup,
-    resetIce3fStats,
-    STORAGE_ICE3F_AUTOPLAY,
-    STORAGE_ICE3F_CONFIG,
+  globalThis.SinglestakeSportingbet3fSignalRunner = {
+    initSportingbet3fSignalRunner,
+    startSportingbet3fAutopilot,
+    stopSportingbet3fAutopilot,
+    setSportingbet3fAutopilotEnabled,
+    getSportingbet3fAutopilotStatus,
+    getSportingbet3fConfigForPopup,
+    setSportingbet3fConfigFromPopup,
+    resetSportingbet3fStats,
+    STORAGE_SPORTINGBET3F_AUTOPLAY,
+    STORAGE_SPORTINGBET3F_CONFIG,
   };
 }
