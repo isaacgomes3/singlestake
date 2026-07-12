@@ -72,6 +72,8 @@ export type DoisFatoresActive = {
   referenceNumber: number;
   factor1: DoisFatoresFactor;
   factor2: DoisFatoresFactor;
+  /** ICE 3F — terceiro factor (paridade). */
+  factor3?: DoisFatoresFactor;
   triggerNumbers: readonly [number, number];
   armingDescription: string;
 };

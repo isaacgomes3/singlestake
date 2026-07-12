@@ -295,6 +295,8 @@ export function alignRotatingRoomSessionWithAutomationBet<
       prepareTableId: null,
       currentRecovery: bet.recovery,
       activeCrossing,
+      umActive: null,
+      singleFactorMode: false,
       sessionMode: "active",
       rotativaTrigger: "tres3fatores",
     } as T;

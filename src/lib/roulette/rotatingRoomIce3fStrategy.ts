@@ -94,7 +94,7 @@ export function parseIce3fRotatingStats(raw: unknown): RotatingRoomSessionStats 
 }
 
 export function ice3fActiveToCrossing(active: Ice3fActive): DoisFatoresActive {
-  const [factor1, factor2] = active.factors;
+  const [factor1, factor2, factor3] = active.factors;
   return {
     pairKind: "cor-altura",
     pairKindLabel: "3 Fatores",
@@ -103,7 +103,8 @@ export function ice3fActiveToCrossing(active: Ice3fActive): DoisFatoresActive {
     referenceNumber: active.referenceNumber,
     factor1,
     factor2,
-    triggerNumbers: [active.referenceNumber],
+    factor3,
+    triggerNumbers: [active.referenceNumber, active.referenceNumber],
     armingDescription: active.armingDescription,
   };
 }

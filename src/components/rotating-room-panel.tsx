@@ -59,6 +59,9 @@ function isFibonacciSession(session: RotatingRoomPanelSession): session is Rotat
 }
 
 function isSingleFactorSession(session: RotatingRoomPanelSession): boolean {
+  if ("rotativaTrigger" in session && session.rotativaTrigger === "tres3fatores") {
+    return false;
+  }
   return "singleFactorMode" in session && session.singleFactorMode === true;
 }
 
@@ -155,7 +158,7 @@ function FactorAscendButton({
   factor: DoisFatoresFactor;
   delayMs: number;
   mesaUrl: string | null;
-  botTarget: "factor-1" | "factor-2";
+  botTarget: "factor-1" | "factor-2" | "factor-3";
   dense?: boolean;
 }) {
   const label = doisFatoresFactorLabel(factor);
@@ -336,6 +339,7 @@ function IndicationFactorRow({
   singleFactor,
   factor1,
   factor2,
+  factor3,
   mesaUrl,
   dense = false,
   roundFlash,
@@ -344,6 +348,7 @@ function IndicationFactorRow({
   singleFactor: boolean;
   factor1?: DoisFatoresFactor;
   factor2?: DoisFatoresFactor;
+  factor3?: DoisFatoresFactor;
   mesaUrl: string | null;
   dense?: boolean;
   roundFlash?: RotatingRoomPanelSession["roundFlash"];
@@ -405,6 +410,17 @@ function IndicationFactorRow({
             delayMs={400}
             mesaUrl={mesaUrl}
             botTarget="factor-2"
+            dense={dense}
+          />
+        </div>
+      ) : null}
+      {!singleFactor && factor3 ? (
+        <div className={slotShell}>
+          <FactorAscendButton
+            factor={factor3}
+            delayMs={800}
+            mesaUrl={mesaUrl}
+            botTarget="factor-3"
             dense={dense}
           />
         </div>
@@ -675,6 +691,7 @@ function RotatingRoomStage({
     const crossing = "activeCrossing" in session ? session.activeCrossing : null;
     const factor1 = hasRoundFlash || fibonacciSession ? undefined : crossing?.factor1;
     const factor2 = hasRoundFlash || fibonacciSession ? undefined : crossing?.factor2;
+    const factor3 = hasRoundFlash || fibonacciSession ? undefined : crossing?.factor3;
 
     const indicationRow = fibonacciSession ? (
       <IndicationFibonacciRow
@@ -689,6 +706,7 @@ function RotatingRoomStage({
         singleFactor={singleFactor}
         factor1={factor1}
         factor2={factor2}
+        factor3={factor3}
         mesaUrl={mesaUrl}
         dense={signalOnly}
         roundFlash={session.roundFlash}
@@ -816,6 +834,7 @@ function RotatingRoomStage({
               singleFactor={singleFactor}
               factor1={factor1}
               factor2={factor2}
+              factor3={factor3}
               mesaUrl={mesaUrl}
               roundFlash={session.roundFlash}
               recovery={session.currentRecovery}
