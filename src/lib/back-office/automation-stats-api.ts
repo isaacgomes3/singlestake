@@ -22,22 +22,7 @@ export async function fetchAutomationStats(): Promise<AutomationStatsDto | null>
 }
 
 export async function setAutomationTriggerEnabled(
-  id:
-    | "three"
-    | "crossing"
-    | "fibonacci"
-    | "repeticao"
-    | "rotacao"
-    | "kto2fcruzamento"
-    | "tres3fatores"
-    | "fibonacciDozen"
-    | "fibonacciColumn"
-    | "repeticaoDozen"
-    | "repeticaoColumn"
-    | "crossingCorAltura"
-    | "crossingAlturaParidade"
-    | "crossingCorAlturaOpposite"
-    | "crossingAlturaParidadeOpposite",
+  id: "tres3fatores",
   enabled: boolean,
 ): Promise<{ ok: true; data: AutomationStatsDto } | { ok: false; error: string }> {
   const res = await fetch("/api/back-office/admin/automation-stats", {

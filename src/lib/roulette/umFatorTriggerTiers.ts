@@ -276,23 +276,14 @@ export function buildRotatingRoomGatilhoTriggerReport(
   kto2fStats?: RotatingRoomSessionStats,
   tres3fStats?: RotatingRoomSessionStats,
 ): UmFatorTriggerTierReportRow[] {
-  const crossingEnabled = enabledTriggers?.crossing !== false;
-  const fibonacciEnabled = enabledTriggers?.fibonacci !== false;
-  const repeticaoEnabled = enabledTriggers?.repeticao === true;
-  const rotacaoEnabled = enabledTriggers?.rotacao === true;
-  const kto2fEnabled = enabledTriggers?.kto2fcruzamento === true;
-  const tres3fEnabled = enabledTriggers?.tres3fatores === true;
-  return [
-    buildFibonacciGatilhoReportRow(fibonacciStats, fibonacciEnabled),
-    buildRepeticaoGatilhoReportRow(repeticaoStats, repeticaoEnabled),
-    buildRotacaoGatilhoReportRow(rotacaoStats, rotacaoEnabled),
-    buildKto2fGatilhoReportRow(kto2fStats, kto2fEnabled),
-    buildTres3fatoresGatilhoReportRow(tres3fStats, tres3fEnabled),
-    ...buildCrossingAbsenceAxisReport(crossingStats, enabledTriggers),
-    ...buildCrossingOppositeAbsenceAxisReport(crossingStats, enabledTriggers),
-    ...buildCrossingPatternKindReport(crossingStats, crossingEnabled),
-    ...buildUmFatorTriggerTierReport(umStats, enabledTriggers),
-  ];
+  void umStats;
+  void crossingStats;
+  void fibonacciStats;
+  void rotacaoStats;
+  void repeticaoStats;
+  void kto2fStats;
+  const tres3fEnabled = enabledTriggers?.tres3fatores !== false;
+  return [buildTres3fatoresGatilhoReportRow(tres3fStats, tres3fEnabled)];
 }
 
 function rowFromBucket(

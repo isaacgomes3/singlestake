@@ -2,7 +2,7 @@ export const automationStatsContent = {
   pt: {
     title: "Estatísticas da automação",
     subtitle:
-      "Percentual de acerto por gatilho na sala rotativa (2 Fatores: primário, secundário e terciário; 1 Fator manual).",
+      "Gatilho ICE 3F · eco cor/altura na Roulette 2 Extra Time, com placar da sessão e histórico de ocorrências.",
     updatedAt: "Última actualização",
     source: "Fonte dos sinais",
     sourceExtension: "Extensão Chrome",
@@ -13,7 +13,7 @@ export const automationStatsContent = {
     sessionAccuracy: "Acerto global",
     triggersTitle: "Acerto por gatilho",
     triggersHint:
-      "Cada linha corresponde a um tipo de gatilho registado no motor. Novos gatilhos aparecem automaticamente quando forem adicionados ao catálogo.",
+      "Único gatilho activo na automação: ICE 3F · eco cor/altura na Roulette 2 Extra Time.",
     colTrigger: "Gatilho",
     colWins: "Vitórias",
     colLosses: "Derrotas",
@@ -45,6 +45,13 @@ export const automationStatsContent = {
       kto2fcruzamento: "KTO 2F · cruzamento posições críticas (Roulette 3)",
       tres3fatores: "ICE 3F · eco cor/altura (Roulette 2 Extra Time)",
     },
+    ice3fOccurrencesTitle: "ICE 3F — ocorrências no histórico",
+    ice3fOccurrencesHint:
+      "Para cada número (0–36), as duas últimas saídas na Roulette 2 Extra Time e o número que as antecedeu (giro imediatamente anterior).",
+    ice3fOccurrencesHistoryLength: "{{n}} giros no buffer",
+    ice3fOccurrencesColNumber: "Número",
+    ice3fOccurrencesColLast: "Última ocorrência",
+    ice3fOccurrencesColPrev: "2.ª ocorrência",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (dúzia ou coluna) tem o seu limiar de giros ausentes. A indicação dispara só com ausência exactamente igual ao valor confirmado (ex.: 3 giros = exactamente 3, não 4+).",
@@ -102,7 +109,7 @@ export const automationStatsContent = {
   en: {
     title: "Automation statistics",
     subtitle:
-      "Hit rate per trigger in the rotating room (2 Factors: primary, secondary and tertiary; 1 Factor manual).",
+      "ICE 3F · echo color/height trigger on Roulette 2 Extra Time, with session score and occurrence history.",
     updatedAt: "Last updated",
     source: "Signal source",
     sourceExtension: "Chrome extension",
@@ -113,7 +120,7 @@ export const automationStatsContent = {
     sessionAccuracy: "Overall hit rate",
     triggersTitle: "Hit rate per trigger",
     triggersHint:
-      "Each row is a trigger type registered in the engine. New triggers appear automatically when added to the catalog.",
+      "Only active automation trigger: ICE 3F · echo color/height on Roulette 2 Extra Time.",
     colTrigger: "Trigger",
     colWins: "Wins",
     colLosses: "Losses",
@@ -142,6 +149,13 @@ export const automationStatsContent = {
       kto2fcruzamento: "KTO 2F · critical-position crossing (Roulette 3)",
       tres3fatores: "ICE 3F · echo color/height (Roulette 2 Extra Time)",
     },
+    ice3fOccurrencesTitle: "ICE 3F — history occurrences",
+    ice3fOccurrencesHint:
+      "For each number (0–36), the two latest hits on Roulette 2 Extra Time and the number that preceded each (immediately older spin).",
+    ice3fOccurrencesHistoryLength: "{{n}} spins in buffer",
+    ice3fOccurrencesColNumber: "Number",
+    ice3fOccurrencesColLast: "Latest occurrence",
+    ice3fOccurrencesColPrev: "2nd occurrence",
     fibonacciTitle: "Fibonacci — rotating room",
     fibonacciHint:
       "Each type (dozen or column) has its own absence spin threshold. Confirm after changing the value in each card.",
@@ -199,7 +213,7 @@ export const automationStatsContent = {
   es: {
     title: "Estadísticas de automatización",
     subtitle:
-      "Porcentaje de acierto por gatillo en sala rotativa (2 Factores: primario, secundario y terciario; 1 Factor manual).",
+      "Gatillo ICE 3F · eco color/altura en Roulette 2 Extra Time, con marcador de sesión e historial de ocurrencias.",
     updatedAt: "Última actualización",
     source: "Fuente de señales",
     sourceExtension: "Extensión Chrome",
@@ -210,7 +224,7 @@ export const automationStatsContent = {
     sessionAccuracy: "Acierto global",
     triggersTitle: "Acierto por gatillo",
     triggersHint:
-      "Cada fila corresponde a un tipo de gatillo registrado en el motor. Los nuevos gatillos aparecen automáticamente al añadirse al catálogo.",
+      "Único gatillo activo en la automatización: ICE 3F · eco color/altura en Roulette 2 Extra Time.",
     colTrigger: "Gatillo",
     colWins: "Victorias",
     colLosses: "Derrotas",
@@ -239,6 +253,13 @@ export const automationStatsContent = {
       kto2fcruzamento: "KTO 2F · cruce posiciones críticas (Roulette 3)",
       tres3fatores: "ICE 3F · eco color/altura (Roulette 2 Extra Time)",
     },
+    ice3fOccurrencesTitle: "ICE 3F — ocurrencias en el historial",
+    ice3fOccurrencesHint:
+      "Para cada número (0–36), las dos últimas salidas en Roulette 2 Extra Time y el número que las antecedió (giro inmediatamente anterior).",
+    ice3fOccurrencesHistoryLength: "{{n}} giros en el buffer",
+    ice3fOccurrencesColNumber: "Número",
+    ice3fOccurrencesColLast: "Última ocurrencia",
+    ice3fOccurrencesColPrev: "2.ª ocurrencia",
     fibonacciTitle: "Fibonacci — sala rotativa",
     fibonacciHint:
       "Cada tipo (docena o columna) tiene su propio umbral de giros ausentes. Confirme tras cambiar el valor en cada tarjeta.",

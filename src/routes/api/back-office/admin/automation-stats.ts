@@ -283,61 +283,15 @@ export const Route = createFileRoute("/api/back-office/admin/automation-stats")(
 
         const id = body?.id;
         const enabled = body?.enabled;
-        if (
-          (id !== "three" &&
-            id !== "crossing" &&
-            id !== "fibonacci" &&
-            id !== "repeticao" &&
-            id !== "rotacao" &&
-            id !== "kto2fcruzamento" &&
-            id !== "tres3fatores" &&
-            id !== "fibonacciDozen" &&
-            id !== "fibonacciColumn" &&
-            id !== "repeticaoDozen" &&
-            id !== "repeticaoColumn" &&
-            id !== "crossingCorAltura" &&
-            id !== "crossingAlturaParidade" &&
-            id !== "crossingCorAlturaOpposite" &&
-            id !== "crossingAlturaParidadeOpposite") ||
-          typeof enabled !== "boolean"
-        ) {
+        if (id !== "tres3fatores" || typeof enabled !== "boolean") {
           return jsonResponse({ ok: false, error: "Gatilho ou estado inválido." }, { status: 400 });
         }
 
-        const nextTriggers = { ...current.enabledTriggers, [id]: enabled };
-        if (id === "fibonacciDozen" || id === "fibonacciColumn") {
-          const dozenOn = nextTriggers.fibonacciDozen !== false;
-          const columnOn = nextTriggers.fibonacciColumn !== false;
-          nextTriggers.fibonacci = dozenOn || columnOn;
-        }
-        if (id === "fibonacci" && !enabled) {
-          nextTriggers.fibonacciDozen = false;
-          nextTriggers.fibonacciColumn = false;
-        }
-        if (id === "fibonacci" && enabled) {
-          if (nextTriggers.fibonacciDozen === false && nextTriggers.fibonacciColumn === false) {
-            nextTriggers.fibonacciDozen = true;
-            nextTriggers.fibonacciColumn = true;
-          }
-        }
-        if (id === "repeticaoDozen" || id === "repeticaoColumn") {
-          const dozenOn = nextTriggers.repeticaoDozen !== false;
-          const columnOn = nextTriggers.repeticaoColumn !== false;
-          nextTriggers.repeticao = dozenOn || columnOn;
-        }
-        if (id === "repeticao" && !enabled) {
-          nextTriggers.repeticaoDozen = false;
-          nextTriggers.repeticaoColumn = false;
-        }
-        if (id === "repeticao" && enabled) {
-          if (nextTriggers.repeticaoDozen === false && nextTriggers.repeticaoColumn === false) {
-            nextTriggers.repeticaoDozen = true;
-            nextTriggers.repeticaoColumn = true;
-          }
-        }
-
         await saveAutomationConfig({
-          enabledTriggers: nextTriggers,
+          enabledTriggers: {
+            ...current.enabledTriggers,
+            tres3fatores: enabled,
+          },
         });
 
         const { publishAutomationConfigChange } = await import("@/lib/server/automationSim/engine");

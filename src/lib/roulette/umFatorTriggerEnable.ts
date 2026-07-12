@@ -1,5 +1,4 @@
 import type { UmFatorTriggerMatchTier } from "@/lib/roulette/umFatorStrategy";
-import { UM_FATOR_TRIGGER_TIER_DEFINITIONS } from "@/lib/roulette/umFatorTriggerTiers";
 
 /** Gatilhos activos na sala rotativa. 2 Fatores (padrões) activo por defeito; 1 Fator só manual. */
 export type RotatingRoomGatilhoKind =
@@ -42,15 +41,16 @@ export const DEFAULT_ROTATING_ROOM_GATILHO_ENABLE: RotatingRoomGatilhoEnableMap 
   crossingAlturaParidade: false,
   crossingCorAlturaOpposite: false,
   crossingAlturaParidadeOpposite: false,
-  fibonacci: true,
-  fibonacciDozen: true,
-  fibonacciColumn: true,
+  fibonacci: false,
+  fibonacciDozen: false,
+  fibonacciColumn: false,
   repeticao: false,
-  repeticaoDozen: true,
-  repeticaoColumn: true,
+  repeticaoDozen: false,
+  repeticaoColumn: false,
   rotacao: false,
   kto2fcruzamento: false,
-  tres3fatores: false,
+  /** Único gatilho activo na automação / sala rotativa. */
+  tres3fatores: true,
 };
 
 let runtimeEnabled: RotatingRoomGatilhoEnableMap = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
@@ -63,32 +63,26 @@ export function normalizeUmFatorTriggerEnable(raw: unknown): UmFatorTriggerEnabl
 
 export function normalizeRotatingRoomGatilhoEnable(raw: unknown): RotatingRoomGatilhoEnableMap {
   const base = { ...DEFAULT_ROTATING_ROOM_GATILHO_ENABLE };
-  if (!raw || typeof raw !== "object") return base;
-  const o = raw as Partial<RotatingRoomGatilhoEnableMap>;
-  for (const def of UM_FATOR_TRIGGER_TIER_DEFINITIONS) {
-    if (typeof o[def.id] === "boolean") base[def.id] = o[def.id]!;
-  }
-  if (typeof o.crossing === "boolean") base.crossing = o.crossing;
-  if (typeof o.crossingCorAltura === "boolean") base.crossingCorAltura = o.crossingCorAltura;
-  if (typeof o.crossingAlturaParidade === "boolean") {
-    base.crossingAlturaParidade = o.crossingAlturaParidade;
-  }
-  if (typeof o.crossingCorAlturaOpposite === "boolean") {
-    base.crossingCorAlturaOpposite = o.crossingCorAlturaOpposite;
-  }
-  if (typeof o.crossingAlturaParidadeOpposite === "boolean") {
-    base.crossingAlturaParidadeOpposite = o.crossingAlturaParidadeOpposite;
-  }
-  if (typeof o.fibonacci === "boolean") base.fibonacci = o.fibonacci;
-  if (typeof o.fibonacciDozen === "boolean") base.fibonacciDozen = o.fibonacciDozen;
-  if (typeof o.fibonacciColumn === "boolean") base.fibonacciColumn = o.fibonacciColumn;
-  if (typeof o.repeticao === "boolean") base.repeticao = o.repeticao;
-  if (typeof o.repeticaoDozen === "boolean") base.repeticaoDozen = o.repeticaoDozen;
-  if (typeof o.repeticaoColumn === "boolean") base.repeticaoColumn = o.repeticaoColumn;
-  if (typeof o.rotacao === "boolean") base.rotacao = o.rotacao;
-  if (typeof o.kto2fcruzamento === "boolean") base.kto2fcruzamento = o.kto2fcruzamento;
-  if (typeof o.tres3fatores === "boolean") base.tres3fatores = o.tres3fatores;
+  // Força desligar todos os gatilhos legados — só ICE 3F permanece configurável.
   base.two = false;
+  base.three = false;
+  base.crossing = false;
+  base.crossingCorAltura = false;
+  base.crossingAlturaParidade = false;
+  base.crossingCorAlturaOpposite = false;
+  base.crossingAlturaParidadeOpposite = false;
+  base.fibonacci = false;
+  base.fibonacciDozen = false;
+  base.fibonacciColumn = false;
+  base.repeticao = false;
+  base.repeticaoDozen = false;
+  base.repeticaoColumn = false;
+  base.rotacao = false;
+  base.kto2fcruzamento = false;
+  if (raw && typeof raw === "object") {
+    const o = raw as Partial<RotatingRoomGatilhoEnableMap>;
+    if (typeof o.tres3fatores === "boolean") base.tres3fatores = o.tres3fatores;
+  }
   return base;
 }
 

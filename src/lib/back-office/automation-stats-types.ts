@@ -1,9 +1,9 @@
 import type { UmFatorTriggerTierReportRow } from "@/lib/roulette/umFatorTriggerTiers";
-import type { RotatingRoomSessionStats } from "@/lib/roulette/rotatingRoomStrategy";
 import type { ZoneAbsenceFilterStatsBlock } from "@/lib/roulette/zoneAbsenceFilterStats";
 import type { CrossingAbsenceFilterStats } from "@/lib/roulette/crossingAbsenceFilterStats";
 import type { CrossingOppositeAbsenceFilterStats } from "@/lib/roulette/crossingOppositeAbsenceFilterStats";
 import type { CrossingReturnStreakStats } from "@/lib/roulette/crossingReturnStreakStats";
+import type { Ice3fOccurrenceStats } from "@/lib/roulette/ice3fOccurrenceStats";
 
 export type AutomationStatsFibonacciZoneRow = {
   wins: number;
@@ -40,30 +40,37 @@ export type AutomationStatsDto = {
     accuracyPct: number | null;
   };
   triggers: UmFatorTriggerTierReportRow[];
+  /** Ocorrências ICE 3F na mesa 201 — duas últimas por número + antecedentes. */
+  ice3fOccurrences: Ice3fOccurrenceStats;
+  /** @deprecated Mantido para compatibilidade — UI já não usa. */
   fibonacci: {
     enabled: boolean;
     absenceSpins: number;
     dozen: AutomationStatsFibonacciZoneRow;
     column: AutomationStatsFibonacciZoneRow;
   };
+  /** @deprecated */
   repeticao: {
     enabled: boolean;
     absenceSpins: number;
     dozen: AutomationStatsFibonacciZoneRow;
     column: AutomationStatsFibonacciZoneRow;
   };
+  /** @deprecated */
   crossingAbsence: {
     corAltura: AutomationStatsFibonacciZoneRow;
     alturaParidade: AutomationStatsFibonacciZoneRow;
   };
+  /** @deprecated */
   crossingOppositeAbsence: {
     corAltura: AutomationStatsFibonacciZoneRow;
     alturaParidade: AutomationStatsFibonacciZoneRow;
   };
-  /** Gatilho de giros ausentes calculado por mesa (sala rotativa). */
+  /** @deprecated */
   tableCrossingAbsenceTriggers: TableCrossingAbsenceTriggerRow[];
+  /** @deprecated */
   tableCrossingOppositeAbsenceTriggers: TableCrossingAbsenceTriggerRow[];
-  /** Simulação histórica por filtro de ausência (últimos 50 números — independente do gatilho). */
+  /** @deprecated */
   absenceFilterStats: {
     fibonacci: ZoneAbsenceFilterStatsBlock;
     repeticao: ZoneAbsenceFilterStatsBlock;
