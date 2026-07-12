@@ -14,6 +14,7 @@ import { Route as TresFatoresRouteImport } from './routes/tres-fatores'
 import { Route as SuperTrunfoRouteImport } from './routes/super-trunfo'
 import { Route as SmartMoveRouteImport } from './routes/smart-move'
 import { Route as SalaRotativaUmFatorRouteImport } from './routes/sala-rotativa-um-fator'
+import { Route as SalaRotativaSequenciasRouteImport } from './routes/sala-rotativa-sequencias'
 import { Route as SalaRotativaRepeticaoRouteImport } from './routes/sala-rotativa-repeticao'
 import { Route as SalaRotativaFibonacciRouteImport } from './routes/sala-rotativa-fibonacci'
 import { Route as SalaRotativaDoisFatoresRouteImport } from './routes/sala-rotativa-dois-fatores'
@@ -145,6 +146,11 @@ const SmartMoveRoute = SmartMoveRouteImport.update({
 const SalaRotativaUmFatorRoute = SalaRotativaUmFatorRouteImport.update({
   id: '/sala-rotativa-um-fator',
   path: '/sala-rotativa-um-fator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalaRotativaSequenciasRoute = SalaRotativaSequenciasRouteImport.update({
+  id: '/sala-rotativa-sequencias',
+  path: '/sala-rotativa-sequencias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalaRotativaRepeticaoRoute = SalaRotativaRepeticaoRouteImport.update({
@@ -761,6 +767,7 @@ export interface FileRoutesByFullPath {
   '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-fibonacci': typeof SalaRotativaFibonacciRoute
   '/sala-rotativa-repeticao': typeof SalaRotativaRepeticaoRoute
+  '/sala-rotativa-sequencias': typeof SalaRotativaSequenciasRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -873,6 +880,7 @@ export interface FileRoutesByTo {
   '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-fibonacci': typeof SalaRotativaFibonacciRoute
   '/sala-rotativa-repeticao': typeof SalaRotativaRepeticaoRoute
+  '/sala-rotativa-sequencias': typeof SalaRotativaSequenciasRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -987,6 +995,7 @@ export interface FileRoutesById {
   '/sala-rotativa-dois-fatores': typeof SalaRotativaDoisFatoresRoute
   '/sala-rotativa-fibonacci': typeof SalaRotativaFibonacciRoute
   '/sala-rotativa-repeticao': typeof SalaRotativaRepeticaoRoute
+  '/sala-rotativa-sequencias': typeof SalaRotativaSequenciasRoute
   '/sala-rotativa-um-fator': typeof SalaRotativaUmFatorRoute
   '/smart-move': typeof SmartMoveRoute
   '/super-trunfo': typeof SuperTrunfoRoute
@@ -1103,6 +1112,7 @@ export interface FileRouteTypes {
     | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-fibonacci'
     | '/sala-rotativa-repeticao'
+    | '/sala-rotativa-sequencias'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1215,6 +1225,7 @@ export interface FileRouteTypes {
     | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-fibonacci'
     | '/sala-rotativa-repeticao'
+    | '/sala-rotativa-sequencias'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1328,6 +1339,7 @@ export interface FileRouteTypes {
     | '/sala-rotativa-dois-fatores'
     | '/sala-rotativa-fibonacci'
     | '/sala-rotativa-repeticao'
+    | '/sala-rotativa-sequencias'
     | '/sala-rotativa-um-fator'
     | '/smart-move'
     | '/super-trunfo'
@@ -1443,6 +1455,7 @@ export interface RootRouteChildren {
   SalaRotativaDoisFatoresRoute: typeof SalaRotativaDoisFatoresRoute
   SalaRotativaFibonacciRoute: typeof SalaRotativaFibonacciRoute
   SalaRotativaRepeticaoRoute: typeof SalaRotativaRepeticaoRoute
+  SalaRotativaSequenciasRoute: typeof SalaRotativaSequenciasRoute
   SalaRotativaUmFatorRoute: typeof SalaRotativaUmFatorRoute
   SmartMoveRoute: typeof SmartMoveRoute
   SuperTrunfoRoute: typeof SuperTrunfoRoute
@@ -1534,6 +1547,13 @@ declare module '@tanstack/react-router' {
       path: '/sala-rotativa-um-fator'
       fullPath: '/sala-rotativa-um-fator'
       preLoaderRoute: typeof SalaRotativaUmFatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sala-rotativa-sequencias': {
+      id: '/sala-rotativa-sequencias'
+      path: '/sala-rotativa-sequencias'
+      fullPath: '/sala-rotativa-sequencias'
+      preLoaderRoute: typeof SalaRotativaSequenciasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sala-rotativa-repeticao': {
@@ -2570,6 +2590,7 @@ const rootRouteChildren: RootRouteChildren = {
   SalaRotativaDoisFatoresRoute: SalaRotativaDoisFatoresRoute,
   SalaRotativaFibonacciRoute: SalaRotativaFibonacciRoute,
   SalaRotativaRepeticaoRoute: SalaRotativaRepeticaoRoute,
+  SalaRotativaSequenciasRoute: SalaRotativaSequenciasRoute,
   SalaRotativaUmFatorRoute: SalaRotativaUmFatorRoute,
   SmartMoveRoute: SmartMoveRoute,
   SuperTrunfoRoute: SuperTrunfoRoute,
@@ -2640,13 +2661,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -70,6 +70,12 @@ export function BackOfficeWorkspaceNav({ children, rotatingRoom, className }: Pr
               >
                 Sala · Fibonacci
               </Link>
+              <Link
+                to="/sala-rotativa-sequencias"
+                className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 hover:border-emerald-400/50"
+              >
+                Sala · Sequências
+              </Link>
             </div>
           ) : null}
         </div>

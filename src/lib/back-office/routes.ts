@@ -12,6 +12,7 @@ export const BACK_OFFICE_WORKSPACE_PATHS = [
   "/sala-rotativa-um-fator",
   "/sala-rotativa-dois-fatores",
   "/sala-rotativa-fibonacci",
+  "/sala-rotativa-sequencias",
   "/sala-rotativa",
 ] as const;
 
@@ -20,6 +21,7 @@ export function isBackOfficeWorkspacePath(pathname: string): boolean {
     pathname === "/sala-rotativa-um-fator" ||
     pathname === "/sala-rotativa-dois-fatores" ||
     pathname === "/sala-rotativa-fibonacci" ||
+    pathname === "/sala-rotativa-sequencias" ||
     pathname.startsWith("/sala-rotativa")
   );
 }
