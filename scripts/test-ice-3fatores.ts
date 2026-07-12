@@ -176,8 +176,8 @@ assert.equal(lossWithEcho.machine.cycle!.active.referenceNumber, 7);
 assert.equal(lossWithEcho.machine.cycle!.unitScale, 4);
 assert.equal(lossWithEcho.machine.cycle!.galeStreak, 2);
 
-// 5 gales → derrota final (mesmo com parcial +1)
-const failMachine = {
+// Após gale 5, continua (persiste até vitória) — parcial +1 → gale 6 ×32
+const continueMachine = {
   ...defaultIce3fMachineState(),
   lastSpinHead: "10:22",
   cycle: {
@@ -190,23 +190,26 @@ const failMachine = {
     phase: "awaiting_result" as const,
   },
 };
-const afterFail = tickIce3fPlacar([5, ...hist], failMachine, emptyIce3fStats());
-assert.equal(afterFail.flash?.kind, "cycle_fail");
-assert.equal(afterFail.machine.pendingUnitScale ?? 0, 0);
+const afterGale5 = tickIce3fPlacar([5, ...hist], continueMachine, emptyIce3fStats());
+assert.equal(afterGale5.flash?.kind, "loss");
+assert.equal(afterGale5.machine.cycle?.unitScale ?? afterGale5.machine.pendingUnitScale, 32);
+assert.equal(afterGale5.machine.cycle?.galeStreak ?? afterGale5.machine.pendingGaleStreak, 6);
 
-// Em gale 4, total (+2) também estoura o máximo
-const failOnTotalJump = tickIce3fPlacar(
+// Em gale 4, total (+2) também continua (gale 6), sem derrota final
+const afterTotalJump = tickIce3fPlacar(
   [19, ...hist],
   {
-    ...failMachine,
-    cycle: { ...failMachine.cycle, galeStreak: 4, unitScale: 8 },
+    ...continueMachine,
+    cycle: { ...continueMachine.cycle, galeStreak: 4, unitScale: 8 },
   },
   emptyIce3fStats(),
 );
-assert.equal(failOnTotalJump.flash?.kind, "cycle_fail");
+assert.equal(afterTotalJump.flash?.kind, "loss");
+assert.equal(afterTotalJump.machine.cycle?.galeStreak ?? afterTotalJump.machine.pendingGaleStreak, 6);
+assert.equal(afterTotalJump.machine.cycle?.unitScale ?? afterTotalJump.machine.pendingUnitScale, 32);
 
-console.log("ok — ice3f eco 3F parcial×2 / total×4", {
+console.log("ok — ice3f eco 3F parcial×2 / total×4 · gale até vitória", {
   signal: active!.referenceNumber,
   labels: active!.armingDescription,
-  maxGales: ICE_3F_MAX_GALES,
+  placarBuckets: ICE_3F_MAX_GALES,
 });

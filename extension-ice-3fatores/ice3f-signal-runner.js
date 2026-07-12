@@ -441,9 +441,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
         : flashKind === "loss" && result.active
           ? `Derrota — gale ${unitScale > 1 ? unitScale + "×" : ""} · nova indicação`
           : flashKind === "cycle_fail"
-            ? stakeSnap.stakeMode === "auto" && stakeSnap.entryUnits <= 1
-              ? "Derrota final (5 gales) — entrada 1u · aguarda eco"
-              : "Derrota final (5 gales) — auto volta a 1u"
+            ? "Derrota final — aguarda eco"
             : flashKind === "loss"
               ? `Derrota — aguarda novo eco${unitScale > 1 ? ` · gale ${unitScale}×` : ""}`
               : flashKind === "win"

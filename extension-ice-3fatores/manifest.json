@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "stake37 — ICE 3 Fatores",
   "version": "1.4.0",
-  "description": "ICE mesa 201 · eco 3F · parcial×2 / total×4 · stake auto/manual · máx. 5 gales.",
+  "description": "ICE mesa 201 · eco 3F · parcial×2 / total×4 · gale até vitória · stake auto/manual.",
   "permissions": [
     "tabs",
     "storage",

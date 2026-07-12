@@ -168,10 +168,6 @@ var SinglestakeIce3f = (() => {
     lossesAtRecovery[idx] += 1;
     return { ...stats, lossesAtRecovery };
   }
-  function recordRotatingRoomSessionFinalLoss(stats, recoveryAtLoss, maxRecovery) {
-    const withPartial = recordRotatingRoomSessionPartialLoss(stats, recoveryAtLoss, maxRecovery);
-    return { ...withPartial, losses: withPartial.losses + 1 };
-  }
 
   // src/lib/roulette/iceTresFatoresStrategy.ts
   var ICE_3F_ROULETTE_TABLE_ID = 201;
@@ -303,17 +299,6 @@ var SinglestakeIce3f = (() => {
       winsTowardEntryBump: 0
     };
   }
-  function ice3fApplyFinalLossEntryReset(machine) {
-    if (ice3fStakeModeOf(machine) !== "auto") return machine;
-    if (ice3fEntryUnitsOf(machine) <= 1) {
-      return { ...machine, winsTowardEntryBump: 0 };
-    }
-    return {
-      ...machine,
-      entryUnits: 1,
-      winsTowardEntryBump: 0
-    };
-  }
   function ice3fFindEchoTrigger(historyNewestFirst) {
     if (historyNewestFirst.length < 3) return null;
     const recentNumber = historyNewestFirst[0];
@@ -415,11 +400,15 @@ var SinglestakeIce3f = (() => {
   }
   function tickIce3fPlacar(historyNewestFirst, machine, stats) {
     const head = spinHead(historyNewestFirst);
-    const headChanged = machine.lastSpinHead != null && machine.lastSpinHead !== head;
+    let working = machine;
+    if (working.cycle?.phase === "awaiting_result" && working.cycle.armedHead !== head && historyNewestFirst.length > 0 && (working.lastSpinHead == null || working.lastSpinHead === head)) {
+      working = { ...working, lastSpinHead: working.cycle.armedHead };
+    }
+    const headChanged = working.lastSpinHead != null && working.lastSpinHead !== head;
     let nextMachine = {
-      ...machine,
+      ...working,
       lastSpinHead: head,
-      watch: cloneWatch(machine.watch ?? emptyWatch())
+      watch: cloneWatch(working.watch ?? emptyWatch())
     };
     let nextStats = stats;
     let statsChanged = false;
@@ -481,57 +470,30 @@ var SinglestakeIce3f = (() => {
         const failedScale = ice3fUnitScaleForCycle(cycle);
         const nextScale = ice3fNextUnitScaleAfterLoss(failedScale, outcome);
         const nextGaleStreak = cycle.galeStreak + ice3fGaleStepsAfterLoss(outcome);
-        if (nextGaleStreak > ICE_3F_MAX_GALES) {
-          nextStats = recordRotatingRoomSessionFinalLoss(
-            nextStats,
-            cycle.galeStreak,
-            ICE_3F_MAX_GALES
-          );
-          statsChanged = true;
-          nextMachine = ice3fApplyFinalLossEntryReset({
-            ...nextMachine,
-            cycle: null,
-            betCommitInFlight: false,
-            pendingUnitScale: 0,
-            pendingGaleStreak: 0,
-            pendingConsecutiveTriples: 0,
-            pendingGalesSinceTriple: 0
-          });
-          flash = {
-            resultNumber,
-            won: false,
-            kind: "cycle_fail",
-            matchOutcome: outcome,
-            criticalPosition: cycle.active.criticalPosition,
-            unitScale: failedScale,
-            factors: cycle.active.factors
-          };
-        } else {
-          nextStats = recordRotatingRoomSessionPartialLoss(
-            nextStats,
-            cycle.galeStreak,
-            ICE_3F_MAX_GALES
-          );
-          statsChanged = true;
-          nextMachine = {
-            ...nextMachine,
-            cycle: null,
-            betCommitInFlight: false,
-            pendingUnitScale: nextScale,
-            pendingGaleStreak: nextGaleStreak,
-            pendingConsecutiveTriples: 0,
-            pendingGalesSinceTriple: nextGaleStreak
-          };
-          flash = {
-            resultNumber,
-            won: false,
-            kind: "loss",
-            matchOutcome: outcome,
-            criticalPosition: cycle.active.criticalPosition,
-            unitScale: nextScale,
-            factors: cycle.active.factors
-          };
-        }
+        nextStats = recordRotatingRoomSessionPartialLoss(
+          nextStats,
+          cycle.galeStreak,
+          ICE_3F_MAX_GALES
+        );
+        statsChanged = true;
+        nextMachine = {
+          ...nextMachine,
+          cycle: null,
+          betCommitInFlight: false,
+          pendingUnitScale: nextScale,
+          pendingGaleStreak: nextGaleStreak,
+          pendingConsecutiveTriples: 0,
+          pendingGalesSinceTriple: nextGaleStreak
+        };
+        flash = {
+          resultNumber,
+          won: false,
+          kind: "loss",
+          matchOutcome: outcome,
+          criticalPosition: cycle.active.criticalPosition,
+          unitScale: nextScale,
+          factors: cycle.active.factors
+        };
       }
     }
     if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= ICE_3F_MIN_HISTORY) {

@@ -12,7 +12,7 @@
  * Derrota parcial (1 factor / falham 2) → **+1 gale (×2)**.
  * Derrota total (0 factores ou zero / falham 3) → **+2 gales consecutivos (×4)**.
  * Após derrota fecha a indicação e espera **novo eco** com a escala pendente.
- * Recuperação até **5 gales**; depois → derrota final.
+ * Gale **persiste até vitória** (sem derrota final / reset à entrada).
  */
 
 import {
@@ -23,7 +23,6 @@ import { colorOf, heightOf, parityOf } from "@/lib/roulette/streetPairTrigger";
 import {
   emptyRotatingRoomSessionStats,
   parseRotatingRoomSessionStats,
-  recordRotatingRoomSessionFinalLoss,
   recordRotatingRoomSessionPartialLoss,
   recordRotatingRoomSessionWin,
   type RotatingRoomSessionStats,
@@ -52,7 +51,10 @@ export const ICE_3F_CHIP_CLICK_STAGGER_MS = 150;
 export const ICE_3F_BET_DELAY_MS = 5_000;
 export const ICE_3F_FIRST_BET_SETTLE_MS = ICE_3F_BET_DELAY_MS;
 export const ICE_3F_RECOVERY_BET_DELAY_MS = ICE_3F_BET_DELAY_MS;
-/** Máximo de gales após a entrada (recuperação). */
+/**
+ * Buckets do placar (entrada + níveis de gale).
+ * Já não limita a recuperação — o gale persiste até vitória.
+ */
 export const ICE_3F_MAX_GALES = 5;
 /**
  * Soma das unidades num ciclo completo (entrada + 5 gales a partir de 1u):
@@ -329,7 +331,7 @@ export function ice3fApplyWinEntryProgress(machine: Ice3fMachineState): Ice3fMac
   };
 }
 
-/** Gale 5 falhou em auto com entrada ≥2 → volta a 1u. */
+/** @deprecated Sem derrota final — gale persiste até vitória; mantido por compat. */
 export function ice3fApplyFinalLossEntryReset(machine: Ice3fMachineState): Ice3fMachineState {
   if (ice3fStakeModeOf(machine) !== "auto") return machine;
   if (ice3fEntryUnitsOf(machine) <= 1) {
@@ -629,58 +631,31 @@ export function tickIce3fPlacar(
       const nextScale = ice3fNextUnitScaleAfterLoss(failedScale, outcome);
       const nextGaleStreak = cycle.galeStreak + ice3fGaleStepsAfterLoss(outcome);
 
-      if (nextGaleStreak > ICE_3F_MAX_GALES) {
-        nextStats = recordRotatingRoomSessionFinalLoss(
-          nextStats,
-          cycle.galeStreak,
-          ICE_3F_MAX_GALES,
-        );
-        statsChanged = true;
-        nextMachine = ice3fApplyFinalLossEntryReset({
-          ...nextMachine,
-          cycle: null,
-          betCommitInFlight: false,
-          pendingUnitScale: 0,
-          pendingGaleStreak: 0,
-          pendingConsecutiveTriples: 0,
-          pendingGalesSinceTriple: 0,
-        });
-        flash = {
-          resultNumber,
-          won: false,
-          kind: "cycle_fail",
-          matchOutcome: outcome,
-          criticalPosition: cycle.active.criticalPosition,
-          unitScale: failedScale,
-          factors: cycle.active.factors,
-        };
-      } else {
-        nextStats = recordRotatingRoomSessionPartialLoss(
-          nextStats,
-          cycle.galeStreak,
-          ICE_3F_MAX_GALES,
-        );
-        statsChanged = true;
-        // Fecha ciclo e espera NOVA indicação (eco) com escala ×2 ou ×4.
-        nextMachine = {
-          ...nextMachine,
-          cycle: null,
-          betCommitInFlight: false,
-          pendingUnitScale: nextScale,
-          pendingGaleStreak: nextGaleStreak,
-          pendingConsecutiveTriples: 0,
-          pendingGalesSinceTriple: nextGaleStreak,
-        };
-        flash = {
-          resultNumber,
-          won: false,
-          kind: "loss",
-          matchOutcome: outcome,
-          criticalPosition: cycle.active.criticalPosition,
-          unitScale: nextScale,
-          factors: cycle.active.factors,
-        };
-      }
+      nextStats = recordRotatingRoomSessionPartialLoss(
+        nextStats,
+        cycle.galeStreak,
+        ICE_3F_MAX_GALES,
+      );
+      statsChanged = true;
+      // Fecha ciclo e espera NOVA indicação (eco) com escala ×2 ou ×4 — até vitória.
+      nextMachine = {
+        ...nextMachine,
+        cycle: null,
+        betCommitInFlight: false,
+        pendingUnitScale: nextScale,
+        pendingGaleStreak: nextGaleStreak,
+        pendingConsecutiveTriples: 0,
+        pendingGalesSinceTriple: nextGaleStreak,
+      };
+      flash = {
+        resultNumber,
+        won: false,
+        kind: "loss",
+        matchOutcome: outcome,
+        criticalPosition: cycle.active.criticalPosition,
+        unitScale: nextScale,
+        factors: cycle.active.factors,
+      };
     }
   }
 
@@ -736,5 +711,5 @@ export function ice3fWatchLabelForMachine(machine: Ice3fMachineState): string {
   if (mode === "auto") {
     return `eco → 3F · entrada ${entry}u×3 auto (${toward}/${ICE_3F_WINS_PER_ENTRY_BUMP}) · parcial×2 / total×4`;
   }
-  return `eco → 3F · entrada ${entry}u×3 manual · parcial×2 / total×4 · máx. 5 gales`;
+  return `eco → 3F · entrada ${entry}u×3 manual · parcial×2 / total×4 · gale até vitória`;
 }

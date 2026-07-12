@@ -71,7 +71,7 @@ function renderStakeUi(ice3f, cfg) {
     stakeProgress.textContent =
       mode === "auto"
         ? `Auto · entrada ${entry}u · progresso ${toward}/${perBump} vitórias → próxima ${Math.min(32, entry * 2)}u`
-        : `Manual · entrada ${entry}u (não sobe sozinho; gale 5 não reseta)`;
+        : `Manual · entrada ${entry}u (não sobe sozinho; gale até vitória)`;
   }
 }
 

@@ -29,7 +29,7 @@ export { ice3fSettlementNet, ice3fHitsForOutcome, ICE_3F_FACTORS_PER_BET };
 
 /** Mesa Roulette 2 Extra Time — literal para evitar ciclo de init com iceTresFatores. */
 export const ICE3F_TABLE_ID = 201 as const;
-/** Igual a `ICE_3F_MAX_GALES`. */
+/** Igual a `ICE_3F_MAX_GALES` — buckets do placar (gale persiste até vitória). */
 export const ICE3F_MAX_RECOVERY = 5;
 export const ICE3F_BASE_STAKE = 0.5;
 /** Igual a `ICE_3F_BET_DELAY_MS`. */

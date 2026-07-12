@@ -101,7 +101,7 @@
   </head>
   <body>
     <h1>stake37 · ICE 3F <span id="modePill" class="pill demo">DEMO</span></h1>
-    <p class="sub">Eco → 3F · parcial×2 / total×4 · máx. 5 gales · mesa 201</p>
+    <p class="sub">Eco → 3F · parcial×2 / total×4 · gale até vitória · mesa 201</p>
 
     <div class="modes">
       <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
@@ -110,8 +110,7 @@
 
     <h2>Stake (unidades)</h2>
     <p class="muted" style="margin-top:0">
-      Ciclo completo = 63u (1+2+4+8+16+32). Auto: a cada 63 vitórias dobra a entrada.
-      Gale 5 em auto (≥2u) → volta a 1u.
+      Escala 1·2·4·8·16·32… até vitória. Auto: a cada 63 vitórias dobra a entrada.
     </p>
     <div class="row">
       <button type="button" id="stakeAuto" class="mode" style="flex:1">Auto</button>
@@ -182,7 +181,7 @@
         <input id="ice3fCasinoId" type="text" placeholder="ppcdk00000005148" />
       </div>
       <div class="field">
-        <label for="maxGales">Máximo de gales</label>
+        <label for="maxGales">Buckets do placar (gales)</label>
         <select id="maxGales">
           <option value="0">0</option>
           <option value="1">1</option>

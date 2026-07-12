@@ -12,10 +12,11 @@ Extensão Chrome para **ICE** (mesa **201** · Roulette 2 Extra Time).
 - Derrota parcial (falham 2 / acerta 1) → **+1 gale (×2)** via Dobrar
 - Derrota total (falham 3 / zero) → **+2 gales consecutivos (×4)**
 - Após derrota **espera nova indicação** (eco do nº novo) com a escala pendente
+- Gale **persiste até vitória** (não volta à entrada após N gales)
 - Entrada em **unidades** (ficha + Dobrar): modo **auto** ou **manual**
-- Auto: a cada **63 vitórias** dobra a entrada (1u → 2u → 4u…); gale 5 com ≥2u → volta a **1u**
+- Auto: a cada **63 vitórias** dobra a entrada (1u → 2u → 4u…)
 - Manual: escolhe 1/2/4/8/16/32u no popup
-- Ciclo completo a partir de 1u = **63u** (1+2+4+8+16+32)
+- Escala típica a partir de 1u: **1 · 2 · 4 · 8 · 16 · 32…** (continua até ganhar)
 
 Calibrar **📍 Dobrar** no popup antes do REAL.
 
