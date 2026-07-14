@@ -68,6 +68,8 @@ export type RotatingRoomSessionStats = {
   fibonacciZoneKind?: FibonacciZoneKindStats;
   /** Repetição — acerto por dúzias vs colunas. */
   repeticaoZoneKind?: FibonacciZoneKindStats;
+  /** ICE 2F — acertos/erros de indicação por gatilho (`5x10`, `2x4`, …). */
+  pairIndication?: Record<string, { wins: number; losses: number }>;
 };
 
 export type UmFatorMatchTierBucket = {

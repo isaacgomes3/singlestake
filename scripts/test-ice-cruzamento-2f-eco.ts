@@ -1,35 +1,39 @@
 /**
- * Smoke: ICE/KTO 2F — indicação única (sem persistir factores antigos).
+ * Smoke: ICE 2F — gatilho 3×6; indica no match.
  */
 import assert from "node:assert/strict";
 import {
+  configureIce2fDefaultComparePairs,
+  configureIce2fComparePairs,
   defaultIce2fMachineState,
   emptyIce2fStats,
   ice2fBuildActiveFromHistory,
-  ice2fFindCriticalPosition,
+  ice2fBuildActiveFromHit,
+  ice2fFindHitForPair,
   tickIce2fPlacar,
   tryArmCycleFromWatch,
   ICE_2F_MIN_HISTORY,
 } from "../src/lib/roulette/iceCruzamento2fStrategy.ts";
 
-function histWithPair(n11: number, n22: number, fill = 7): number[] {
+configureIce2fDefaultComparePairs();
+
+function histWithPair(n3: number, n6: number, fill = 7): number[] {
   const h = Array.from({ length: ICE_2F_MIN_HISTORY }, (_, i) => ((i * fill) % 36) + 1);
-  h[10] = n11;
-  h[21] = n22;
+  h[2] = n3;
+  h[5] = n6;
   return h;
 }
 
 {
-  const hit = ice2fFindCriticalPosition(histWithPair(14, 32));
+  const hit = ice2fFindHitForPair(histWithPair(14, 32), 3, 6);
   assert.ok(hit);
   assert.equal(hit!.axis, "cor-paridade");
 }
 
 {
-  const hit = ice2fFindCriticalPosition(histWithPair(4, 2));
+  const hit = ice2fFindHitForPair(histWithPair(4, 2), 3, 6);
   assert.ok(hit, "4×2 partilham 3F");
   assert.equal(hit!.sharedCount, 3);
-  assert.equal(hit!.axis, "cor-paridade"); // prioriza cor/paridade → Preto+Par
   const active = ice2fBuildActiveFromHistory(histWithPair(4, 2));
   assert.ok(active);
   assert.equal(active!.factor1.value, "Preto");
@@ -37,53 +41,46 @@ function histWithPair(n11: number, n22: number, fill = 7): number[] {
 }
 
 {
-  assert.equal(ice2fFindCriticalPosition(histWithPair(35, 10)), null);
-  assert.equal(ice2fBuildActiveFromHistory(histWithPair(35, 10)), null);
+  assert.equal(ice2fFindHitForPair(histWithPair(35, 10), 3, 6), null);
 }
 
-// Janela perdida: cancela indicação antiga e arma pela leitura actual 11/22
-{
-  const histOld = histWithPair(14, 32); // Vermelho+Par
-  const head0 = `${histOld.length}:${histOld[0]}`;
-  let m = tryArmCycleFromWatch(defaultIce2fMachineState(), histOld, head0);
-  assert.equal(m.cycle!.active.axis, "cor-paridade");
-  assert.equal(m.cycle!.active.factor1.value, "Vermelho");
-  assert.equal(m.cycle!.active.factor2.value, "Par");
-
-  m = { ...m, lastSpinHead: head0, cycle: { ...m.cycle!, phase: "awaiting_bet" } };
-
-  // Novo giro: pos 11/22 passam a 4 e 2 (Preto+Par)
-  const histNew = [18, ...histWithPair(4, 2)];
-  histNew[10] = 4;
-  histNew[21] = 2;
-  const tick = tickIce2fPlacar(histNew, m, emptyIce2fStats(5), 5);
-  assert.equal(tick.missedBetWindow, true);
-  assert.ok(tick.machine.cycle, "nova indicação no giro actual");
-  assert.equal(tick.machine.cycle!.active.triggerNumber, 4);
-  assert.equal(tick.machine.cycle!.active.matchNumber, 2);
-  assert.equal(tick.machine.cycle!.active.factor1.value, "Preto");
-  assert.equal(tick.machine.cycle!.active.factor2.value, "Par");
-}
-
-// Empate: fecha ciclo antigo; no mesmo giro rearma se 11×22 tiver match fresco
+// 3×6: indica no primeiro match
 {
   const hist = histWithPair(14, 32);
-  const head0 = `${hist.length}:${hist[0]}`;
-  let m = tryArmCycleFromWatch(defaultIce2fMachineState(), hist, head0);
-  m = {
-    ...m,
-    lastSpinHead: head0,
-    cycle: { ...m.cycle!, phase: "awaiting_result", armedHead: head0 },
-  };
-  // Resultado que acerta 1 factor → tie; board passa a 4×2 → cor/paridade
-  const histAfter = [1, ...hist];
-  histAfter[10] = 4;
-  histAfter[21] = 2;
-  const tick = tickIce2fPlacar(histAfter, m, emptyIce2fStats(5), 5);
-  assert.equal(tick.flash?.kind, "tie");
-  assert.ok(tick.machine.cycle, "deve rearmar cor/paridade no mesmo giro após empate");
-  assert.equal(tick.machine.cycle!.active.axis, "cor-paridade");
-  assert.equal(tick.machine.cycle!.active.triggerNumber, 4);
+  const m = tryArmCycleFromWatch(defaultIce2fMachineState(), hist, "18:first");
+  assert.ok(m.cycle, "indica no match sem falhas prévias");
+  assert.equal(m.cycle!.active.pairId, "3x6");
 }
 
-console.log("ok — indicação única · sem persistir factores antigos");
+console.log("ok — 3×6 · match imediato");
+
+// Empate fecha; gale mantido
+{
+  configureIce2fComparePairs([{ positions: [3, 6], requiredFailures: 0 }]);
+  const base = Array.from({ length: 20 }, (_, i) => ((i * 7) % 36) + 1);
+  base[2] = 4;
+  base[5] = 2;
+  const hit = ice2fFindHitForPair(base, 3, 6, { id: "3x6", requiredFailures: 0 });
+  assert.ok(hit);
+  const active = ice2fBuildActiveFromHit(hit!);
+  const m = {
+    ...defaultIce2fMachineState(),
+    watch: { "3x6": { failures: 0 } },
+    lastSpinHead: "20:x",
+    cycle: {
+      active: { ...active!, pairId: "3x6" },
+      armedHead: "20:x",
+      recovery: 1,
+      phase: "awaiting_result" as const,
+    },
+  };
+  const tick = tickIce2fPlacar([12, ...base], m, emptyIce2fStats(5), 5);
+  assert.equal(tick.flash?.kind, "tie");
+  const galeKept =
+    tick.machine.cycle?.recovery ?? tick.machine.pendingRecovery ?? 0;
+  assert.equal(galeKept, 1);
+
+  configureIce2fDefaultComparePairs();
+}
+
+console.log("ok — empate · gale mantido");

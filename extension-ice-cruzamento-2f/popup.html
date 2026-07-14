@@ -78,6 +78,38 @@
       .stat.win strong { color: #86efac; }
       .stat.loss { border-color: #991b1b; background: #450a0a; }
       .stat.loss strong { color: #fca5a5; }
+      .pair-stats {
+        display: grid;
+        gap: 4px;
+        margin: 0 0 8px;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid #1e293b;
+        background: #040a08;
+      }
+      .pair-head, .pair-row {
+        display: grid;
+        grid-template-columns: 1fr 44px 44px;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+      }
+      .pair-head {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 2px;
+      }
+      .pair-id { font-weight: 700; color: #cbd5e1; }
+      .pair-ok, .pair-bad {
+        text-align: center;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .pair-ok { color: #86efac; }
+      .pair-bad { color: #fca5a5; }
+      .pair-head .pair-ok, .pair-head .pair-bad { color: #64748b; }
       .field { margin-top: 8px; }
       .field label {
         display: block;
@@ -101,7 +133,7 @@
   </head>
   <body>
     <h1>stake37 · ICE 2F <span id="modePill" class="pill demo">DEMO</span></h1>
-    <p class="sub">2 Fatores · pos 11×22 · c/a · p/a · c/p · mesa 201</p>
+    <p class="sub">2 Fatores · 3×6 · match imediato · mesa 201</p>
 
     <div class="modes">
       <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
@@ -113,6 +145,11 @@
     <div class="stat-grid">
       <div class="stat win"><strong id="wins">0</strong><small>Vitórias</small></div>
       <div class="stat loss"><strong id="losses">0</strong><small>Derrotas</small></div>
+    </div>
+    <h2>Gatilhos (indicações)</h2>
+    <div id="pairStats" class="pair-stats">
+      <div class="pair-head"><span></span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
+      <div class="pair-row" data-pair="3x6"><span class="pair-id">3×6</span><span class="pair-ok" id="pair-3x6-w">0</span><span class="pair-bad" id="pair-3x6-l">0</span></div>
     </div>
     <div class="row">
       <button type="button" id="ice2fOn" class="mode" style="flex:1">Ligar</button>

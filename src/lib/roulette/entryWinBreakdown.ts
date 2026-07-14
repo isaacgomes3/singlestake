@@ -138,6 +138,22 @@ export function parseRecoveryLevelCounts(raw: unknown, maxRecovery: number): num
   return base;
 }
 
+function parsePairIndicationStats(
+  raw: unknown,
+): Record<string, { wins: number; losses: number }> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, { wins: number; losses: number }> = {};
+  for (const [id, slot] of Object.entries(raw as Record<string, unknown>)) {
+    if (!id || !slot || typeof slot !== "object") continue;
+    const o = slot as { wins?: number; losses?: number };
+    out[id] = {
+      wins: Math.max(0, Number(o.wins) || 0),
+      losses: Math.max(0, Number(o.losses) || 0),
+    };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): RotatingRoomSessionStats {
   const o = (raw ?? {}) as {
     wins?: number;
@@ -148,12 +164,15 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     crossingPatternKind?: unknown;
     crossingAbsenceAxis?: unknown;
     fibonacciZoneKind?: unknown;
+    pairIndication?: unknown;
   };
+  const pairIndication = parsePairIndicationStats(o.pairIndication);
   const base = {
     wins: Number(o.wins) || 0,
     losses: Number(o.losses) || 0,
     winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
     lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery),
+    ...(pairIndication ? { pairIndication } : {}),
   };
   const withUm =
     o.umFatorMatchTier != null

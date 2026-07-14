@@ -42,6 +42,19 @@ function clampMaxGales(value) {
   return Math.min(6, Math.max(0, n));
 }
 
+const PAIR_IDS = ["3x6"];
+
+function renderPairIndication(pairIndication) {
+  const map = pairIndication && typeof pairIndication === "object" ? pairIndication : {};
+  for (const id of PAIR_IDS) {
+    const slot = map[id] ?? {};
+    const wEl = document.getElementById(`pair-${id}-w`);
+    const lEl = document.getElementById(`pair-${id}-l`);
+    if (wEl) wEl.textContent = String(slot.wins ?? 0);
+    if (lEl) lEl.textContent = String(slot.losses ?? 0);
+  }
+}
+
 function renderKtoAutopilot(ice2f, mode) {
   const st = ice2f?.status ?? {};
   const on = ice2f?.enabled === true;
@@ -51,6 +64,7 @@ function renderKtoAutopilot(ice2f, mode) {
 
   if (winsEl) winsEl.textContent = String(wins);
   if (lossesEl) lossesEl.textContent = String(losses);
+  renderPairIndication(st.pairIndication);
 
   ice2fOnBtn?.classList.toggle("active-real", on);
   ice2fOffBtn?.classList.toggle("active-demo", !on);

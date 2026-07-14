@@ -257,6 +257,48 @@ function pageIsIce2fRoulette() {
     #${PANEL_ID} .ss-ice2f-stat.win strong { color: #86efac; }
     #${PANEL_ID} .ss-ice2f-stat.loss { border-color: #991b1b; background: #450a0a; }
     #${PANEL_ID} .ss-ice2f-stat.loss strong { color: #fca5a5; }
+    #${PANEL_ID} .ss-ice2f-pair-title {
+      margin: 0 0 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    #${PANEL_ID} .ss-ice2f-pairs {
+      display: grid;
+      gap: 3px;
+      margin: 0 0 10px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #040a08;
+    }
+    #${PANEL_ID} .ss-ice2f-pair-head,
+    #${PANEL_ID} .ss-ice2f-pair-row {
+      display: grid;
+      grid-template-columns: 1fr 40px 40px;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+    #${PANEL_ID} .ss-ice2f-pair-head {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    #${PANEL_ID} .ss-ice2f-pair-id { font-weight: 700; color: #cbd5e1; }
+    #${PANEL_ID} .ss-ice2f-pair-ok,
+    #${PANEL_ID} .ss-ice2f-pair-bad {
+      text-align: center;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    #${PANEL_ID} .ss-ice2f-pair-ok { color: #86efac; }
+    #${PANEL_ID} .ss-ice2f-pair-bad { color: #fca5a5; }
+    #${PANEL_ID} .ss-ice2f-pair-head .ss-ice2f-pair-ok,
+    #${PANEL_ID} .ss-ice2f-pair-head .ss-ice2f-pair-bad { color: #64748b; }
     #${PANEL_ID} .ss-ice2f-actions {
       display: flex;
       flex-wrap: wrap;
@@ -313,7 +355,7 @@ function pageIsIce2fRoulette() {
   const sub = el("p", "ss-ice2f-sub", "Roulette 2 Extra Time · mesa 201 · stake 2·4·8·16·32·64");
 
   const signalBox = el("div", "ss-ice2f-signal");
-  const signalIdle = el("div", "ss-ice2f-signal-idle", "Sem sinal — aguarda pos 11×22");
+  const signalIdle = el("div", "ss-ice2f-signal-idle", "Sem sinal — aguarda pares 2F");
   const signalWatch = el("div", "ss-ice2f-watch", "");
   const signalPos = el("div", "ss-ice2f-pos", "—");
   const signalAxis = el("div", "ss-ice2f-axis", "");
@@ -338,6 +380,22 @@ function pageIsIce2fRoulette() {
   lossStat.append(lossNum, el("small", null, "Derrotas"));
   stats.append(winStat, lossStat);
 
+  const PAIR_IDS = [["3x6", "3×6"]];
+  const pairTitle = el("div", "ss-ice2f-pair-title", "Gatilhos (indicações)");
+  const pairBoard = el("div", "ss-ice2f-pairs");
+  const pairHead = el("div", "ss-ice2f-pair-head");
+  pairHead.append(el("span"), el("span", "ss-ice2f-pair-ok", "OK"), el("span", "ss-ice2f-pair-bad", "ERR"));
+  pairBoard.append(pairHead);
+  const pairCells = {};
+  for (const [id, label] of PAIR_IDS) {
+    const row = el("div", "ss-ice2f-pair-row");
+    const okEl = el("span", "ss-ice2f-pair-ok", "0");
+    const badEl = el("span", "ss-ice2f-pair-bad", "0");
+    row.append(el("span", "ss-ice2f-pair-id", label), okEl, badEl);
+    pairBoard.append(row);
+    pairCells[id] = { ok: okEl, bad: badEl };
+  }
+
   const actions = el("div", "ss-ice2f-actions");
   const btnDemo = el("button", "ss-ice2f-btn on-demo", "Demo");
   const btnReal = el("button", "ss-ice2f-btn", "Real");
@@ -349,7 +407,7 @@ function pageIsIce2fRoulette() {
   btnReload.type = "button";
   btnReload.addEventListener("click", () => location.reload());
   actions.append(btnDemo, btnReal, btnToggle, btnReload);
-  body.append(sub, signalBox, statusEl, stats, actions);
+  body.append(sub, signalBox, statusEl, stats, pairTitle, pairBoard, actions);
   card.append(head, body);
   root.append(card);
 
@@ -423,7 +481,7 @@ function pageIsIce2fRoulette() {
     const pausePos = label.match(/pos(\d+)/i);
     const axisRaw = st.axis ?? axisFromLabel?.[1] ?? null;
     return {
-      position: posFromLabel?.[1] ?? (/pos11\/22/i.test(label) ? "11/22" : null) ?? pausePos?.[1] ?? null,
+      position: posFromLabel?.[1] ?? (/pos5\/10/i.test(label) ? "5/10" : null) ?? pausePos?.[1] ?? null,
       axis: axisRaw,
       indication,
       recovery,
@@ -455,7 +513,7 @@ function pageIsIce2fRoulette() {
         } else if (inactive > 0) {
           signalIdle.textContent = `Sem sinal — inactivo ${inactive}/5 rodadas`;
         } else {
-          signalIdle.textContent = "Sem sinal — aguarda pos 11×22 com 2 factores em comum";
+          signalIdle.textContent = "Sem sinal — pares em paralelo · indica no match";
         }
       }
       if (st.watchLabel) {
@@ -542,6 +600,13 @@ function pageIsIce2fRoulette() {
 
     winNum.textContent = String(st.wins ?? 0);
     lossNum.textContent = String(st.losses ?? 0);
+
+    const pairMap = st.pairIndication && typeof st.pairIndication === "object" ? st.pairIndication : {};
+    for (const [id, cells] of Object.entries(pairCells)) {
+      const slot = pairMap[id] ?? {};
+      cells.ok.textContent = String(slot.wins ?? 0);
+      cells.bad.textContent = String(slot.losses ?? 0);
+    }
 
     renderSignalBlock(st);
 

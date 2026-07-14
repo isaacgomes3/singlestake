@@ -123,6 +123,14 @@ async function readIce2fMachineState() {
       ? raw.nextEntryAxis
       : null;
   const relaxedEntry = raw.relaxedEntry === true;
+  const gatePairId =
+    typeof raw.gatePairId === "string" && raw.gatePairId.trim()
+      ? raw.gatePairId.trim()
+      : null;
+  const watch =
+    raw.watch && typeof raw.watch === "object" && !Array.isArray(raw.watch)
+      ? raw.watch
+      : null;
   return {
     recovery,
     lastSpinHead,
@@ -133,6 +141,8 @@ async function readIce2fMachineState() {
     lockedPosition,
     pendingRecovery,
     relaxedEntry,
+    gatePairId,
+    watch,
   };
 }
 
@@ -140,6 +150,15 @@ async function persistIce2fMachineState(machine) {
   if (!machine || typeof machine !== "object") return;
   const cycle = machine.cycle;
   const cycleRecovery = cycle?.recovery;
+  const watchOut = {};
+  if (machine.watch && typeof machine.watch === "object") {
+    for (const [id, slot] of Object.entries(machine.watch)) {
+      const f = slot?.failures;
+      if (typeof f === "number" && Number.isFinite(f)) {
+        watchOut[id] = { failures: Math.max(0, Math.floor(f)) };
+      }
+    }
+  }
   await chrome.storage.local.set({
     [STORAGE_ICE2F_MACHINE]: {
       recovery:
@@ -158,6 +177,8 @@ async function persistIce2fMachineState(machine) {
       pendingRecovery:
         typeof machine.pendingRecovery === "number" ? machine.pendingRecovery : 0,
       relaxedEntry: cycle?.relaxedEntry === true,
+      gatePairId: typeof machine.gatePairId === "string" ? machine.gatePairId : null,
+      watch: watchOut,
       updatedAt: new Date().toISOString(),
     },
   });
@@ -179,17 +200,37 @@ async function persistIce2fStats(stats, maxRecovery) {
   await chrome.storage.local.set({
     [STORAGE_ICE2F_STATS]: { stats, maxRecovery: mr, updatedAt: new Date().toISOString() },
   });
-  await writeIce2fStatus({ wins: stats.wins ?? 0, losses: stats.losses ?? 0, maxRecovery: mr });
+  await writeIce2fStatus({
+    wins: stats.wins ?? 0,
+    losses: stats.losses ?? 0,
+    pairIndication: stats.pairIndication ?? {},
+    maxRecovery: mr,
+  });
 }
 
 async function resetIce2fStats() {
   const cfg = await readIce2fConfig();
-  const empty = { wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] };
+  const empty =
+    globalThis.SinglestakeIce2f?.emptyIce2fStats?.(cfg.maxRecovery) ?? {
+      wins: 0,
+      losses: 0,
+      winsAtRecovery: [],
+      lossesAtRecovery: [],
+      pairIndication: {
+        "3x6": { wins: 0, losses: 0 },
+      },
+    };
   await persistIce2fStats(empty, cfg.maxRecovery);
   await clearIce2fMachineState();
   if (engine?.resetStats) engine.resetStats();
   if (engine?.reset) engine.reset();
-  return { ok: true, wins: 0, losses: 0, maxRecovery: cfg.maxRecovery };
+  return {
+    ok: true,
+    wins: 0,
+    losses: 0,
+    pairIndication: empty.pairIndication ?? {},
+    maxRecovery: cfg.maxRecovery,
+  };
 }
 
 async function getIce2fConfigForPopup() {
@@ -237,7 +278,12 @@ function formatActiveLabel(active, recovery) {
           ? "c/p"
           : (active.axis ?? "");
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
-  return `${f1} · ${f2}${gale} · pos11/22 ${axis}`.trim();
+  const pair =
+    active?.pairId ??
+    (active?.criticalPosition != null && active?.matchPosition != null
+      ? `${active.criticalPosition}x${active.matchPosition}`
+      : "pos?");
+  return `${f1} · ${f2}${gale} · ${pair} ${axis}`.trim();
 }
 
 function axisFromActive(active) {
@@ -317,7 +363,12 @@ async function executeBridgePayload(payload, mesaUrl) {
     payload.context.factor1Label && payload.context.factor2Label
       ? `${payload.context.factor1Label} · ${payload.context.factor2Label}${
           recovery > 0 ? ` · gale ${recovery}` : ""
-        } · pos11/22 ${
+        } · ${
+          active?.pairId ??
+          (active?.criticalPosition != null
+            ? `pos${active.criticalPosition}/${active.matchPosition ?? "?"}`
+            : "?")
+        } ${
           active?.axis === "cor-altura"
             ? "c/a"
             : active?.axis === "altura-paridade"
@@ -596,19 +647,19 @@ async function processEngineResult(result, mesaUrl, cfg) {
     const idleReason = cycleClosed
       ? flashKind === "tie"
         ? idleRecovery > 0
-          ? `Empate — gale ${idleRecovery} mantido · aguarda novo gatilho`
-          : "Empate — aguarda novo gatilho (4 falhas cruzamento)"
+          ? `Empate — indicação única fechada · insiste no gatilho · gale ${idleRecovery}`
+          : "Empate — indicação única fechada · insiste no gatilho"
         : flashKind === "loss"
           ? idleRecovery > 0
             ? `Aguarda novo gatilho · próxima entrada gale ${idleRecovery}`
             : idleRecovery === 0 && (result.stats?.losses ?? 0) > 0
               ? "Derrota final — aguarda novo gatilho"
-              : "Aguarda novo gatilho (4 falhas cruzamento)"
+              : "Aguarda novo gatilho"
           : flashKind === "win"
             ? "Vitória — aguarda novo gatilho"
             : idleRecovery > 0
               ? `Aguarda novo gatilho · próxima entrada gale ${idleRecovery}`
-              : "Aguarda novo gatilho (4 falhas cruzamento)"
+              : "Aguarda novo gatilho"
       : isAwaitingReference(pausedCycle)
         ? `Aguarda referência na pos${pausedCycle.active?.criticalPosition ?? "?"} · gale ${pausedCycle.recovery ?? 0}`
         : null;
@@ -757,6 +808,7 @@ async function startIce2fAutopilot(handleBridgePayload) {
     maxRecovery: cfg.maxRecovery,
     wins: saved?.stats?.wins ?? 0,
     losses: saved?.stats?.losses ?? 0,
+    pairIndication: saved?.stats?.pairIndication ?? {},
   });
 }
 
@@ -792,6 +844,11 @@ async function getIce2fAutopilotStatus() {
   const live = engine?.getState?.();
   const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_ICE2F_STATUS]?.wins ?? 0;
   const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_ICE2F_STATUS]?.losses ?? 0;
+  const pairIndication =
+    live?.stats?.pairIndication ??
+    statsPack?.stats?.pairIndication ??
+    data[STORAGE_ICE2F_STATUS]?.pairIndication ??
+    {};
   const stored = data[STORAGE_ICE2F_STATUS] ?? {};
   const liveCycle = live?.machine?.cycle ?? null;
   let pendingRecovery = liveCycle?.recovery ?? 0;
@@ -815,6 +872,7 @@ async function getIce2fAutopilotStatus() {
       ...(data[STORAGE_ICE2F_STATUS] ?? { running: false }),
       wins,
       losses,
+      pairIndication,
       maxRecovery,
       recovery: pendingRecovery,
       extensionVersion: chrome.runtime.getManifest().version,

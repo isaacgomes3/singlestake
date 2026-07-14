@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "stake37 — ICE Cruzamento 2F",
-  "version": "1.0.2",
-  "description": "Posições críticas 5·7·9·11 — falha cruzamento cor/altura ou paridade/altura (5×) → entrada 2 fatores. Gales até 5.",
+  "version": "1.1.9",
+  "description": "Gatilho 3×6 — indica no match. Contadores OK/ERR no popup e painel.",
   "permissions": [
     "tabs",
     "storage",

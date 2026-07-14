@@ -1,16 +1,24 @@
 /**
- * ICE · Cruzamento 2 Fatores — comparação posições **11** e **22**.
+ * Cruzamento 2 Fatores — comparação de pares de posições (newest-first).
  *
- * **Gatilho:** compara os números nas posições críticas 11 e 22 (newest-first).
- * Alerta os **2 factores em comum** quando o par partilha:
+ * **Default (ICE):** pares **independentes** (paralelo):
+ * - **3×6**
+ * - Cada par tem contagem de falhas própria
+ * - Indica no **match** (sem exigir falhas prévias)
+ * - Empate **não** conta como falha
+ *
+ * **KTO** (via {@link configureIce2fComparePositions}): tipicamente só **2×4** imediato.
+ *
+ * **Comparação:** alerta os **2 factores em comum** quando o par partilha:
  * - cor/altura, ou
  * - paridade/altura, ou
  * - cor/paridade
  * Se partilham **3** factores → prioriza **cor/paridade**.
  *
- * **Indicação única:** o sinal vale só para aquele giro. Novo giro sem aposta
- * cancela a indicação; empate/derrota/vitória fecham o ciclo. Gale fica pendente
- * para a **próxima** indicação 11/22 (não reutiliza factores antigos).
+ * **Indicação única:** cada entrada vale só aquele match (factores desse giro).
+ * **Empate** → fecha a indicação (não reaposta os mesmos factores); espera nova
+ * entrada (qualquer par elegível). Empate **não** é falha.
+ * **Vitória** → fecha, zera falhas desse par. **Falha** → fecha, +1 falha nesse par.
  * **Zero** na indicação = **derrota** (gale normal).
  */
 
@@ -44,30 +52,142 @@ export const ICE_2F_ROULETTE_TABLE_ID = 201;
 export const ICE_2F_ROULETTE_MESA_URL =
   "https://ice.bet.br/games/tag/roulette/liveroulettea-pragmaticexternal";
 
-/** Posições críticas comparadas (1-based, newest-first). */
-export const ICE_2F_COMPARE_POSITIONS = [11, 22] as const;
-/** @deprecated Preferir {@link ICE_2F_COMPARE_POSITIONS}. */
-export const ICE_2F_CRITICAL_POSITIONS = ICE_2F_COMPARE_POSITIONS;
+export type Ice2fComparePairConfig = {
+  /** Ex.: `11x22`. */
+  id: string;
+  positions: readonly [number, number];
+  /**
+   * Falhas (indicações do match que **perderam**) exigidas antes de indicar neste par.
+   * Empate não conta. `0` = indica no primeiro match.
+   */
+  requiredFailures: number;
+};
+
+function pairKey(posA: number, posB: number): string {
+  return `${posA}x${posB}`;
+}
+
+function normalizePair(
+  posA: number,
+  posB: number,
+  requiredFailures = 0,
+): Ice2fComparePairConfig {
+  const a = Math.max(1, Math.floor(posA));
+  const b = Math.max(1, Math.floor(posB));
+  return {
+    id: pairKey(a, b),
+    positions: [a, b],
+    requiredFailures: Math.max(0, Math.floor(requiredFailures)),
+  };
+}
+
+/** Default ICE: todos os pares indicam no primeiro match. */
+const ICE_2F_DEFAULT_COMPARE_PAIRS: readonly Ice2fComparePairConfig[] = [
+  normalizePair(3, 6, 0),
+];
+
+const ice2fCompareConfig: { pairs: Ice2fComparePairConfig[] } = {
+  pairs: ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({ ...p, positions: [...p.positions] as [number, number] })),
+};
+
+export function getIce2fComparePairs(): readonly Ice2fComparePairConfig[] {
+  return ice2fCompareConfig.pairs;
+}
+
+/** Primeiro par (compat) — ICE default 3×6; KTO após configure → 2×4. */
+export function getIce2fComparePositions(): readonly [number, number] {
+  const first = ice2fCompareConfig.pairs[0];
+  return first?.positions ?? [3, 6];
+}
+
+export function getIce2fMinHistory(): number {
+  let max = 1;
+  for (const pair of ice2fCompareConfig.pairs) {
+    max = Math.max(max, pair.positions[0], pair.positions[1]);
+  }
+  return max;
+}
+
+/** Menor profundidade entre os pares (DGA last20 cobre todos os gatilhos atuais). */
+export function getIce2fSoftMinHistory(): number {
+  let min = Number.POSITIVE_INFINITY;
+  for (const pair of ice2fCompareConfig.pairs) {
+    min = Math.min(min, Math.max(pair.positions[0], pair.positions[1]));
+  }
+  return Number.isFinite(min) ? min : 1;
+}
+
+function pairDepth(pair: Ice2fComparePairConfig): number {
+  return Math.max(pair.positions[0], pair.positions[1]);
+}
+
+/** @deprecated Preferir {@link getIce2fComparePositions}. */
+export let ICE_2F_COMPARE_POSITIONS: readonly [number, number] = getIce2fComparePositions();
+/** @deprecated Preferir {@link getIce2fComparePairs}. */
+export let ICE_2F_CRITICAL_POSITIONS: readonly [number, number] = getIce2fComparePositions();
 export const ICE_2F_CROSSING_AXES = [
   "cor-altura",
   "altura-paridade",
   "cor-paridade",
 ] as const;
 
-/** Precisa das posições 11 e 22. */
-export const ICE_2F_MIN_HISTORY = 22;
-/** @deprecated Janela de eco removida — gatilho é 11 vs 22. */
+/** Precisa da posição mais profunda entre todos os pares. */
+export let ICE_2F_MIN_HISTORY = getIce2fMinHistory();
+/** @deprecated Janela de eco removida — gatilho é o par configurado. */
 export const ICE_2F_SCAN_WINDOW = 11;
 export const ICE_2F_MAX_RECOVERY = 5;
 
-/** @deprecated Já não há limiar de falhas de observação. */
+function syncDeprecatedPositionExports(): void {
+  ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
+  ICE_2F_CRITICAL_POSITIONS = getIce2fComparePositions();
+  ICE_2F_MIN_HISTORY = getIce2fMinHistory();
+}
+
+/**
+ * Substitui a lista de pares (ex.: ICE default com falhas).
+ * Actualiza também {@link ICE_2F_MIN_HISTORY}.
+ */
+export function configureIce2fComparePairs(
+  pairs: readonly { positions: readonly [number, number]; requiredFailures?: number }[],
+): void {
+  const next: Ice2fComparePairConfig[] = [];
+  for (const raw of pairs) {
+    const [a, b] = raw.positions;
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    next.push(normalizePair(a, b, raw.requiredFailures ?? 0));
+  }
+  ice2fCompareConfig.pairs =
+    next.length > 0
+      ? next
+      : ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({
+          ...p,
+          positions: [...p.positions] as [number, number],
+        }));
+  syncDeprecatedPositionExports();
+}
+
+/** Restaura os pares default ICE (indicação imediata no match). */
+export function configureIce2fDefaultComparePairs(): void {
+  configureIce2fComparePairs(ICE_2F_DEFAULT_COMPARE_PAIRS);
+}
+
+/**
+ * Define um único par imediato (ex.: KTO usa 2 e 4).
+ * Actualiza também {@link ICE_2F_MIN_HISTORY}.
+ */
+export function configureIce2fComparePositions(posA: number, posB: number): void {
+  configureIce2fComparePairs([{ positions: [posA, posB], requiredFailures: 0 }]);
+}
+
+/** Limiar legado (pares com falhas usam o valor por par). */
 export const ICE_2F_REQUIRED_FAILURES = 0;
 export const ICE_2F_RELAXED_REQUIRED_FAILURES = 0;
 export const ICE_2F_RELAXED_FALLBACK_FAILURES = 0;
 export const ICE_2F_INACTIVE_SPINS_FOR_RELAX = 0;
 
+/** Delays curtos — Extra Time: janela fecha se esperar 6s + open mesa. */
 export const ICE_2F_RECOVERY_BET_DELAY_MS = 6_000;
-export const ICE_2F_IMMEDIATE_REBET_DELAY_MS = 6_000;
+export const ICE_2F_IMMEDIATE_REBET_DELAY_MS = 800;
 export const ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 export const ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
@@ -83,8 +203,10 @@ export type Ice2fCriticalPosition = number;
 export type Ice2fCrossingAxis = (typeof ICE_2F_CROSSING_AXES)[number];
 
 export type Ice2fWatchSlot = { failures: number };
+/** Contadores de falha por id de par (`11x22`, `2x4`, …). */
+export type Ice2fWatchCounters = Record<string, Ice2fWatchSlot>;
+/** @deprecated Eixos por posição — watch actual é por par. */
 export type Ice2fWatchAxisMap = Record<Ice2fCrossingAxis, Ice2fWatchSlot>;
-export type Ice2fWatchCounters = Record<number, Ice2fWatchAxisMap>;
 
 export type Ice2fActive = {
   criticalPosition: Ice2fCriticalPosition;
@@ -94,11 +216,13 @@ export type Ice2fActive = {
   pairKind: DoisFatoresPairKind;
   referenceNumber: number;
   armingDescription: string;
-  /** Posição 22 (par de comparação). */
+  /** Posição mais profunda do par. */
   matchPosition?: number;
   matchNumber?: number;
-  /** Número na posição 11. */
+  /** Número na posição mais recente do par. */
   triggerNumber?: number;
+  /** Id do par que armou (`11x22`, `2x4`, …). */
+  pairId?: string;
 };
 
 export type Ice2fCyclePhase = "awaiting_bet" | "awaiting_result" | "awaiting_reference";
@@ -127,6 +251,23 @@ export type Ice2fMachineState = {
   lockedPosition: Ice2fCriticalPosition | null;
   /** Gale a aplicar na próxima armação se a derrota não encontrou match de imediato. */
   pendingRecovery: number;
+  /** Após janela perdida — próxima armação aposta sem esperar o delay cheio. */
+  forceImmediateBet?: boolean;
+  /** Último par que armou (UI); os pares são monitorados em paralelo. */
+  gatePairId?: string | null;
+  /**
+   * Observações virtuais por par (sem apostar) — conta falha se a indicação virtual perder.
+   */
+  pendingMatchObservations?: Record<
+    string,
+    { hit: Ice2fCriticalHit; observationHead: string }
+  >;
+  /** @deprecated Usar {@link pendingMatchObservations}. */
+  pendingMatchObservation?: {
+    pairId: string;
+    hit: Ice2fCriticalHit;
+    observationHead: string;
+  } | null;
   zeroDebtUnits?: number;
   zeroRecoveredUnits?: number;
   zeroShift?: number;
@@ -153,42 +294,33 @@ export type Ice2fCriticalHit = {
   factor1: DoisFatoresFactor;
   factor2: DoisFatoresFactor;
   sharedCount: 2 | 3;
+  pairId: string;
+  requiredFailures: number;
 };
 
 function emptyWatchSlot(): Ice2fWatchSlot {
   return { failures: 0 };
 }
 
-function emptyWatchAxisMap(): Ice2fWatchAxisMap {
-  return {
-    "cor-altura": emptyWatchSlot(),
-    "altura-paridade": emptyWatchSlot(),
-    "cor-paridade": emptyWatchSlot(),
-  };
-}
-
 export function emptyWatch(): Ice2fWatchCounters {
   const w: Ice2fWatchCounters = {};
-  for (const pos of ICE_2F_COMPARE_POSITIONS) w[pos] = emptyWatchAxisMap();
+  for (const pair of getIce2fComparePairs()) w[pair.id] = emptyWatchSlot();
   return w;
 }
 
 function cloneWatch(watch: Ice2fWatchCounters): Ice2fWatchCounters {
-  const next: Ice2fWatchCounters = {};
-  for (const key of Object.keys(watch)) {
-    const pos = Number(key);
-    const slot = watch[pos];
-    if (!slot) continue;
-    next[pos] = {
-      "cor-altura": { failures: slot["cor-altura"]?.failures ?? 0 },
-      "altura-paridade": { failures: slot["altura-paridade"]?.failures ?? 0 },
-      "cor-paridade": { failures: slot["cor-paridade"]?.failures ?? 0 },
-    };
+  const next: Ice2fWatchCounters = emptyWatch();
+  for (const pair of getIce2fComparePairs()) {
+    const raw = watch[pair.id];
+    if (raw && typeof raw.failures === "number" && Number.isFinite(raw.failures)) {
+      next[pair.id] = { failures: Math.max(0, Math.floor(raw.failures)) };
+    }
   }
   return next;
 }
 
 export function defaultIce2fMachineState(): Ice2fMachineState {
+  const firstPair = getIce2fComparePairs()[0];
   return {
     cycle: null,
     watch: emptyWatch(),
@@ -200,11 +332,149 @@ export function defaultIce2fMachineState(): Ice2fMachineState {
     nextEntryAxis: "cor-altura",
     lockedPosition: null,
     pendingRecovery: 0,
+    gatePairId: firstPair?.id ?? null,
+    forceImmediateBet: false,
+    pendingMatchObservations: {},
+    pendingMatchObservation: null,
     zeroDebtUnits: 0,
     zeroRecoveredUnits: 0,
     zeroShift: 0,
     zeroRecoveryArmed: false,
   };
+}
+
+function getActiveGatePair(machine: Ice2fMachineState): Ice2fComparePairConfig | null {
+  const pairs = getIce2fComparePairs();
+  if (pairs.length === 0) return null;
+  const id = machine.gatePairId ?? pairs[0]!.id;
+  return pairs.find((p) => p.id === id) ?? pairs[0]!;
+}
+
+function nextGatePairId(currentId: string | null | undefined): string | null {
+  const pairs = getIce2fComparePairs();
+  if (pairs.length === 0) return null;
+  const idx = pairs.findIndex((p) => p.id === currentId);
+  const next = pairs[(idx >= 0 ? idx + 1 : 0) % pairs.length]!;
+  return next.id;
+}
+
+function emptyPendingObservations(): Record<
+  string,
+  { hit: Ice2fCriticalHit; observationHead: string }
+> {
+  return {};
+}
+
+function clonePendingObservations(
+  raw: Ice2fMachineState["pendingMatchObservations"] | null | undefined,
+  legacy?: Ice2fMachineState["pendingMatchObservation"],
+): Record<string, { hit: Ice2fCriticalHit; observationHead: string }> {
+  const next = emptyPendingObservations();
+  if (raw && typeof raw === "object") {
+    for (const [id, obs] of Object.entries(raw)) {
+      if (obs?.hit && typeof obs.observationHead === "string") {
+        next[id] = { hit: obs.hit, observationHead: obs.observationHead };
+      }
+    }
+  }
+  if (legacy?.pairId && legacy.hit) {
+    next[legacy.pairId] = {
+      hit: legacy.hit,
+      observationHead: legacy.observationHead,
+    };
+  }
+  return next;
+}
+
+function getPairConfigById(pairId: string): Ice2fComparePairConfig | undefined {
+  return getIce2fComparePairs().find((p) => p.id === pairId);
+}
+
+function recordPairIndicationFailure(
+  watch: Ice2fWatchCounters,
+  pairId: string,
+): Ice2fWatchCounters {
+  const next = cloneWatch(watch);
+  const prev = next[pairId]?.failures ?? 0;
+  next[pairId] = { failures: prev + 1 };
+  return next;
+}
+
+function clearPairFailures(
+  watch: Ice2fWatchCounters,
+  pairId: string,
+): Ice2fWatchCounters {
+  const next = cloneWatch(watch);
+  next[pairId] = { failures: 0 };
+  return next;
+}
+
+/** Resolve todas as observações pendentes: só derrota conta falha; vitória zera; empate neutro. */
+function resolvePendingMatchObservations(
+  machine: Ice2fMachineState,
+  resultNumber: number,
+): Ice2fMachineState {
+  const pending = clonePendingObservations(
+    machine.pendingMatchObservations,
+    machine.pendingMatchObservation,
+  );
+  const ids = Object.keys(pending);
+  if (ids.length === 0) {
+    return {
+      ...machine,
+      pendingMatchObservations: {},
+      pendingMatchObservation: null,
+    };
+  }
+
+  let watch = machine.watch ?? emptyWatch();
+  for (const pairId of ids) {
+    const obs = pending[pairId]!;
+    const active = ice2fBuildActiveFromHit(obs.hit);
+    const outcome = ice2fClassifyBetRound(resultNumber, active);
+    if (outcome === "W") {
+      watch = clearPairFailures(watch, pairId);
+    } else if (outcome === "L") {
+      watch = recordPairIndicationFailure(watch, pairId);
+    }
+  }
+
+  return {
+    ...machine,
+    watch,
+    pendingMatchObservations: {},
+    pendingMatchObservation: null,
+  };
+}
+
+/** Resolve observação pendente legada (um par). */
+function resolvePendingMatchObservation(
+  machine: Ice2fMachineState,
+  resultNumber: number,
+): Ice2fMachineState {
+  return resolvePendingMatchObservations(machine, resultNumber);
+}
+
+/** Regista falha/vitória de indicação real. Empate não altera o contador. */
+function applyPairIndicationOutcome(
+  machine: Ice2fMachineState,
+  pairId: string | undefined,
+  outcome: "W" | "L" | "continue",
+): Ice2fMachineState {
+  if (!pairId) return machine;
+  const pair = getPairConfigById(pairId);
+  if (!pair || pair.requiredFailures <= 0) return machine;
+  if (outcome === "continue") {
+    return machine;
+  }
+
+  let watch = machine.watch ?? emptyWatch();
+  if (outcome === "W") {
+    watch = clearPairFailures(watch, pairId);
+  } else {
+    watch = recordPairIndicationFailure(watch, pairId);
+  }
+  return { ...machine, watch };
 }
 
 export function ice2fArmingThresholds(_machine: Ice2fMachineState): number[] {
@@ -249,19 +519,23 @@ export function ice2fToggleAxis(axis: Ice2fCrossingAxis): Ice2fCrossingAxis {
 }
 
 /**
- * Compara posições 11 e 22: 2 factores em comum → eixo correspondente;
+ * Compara duas posições: 2 factores em comum → eixo correspondente;
  * 3 factores → prioriza cor/paridade.
  */
-export function ice2fFindCriticalPosition(
+export function ice2fFindHitForPair(
   historyNewestFirst: readonly number[],
+  posA: number,
+  posB: number,
+  pairMeta?: { id?: string; requiredFailures?: number },
 ): Ice2fCriticalHit | null {
-  if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return null;
-  const number11 = historyNewestFirst[10]!;
-  const number22 = historyNewestFirst[21]!;
-  if (!Number.isFinite(number11) || !Number.isFinite(number22)) return null;
-  if (number11 === 0 || number22 === 0) return null;
+  const depth = Math.max(posA, posB);
+  if (historyNewestFirst.length < depth) return null;
+  const numberA = historyNewestFirst[posA - 1]!;
+  const numberB = historyNewestFirst[posB - 1]!;
+  if (!Number.isFinite(numberA) || !Number.isFinite(numberB)) return null;
+  if (numberA === 0 || numberB === 0) return null;
 
-  const sharedCount = umFatorTriggerMatchCount(number11, number22);
+  const sharedCount = umFatorTriggerMatchCount(numberA, numberB);
   if (sharedCount < 2) return null;
 
   let axis: Ice2fCrossingAxis;
@@ -270,12 +544,12 @@ export function ice2fFindCriticalPosition(
 
   if (sharedCount >= 3) {
     axis = "cor-paridade";
-    const factors = factorsForNumberOnAxis(number11, axis);
+    const factors = factorsForNumberOnAxis(numberA, axis);
     if (!factors) return null;
     factor1 = factors[0];
     factor2 = factors[1];
   } else {
-    const shared = umFatorSharedFactorsBetween(number11, number22);
+    const shared = umFatorSharedFactorsBetween(numberA, numberB);
     if (shared.length !== 2) return null;
     factor1 = shared[0]!;
     factor2 = shared[1]!;
@@ -283,15 +557,37 @@ export function ice2fFindCriticalPosition(
   }
 
   return {
-    criticalPosition: 11,
-    matchPosition: 22,
-    matchNumber: number22,
-    triggerNumber: number11,
+    criticalPosition: posA,
+    matchPosition: posB,
+    matchNumber: numberB,
+    triggerNumber: numberA,
     axis,
     factor1,
     factor2,
     sharedCount: sharedCount >= 3 ? 3 : 2,
+    pairId: pairMeta?.id ?? pairKey(posA, posB),
+    requiredFailures: pairMeta?.requiredFailures ?? 0,
   };
+}
+
+/**
+ * Primeiro match entre os pares configurados (sem limiar de falhas).
+ * Para armar com falhas use {@link tryArmCycleFromWatch}.
+ */
+export function ice2fFindCriticalPosition(
+  historyNewestFirst: readonly number[],
+): Ice2fCriticalHit | null {
+  if (historyNewestFirst.length < getIce2fMinHistory()) return null;
+  for (const pair of getIce2fComparePairs()) {
+    const hit = ice2fFindHitForPair(
+      historyNewestFirst,
+      pair.positions[0],
+      pair.positions[1],
+      { id: pair.id, requiredFailures: pair.requiredFailures },
+    );
+    if (hit) return hit;
+  }
+  return null;
 }
 
 function toTapeteActive(active: Ice2fActive): DoisFatoresActive {
@@ -320,10 +616,10 @@ export function ice2fClassifyBetRound(
 }
 
 export function ice2fIsWatchSlotArmed(
-  _slot: Ice2fWatchSlot,
-  _requiredFailures: number = ICE_2F_REQUIRED_FAILURES,
+  slot: Ice2fWatchSlot,
+  requiredFailures: number = ICE_2F_REQUIRED_FAILURES,
 ): boolean {
-  return false;
+  return slot.failures >= requiredFailures;
 }
 
 export function ice2fOppositeBetFactors(
@@ -337,6 +633,11 @@ export function ice2fBuildActiveFromHit(hit: Ice2fCriticalHit): Ice2fActive {
     .map((f) => doisFatoresFactorLabel(f))
     .join(" · ");
   const tripleHint = hit.sharedCount === 3 ? " · 3F→cor/paridade" : "";
+  const failHint =
+    hit.requiredFailures > 0
+      ? ` · após ${hit.requiredFailures} falhas de indicação`
+      : "";
+  const posLabel = `pos${hit.criticalPosition}/${hit.matchPosition}`;
   return {
     criticalPosition: hit.criticalPosition,
     axis: hit.axis,
@@ -344,10 +645,11 @@ export function ice2fBuildActiveFromHit(hit: Ice2fCriticalHit): Ice2fActive {
     factor2: hit.factor2,
     pairKind: pairKindFromCrossingAxis(hit.axis as CrossingAxisKind),
     referenceNumber: hit.triggerNumber,
-    armingDescription: `2F pos11/22 ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} → ${labels}${tripleHint}`,
+    armingDescription: `2F ${posLabel} ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} → ${labels}${tripleHint}${failHint}`,
     matchPosition: hit.matchPosition,
     matchNumber: hit.matchNumber,
     triggerNumber: hit.triggerNumber,
+    pairId: hit.pairId,
   };
 }
 
@@ -357,7 +659,7 @@ export function ice2fBuildActiveFromHistory(
   _axis?: Ice2fCrossingAxis,
   _meta?: Partial<Pick<Ice2fActive, "matchPosition" | "matchNumber" | "triggerNumber">>,
 ): Ice2fActive | null {
-  // Só arma com match real 11×22 (≥2 factores em comum). Nunca inventar
+  // Só arma com match real do par configurado (≥2 factores em comum). Nunca inventar
   // factores a partir de um único número (ex.: 35 Preto/Alto sem o 10 partilhar).
   const hit = ice2fFindCriticalPosition(historyNewestFirst);
   if (!hit) return null;
@@ -365,9 +667,45 @@ export function ice2fBuildActiveFromHistory(
 }
 
 export function primeIce2fWatchFromHistory(
-  _historyNewestFirst: readonly number[],
+  historyNewestFirst: readonly number[],
 ): Ice2fWatchCounters {
-  return emptyWatch();
+  let watch = emptyWatch();
+  const softMin = getIce2fSoftMinHistory();
+  if (historyNewestFirst.length < softMin) return watch;
+
+  const chronological = [...historyNewestFirst].reverse();
+  const pendingByPair = new Map<string, Ice2fCriticalHit>();
+
+  for (let end = softMin; end <= chronological.length; end++) {
+    const sliceNewestFirst = chronological.slice(0, end).reverse();
+    const resultNumber = chronological[end - 1]!;
+
+    for (const pair of getIce2fComparePairs()) {
+      if (sliceNewestFirst.length < pairDepth(pair)) continue;
+
+      const pending = pendingByPair.get(pair.id);
+      if (pending) {
+        const active = ice2fBuildActiveFromHit(pending);
+        const outcome = ice2fClassifyBetRound(resultNumber, active);
+        if (outcome === "W") watch = clearPairFailures(watch, pair.id);
+        else if (outcome === "L") watch = recordPairIndicationFailure(watch, pair.id);
+        pendingByPair.delete(pair.id);
+      }
+
+      const failures = watch[pair.id]?.failures ?? 0;
+      if (failures >= pair.requiredFailures && pair.requiredFailures > 0) continue;
+
+      const hit = ice2fFindHitForPair(
+        sliceNewestFirst,
+        pair.positions[0],
+        pair.positions[1],
+        { id: pair.id, requiredFailures: pair.requiredFailures },
+      );
+      if (hit) pendingByPair.set(pair.id, hit);
+    }
+  }
+
+  return watch;
 }
 
 export function ice2fNextCriticalSlot(
@@ -391,6 +729,30 @@ function ice2fClearCycleKeepGale(
   };
 }
 
+/** Após W/L: regista último par (UI); monitorização continua em paralelo. */
+function advanceGateAfterWinOrLoss(
+  machine: Ice2fMachineState,
+  fromPairId: string | undefined,
+): Ice2fMachineState {
+  return {
+    ...machine,
+    gatePairId: fromPairId ?? machine.gatePairId ?? null,
+    lockedPosition: null,
+  };
+}
+
+/** Empate: fecha indicação; não muda falhas; gale mantido. */
+function insistGateAfterTie(
+  machine: Ice2fMachineState,
+  pairId: string | undefined,
+  recoveryToKeep: number,
+): Ice2fMachineState {
+  return {
+    ...ice2fClearCycleKeepGale(machine, recoveryToKeep),
+    gatePairId: pairId ?? machine.gatePairId ?? null,
+  };
+}
+
 function armCycleFromHit(
   machine: Ice2fMachineState,
   head: string,
@@ -398,6 +760,13 @@ function armCycleFromHit(
   recovery: number,
 ): Ice2fMachineState {
   const active = ice2fBuildActiveFromHit(hit);
+  const immediate =
+    recovery > 0 || machine.forceImmediateBet === true;
+  const pending = clonePendingObservations(
+    machine.pendingMatchObservations,
+    machine.pendingMatchObservation,
+  );
+  delete pending[hit.pairId];
   return {
     ...machine,
     lockedPosition: hit.criticalPosition,
@@ -405,39 +774,91 @@ function armCycleFromHit(
     inactiveSpinsWithoutEntry: 0,
     pendingArm: null,
     pendingRecovery: 0,
+    forceImmediateBet: false,
+    gatePairId: hit.pairId,
+    pendingMatchObservations: pending,
+    pendingMatchObservation: null,
     cycle: {
       active,
       armedHead: head,
       recovery,
       phase: "awaiting_bet",
-      immediateBet: recovery > 0,
+      immediateBet: immediate,
     },
   };
 }
 
-/** Arma ciclo quando pos 11 e 22 partilham 2+ factores. */
+/**
+ * Monitoriza **todos** os pares em paralelo.
+ * Arma no primeiro (ordem da lista) com match (e falhas ≥ limiar, se > 0).
+ */
 export function tryArmCycleFromWatch(
   machine: Ice2fMachineState,
   historyNewestFirst: readonly number[],
   head: string,
 ): Ice2fMachineState {
   if (machine.cycle) return machine;
-  if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return machine;
+  if (historyNewestFirst.length < getIce2fSoftMinHistory()) return machine;
 
   const pendingRecovery = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
-  const hit = ice2fFindCriticalPosition(historyNewestFirst);
-  if (!hit) return machine;
-
-  return armCycleFromHit(
-    { ...machine, betCommitInFlight: false },
-    head,
-    hit,
-    pendingRecovery,
+  const watch = machine.watch ?? emptyWatch();
+  const pending = clonePendingObservations(
+    machine.pendingMatchObservations,
+    machine.pendingMatchObservation,
   );
+
+  let armHit: Ice2fCriticalHit | null = null;
+
+  for (const pair of getIce2fComparePairs()) {
+    if (historyNewestFirst.length < pairDepth(pair)) continue;
+
+    const hit = ice2fFindHitForPair(
+      historyNewestFirst,
+      pair.positions[0],
+      pair.positions[1],
+      { id: pair.id, requiredFailures: pair.requiredFailures },
+    );
+
+    if (!hit) {
+      delete pending[pair.id];
+      continue;
+    }
+
+    const failures = watch[pair.id]?.failures ?? 0;
+    if (pair.requiredFailures <= 0 || failures >= pair.requiredFailures) {
+      if (!armHit) armHit = hit;
+      delete pending[pair.id];
+    } else {
+      pending[pair.id] = { hit, observationHead: head };
+    }
+  }
+
+  if (armHit) {
+    return armCycleFromHit(
+      {
+        ...machine,
+        watch,
+        pendingMatchObservations: pending,
+        pendingMatchObservation: null,
+        betCommitInFlight: false,
+      },
+      head,
+      armHit,
+      pendingRecovery,
+    );
+  }
+
+  return {
+    ...machine,
+    watch,
+    pendingMatchObservations: pending,
+    pendingMatchObservation: null,
+    betCommitInFlight: false,
+  };
 }
 
 /**
- * Após derrota: guarda gale e espera o **próximo giro** para nova indicação 11/22
+ * Após derrota: guarda gale e espera o **próximo giro** para nova indicação
  * (uma indicação por giro — não rearma no mesmo head).
  */
 function armAfterLoss(
@@ -576,6 +997,11 @@ export function tickIce2fPlacar(
     nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
     lockedPosition: machine.lockedPosition ?? null,
     pendingRecovery: machine.pendingRecovery ?? 0,
+    pendingMatchObservations: clonePendingObservations(
+      machine.pendingMatchObservations,
+      machine.pendingMatchObservation,
+    ),
+    pendingMatchObservation: null,
   };
   let nextStats = stats;
   let statsChanged = false;
@@ -583,13 +1009,27 @@ export function tickIce2fPlacar(
   let missedBetWindow = false;
 
   if (
+    headChanged &&
+    Object.keys(nextMachine.pendingMatchObservations ?? {}).length > 0
+  ) {
+    nextMachine = resolvePendingMatchObservations(
+      nextMachine,
+      historyNewestFirst[0]!,
+    );
+  }
+
+  if (
     nextMachine.cycle?.phase === "awaiting_bet" &&
     headChanged &&
     nextMachine.cycle.armedHead !== head
   ) {
     // Indicação única: novo giro sem aposta → cancela; gale fica para o próximo match.
+    // Próxima armação aposta já (forceImmediateBet) para não perder a janela outra vez.
     missedBetWindow = true;
-    nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
+    nextMachine = {
+      ...ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery),
+      forceImmediateBet: true,
+    };
   }
 
   if (
@@ -612,11 +1052,14 @@ export function tickIce2fPlacar(
         ice2fEffectiveZeroShift(nextMachine),
       );
       nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
+      nextStats = recordIce2fPairIndication(nextStats, active.pairId, "win");
       statsChanged = true;
       nextMachine = ice2fClearCycleKeepGale(
         applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
         0,
       );
+      nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "W");
+      nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
       flash = {
         resultNumber,
         won: true,
@@ -628,10 +1071,8 @@ export function tickIce2fPlacar(
         factor2: active.factor2,
       };
     } else if (outcome === "continue") {
-      // Empate: fecha indicação (única); mantém o mesmo gale para o próximo match 11/22.
-      nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
-      statsChanged = true;
-      nextMachine = ice2fClearCycleKeepGale(nextMachine, recovery);
+      // Empate: indicação única fecha; não conta falha; pares continuam em paralelo.
+      nextMachine = insistGateAfterTie(nextMachine, active.pairId, recovery);
       flash = {
         resultNumber,
         won: false,
@@ -646,11 +1087,14 @@ export function tickIce2fPlacar(
       const nextRecovery = ice2fRecoveryAfterLoss(recovery);
       if (nextRecovery > maxRecovery) {
         nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
+        nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
         statsChanged = true;
         nextMachine = {
           ...ice2fClearCycleKeepGale(nextMachine, 0),
           nextEntryAxis: ice2fToggleAxis(active.axis),
         };
+        nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+        nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
         flash = {
           resultNumber,
           won: false,
@@ -663,6 +1107,7 @@ export function tickIce2fPlacar(
         };
       } else {
         nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
+        nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
         statsChanged = true;
         flash = {
           resultNumber,
@@ -681,6 +1126,8 @@ export function tickIce2fPlacar(
           nextRecovery,
           active.axis,
         );
+        nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+        nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
       }
     }
   }
@@ -688,17 +1135,16 @@ export function tickIce2fPlacar(
   if (
     !nextMachine.cycle &&
     headChanged &&
-    historyNewestFirst.length >= ICE_2F_MIN_HISTORY
+    historyNewestFirst.length >= getIce2fSoftMinHistory()
   ) {
-    // Novo giro → leitura fresca 11×22 (inclui após W/L/empate no mesmo tick).
-    // Não reutiliza factores antigos: ice2fFindCriticalPosition só arma com o par actual.
+    // Novo giro → leitura fresca do gatilho efectivo.
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
   if (
     !nextMachine.cycle &&
     machine.lastSpinHead == null &&
-    historyNewestFirst.length >= ICE_2F_MIN_HISTORY
+    historyNewestFirst.length >= getIce2fSoftMinHistory()
   ) {
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
@@ -723,31 +1169,89 @@ export function tickIce2fPlacar(
   };
 }
 
+export type Ice2fPairIndicationBucket = { wins: number; losses: number };
+
+export function emptyIce2fPairIndicationStats(): Record<string, Ice2fPairIndicationBucket> {
+  const out: Record<string, Ice2fPairIndicationBucket> = {};
+  for (const pair of getIce2fComparePairs()) {
+    out[pair.id] = { wins: 0, losses: 0 };
+  }
+  return out;
+}
+
+function recordIce2fPairIndication(
+  stats: RotatingRoomSessionStats,
+  pairId: string | undefined,
+  kind: "win" | "loss",
+): RotatingRoomSessionStats {
+  if (!pairId) return stats;
+  const prev = stats.pairIndication ?? emptyIce2fPairIndicationStats();
+  const slot = prev[pairId] ?? { wins: 0, losses: 0 };
+  const nextSlot =
+    kind === "win"
+      ? { wins: slot.wins + 1, losses: slot.losses }
+      : { wins: slot.wins, losses: slot.losses + 1 };
+  return {
+    ...stats,
+    pairIndication: { ...prev, [pairId]: nextSlot },
+  };
+}
+
 export function parseIce2fStats(
   raw: unknown,
   maxRecovery = ICE_2F_MAX_RECOVERY,
 ): RotatingRoomSessionStats {
-  return parseRotatingRoomSessionStats(raw, maxRecovery);
+  const parsed = parseRotatingRoomSessionStats(raw, maxRecovery);
+  const base = emptyIce2fPairIndicationStats();
+  const rawPairs = parsed.pairIndication ?? {};
+  for (const id of Object.keys(base)) {
+    const slot = rawPairs[id];
+    if (slot) base[id] = { wins: slot.wins, losses: slot.losses };
+  }
+  for (const [id, slot] of Object.entries(rawPairs)) {
+    if (!(id in base) && slot) base[id] = { wins: slot.wins, losses: slot.losses };
+  }
+  return { ...parsed, pairIndication: base };
 }
 
 export function emptyIce2fStats(maxRecovery = ICE_2F_MAX_RECOVERY): RotatingRoomSessionStats {
-  return emptyRotatingRoomSessionStats(maxRecovery);
+  return {
+    ...emptyRotatingRoomSessionStats(maxRecovery),
+    pairIndication: emptyIce2fPairIndicationStats(),
+  };
 }
 
 export function formatIce2fWatchLabel(
-  _watch: Ice2fWatchCounters,
+  watch: Ice2fWatchCounters,
   _requiredFailures: number = ICE_2F_REQUIRED_FAILURES,
 ): string {
-  return "pos 11×22 · 2F em comum";
+  const parts: string[] = [];
+  for (const pair of getIce2fComparePairs()) {
+    const f = watch[pair.id]?.failures ?? 0;
+    if (pair.requiredFailures <= 0) {
+      parts.push(`${pair.positions[0]}×${pair.positions[1]}`);
+    } else {
+      parts.push(
+        `${pair.positions[0]}×${pair.positions[1]}:${f}/${pair.requiredFailures}`,
+      );
+    }
+  }
+  return parts.join(" · ") || "2F em comum";
 }
 
 export function ice2fWatchLabelForMachine(machine: Ice2fMachineState): string {
   const pending = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
   const cycle = machine.cycle?.active;
   if (cycle) {
-    return `11/22 ${axisShort(cycle.axis)} · gale ${machine.cycle?.recovery ?? 0}`;
+    const pair =
+      cycle.pairId ??
+      `pos${cycle.criticalPosition}/${cycle.matchPosition ?? "?"}`;
+    return `${pair} ${axisShort(cycle.axis)} · gale ${machine.cycle?.recovery ?? 0}`;
   }
+  const watchLabel = formatIce2fWatchLabel(machine.watch ?? emptyWatch());
+  const obsCount = Object.keys(machine.pendingMatchObservations ?? {}).length;
+  const obsHint = obsCount > 0 ? ` · obs ${obsCount}` : "";
   return pending > 0
-    ? `aguarda 11/22 · gale ${pending}`
-    : "aguarda 11/22 · 2F em comum";
+    ? `${watchLabel}${obsHint} · gale ${pending}`
+    : `${watchLabel}${obsHint}`;
 }

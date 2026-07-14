@@ -49,37 +49,35 @@ console.assert(ice2fRecoveryAfterLoss(0) === 1, "perda sobe 0→1");
 console.assert(ice2fRecoveryAfterWin(3) === 0, "vitória zera gale");
 console.assert(ice2fRecoveryAfterWin(0) === 0, "vitória em 0 fecha ciclo");
 
-console.assert(ice2fBetDelayMs(0) === ICE_2F_RECOVERY_BET_DELAY_MS, "entrada 6s");
-console.assert(ice2fBetDelayMs(2) === ICE_2F_RECOVERY_BET_DELAY_MS, "gale 6s");
-console.assert(ice2fBetDelayMs(2, true) === 6000, "reentrada ~6000ms");
+console.assert(ice2fBetDelayMs(0) === ICE_2F_RECOVERY_BET_DELAY_MS, "entrada delay");
+console.assert(ice2fBetDelayMs(2) === ICE_2F_RECOVERY_BET_DELAY_MS, "gale delay");
+console.assert(ice2fBetDelayMs(2, true) === 800, "reentrada imediata");
 const t0 = 1_000_000;
-console.assert(!canPlaceIce2fBet(0, t0, t0 + 5_999), "entrada bloqueada antes 6s giro");
-console.assert(canPlaceIce2fBet(0, t0, t0 + 6_000), "entrada libera 6s após giro");
+console.assert(!canPlaceIce2fBet(0, t0, t0 + 5_999), "entrada bloqueada antes delay");
+console.assert(canPlaceIce2fBet(0, t0, t0 + 6_000), "entrada libera após delay");
 console.assert(canPlaceIce2fBet(2, t0, t0 + 6000), "gale usa giro");
-console.assert(canPlaceIce2fBet(3, t0, t0 + 6000, true), "empate libera em 6000ms");
-console.assert(!canPlaceIce2fBet(3, t0, t0 + 5999, true), "empate bloqueado antes 6000ms");
+console.assert(canPlaceIce2fBet(3, t0, t0 + 800, true), "imediato libera em 800ms");
+console.assert(!canPlaceIce2fBet(3, t0, t0 + 799, true), "imediato bloqueado antes 800ms");
 
-const hist = Array.from({ length: 22 }, (_, i) => ((i * 7) % 36) + 1);
-hist[10] = 14;
-hist[21] = 32;
+const hist = Array.from({ length: 18 }, (_, i) => ((i * 7) % 36) + 1);
+hist[2] = 14;
+hist[5] = 32;
 const watch = primeIce2fWatchFromHistory(hist);
 console.assert(typeof formatIce2fWatchLabel(watch) === "string", "label watch");
 
-for (const pos of [11, 22] as const) {
-  for (const axis of ["cor-altura", "altura-paridade", "cor-paridade"] as const) {
-    console.assert(watch[pos]?.[axis] != null, `watch ${pos} ${axis}`);
-    void ice2fIsWatchSlotArmed(watch[pos][axis]);
-  }
+for (const id of ["3x6"] as const) {
+  console.assert(watch[id] != null, `watch ${id}`);
+  void ice2fIsWatchSlotArmed(watch[id]!, 1);
 }
 
-const active11 = ice2fBuildActiveFromHistory(hist, 11, "cor-paridade");
-console.assert(!!active11, "active 11/22");
+const active36 = ice2fBuildActiveFromHistory(hist, 3, "cor-paridade");
+console.assert(!!active36, "active 3/6");
 const m = {
   ...defaultIce2fMachineState(),
   watch,
   lastSpinHead: `${hist.length}:${hist[0]}`,
   cycle: {
-    active: active11!,
+    active: active36!,
     armedHead: `${hist.length}:${hist[0]}`,
     recovery: 0,
     phase: "awaiting_result" as const,
