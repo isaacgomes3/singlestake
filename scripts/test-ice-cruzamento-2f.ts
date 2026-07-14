@@ -65,7 +65,7 @@ hist[5] = 32;
 const watch = primeIce2fWatchFromHistory(hist);
 console.assert(typeof formatIce2fWatchLabel(watch) === "string", "label watch");
 
-for (const id of ["3x6"] as const) {
+for (const id of ["3x6", "2x4"] as const) {
   console.assert(watch[id] != null, `watch ${id}`);
   void ice2fIsWatchSlotArmed(watch[id]!, 1);
 }

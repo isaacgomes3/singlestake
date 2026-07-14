@@ -4,6 +4,7 @@
 import { doisFatoresFactorLabel } from "../src/lib/roulette/doisFatoresStrategy";
 import { pragmaticExteriorBetKeyFromFactor } from "../src/lib/roulette/pragmaticExteriorBetMap";
 import {
+  buildIce2fStreakChartMetrics,
   canPlaceIce2fBet,
   configureIce2fDefaultComparePairs,
   defaultIce2fMachineState,
@@ -457,6 +458,7 @@ const api = {
   ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
   ROTATING_ROOM_CROSSING_BET_DELAY_MS,
   emptyIce2fStats,
+  buildIce2fStreakChartMetrics,
   formatIce2fWatchLabel,
   ice2fWatchLabelForMachine,
   ice2fBetDelayMs,

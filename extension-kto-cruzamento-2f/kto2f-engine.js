@@ -208,13 +208,40 @@ var SinglestakeKto2f = (() => {
     }
     return base;
   }
+  function parsePairIndicationStats(raw) {
+    if (!raw || typeof raw !== "object") return void 0;
+    const out = {};
+    for (const [id, slot] of Object.entries(raw)) {
+      if (!id || !slot || typeof slot !== "object") continue;
+      const o = slot;
+      out[id] = {
+        wins: Math.max(0, Number(o.wins) || 0),
+        losses: Math.max(0, Number(o.losses) || 0)
+      };
+    }
+    return Object.keys(out).length > 0 ? out : void 0;
+  }
+  function parseOutcomeHistory(raw) {
+    if (!Array.isArray(raw)) return void 0;
+    const out = [];
+    for (const item of raw) {
+      if (item === "W" || item === "L") out.push(item);
+    }
+    return out.length > 0 ? out.slice(-200) : void 0;
+  }
   function parseRotatingRoomSessionStats(raw, maxRecovery = 5) {
     const o = raw ?? {};
+    const pairIndication = parsePairIndicationStats(o.pairIndication);
+    const outcomeHistory = parseOutcomeHistory(o.outcomeHistory);
+    const indicationOutcomeHistory = parseOutcomeHistory(o.indicationOutcomeHistory);
     const base = {
       wins: Number(o.wins) || 0,
       losses: Number(o.losses) || 0,
       winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
-      lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery)
+      lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery),
+      ...pairIndication ? { pairIndication } : {},
+      ...outcomeHistory ? { outcomeHistory } : {},
+      ...indicationOutcomeHistory ? { indicationOutcomeHistory } : {}
     };
     const withUm = o.umFatorMatchTier != null ? { ...base, umFatorMatchTier: parseUmFatorMatchTierStats(o.umFatorMatchTier) } : base;
     if (o.crossingPatternKind != null) {
@@ -264,12 +291,77 @@ var SinglestakeKto2f = (() => {
   }
 
   // src/lib/roulette/iceCruzamento2fStrategy.ts
-  var ICE_2F_COMPARE_POSITIONS = [11, 22];
-  var ICE_2F_MIN_HISTORY = 22;
+  function pairKey(posA, posB) {
+    return `${posA}x${posB}`;
+  }
+  function normalizePair(posA, posB, requiredFailures = 0) {
+    const a = Math.max(1, Math.floor(posA));
+    const b = Math.max(1, Math.floor(posB));
+    return {
+      id: pairKey(a, b),
+      positions: [a, b],
+      requiredFailures: Math.max(0, Math.floor(requiredFailures))
+    };
+  }
+  var ICE_2F_DEFAULT_COMPARE_PAIRS = [
+    normalizePair(3, 6, 0),
+    normalizePair(2, 4, 0)
+  ];
+  var ice2fCompareConfig = {
+    pairs: ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({ ...p, positions: [...p.positions] }))
+  };
+  function getIce2fComparePairs() {
+    return ice2fCompareConfig.pairs;
+  }
+  function getIce2fComparePositions() {
+    const first = ice2fCompareConfig.pairs[0];
+    return first?.positions ?? [3, 6];
+  }
+  function getIce2fMinHistory() {
+    let max = 1;
+    for (const pair of ice2fCompareConfig.pairs) {
+      max = Math.max(max, pair.positions[0], pair.positions[1]);
+    }
+    return max;
+  }
+  function getIce2fSoftMinHistory() {
+    let min = Number.POSITIVE_INFINITY;
+    for (const pair of ice2fCompareConfig.pairs) {
+      min = Math.min(min, Math.max(pair.positions[0], pair.positions[1]));
+    }
+    return Number.isFinite(min) ? min : 1;
+  }
+  function pairDepth(pair) {
+    return Math.max(pair.positions[0], pair.positions[1]);
+  }
+  var ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
+  var ICE_2F_CRITICAL_POSITIONS = getIce2fComparePositions();
+  var ICE_2F_MIN_HISTORY = getIce2fMinHistory();
   var ICE_2F_MAX_RECOVERY = 5;
+  function syncDeprecatedPositionExports() {
+    ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
+    ICE_2F_CRITICAL_POSITIONS = getIce2fComparePositions();
+    ICE_2F_MIN_HISTORY = getIce2fMinHistory();
+  }
+  function configureIce2fComparePairs(pairs) {
+    const next = [];
+    for (const raw of pairs) {
+      const [a, b] = raw.positions;
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      next.push(normalizePair(a, b, raw.requiredFailures ?? 0));
+    }
+    ice2fCompareConfig.pairs = next.length > 0 ? next : ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({
+      ...p,
+      positions: [...p.positions]
+    }));
+    syncDeprecatedPositionExports();
+  }
+  function configureIce2fDefaultComparePairs() {
+    configureIce2fComparePairs(ICE_2F_DEFAULT_COMPARE_PAIRS);
+  }
   var ICE_2F_REQUIRED_FAILURES = 0;
   var ICE_2F_RECOVERY_BET_DELAY_MS = 6e3;
-  var ICE_2F_IMMEDIATE_REBET_DELAY_MS = 6e3;
+  var ICE_2F_IMMEDIATE_REBET_DELAY_MS = 800;
   var ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32];
@@ -279,33 +371,23 @@ var SinglestakeKto2f = (() => {
   function emptyWatchSlot() {
     return { failures: 0 };
   }
-  function emptyWatchAxisMap() {
-    return {
-      "cor-altura": emptyWatchSlot(),
-      "altura-paridade": emptyWatchSlot(),
-      "cor-paridade": emptyWatchSlot()
-    };
-  }
   function emptyWatch() {
     const w = {};
-    for (const pos of ICE_2F_COMPARE_POSITIONS) w[pos] = emptyWatchAxisMap();
+    for (const pair of getIce2fComparePairs()) w[pair.id] = emptyWatchSlot();
     return w;
   }
   function cloneWatch(watch) {
-    const next = {};
-    for (const key of Object.keys(watch)) {
-      const pos = Number(key);
-      const slot = watch[pos];
-      if (!slot) continue;
-      next[pos] = {
-        "cor-altura": { failures: slot["cor-altura"]?.failures ?? 0 },
-        "altura-paridade": { failures: slot["altura-paridade"]?.failures ?? 0 },
-        "cor-paridade": { failures: slot["cor-paridade"]?.failures ?? 0 }
-      };
+    const next = emptyWatch();
+    for (const pair of getIce2fComparePairs()) {
+      const raw = watch[pair.id];
+      if (raw && typeof raw.failures === "number" && Number.isFinite(raw.failures)) {
+        next[pair.id] = { failures: Math.max(0, Math.floor(raw.failures)) };
+      }
     }
     return next;
   }
   function defaultIce2fMachineState() {
+    const firstPair = getIce2fComparePairs()[0];
     return {
       cycle: null,
       watch: emptyWatch(),
@@ -317,11 +399,95 @@ var SinglestakeKto2f = (() => {
       nextEntryAxis: "cor-altura",
       lockedPosition: null,
       pendingRecovery: 0,
+      gatePairId: firstPair?.id ?? null,
+      forceImmediateBet: false,
+      pendingMatchObservations: {},
+      pendingMatchObservation: null,
       zeroDebtUnits: 0,
       zeroRecoveredUnits: 0,
       zeroShift: 0,
       zeroRecoveryArmed: false
     };
+  }
+  function emptyPendingObservations() {
+    return {};
+  }
+  function clonePendingObservations(raw, legacy) {
+    const next = emptyPendingObservations();
+    if (raw && typeof raw === "object") {
+      for (const [id, obs] of Object.entries(raw)) {
+        if (obs?.hit && typeof obs.observationHead === "string") {
+          next[id] = { hit: obs.hit, observationHead: obs.observationHead };
+        }
+      }
+    }
+    if (legacy?.pairId && legacy.hit) {
+      next[legacy.pairId] = {
+        hit: legacy.hit,
+        observationHead: legacy.observationHead
+      };
+    }
+    return next;
+  }
+  function getPairConfigById(pairId) {
+    return getIce2fComparePairs().find((p) => p.id === pairId);
+  }
+  function recordPairIndicationFailure(watch, pairId) {
+    const next = cloneWatch(watch);
+    const prev = next[pairId]?.failures ?? 0;
+    next[pairId] = { failures: prev + 1 };
+    return next;
+  }
+  function clearPairFailures(watch, pairId) {
+    const next = cloneWatch(watch);
+    next[pairId] = { failures: 0 };
+    return next;
+  }
+  function resolvePendingMatchObservations(machine, resultNumber) {
+    const pending = clonePendingObservations(
+      machine.pendingMatchObservations,
+      machine.pendingMatchObservation
+    );
+    const ids = Object.keys(pending);
+    if (ids.length === 0) {
+      return {
+        ...machine,
+        pendingMatchObservations: {},
+        pendingMatchObservation: null
+      };
+    }
+    let watch = machine.watch ?? emptyWatch();
+    for (const pairId of ids) {
+      const obs = pending[pairId];
+      const active = ice2fBuildActiveFromHit(obs.hit);
+      const outcome = ice2fClassifyBetRound(resultNumber, active);
+      if (outcome === "W") {
+        watch = clearPairFailures(watch, pairId);
+      } else if (outcome === "L") {
+        watch = recordPairIndicationFailure(watch, pairId);
+      }
+    }
+    return {
+      ...machine,
+      watch,
+      pendingMatchObservations: {},
+      pendingMatchObservation: null
+    };
+  }
+  function applyPairIndicationOutcome(machine, pairId, outcome) {
+    if (!pairId) return machine;
+    const pair = getPairConfigById(pairId);
+    if (!pair || pair.requiredFailures <= 0) return machine;
+    if (outcome === "continue") {
+      return machine;
+    }
+    let watch = machine.watch ?? emptyWatch();
+    if (outcome === "W") {
+      watch = clearPairFailures(watch, pairId);
+    } else {
+      watch = recordPairIndicationFailure(watch, pairId);
+    }
+    return { ...machine, watch };
   }
   function spinHead(history) {
     if (history.length === 0) return "0";
@@ -348,39 +514,42 @@ var SinglestakeKto2f = (() => {
     if (axis === "altura-paridade") return "cor-paridade";
     return "cor-altura";
   }
-  function ice2fFindCriticalPosition(historyNewestFirst) {
-    if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return null;
-    const number11 = historyNewestFirst[10];
-    const number22 = historyNewestFirst[21];
-    if (!Number.isFinite(number11) || !Number.isFinite(number22)) return null;
-    if (number11 === 0 || number22 === 0) return null;
-    const sharedCount = umFatorTriggerMatchCount(number11, number22);
+  function ice2fFindHitForPair(historyNewestFirst, posA, posB, pairMeta) {
+    const depth = Math.max(posA, posB);
+    if (historyNewestFirst.length < depth) return null;
+    const numberA = historyNewestFirst[posA - 1];
+    const numberB = historyNewestFirst[posB - 1];
+    if (!Number.isFinite(numberA) || !Number.isFinite(numberB)) return null;
+    if (numberA === 0 || numberB === 0) return null;
+    const sharedCount = umFatorTriggerMatchCount(numberA, numberB);
     if (sharedCount < 2) return null;
     let axis;
     let factor1;
     let factor2;
     if (sharedCount >= 3) {
       axis = "cor-paridade";
-      const factors = factorsForNumberOnAxis(number11, axis);
+      const factors = factorsForNumberOnAxis(numberA, axis);
       if (!factors) return null;
       factor1 = factors[0];
       factor2 = factors[1];
     } else {
-      const shared = umFatorSharedFactorsBetween(number11, number22);
+      const shared = umFatorSharedFactorsBetween(numberA, numberB);
       if (shared.length !== 2) return null;
       factor1 = shared[0];
       factor2 = shared[1];
       axis = pairKindFromFactors(factor1, factor2);
     }
     return {
-      criticalPosition: 11,
-      matchPosition: 22,
-      matchNumber: number22,
-      triggerNumber: number11,
+      criticalPosition: posA,
+      matchPosition: posB,
+      matchNumber: numberB,
+      triggerNumber: numberA,
       axis,
       factor1,
       factor2,
-      sharedCount: sharedCount >= 3 ? 3 : 2
+      sharedCount: sharedCount >= 3 ? 3 : 2,
+      pairId: pairMeta?.id ?? pairKey(posA, posB),
+      requiredFailures: pairMeta?.requiredFailures ?? 0
     };
   }
   function toTapeteActive(active) {
@@ -406,6 +575,8 @@ var SinglestakeKto2f = (() => {
   function ice2fBuildActiveFromHit(hit) {
     const labels = [hit.factor1, hit.factor2].map((f) => doisFatoresFactorLabel(f)).join(" \xB7 ");
     const tripleHint = hit.sharedCount === 3 ? " \xB7 3F\u2192cor/paridade" : "";
+    const failHint = hit.requiredFailures > 0 ? ` \xB7 ap\xF3s ${hit.requiredFailures} falhas de indica\xE7\xE3o` : "";
+    const posLabel = `pos${hit.criticalPosition}/${hit.matchPosition}`;
     return {
       criticalPosition: hit.criticalPosition,
       axis: hit.axis,
@@ -413,14 +584,44 @@ var SinglestakeKto2f = (() => {
       factor2: hit.factor2,
       pairKind: pairKindFromCrossingAxis(hit.axis),
       referenceNumber: hit.triggerNumber,
-      armingDescription: `2F pos11/22 ${axisLabelPt(hit.axis)}: n\xBA${hit.triggerNumber}\xB7${hit.matchNumber} \u2192 ${labels}${tripleHint}`,
+      armingDescription: `2F ${posLabel} ${axisLabelPt(hit.axis)}: n\xBA${hit.triggerNumber}\xB7${hit.matchNumber} \u2192 ${labels}${tripleHint}${failHint}`,
       matchPosition: hit.matchPosition,
       matchNumber: hit.matchNumber,
-      triggerNumber: hit.triggerNumber
+      triggerNumber: hit.triggerNumber,
+      pairId: hit.pairId
     };
   }
-  function primeIce2fWatchFromHistory(_historyNewestFirst) {
-    return emptyWatch();
+  function primeIce2fWatchFromHistory(historyNewestFirst) {
+    let watch = emptyWatch();
+    const softMin = getIce2fSoftMinHistory();
+    if (historyNewestFirst.length < softMin) return watch;
+    const chronological = [...historyNewestFirst].reverse();
+    const pendingByPair = /* @__PURE__ */ new Map();
+    for (let end = softMin; end <= chronological.length; end++) {
+      const sliceNewestFirst = chronological.slice(0, end).reverse();
+      const resultNumber = chronological[end - 1];
+      for (const pair of getIce2fComparePairs()) {
+        if (sliceNewestFirst.length < pairDepth(pair)) continue;
+        const pending = pendingByPair.get(pair.id);
+        if (pending) {
+          const active = ice2fBuildActiveFromHit(pending);
+          const outcome = ice2fClassifyBetRound(resultNumber, active);
+          if (outcome === "W") watch = clearPairFailures(watch, pair.id);
+          else if (outcome === "L") watch = recordPairIndicationFailure(watch, pair.id);
+          pendingByPair.delete(pair.id);
+        }
+        const failures = watch[pair.id]?.failures ?? 0;
+        if (failures >= pair.requiredFailures && pair.requiredFailures > 0) continue;
+        const hit = ice2fFindHitForPair(
+          sliceNewestFirst,
+          pair.positions[0],
+          pair.positions[1],
+          { id: pair.id, requiredFailures: pair.requiredFailures }
+        );
+        if (hit) pendingByPair.set(pair.id, hit);
+      }
+    }
+    return watch;
   }
   function ice2fClearCycleKeepGale(machine, recoveryToKeep) {
     return {
@@ -432,8 +633,27 @@ var SinglestakeKto2f = (() => {
       pendingRecovery: Math.max(0, Math.floor(recoveryToKeep))
     };
   }
+  function advanceGateAfterWinOrLoss(machine, fromPairId) {
+    return {
+      ...machine,
+      gatePairId: fromPairId ?? machine.gatePairId ?? null,
+      lockedPosition: null
+    };
+  }
+  function insistGateAfterTie(machine, pairId, recoveryToKeep) {
+    return {
+      ...ice2fClearCycleKeepGale(machine, recoveryToKeep),
+      gatePairId: pairId ?? machine.gatePairId ?? null
+    };
+  }
   function armCycleFromHit(machine, head, hit, recovery) {
     const active = ice2fBuildActiveFromHit(hit);
+    const immediate = recovery > 0 || machine.forceImmediateBet === true;
+    const pending = clonePendingObservations(
+      machine.pendingMatchObservations,
+      machine.pendingMatchObservation
+    );
+    delete pending[hit.pairId];
     return {
       ...machine,
       lockedPosition: hit.criticalPosition,
@@ -441,27 +661,70 @@ var SinglestakeKto2f = (() => {
       inactiveSpinsWithoutEntry: 0,
       pendingArm: null,
       pendingRecovery: 0,
+      forceImmediateBet: false,
+      gatePairId: hit.pairId,
+      pendingMatchObservations: pending,
+      pendingMatchObservation: null,
       cycle: {
         active,
         armedHead: head,
         recovery,
         phase: "awaiting_bet",
-        immediateBet: recovery > 0
+        immediateBet: immediate
       }
     };
   }
   function tryArmCycleFromWatch(machine, historyNewestFirst, head) {
     if (machine.cycle) return machine;
-    if (historyNewestFirst.length < ICE_2F_MIN_HISTORY) return machine;
+    if (historyNewestFirst.length < getIce2fSoftMinHistory()) return machine;
     const pendingRecovery = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
-    const hit = ice2fFindCriticalPosition(historyNewestFirst);
-    if (!hit) return machine;
-    return armCycleFromHit(
-      { ...machine, betCommitInFlight: false },
-      head,
-      hit,
-      pendingRecovery
+    const watch = machine.watch ?? emptyWatch();
+    const pending = clonePendingObservations(
+      machine.pendingMatchObservations,
+      machine.pendingMatchObservation
     );
+    let armHit = null;
+    for (const pair of getIce2fComparePairs()) {
+      if (historyNewestFirst.length < pairDepth(pair)) continue;
+      const hit = ice2fFindHitForPair(
+        historyNewestFirst,
+        pair.positions[0],
+        pair.positions[1],
+        { id: pair.id, requiredFailures: pair.requiredFailures }
+      );
+      if (!hit) {
+        delete pending[pair.id];
+        continue;
+      }
+      const failures = watch[pair.id]?.failures ?? 0;
+      if (pair.requiredFailures <= 0 || failures >= pair.requiredFailures) {
+        if (!armHit) armHit = hit;
+        delete pending[pair.id];
+      } else {
+        pending[pair.id] = { hit, observationHead: head };
+      }
+    }
+    if (armHit) {
+      return armCycleFromHit(
+        {
+          ...machine,
+          watch,
+          pendingMatchObservations: pending,
+          pendingMatchObservation: null,
+          betCommitInFlight: false
+        },
+        head,
+        armHit,
+        pendingRecovery
+      );
+    }
+    return {
+      ...machine,
+      watch,
+      pendingMatchObservations: pending,
+      pendingMatchObservation: null,
+      betCommitInFlight: false
+    };
   }
   function armAfterLoss(machine, _historyNewestFirst, _head, nextRecovery, _previousAxis) {
     return {
@@ -539,15 +802,29 @@ var SinglestakeKto2f = (() => {
       watch: cloneWatch(machine.watch ?? emptyWatch()),
       nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
       lockedPosition: machine.lockedPosition ?? null,
-      pendingRecovery: machine.pendingRecovery ?? 0
+      pendingRecovery: machine.pendingRecovery ?? 0,
+      pendingMatchObservations: clonePendingObservations(
+        machine.pendingMatchObservations,
+        machine.pendingMatchObservation
+      ),
+      pendingMatchObservation: null
     };
     let nextStats = stats;
     let statsChanged = false;
     let flash = null;
     let missedBetWindow = false;
+    if (headChanged && Object.keys(nextMachine.pendingMatchObservations ?? {}).length > 0) {
+      nextMachine = resolvePendingMatchObservations(
+        nextMachine,
+        historyNewestFirst[0]
+      );
+    }
     if (nextMachine.cycle?.phase === "awaiting_bet" && headChanged && nextMachine.cycle.armedHead !== head) {
       missedBetWindow = true;
-      nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
+      nextMachine = {
+        ...ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery),
+        forceImmediateBet: true
+      };
     }
     if (nextMachine.cycle?.phase === "awaiting_reference" && headChanged && nextMachine.cycle.armedHead !== head) {
       nextMachine = ice2fClearCycleKeepGale(nextMachine, nextMachine.cycle.recovery);
@@ -563,11 +840,16 @@ var SinglestakeKto2f = (() => {
           ice2fEffectiveZeroShift(nextMachine)
         );
         nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
+        nextStats = recordIce2fPairIndication(nextStats, active.pairId, "win");
+        nextStats = recordIce2fIndicationOutcome(nextStats, "W");
+        nextStats = recordIce2fClosedOutcome(nextStats, "W");
         statsChanged = true;
         nextMachine = ice2fClearCycleKeepGale(
           applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
           0
         );
+        nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "W");
+        nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
         flash = {
           resultNumber,
           won: true,
@@ -579,9 +861,7 @@ var SinglestakeKto2f = (() => {
           factor2: active.factor2
         };
       } else if (outcome === "continue") {
-        nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
-        statsChanged = true;
-        nextMachine = ice2fClearCycleKeepGale(nextMachine, recovery);
+        nextMachine = insistGateAfterTie(nextMachine, active.pairId, recovery);
         flash = {
           resultNumber,
           won: false,
@@ -596,11 +876,16 @@ var SinglestakeKto2f = (() => {
         const nextRecovery = ice2fRecoveryAfterLoss(recovery);
         if (nextRecovery > maxRecovery) {
           nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
+          nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
+          nextStats = recordIce2fIndicationOutcome(nextStats, "L");
+          nextStats = recordIce2fClosedOutcome(nextStats, "L");
           statsChanged = true;
           nextMachine = {
             ...ice2fClearCycleKeepGale(nextMachine, 0),
             nextEntryAxis: ice2fToggleAxis(active.axis)
           };
+          nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+          nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
           flash = {
             resultNumber,
             won: false,
@@ -613,6 +898,8 @@ var SinglestakeKto2f = (() => {
           };
         } else {
           nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
+          nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
+          nextStats = recordIce2fIndicationOutcome(nextStats, "L");
           statsChanged = true;
           flash = {
             resultNumber,
@@ -631,13 +918,15 @@ var SinglestakeKto2f = (() => {
             nextRecovery,
             active.axis
           );
+          nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+          nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
         }
       }
     }
-    if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
+    if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
-    if (!nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= ICE_2F_MIN_HISTORY) {
+    if (!nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
     const globalActive = nextMachine.cycle?.phase === "awaiting_bet" || nextMachine.cycle?.phase === "awaiting_result" ? nextMachine.cycle.active : null;
@@ -652,33 +941,177 @@ var SinglestakeKto2f = (() => {
       missedBetWindow
     };
   }
+  function emptyIce2fPairIndicationStats() {
+    const out = {};
+    for (const pair of getIce2fComparePairs()) {
+      out[pair.id] = { wins: 0, losses: 0 };
+    }
+    return out;
+  }
+  function recordIce2fPairIndication(stats, pairId, kind) {
+    if (!pairId) return stats;
+    const prev = stats.pairIndication ?? emptyIce2fPairIndicationStats();
+    const slot = prev[pairId] ?? { wins: 0, losses: 0 };
+    const nextSlot = kind === "win" ? { wins: slot.wins + 1, losses: slot.losses } : { wins: slot.wins, losses: slot.losses + 1 };
+    return {
+      ...stats,
+      pairIndication: { ...prev, [pairId]: nextSlot }
+    };
+  }
+  var ICE_2F_OUTCOME_HISTORY_MAX = 200;
+  function recordIce2fClosedOutcome(stats, kind) {
+    const prev = Array.isArray(stats.outcomeHistory) ? stats.outcomeHistory : [];
+    const next = [...prev, kind];
+    if (next.length > ICE_2F_OUTCOME_HISTORY_MAX) {
+      next.splice(0, next.length - ICE_2F_OUTCOME_HISTORY_MAX);
+    }
+    return { ...stats, outcomeHistory: next };
+  }
+  function recordIce2fIndicationOutcome(stats, kind) {
+    const prev = Array.isArray(stats.indicationOutcomeHistory) ? stats.indicationOutcomeHistory : [];
+    const next = [...prev, kind];
+    if (next.length > ICE_2F_OUTCOME_HISTORY_MAX) {
+      next.splice(0, next.length - ICE_2F_OUTCOME_HISTORY_MAX);
+    }
+    return { ...stats, indicationOutcomeHistory: next };
+  }
+  function buildIce2fStreakChartMetrics(stats) {
+    const placarOutcomes = Array.isArray(stats?.outcomeHistory) ? stats.outcomeHistory.filter((x) => x === "W" || x === "L") : [];
+    const triggerOutcomes = Array.isArray(stats?.indicationOutcomeHistory) ? stats.indicationOutcomeHistory.filter((x) => x === "W" || x === "L") : placarOutcomes;
+    const winStreakSeries = [];
+    let winStreak = 0;
+    let maxWinStreak = 0;
+    for (const o of placarOutcomes) {
+      if (o === "W") {
+        winStreak += 1;
+        maxWinStreak = Math.max(maxWinStreak, winStreak);
+      } else {
+        winStreak = 0;
+      }
+      winStreakSeries.push(winStreak);
+    }
+    const lossStreakSeries = [];
+    let lossStreak = 0;
+    let maxLossStreak = 0;
+    let triggerWins = 0;
+    let triggerLosses = 0;
+    for (const o of triggerOutcomes) {
+      if (o === "L") {
+        triggerLosses += 1;
+        lossStreak += 1;
+        maxLossStreak = Math.max(maxLossStreak, lossStreak);
+      } else {
+        triggerWins += 1;
+        lossStreak = 0;
+      }
+      lossStreakSeries.push(-lossStreak);
+    }
+    let pairWins = 0;
+    let pairLosses = 0;
+    let hasPair = false;
+    for (const slot of Object.values(stats?.pairIndication ?? {})) {
+      if (!slot) continue;
+      hasPair = true;
+      pairWins += slot.wins ?? 0;
+      pairLosses += slot.losses ?? 0;
+    }
+    if (hasPair) {
+      triggerWins = pairWins;
+      triggerLosses = pairLosses;
+    }
+    return {
+      outcomes: placarOutcomes,
+      winStreakSeries,
+      lossStreakSeries,
+      currentWinStreak: winStreak,
+      currentLossStreak: lossStreak,
+      maxWinStreak,
+      maxLossStreak,
+      totalWins: stats?.wins ?? placarOutcomes.filter((x) => x === "W").length,
+      totalLosses: stats?.losses ?? placarOutcomes.filter((x) => x === "L").length,
+      triggerWins,
+      triggerLosses
+    };
+  }
   function parseIce2fStats(raw, maxRecovery = ICE_2F_MAX_RECOVERY) {
-    return parseRotatingRoomSessionStats(raw, maxRecovery);
+    const parsed = parseRotatingRoomSessionStats(raw, maxRecovery);
+    const base = emptyIce2fPairIndicationStats();
+    const rawPairs = parsed.pairIndication ?? {};
+    for (const id of Object.keys(base)) {
+      const slot = rawPairs[id];
+      if (slot) base[id] = { wins: slot.wins, losses: slot.losses };
+    }
+    for (const [id, slot] of Object.entries(rawPairs)) {
+      if (!(id in base) && slot) base[id] = { wins: slot.wins, losses: slot.losses };
+    }
+    const outcomeHistory = Array.isArray(parsed.outcomeHistory) ? parsed.outcomeHistory.filter((x) => x === "W" || x === "L").slice(-ICE_2F_OUTCOME_HISTORY_MAX) : [];
+    const indicationOutcomeHistory = Array.isArray(parsed.indicationOutcomeHistory) ? parsed.indicationOutcomeHistory.filter((x) => x === "W" || x === "L").slice(-ICE_2F_OUTCOME_HISTORY_MAX) : [];
+    return {
+      ...parsed,
+      pairIndication: base,
+      outcomeHistory,
+      indicationOutcomeHistory
+    };
   }
   function emptyIce2fStats(maxRecovery = ICE_2F_MAX_RECOVERY) {
-    return emptyRotatingRoomSessionStats(maxRecovery);
+    return {
+      ...emptyRotatingRoomSessionStats(maxRecovery),
+      pairIndication: emptyIce2fPairIndicationStats(),
+      outcomeHistory: [],
+      indicationOutcomeHistory: []
+    };
   }
-  function formatIce2fWatchLabel(_watch, _requiredFailures = ICE_2F_REQUIRED_FAILURES) {
-    return "pos 11\xD722 \xB7 2F em comum";
+  function formatIce2fWatchLabel(watch, _requiredFailures = ICE_2F_REQUIRED_FAILURES) {
+    const parts = [];
+    for (const pair of getIce2fComparePairs()) {
+      const f = watch[pair.id]?.failures ?? 0;
+      if (pair.requiredFailures <= 0) {
+        parts.push(`${pair.positions[0]}\xD7${pair.positions[1]}`);
+      } else {
+        parts.push(
+          `${pair.positions[0]}\xD7${pair.positions[1]}:${f}/${pair.requiredFailures}`
+        );
+      }
+    }
+    return parts.join(" \xB7 ") || "2F em comum";
   }
   function ice2fWatchLabelForMachine(machine) {
     const pending = Math.max(0, Math.floor(machine.pendingRecovery ?? 0));
     const cycle = machine.cycle?.active;
     if (cycle) {
-      return `11/22 ${axisShort(cycle.axis)} \xB7 gale ${machine.cycle?.recovery ?? 0}`;
+      const pair = cycle.pairId ?? `pos${cycle.criticalPosition}/${cycle.matchPosition ?? "?"}`;
+      return `${pair} ${axisShort(cycle.axis)} \xB7 gale ${machine.cycle?.recovery ?? 0}`;
     }
-    return pending > 0 ? `aguarda 11/22 \xB7 gale ${pending}` : "aguarda 11/22 \xB7 2F em comum";
+    const watchLabel = formatIce2fWatchLabel(machine.watch ?? emptyWatch());
+    const obsCount = Object.keys(machine.pendingMatchObservations ?? {}).length;
+    const obsHint = obsCount > 0 ? ` \xB7 obs ${obsCount}` : "";
+    return pending > 0 ? `${watchLabel}${obsHint} \xB7 gale ${pending}` : `${watchLabel}${obsHint}`;
   }
 
   // extension-kto-cruzamento-2f/kto2f-strategy-entry.ts
+  configureIce2fDefaultComparePairs();
   var KTO2F_TABLE_ID = 230;
   var KTO2F_MESA_URL = "https://www.kto.bet.br/app/cassino/game/roulette-3-ppl/";
   var KTO2F_MAX_GALES = ICE_2F_MAX_RECOVERY;
   var ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS = ICE_2F_FIRST_BET_SETTLE_MS;
   var ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var BASE_STAKE = 0.5;
-  var KTO2F_POSITIONS = /* @__PURE__ */ new Set([11, 22]);
+  var KTO2F_POSITIONS = new Set(
+    getIce2fComparePairs().flatMap((p) => [...p.positions])
+  );
   var KTO2F_AXES = /* @__PURE__ */ new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
+  var KTO2F_PAIR_IDS = new Set(getIce2fComparePairs().map((p) => p.id));
+  function parsePersistedWatch(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const base = defaultIce2fMachineState().watch;
+    for (const id of KTO2F_PAIR_IDS) {
+      const slot = raw[id];
+      if (slot && typeof slot.failures === "number" && Number.isFinite(slot.failures)) {
+        base[id] = { failures: Math.max(0, Math.floor(slot.failures)) };
+      }
+    }
+    return base;
+  }
   function clampMaxRecovery(value, fallback = ICE_2F_MAX_RECOVERY) {
     const n = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(n)) return Math.max(0, Math.floor(fallback));
@@ -698,12 +1131,15 @@ var SinglestakeKto2f = (() => {
     let machine = defaultIce2fMachineState();
     if (options.initialMachine) {
       const saved = options.initialMachine;
+      const restoredWatch = parsePersistedWatch(saved.watch);
       machine = {
         ...machine,
         lastSpinHead: saved.lastSpinHead ?? null,
         nextEntryAxis: saved.nextEntryAxis && KTO2F_AXES.has(saved.nextEntryAxis) ? saved.nextEntryAxis : "cor-altura",
         lockedPosition: typeof saved.lockedPosition === "number" && KTO2F_POSITIONS.has(saved.lockedPosition) ? saved.lockedPosition : null,
-        pendingRecovery: typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery) ? Math.max(0, Math.floor(saved.pendingRecovery)) : 0
+        pendingRecovery: typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery) ? Math.max(0, Math.floor(saved.pendingRecovery)) : 0,
+        gatePairId: typeof saved.gatePairId === "string" && KTO2F_PAIR_IDS.has(saved.gatePairId) ? saved.gatePairId : machine.gatePairId,
+        ...restoredWatch ? { watch: restoredWatch } : {}
       };
     }
     let pendingRestore = options.initialMachine ?? null;
@@ -726,7 +1162,8 @@ var SinglestakeKto2f = (() => {
         recovery: tick.globalRecovery,
         machine: tick.machine,
         stats: tick.stats,
-        flash: tick.flash
+        flash: tick.flash,
+        missedBetWindow: tick.missedBetWindow === true
       };
     }
     function anchorSpinClock() {
@@ -763,17 +1200,22 @@ var SinglestakeKto2f = (() => {
         const axis = (pendingRestore.nextEntryAxis && KTO2F_AXES.has(pendingRestore.nextEntryAxis) ? pendingRestore.nextEntryAxis : null) ?? (pendingRestore.axis && KTO2F_AXES.has(pendingRestore.axis) ? pendingRestore.axis : null) ?? "cor-altura";
         const locked = typeof pendingRestore.lockedPosition === "number" && KTO2F_POSITIONS.has(pendingRestore.lockedPosition) ? pendingRestore.lockedPosition : null;
         const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
+        const restoredWatch = parsePersistedWatch(pendingRestore.watch);
+        const gatePairId = typeof pendingRestore.gatePairId === "string" && KTO2F_PAIR_IDS.has(pendingRestore.gatePairId) ? pendingRestore.gatePairId : machine.gatePairId;
         pendingRestore = null;
         machine = {
           ...machine,
           nextEntryAxis: axis,
           lockedPosition: locked,
-          pendingRecovery
+          pendingRecovery,
+          gatePairId,
+          // Preferir watch persistido (falhas) sobre só o prime do snapshot.
+          watch: restoredWatch ?? machine.watch
         };
-        if (history.length >= ICE_2F_MIN_HISTORY) {
+        if (history.length >= getIce2fSoftMinHistory()) {
           machine = tryArmCycleFromWatch(machine, history, head);
         }
-      } else if (history.length >= ICE_2F_MIN_HISTORY) {
+      } else if (history.length >= getIce2fSoftMinHistory()) {
         machine = tryArmCycleFromWatch(machine, history, head);
       }
       lastLiveSpinAt = Date.now();
@@ -784,7 +1226,8 @@ var SinglestakeKto2f = (() => {
         recovery: tick.globalRecovery,
         machine: tick.machine,
         stats: tick.stats,
-        flash: tick.flash
+        flash: tick.flash,
+        missedBetWindow: tick.missedBetWindow === true
       };
     }
     function ingestSpin(number, gameId, replay = false) {
@@ -806,23 +1249,45 @@ var SinglestakeKto2f = (() => {
     }
     function beginBetCommit() {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-      machine = { ...machine, betCommitInFlight: true };
+      machine = {
+        ...machine,
+        betCommitInFlight: true,
+        betCommitArmedHead: machine.cycle.armedHead
+      };
       return true;
     }
     function abortBetCommit() {
-      if (!machine.betCommitInFlight) return;
-      machine = { ...machine, betCommitInFlight: false };
+      if (!machine.betCommitInFlight && machine.betCommitArmedHead == null) return;
+      machine = {
+        ...machine,
+        betCommitInFlight: false,
+        betCommitArmedHead: null
+      };
     }
     function markBetPlaced() {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") {
-        machine = { ...machine, betCommitInFlight: false };
-        return;
+        machine = {
+          ...machine,
+          betCommitInFlight: false,
+          betCommitArmedHead: null
+        };
+        return false;
+      }
+      if (machine.betCommitArmedHead != null && machine.cycle.armedHead !== machine.betCommitArmedHead) {
+        machine = {
+          ...machine,
+          betCommitInFlight: false,
+          betCommitArmedHead: null
+        };
+        return false;
       }
       machine = {
         ...machine,
         betCommitInFlight: false,
+        betCommitArmedHead: null,
         cycle: { ...machine.cycle, phase: "awaiting_result", immediateBet: false }
       };
+      return true;
     }
     function buildBridgePayload(mesaEmbedUrl = KTO2F_MESA_URL) {
       if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return null;
@@ -937,6 +1402,8 @@ var SinglestakeKto2f = (() => {
     ICE_2F_RECOVERY_BET_DELAY_MS,
     ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
     ROTATING_ROOM_CROSSING_BET_DELAY_MS,
+    emptyIce2fStats,
+    buildIce2fStreakChartMetrics,
     formatIce2fWatchLabel,
     ice2fWatchLabelForMachine,
     ice2fBetDelayMs,

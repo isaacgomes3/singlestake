@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <title>stake37 Bet Nacional 2F</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 12px;
+        width: 320px;
+        font: 12px/1.4 system-ui, sans-serif;
+        background: #06120e;
+        color: #cbd5e1;
+      }
+      h1 { margin: 0 0 4px; font-size: 14px; color: #a7f3d0; }
+      .sub { margin: 0 0 10px; font-size: 10px; color: #64748b; }
+      h2 { margin: 10px 0 6px; font-size: 11px; color: #94a3b8; font-weight: 700; }
+      .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+      .mode {
+        border: 1px solid #334155;
+        background: #111827;
+        color: #94a3b8;
+        border-radius: 10px;
+        padding: 10px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+      }
+      .mode.active-demo { border-color: #3b82f6; background: #172554; color: #bfdbfe; }
+      .mode.active-real { border-color: #16a34a; background: #14532d; color: #bbf7d0; }
+      .pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+        margin-left: 6px;
+      }
+      .pill.demo { background: #1d4ed8; color: #dbeafe; }
+      .pill.real { background: #15803d; color: #dcfce7; }
+      pre {
+        margin: 0;
+        padding: 8px;
+        border-radius: 8px;
+        background: #040a08;
+        border: 1px solid #1e293b;
+        font-size: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 120px;
+        overflow: auto;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      button {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 6px;
+        padding: 5px 8px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      button:hover { background: #334155; }
+      .muted { color: #64748b; font-size: 10px; margin-top: 6px; line-height: 1.45; }
+      .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+      .stat {
+        border-radius: 10px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        padding: 10px 8px;
+        text-align: center;
+      }
+      .stat strong { display: block; font-size: 22px; color: #f8fafc; }
+      .stat small { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #94a3b8; }
+      .stat.win { border-color: #166534; background: #052e16; }
+      .stat.win strong { color: #86efac; }
+      .stat.loss { border-color: #991b1b; background: #450a0a; }
+      .stat.loss strong { color: #fca5a5; }
+      .pair-stats {
+        display: grid;
+        gap: 4px;
+        margin: 0 0 8px;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid #1e293b;
+        background: #040a08;
+      }
+      .pair-head, .pair-row {
+        display: grid;
+        grid-template-columns: 1fr 44px 44px;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+      }
+      .pair-head {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 2px;
+      }
+      .pair-id { font-weight: 700; color: #cbd5e1; }
+      .pair-ok, .pair-bad {
+        text-align: center;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .pair-ok { color: #86efac; }
+      .pair-bad { color: #fca5a5; }
+      .pair-head .pair-ok, .pair-head .pair-bad { color: #64748b; }
+      .nogale-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        cursor: pointer;
+      }
+      .nogale-row.on { border-color: #b45309; background: #1c1410; }
+      .nogale-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .nogale-copy strong { font-size: 11px; color: #e2e8f0; }
+      .nogale-copy small { font-size: 9px; color: #94a3b8; line-height: 1.35; }
+      .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider {
+        position: absolute;
+        inset: 0;
+        background: #334155;
+        border-radius: 999px;
+        transition: 0.15s;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        top: 3px;
+        background: #f8fafc;
+        border-radius: 50%;
+        transition: 0.15s;
+      }
+      .switch input:checked + .slider { background: #b45309; }
+      .switch input:checked + .slider::before { transform: translateX(18px); }
+      .field { margin-top: 8px; }
+      .field label {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+      .field input, .field select {
+        width: 100%;
+        font-size: 10px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      details summary { cursor: pointer; color: #94a3b8; font-size: 10px; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>stake37 · Bet Nacional 2F <span id="modePill" class="pill demo">DEMO</span></h1>
+    <p class="sub">2 Fatores · 3×6 · 2×4 · match imediato · opcional sem gale · mesa 225</p>
+
+    <div class="modes">
+      <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
+      <button type="button" id="modeReal" class="mode">Real</button>
+    </div>
+
+    <h2>Estratégia</h2>
+    <p id="ice2fStatus" class="muted" style="margin-top:0">A carregar…</p>
+    <div class="stat-grid">
+      <div class="stat win"><strong id="wins">0</strong><small>Vitórias</small></div>
+      <div class="stat loss"><strong id="losses">0</strong><small>Derrotas</small></div>
+    </div>
+    <h2>Gatilhos (indicações)</h2>
+    <div id="pairStats" class="pair-stats">
+      <div class="pair-head"><span></span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
+      <div class="pair-row" data-pair="3x6"><span class="pair-id">3×6</span><span class="pair-ok" id="pair-3x6-w">0</span><span class="pair-bad" id="pair-3x6-l">0</span></div>
+      <div class="pair-row" data-pair="2x4"><span class="pair-id">2×4</span><span class="pair-ok" id="pair-2x4-w">0</span><span class="pair-bad" id="pair-2x4-l">0</span></div>
+    </div>
+    <label class="nogale-row" id="noGaleRow">
+      <span class="nogale-copy">
+        <strong>Modo sem gale</strong>
+        <small>Stake única · W/L sem recuperação</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="noGaleToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
+    <label class="nogale-row" id="observeRow">
+      <span class="nogale-copy">
+        <strong>Sem clique</strong>
+        <small>Só observação — sem apostar na mesa</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="observeToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
+    <div class="row">
+      <button type="button" id="ice2fOn" class="mode" style="flex:1">Ligar</button>
+      <button type="button" id="ice2fOff" class="mode" style="flex:1">Parar</button>
+      <button type="button" id="ice2fReset">Zerar</button>
+    </div>
+
+    <h2>Testar mesa (aba activa)</h2>
+    <div class="row">
+      <button type="button" data-bet="odd" data-label="Ímpar">Ímpar</button>
+      <button type="button" data-bet="even" data-label="Par">Par</button>
+      <button type="button" data-bet="red" data-label="Vermelho">Verm.</button>
+      <button type="button" data-bet="black" data-label="Preto">Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" data-bet="low" data-label="Baixo">Baixo</button>
+      <button type="button" data-bet="high" data-label="Alto">Alto</button>
+      <button type="button" id="refresh">Actualizar</button>
+    </div>
+    <pre id="out">A carregar…</pre>
+
+    <h2>Calibrar tapete</h2>
+    <p id="calStatus" class="muted" style="margin-top:0">
+      Abra Auto Roulette no Bet Nacional num separador e aguarde carregar."row">
+      <button type="button" class="cal" data-cal="even" data-cal-label="Par">📍 Par</button>
+      <button type="button" class="cal" data-cal="odd" data-cal-label="Ímpar">📍 Ímpar</button>
+      <button type="button" class="cal" data-cal="red" data-cal-label="Vermelho">📍 Verm.</button>
+      <button type="button" class="cal" data-cal="black" data-cal-label="Preto">📍 Preto</button>
+    </div>
+    <div class="row">
+      <button type="button" class="cal" data-cal="low" data-cal-label="Baixo">📍 Baixo</button>
+      <button type="button" class="cal" data-cal="high" data-cal-label="Alto">📍 Alto</button>
+      <button type="button" class="cal" data-cal="repeat" data-cal-label="Dobrar">📍 Dobrar</button>
+    </div>
+    <div class="row">
+      <button type="button" id="calClear">Apagar calibração</button>
+    </div>
+
+    <details>
+      <summary>Configuração avançada (DGA)</summary>
+      <div class="field">
+        <label for="ice2fCasinoId">Casino ID</label>
+        <input id="ice2fCasinoId" type="text" placeholder="ppcdk00000005148" />
+      </div>
+      <div class="field">
+        <label for="maxGales">Máximo de gales</label>
+        <select id="maxGales">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6" selected>6</option>
+        </select>
+      </div>
+      <div class="row">
+        <button type="button" id="ice2fSave">Guardar</button>
+      </div>
+      <p id="bn2fConfigStatus" class="muted"></p>
+    </details>
+
+    <p class="muted" style="margin-top:10px">
+      Painel flutuante também disponível no site Bet Nacional 2F (roleta ao vivo).
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

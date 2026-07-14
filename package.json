@@ -39,6 +39,12 @@
     "extension:sportingbet3f:setup": "node scripts/setup-extension-sportingbet-3fatores.mjs",
     "extension:ice2f:build": "npx --yes esbuild extension-ice-cruzamento-2f/ice2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeIce2f --outfile=extension-ice-cruzamento-2f/ice2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
     "extension:ice2f:setup": "node scripts/setup-extension-ice-cruzamento-2f.mjs",
+    "extension:br237:build": "npx --yes esbuild extension-br237-coord/br237-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeBr237Coord --outfile=extension-br237-coord/br237-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:br237:kto2:build": "npx --yes esbuild extension-br237-kto2/kto2-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeBr237Coord --outfile=extension-br237-kto2/kto2-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "test:br237-coord": "npx --yes tsx scripts/test-br237-coord.ts",
+    "extension:bn2f:build": "npx --yes esbuild extension-betnacional-cruzamento-2f/bn2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeBn2f --outfile=extension-betnacional-cruzamento-2f/bn2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:bn2f:setup": "node scripts/setup-extension-betnacional-cruzamento-2f.mjs",
+    "test:betnacional-cruzamento-2f": "npx --yes tsx scripts/test-betnacional-cruzamento-2f.ts",
     "test:ice-3fatores": "npx --yes tsx scripts/test-ice-3fatores.ts",
     "test:ice-cruzamento-2f": "npx --yes tsx scripts/test-ice-cruzamento-2f-eco.ts",
     "extension:golde:build": "npx --yes esbuild extension-goldebet/golde-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeGoldeCruzamento --outfile=extension-goldebet/golde-cruzamento-engine.js --platform=browser --target=chrome110 --alias:@=./src",
@@ -64,7 +70,12 @@
     "db:repair-binary-extremity": "npx --yes tsx scripts/db-repair-binary-extremity.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "extension:2f:sync": "node scripts/sync-all-cruzamento-2f-from-ice.mjs",
+    "extension:golde2f:build": "npx --yes esbuild extension-goldebet-cruzamento-2f/golde2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeGolde2f --outfile=extension-goldebet-cruzamento-2f/golde2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:loto2f:build": "npx --yes esbuild extension-lotogreen-cruzamento-2f/loto2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeLoto2f --outfile=extension-lotogreen-cruzamento-2f/loto2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:reals2f:build": "npx --yes esbuild extension-reals-cruzamento-2f/reals2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeReals2f --outfile=extension-reals-cruzamento-2f/reals2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:sportingbet2f:build": "npx --yes esbuild extension-sportingbet-cruzamento-2f/sportingbet2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeSportingbet2f --outfile=extension-sportingbet-cruzamento-2f/sportingbet2f-engine.js --platform=browser --target=chrome110 --alias:@=./src"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

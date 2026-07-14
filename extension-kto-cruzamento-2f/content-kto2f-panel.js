@@ -8,11 +8,9 @@
  * Painel flutuante na KTO 2F — activar estratégia 2 Fatores · cruzamento sequencial (mesa 230).
  */
 function pageIsKto2fRoulette() {
-    const path = `${location.pathname}${location.hash}${location.search}`;
-    return (
-      /kto\.bet\.br/i.test(location.hostname) &&
-      /\/app\/cassino\/game\/(roulette-3-ppl|roleta-ao-vivo)/i.test(path)
-    );
+    if (!/kto\.bet\.br/i.test(location.hostname)) return false;
+    const path = `${location.pathname}${location.hash}${location.search}`.toLowerCase();
+    return /\/app\/cassino\/game\/(roulette-3-ppl|roleta-ao-vivo)/i.test(path) || /roulette|pragmatic|casino/i.test(path);
   }
 
   if (!pageIsKto2fRoulette()) return;
@@ -104,30 +102,43 @@ function pageIsKto2fRoulette() {
       top: 12px;
       right: 12px;
       z-index: 2147483640;
-      width: min(360px, calc(100vw - 24px));
+      width: min(420px, calc(100vw - 24px));
+      min-width: 300px;
+      min-height: 220px;
+      max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 16px);
       font: 13px/1.45 system-ui, -apple-system, sans-serif;
       color: #e2e8f0;
-      pointer-events: none;
+      resize: both;
+      overflow: auto;
+      pointer-events: auto;
     }
     #${PANEL_ID} * { box-sizing: border-box; }
     #${PANEL_ID} .ss-kto2f-card {
       pointer-events: auto;
+      height: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
       border-radius: 12px;
       border: 1px solid rgba(52, 211, 153, 0.45);
-      background: rgba(6, 18, 14, 0.94);
+      background: rgba(6, 18, 14, 0.96);
       box-shadow: 0 12px 40px rgba(0,0,0,0.45);
       overflow: hidden;
     }
     #${PANEL_ID} .ss-kto2f-head {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
       padding: 10px 12px;
       background: rgba(4, 12, 10, 0.9);
       border-bottom: 1px solid rgba(52, 211, 153, 0.2);
       cursor: grab;
       user-select: none;
+      flex-shrink: 0;
     }
+    #${PANEL_ID} .ss-kto2f-head:active { cursor: grabbing; }
     #${PANEL_ID} .ss-kto2f-title {
       font-size: 11px;
       font-weight: 800;
@@ -145,7 +156,12 @@ function pageIsKto2fRoulette() {
       cursor: pointer;
       padding: 0 4px;
     }
-    #${PANEL_ID} .ss-kto2f-body { padding: 10px 12px 12px; }
+    #${PANEL_ID} .ss-kto2f-body {
+      padding: 10px 12px 12px;
+      overflow: auto;
+      flex: 1;
+      min-height: 0;
+    }
     #${PANEL_ID} .ss-kto2f-sub {
       margin: 0 0 8px;
       font-size: 11px;
@@ -259,6 +275,166 @@ function pageIsKto2fRoulette() {
     #${PANEL_ID} .ss-kto2f-stat.win strong { color: #86efac; }
     #${PANEL_ID} .ss-kto2f-stat.loss { border-color: #991b1b; background: #450a0a; }
     #${PANEL_ID} .ss-kto2f-stat.loss strong { color: #fca5a5; }
+    #${PANEL_ID} .ss-kto2f-nogale {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0b1220;
+    }
+    #${PANEL_ID} .ss-kto2f-nogale.on {
+      border-color: #b45309;
+      background: #1c1410;
+    }
+    #${PANEL_ID} .ss-kto2f-nogale-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    #${PANEL_ID} .ss-kto2f-nogale-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    #${PANEL_ID} .ss-kto2f-nogale-hint {
+      font-size: 9px;
+      color: #94a3b8;
+      line-height: 1.35;
+    }
+    #${PANEL_ID} .ss-kto2f-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    #${PANEL_ID} .ss-kto2f-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    #${PANEL_ID} .ss-kto2f-slider {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      background: #334155;
+      border-radius: 999px;
+      transition: 0.15s;
+    }
+    #${PANEL_ID} .ss-kto2f-slider::before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      top: 3px;
+      background: #f8fafc;
+      border-radius: 50%;
+      transition: 0.15s;
+    }
+    #${PANEL_ID} .ss-kto2f-switch input:checked + .ss-kto2f-slider {
+      background: #b45309;
+    }
+    #${PANEL_ID} .ss-kto2f-switch input:checked + .ss-kto2f-slider::before {
+      transform: translateX(18px);
+    }
+    #${PANEL_ID} .ss-kto2f-chart-wrap {
+      margin: 0 0 10px;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid #1e293b;
+      background: #040a08;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-title {
+      margin: 0 0 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #0b1220;
+      font-size: 10px;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-metric span { color: #94a3b8; }
+    #${PANEL_ID} .ss-kto2f-chart-metric strong { font-variant-numeric: tabular-nums; }
+    #${PANEL_ID} .ss-kto2f-chart-metric strong.up { color: #86efac; }
+    #${PANEL_ID} .ss-kto2f-chart-metric strong.down { color: #fca5a5; }
+    #${PANEL_ID} .ss-kto2f-chart-row {
+      display: block;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-canvas-box {
+      position: relative;
+      height: 140px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #020617;
+      overflow: hidden;
+    }
+    #${PANEL_ID} .ss-kto2f-chart-canvas-box canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #${PANEL_ID} .ss-kto2f-pair-title {
+      margin: 0 0 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    #${PANEL_ID} .ss-kto2f-pairs {
+      display: grid;
+      gap: 3px;
+      margin: 0 0 10px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #040a08;
+    }
+    #${PANEL_ID} .ss-kto2f-pair-head,
+    #${PANEL_ID} .ss-kto2f-pair-row {
+      display: grid;
+      grid-template-columns: 1fr 40px 40px;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+    #${PANEL_ID} .ss-kto2f-pair-head {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    #${PANEL_ID} .ss-kto2f-pair-id { font-weight: 700; color: #cbd5e1; }
+    #${PANEL_ID} .ss-kto2f-pair-ok,
+    #${PANEL_ID} .ss-kto2f-pair-bad {
+      text-align: center;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    #${PANEL_ID} .ss-kto2f-pair-ok { color: #86efac; }
+    #${PANEL_ID} .ss-kto2f-pair-bad { color: #fca5a5; }
+    #${PANEL_ID} .ss-kto2f-pair-head .ss-kto2f-pair-ok,
+    #${PANEL_ID} .ss-kto2f-pair-head .ss-kto2f-pair-bad { color: #64748b; }
     #${PANEL_ID} .ss-kto2f-actions {
       display: flex;
       flex-wrap: wrap;
@@ -315,7 +491,7 @@ function pageIsKto2fRoulette() {
   const sub = el("p", "ss-kto2f-sub", "Roulette 3 · mesa 230 · stake 2·4·8·16·32·64");
 
   const signalBox = el("div", "ss-kto2f-signal");
-  const signalIdle = el("div", "ss-kto2f-signal-idle", "Sem sinal — aguarda pos 11×22");
+  const signalIdle = el("div", "ss-kto2f-signal-idle", "Sem sinal — aguarda pares 2F");
   const signalWatch = el("div", "ss-kto2f-watch", "");
   const signalPos = el("div", "ss-kto2f-pos", "—");
   const signalAxis = el("div", "ss-kto2f-axis", "");
@@ -340,6 +516,76 @@ function pageIsKto2fRoulette() {
   lossStat.append(lossNum, el("small", null, "Derrotas"));
   stats.append(winStat, lossStat);
 
+  const noGaleRow = el("div", "ss-kto2f-nogale");
+  const noGaleCopy = el("div", "ss-kto2f-nogale-copy");
+  noGaleCopy.append(
+    el("span", "ss-kto2f-nogale-label", "Modo sem gale"),
+    el("span", "ss-kto2f-nogale-hint", "Stake única · W/L sem recuperação"),
+  );
+  const noGaleSwitch = el("label", "ss-kto2f-switch");
+  const noGaleInput = document.createElement("input");
+  noGaleInput.type = "checkbox";
+  noGaleInput.setAttribute("aria-label", "Modo sem gale");
+  const noGaleSlider = el("span", "ss-kto2f-slider");
+  noGaleSwitch.append(noGaleInput, noGaleSlider);
+  noGaleRow.append(noGaleCopy, noGaleSwitch);
+
+  const observeRow = el("div", "ss-kto2f-nogale");
+  const observeCopy = el("div", "ss-kto2f-nogale-copy");
+  observeCopy.append(
+    el("span", "ss-kto2f-nogale-label", "Sem clique"),
+    el("span", "ss-kto2f-nogale-hint", "Só observação — sem apostar na mesa"),
+  );
+  const observeSwitch = el("label", "ss-kto2f-switch");
+  const observeInput = document.createElement("input");
+  observeInput.type = "checkbox";
+  observeInput.setAttribute("aria-label", "Sem clique");
+  const observeSlider = el("span", "ss-kto2f-slider");
+  observeSwitch.append(observeInput, observeSlider);
+  observeRow.append(observeCopy, observeSwitch);
+
+  const chartWrap = el("div", "ss-kto2f-chart-wrap");
+  chartWrap.append(el("div", "ss-kto2f-chart-title", "Run-up & Drawdown"));
+  const chartMetrics = el("div", "ss-kto2f-chart-metrics");
+  const mConsec = el("div", "ss-kto2f-chart-metric");
+  const mConsecVal = el("strong", "up", "0");
+  mConsec.append(el("span", null, "Consecutivas"), mConsecVal);
+  const mMaxUp = el("div", "ss-kto2f-chart-metric");
+  const mMaxUpVal = el("strong", "up", "0");
+  mMaxUp.append(el("span", null, "Máx. run-up"), mMaxUpVal);
+  const mDdNow = el("div", "ss-kto2f-chart-metric");
+  const mDdNowVal = el("strong", "down", "0");
+  mDdNow.append(el("span", null, "Drawdown atual"), mDdNowVal);
+  const mDdMax = el("div", "ss-kto2f-chart-metric");
+  const mDdMaxVal = el("strong", "down", "0");
+  mDdMax.append(el("span", null, "Máx. drawdown"), mDdMaxVal);
+  chartMetrics.append(mConsec, mMaxUp, mDdNow, mDdMax);
+  const chartRow = el("div", "ss-kto2f-chart-row");
+  const canvasBox = el("div", "ss-kto2f-chart-canvas-box");
+  const chartCanvas = document.createElement("canvas");
+  canvasBox.append(chartCanvas);
+  chartRow.append(canvasBox);
+  chartWrap.append(chartRow, chartMetrics);
+
+  const PAIR_IDS = [
+    ["3x6", "3×6"],
+    ["2x4", "2×4"],
+  ];
+  const pairTitle = el("div", "ss-kto2f-pair-title", "Gatilhos (indicações)");
+  const pairBoard = el("div", "ss-kto2f-pairs");
+  const pairHead = el("div", "ss-kto2f-pair-head");
+  pairHead.append(el("span"), el("span", "ss-kto2f-pair-ok", "OK"), el("span", "ss-kto2f-pair-bad", "ERR"));
+  pairBoard.append(pairHead);
+  const pairCells = {};
+  for (const [id, label] of PAIR_IDS) {
+    const row = el("div", "ss-kto2f-pair-row");
+    const okEl = el("span", "ss-kto2f-pair-ok", "0");
+    const badEl = el("span", "ss-kto2f-pair-bad", "0");
+    row.append(el("span", "ss-kto2f-pair-id", label), okEl, badEl);
+    pairBoard.append(row);
+    pairCells[id] = { ok: okEl, bad: badEl };
+  }
+
   const actions = el("div", "ss-kto2f-actions");
   const btnDemo = el("button", "ss-kto2f-btn on-demo", "Demo");
   const btnReal = el("button", "ss-kto2f-btn", "Real");
@@ -351,7 +597,7 @@ function pageIsKto2fRoulette() {
   btnReload.type = "button";
   btnReload.addEventListener("click", () => location.reload());
   actions.append(btnDemo, btnReal, btnToggle, btnReload);
-  body.append(sub, signalBox, statusEl, stats, actions);
+  body.append(sub, chartWrap, signalBox, statusEl, stats, noGaleRow, observeRow, pairTitle, pairBoard, actions);
   card.append(head, body);
   root.append(card);
 
@@ -389,6 +635,269 @@ function pageIsKto2fRoulette() {
     await refresh();
   });
 
+  noGaleInput.addEventListener("change", async () => {
+    const want = noGaleInput.checked === true;
+    noGaleInput.disabled = true;
+    statusEl.textContent = want ? "A activar modo sem gale…" : "A restaurar gales…";
+    const cfg = await send("get-kto2f-config");
+    const r = await send("set-kto2f-config", {
+      config: {
+        ...(cfg && typeof cfg === "object" ? cfg : {}),
+        noGale: want,
+        maxRecoveryPreference:
+          cfg?.maxRecoveryPreference ??
+          (cfg?.noGale ? 5 : cfg?.maxRecovery) ??
+          5,
+      },
+    });
+    if (r?.ok === false) {
+      statusEl.textContent = r.error ?? "Erro ao mudar modo sem gale";
+      noGaleInput.checked = !want;
+    }
+    noGaleInput.disabled = false;
+    await refresh();
+  });
+
+  observeInput.addEventListener("change", async () => {
+    const want = observeInput.checked === true;
+    observeInput.disabled = true;
+    statusEl.textContent = want ? "A activar só observação…" : "A reactivar cliques…";
+    const cfg = await send("get-kto2f-config");
+    const r = await send("set-kto2f-config", {
+      config: {
+        ...(cfg && typeof cfg === "object" ? cfg : {}),
+        observeOnly: want,
+      },
+    });
+    if (r?.ok === false) {
+      statusEl.textContent = r.error ?? "Erro ao mudar modo sem clique";
+      observeInput.checked = !want;
+    }
+    observeInput.disabled = false;
+    await refresh();
+  });
+
+  function buildStreakLocal(statsLike) {
+    const placar = Array.isArray(statsLike?.outcomeHistory)
+      ? statsLike.outcomeHistory.filter((x) => x === "W" || x === "L")
+      : [];
+    const trigger = Array.isArray(statsLike?.indicationOutcomeHistory)
+      ? statsLike.indicationOutcomeHistory.filter((x) => x === "W" || x === "L")
+      : placar;
+
+    const winStreakSeries = [];
+    let winStreak = 0;
+    let maxWinStreak = 0;
+    for (const o of placar) {
+      if (o === "W") {
+        winStreak += 1;
+        maxWinStreak = Math.max(maxWinStreak, winStreak);
+      } else {
+        winStreak = 0;
+      }
+      winStreakSeries.push(winStreak);
+    }
+
+    const lossStreakSeries = [];
+    let lossStreak = 0;
+    let maxLossStreak = 0;
+    for (const o of trigger) {
+      if (o === "L") {
+        lossStreak += 1;
+        maxLossStreak = Math.max(maxLossStreak, lossStreak);
+      } else {
+        lossStreak = 0;
+      }
+      lossStreakSeries.push(-lossStreak);
+    }
+
+    const pairs = statsLike?.pairIndication ?? {};
+    let pairWins = 0;
+    let pairLosses = 0;
+    let hasPair = false;
+    for (const slot of Object.values(pairs)) {
+      if (!slot) continue;
+      hasPair = true;
+      pairWins += slot.wins ?? 0;
+      pairLosses += slot.losses ?? 0;
+    }
+    return {
+      outcomes: placar,
+      winStreakSeries,
+      lossStreakSeries,
+      currentWinStreak: winStreak,
+      currentLossStreak: lossStreak,
+      maxWinStreak,
+      maxLossStreak,
+      totalWins: statsLike?.wins ?? placar.filter((x) => x === "W").length,
+      totalLosses: statsLike?.losses ?? placar.filter((x) => x === "L").length,
+      triggerWins: hasPair ? pairWins : trigger.filter((x) => x === "W").length,
+      triggerLosses: hasPair ? pairLosses : trigger.filter((x) => x === "L").length,
+    };
+  }
+
+  function drawStreakChart(metrics) {
+    const canvas = chartCanvas;
+    const box = canvasBox;
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(40, box.clientWidth || 200);
+    const h = Math.max(40, box.clientHeight || 140);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, w, h);
+
+    const wins = metrics.winStreakSeries ?? [];
+    const losses = metrics.lossStreakSeries ?? [];
+    const n = Math.max(wins.length, losses.length, 1);
+    let yMin = -1;
+    let yMax = 1;
+    for (let i = 0; i < n; i++) {
+      yMax = Math.max(yMax, wins[i] ?? 0, 1);
+      yMin = Math.min(yMin, losses[i] ?? 0, -1);
+    }
+    const padL = 22;
+    const padR = 8;
+    const padT = 8;
+    const padB = 16;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+    const yAt = (v) => padT + ((yMax - v) / (yMax - yMin || 1)) * plotH;
+    const xAt = (i) => padL + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+
+    ctx.strokeStyle = "rgba(51,65,85,0.7)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    const ticks = 5;
+    for (let t = 0; t <= ticks; t++) {
+      const v = yMin + ((yMax - yMin) * t) / ticks;
+      const y = yAt(v);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(w - padR, y);
+      ctx.stroke();
+      ctx.fillStyle = "#64748b";
+      ctx.font = "9px system-ui";
+      ctx.textAlign = "right";
+      ctx.fillText(String(Math.round(v)), padL - 4, y + 3);
+    }
+    ctx.beginPath();
+    ctx.moveTo(padL, yAt(0));
+    ctx.lineTo(w - padR, yAt(0));
+    ctx.strokeStyle = "#475569";
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    function stepLine(series, color) {
+      if (!series.length) return;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(xAt(0), yAt(series[0] ?? 0));
+      for (let i = 1; i < series.length; i++) {
+        const x = xAt(i);
+        const yPrev = yAt(series[i - 1] ?? 0);
+        const y = yAt(series[i] ?? 0);
+        ctx.lineTo(x, yPrev);
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      for (let i = 0; i < series.length; i++) {
+        ctx.beginPath();
+        ctx.arc(xAt(i), yAt(series[i] ?? 0), 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    stepLine(wins, "#4ade80");
+    stepLine(losses, "#f87171");
+  }
+
+  function renderStreakUi(st) {
+    const metrics =
+      st.streak && typeof st.streak === "object"
+        ? st.streak
+        : buildStreakLocal({
+            outcomeHistory: st.outcomeHistory,
+            indicationOutcomeHistory: st.indicationOutcomeHistory,
+            pairIndication: st.pairIndication,
+            wins: st.wins,
+            losses: st.losses,
+          });
+    mConsecVal.textContent = String(metrics.currentWinStreak ?? 0);
+    mMaxUpVal.textContent = String(metrics.maxWinStreak ?? 0);
+    mDdNowVal.textContent = String(metrics.currentLossStreak ?? 0);
+    mDdMaxVal.textContent = String(metrics.maxLossStreak ?? 0);
+    drawStreakChart(metrics);
+  }
+
+  // Drag + persist size/position
+  const LAYOUT_KEY = "ssKto2fPanelLayout";
+  function loadLayout() {
+    try {
+      const raw = localStorage.getItem(LAYOUT_KEY);
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      if (typeof o.left === "number") {
+        root.style.left = `${o.left}px`;
+        root.style.right = "auto";
+      }
+      if (typeof o.top === "number") root.style.top = `${o.top}px`;
+      if (typeof o.width === "number") root.style.width = `${o.width}px`;
+      if (typeof o.height === "number") root.style.height = `${o.height}px`;
+    } catch {
+      /* ignore */
+    }
+  }
+  function saveLayout() {
+    const rect = root.getBoundingClientRect();
+    try {
+      localStorage.setItem(
+        LAYOUT_KEY,
+        JSON.stringify({
+          left: Math.round(rect.left),
+          top: Math.round(rect.top),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  let drag = null;
+  head.addEventListener("pointerdown", (e) => {
+    if (e.target === minBtn || minBtn.contains(e.target)) return;
+    drag = {
+      dx: e.clientX - root.getBoundingClientRect().left,
+      dy: e.clientY - root.getBoundingClientRect().top,
+    };
+    head.setPointerCapture?.(e.pointerId);
+  });
+  head.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const left = Math.max(0, Math.min(window.innerWidth - 80, e.clientX - drag.dx));
+    const top = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - drag.dy));
+    root.style.left = `${left}px`;
+    root.style.top = `${top}px`;
+    root.style.right = "auto";
+  });
+  head.addEventListener("pointerup", () => {
+    if (!drag) return;
+    drag = null;
+    saveLayout();
+  });
+  let resizeSaveTimer = null;
+  window.addEventListener("mouseup", () => {
+    clearTimeout(resizeSaveTimer);
+    resizeSaveTimer = setTimeout(saveLayout, 120);
+  });
+  loadLayout();
+
   function axisLabel(short) {
     const s = String(short ?? "").toLowerCase().replace(/\s+/g, "");
     if (s === "c/a" || s === "cor-altura" || s === "cor/altura") return "Cor / Altura";
@@ -418,19 +927,36 @@ function pageIsKto2fRoulette() {
         .slice(0, posIdx)
         .replace(/\s*·\s*gale\s*\d+/gi, "")
         .trim();
-    } else if (label && !/zero na pos/i.test(label)) {
+    } else if (label && !/aguarda refer/i.test(label)) {
       indication = label.replace(/\s*·\s*gale\s*\d+/gi, "").trim();
     }
 
-    const pausePos = label.match(/zero na pos\s*(\d+)/i);
+    // Só factores da aposta (ex.: Baixo · Ímpar) — remove par/eixo (3x6 p/a, etc.).
+    indication = indication
+      .replace(/\s*[+·]\s*\d+\s*[x×]\s*\d+\b.*$/i, "")
+      .replace(/\s*[+·]\s*(c\/a|p\/a|c\/p|cor\/altura|paridade\/altura|cor\/paridade|cor-altura|altura-paridade|cor-paridade)\b.*$/i, "")
+      .trim();
+
+    const pausePos = label.match(/pos(\d+)/i);
     const axisRaw = st.axis ?? axisFromLabel?.[1] ?? null;
     return {
-      position: posFromLabel?.[1] ?? ( /pos11\/22/i.test(label) ? "11/22" : null) ?? pausePos?.[1] ?? null,
+      position: posFromLabel?.[1] ?? (/pos5\/10/i.test(label) ? "5/10" : null) ?? pausePos?.[1] ?? null,
       axis: axisRaw,
       indication,
       recovery,
-      isPause: st.waitingReference === true || /zero na pos/i.test(label),
+      isPause: st.waitingReference === true || /aguarda refer/i.test(label),
     };
+  }
+
+  function factorsOnlyLabel(raw) {
+    const text = String(raw ?? "").trim();
+    if (!text) return "";
+    const cleaned = text
+      .replace(/\s*[+·]\s*\d+\s*[x×]\s*\d+\b.*$/i, "")
+      .replace(/\s*[+·]\s*(c\/a|p\/a|c\/p|cor\/altura|paridade\/altura|cor\/paridade|cor-altura|altura-paridade|cor-paridade)\b.*$/i, "")
+      .replace(/\s*·\s*gale\s*\d+/gi, "")
+      .trim();
+    return cleaned.replace(/\s*·\s*/g, " + ").replace(/\s*\+\s*/g, " + ");
   }
 
   function renderSignalBlock(st) {
@@ -446,19 +972,17 @@ function pageIsKto2fRoulette() {
 
     if (!hasActive) {
       signalIdle.classList.remove("ss-kto2f-hidden");
-      if (st.recovery > 0 && !st.active) {
+      const noGale = st.noGale === true || st.maxRecovery === 0;
+      if (st.recovery > 0 && !st.active && !noGale) {
         signalIdle.textContent = `Sem sinal · gale ${st.recovery} pendente`;
       } else if (st.lastFlash === "win") {
         signalIdle.textContent = "Sem sinal — vitória registada";
+      } else if (st.observeOnly === true) {
+        signalIdle.textContent = "Sem sinal — sem clique (observação)";
+      } else if (noGale) {
+        signalIdle.textContent = "Sem sinal — sem gale · stake única";
       } else {
-        const inactive = st.inactiveSpins ?? 0;
-        if (inactive >= 5) {
-          signalIdle.textContent = "Sem sinal — modo 3 falhas (5+ rodadas sem aposta)";
-        } else if (inactive > 0) {
-          signalIdle.textContent = `Sem sinal — inactivo ${inactive}/5 rodadas`;
-        } else {
-          signalIdle.textContent = "Sem sinal — aguarda pos 11×22 com 2 factores em comum";
-        }
+        signalIdle.textContent = "Sem sinal — 3×6 · 2×4 · indica no match";
       }
       if (st.watchLabel) {
         signalWatch.classList.remove("ss-kto2f-hidden");
@@ -467,27 +991,20 @@ function pageIsKto2fRoulette() {
       return;
     }
 
-    signalPos.classList.remove("ss-kto2f-hidden");
     signalGale.classList.remove("ss-kto2f-hidden");
-
-    signalPos.textContent = parsed.position ? `POSIÇÃO ${parsed.position}` : "POSIÇÃO —";
-
-    if (parsed.axis) {
-      signalAxis.classList.remove("ss-kto2f-hidden");
-      signalAxis.textContent = axisLabel(parsed.axis);
-    }
 
     if (parsed.isPause) {
       signalIndication.classList.remove("ss-kto2f-hidden");
       signalIndication.textContent = "ZERO — PAUSA";
       signalGale.className = "ss-kto2f-gale wait";
       signalGale.textContent = parsed.recovery > 0 ? `GALE ${parsed.recovery} MANTIDO` : "AGUARDA REF.";
-    } else if (parsed.indication) {
-      signalIndication.classList.remove("ss-kto2f-hidden");
-      signalIndication.textContent = parsed.indication.replace(/\s*·\s*/g, " + ");
-    } else if (st.label) {
-      signalIndication.classList.remove("ss-kto2f-hidden");
-      signalIndication.textContent = st.label;
+    } else {
+      const factors =
+        factorsOnlyLabel(parsed.indication) || factorsOnlyLabel(st.label);
+      if (factors) {
+        signalIndication.classList.remove("ss-kto2f-hidden");
+        signalIndication.textContent = factors;
+      }
     }
 
     if (st.waitingBet && !parsed.isPause) {
@@ -496,12 +1013,17 @@ function pageIsKto2fRoulette() {
         st.waitRemainingSec != null
           ? `AGUARDA ${st.waitRemainingSec}s`
           : "AGUARDA JANELA";
-    } else if (parsed.recovery > 0) {
+    } else if (parsed.recovery > 0 && st.noGale !== true && st.maxRecovery !== 0) {
       signalGale.className = "ss-kto2f-gale recovery";
       signalGale.textContent = `GALE ${parsed.recovery}`;
     } else {
       signalGale.className = "ss-kto2f-gale entry";
-      signalGale.textContent = "ENTRADA";
+      signalGale.textContent =
+        st.observeOnly === true
+          ? "OBSERVAÇÃO"
+          : st.noGale === true || st.maxRecovery === 0
+            ? "STAKE ÚNICA"
+            : "ENTRADA";
     }
   }
 
@@ -522,9 +1044,9 @@ function pageIsKto2fRoulette() {
     btnReload.classList.add("ss-kto2f-hidden");
 
     const mode = data.mode === "real" ? "real" : "demo";
-    const kto2f = data.kto2fAutopilot;
-    const st = kto2f?.status ?? {};
-    const on = kto2f?.enabled === true;
+    const ice2f = data.kto2fAutopilot;
+    const st = ice2f?.status ?? {};
+    const on = ice2f?.enabled === true;
     const running = st.running === true;
     const engaged = on && (running || st.active === true || st.waitingBet === true);
 
@@ -545,10 +1067,38 @@ function pageIsKto2fRoulette() {
     winNum.textContent = String(st.wins ?? 0);
     lossNum.textContent = String(st.losses ?? 0);
 
-    renderSignalBlock(st);
+    const noGale =
+      st.noGale === true ||
+      data.kto2fConfig?.noGale === true ||
+      st.maxRecovery === 0;
+    noGaleInput.checked = noGale;
+    noGaleRow.classList.toggle("on", noGale);
+
+    const observeOnly =
+      st.observeOnly === true || data.kto2fConfig?.observeOnly === true;
+    observeInput.checked = observeOnly;
+    observeRow.classList.toggle("on", observeOnly);
+
+    sub.textContent = observeOnly
+      ? "Roulette 3 · mesa 230 · sem clique (observação)"
+      : noGale
+        ? "Roulette 3 · mesa 230 · sem gale · stake única"
+        : "Roulette 3 · mesa 230 · stake 2·4·8·16·32·64";
+
+    const pairMap = st.pairIndication && typeof st.pairIndication === "object" ? st.pairIndication : {};
+    for (const [id, cells] of Object.entries(pairCells)) {
+      const slot = pairMap[id] ?? {};
+      cells.ok.textContent = String(slot.wins ?? 0);
+      cells.bad.textContent = String(slot.losses ?? 0);
+    }
+
+    renderStreakUi(st);
+    renderSignalBlock({ ...st, noGale, observeOnly });
 
     const parts = [];
     parts.push(mode === "real" ? "Modo REAL" : "Modo DEMO");
+    if (observeOnly) parts.push("sem clique");
+    if (noGale) parts.push("sem gale");
     if (on && running) parts.push("DGA mesa 230 ligada");
     else if (on && st.active) parts.push("sinal activo");
     else if (on) parts.push("A iniciar motor…");

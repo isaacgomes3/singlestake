@@ -42,7 +42,11 @@ function clampMaxGales(value) {
   return Math.min(6, Math.max(0, n));
 }
 
-const PAIR_IDS = ["3x6"];
+const PAIR_IDS = ["3x6", "2x4"];
+const noGaleToggle = document.getElementById("noGaleToggle");
+const noGaleRow = document.getElementById("noGaleRow");
+const observeToggle = document.getElementById("observeToggle");
+const observeRow = document.getElementById("observeRow");
 
 function renderPairIndication(pairIndication) {
   const map = pairIndication && typeof pairIndication === "object" ? pairIndication : {};
@@ -55,16 +59,23 @@ function renderPairIndication(pairIndication) {
   }
 }
 
-function renderKtoAutopilot(ice2f, mode) {
+function renderKtoAutopilot(ice2f, mode, ice2fConfig) {
   const st = ice2f?.status ?? {};
   const on = ice2f?.enabled === true;
   const running = st.running === true;
   const wins = st.wins ?? 0;
   const losses = st.losses ?? 0;
+  const noGale =
+    ice2fConfig?.noGale === true || st.noGale === true || st.maxRecovery === 0;
+  const observeOnly = ice2fConfig?.observeOnly === true || st.observeOnly === true;
 
   if (winsEl) winsEl.textContent = String(wins);
   if (lossesEl) lossesEl.textContent = String(losses);
   renderPairIndication(st.pairIndication);
+  if (noGaleToggle instanceof HTMLInputElement) noGaleToggle.checked = noGale;
+  noGaleRow?.classList.toggle("on", noGale);
+  if (observeToggle instanceof HTMLInputElement) observeToggle.checked = observeOnly;
+  observeRow?.classList.toggle("on", observeOnly);
 
   ice2fOnBtn?.classList.toggle("active-real", on);
   ice2fOffBtn?.classList.toggle("active-demo", !on);
@@ -87,16 +98,20 @@ function renderKtoAutopilot(ice2f, mode) {
   }
 
   if (st.active && st.label) {
-    ice2fStatus.textContent = `Activa · ${st.label} · gale ${st.recovery ?? 0} · modo ${mode === "real" ? "REAL" : "demo"}`;
+    const stakeHint = noGale ? "sem gale" : `gale ${st.recovery ?? 0}`;
+    ice2fStatus.textContent = `Activa · ${st.label} · ${stakeHint} · modo ${mode === "real" ? "REAL" : "demo"}`;
     return;
   }
 
   if (running) {
-    const galeHint =
-      (st.recovery ?? 0) > 0 ? ` · gale pendente ${st.recovery}` : "";
+    const galeHint = noGale
+      ? " · sem gale"
+      : (st.recovery ?? 0) > 0
+        ? ` · gale pendente ${st.recovery}`
+        : "";
     const ver = st.extensionVersion ? ` · v${st.extensionVersion}` : "";
     ice2fStatus.textContent =
-      (st.reason ?? "A monitorizar gatilhos (2 factores em comum)…") + galeHint + ver;
+      (st.reason ?? "A monitorizar gatilhos 3×6 · 2×4…") + galeHint + ver;
     return;
   }
 
@@ -106,14 +121,17 @@ function renderKtoAutopilot(ice2f, mode) {
 function renderStatus(status) {
   const mode = status?.mode ?? "demo";
   setModeUi(mode);
-  renderKtoAutopilot(status?.ice2fAutopilot, mode);
+  renderKtoAutopilot(status?.ice2fAutopilot, mode, status?.ice2fConfig);
 
   const cfg = status?.ice2fConfig ?? {};
   if (ice2fCasinoId instanceof HTMLInputElement && !ice2fCasinoId.dataset.touched) {
     ice2fCasinoId.value = cfg.casinoId ?? "";
   }
   if (maxGales instanceof HTMLSelectElement) {
-    maxGales.value = String(clampMaxGales(cfg.maxRecovery ?? 6));
+    maxGales.value = String(
+      clampMaxGales(cfg.maxRecoveryPreference ?? (cfg.noGale ? 5 : cfg.maxRecovery) ?? 5),
+    );
+    maxGales.disabled = cfg.noGale === true;
   }
 
   const lines = [];
@@ -182,6 +200,34 @@ ice2fResetBtn?.addEventListener("click", async () => {
   await loadStatus();
 });
 
+noGaleToggle?.addEventListener("change", async () => {
+  const want = noGaleToggle instanceof HTMLInputElement && noGaleToggle.checked;
+  const status = await send("get-status");
+  const prev = status?.ice2fConfig ?? {};
+  await send("set-ice2f-config", {
+    config: {
+      ...prev,
+      noGale: want,
+      maxRecoveryPreference:
+        prev.maxRecoveryPreference ?? (prev.noGale ? 5 : prev.maxRecovery) ?? 5,
+    },
+  });
+  await loadStatus();
+});
+
+observeToggle?.addEventListener("change", async () => {
+  const want = observeToggle instanceof HTMLInputElement && observeToggle.checked;
+  const status = await send("get-status");
+  const prev = status?.ice2fConfig ?? {};
+  await send("set-ice2f-config", {
+    config: {
+      ...prev,
+      observeOnly: want,
+    },
+  });
+  await loadStatus();
+});
+
 document.getElementById("refresh")?.addEventListener("click", loadStatus);
 
 document.querySelectorAll("[data-bet]").forEach((btn) => {
@@ -240,9 +286,17 @@ ice2fSaveBtn?.addEventListener("click", async () => {
     ...prev,
     casinoId:
       (ice2fCasinoId instanceof HTMLInputElement ? ice2fCasinoId.value : "").trim() || prev.casinoId,
-    maxRecovery: clampMaxGales(
-      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecovery,
+    maxRecoveryPreference: clampMaxGales(
+      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecoveryPreference,
     ),
+    maxRecovery: clampMaxGales(
+      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecoveryPreference,
+    ),
+    noGale: noGaleToggle instanceof HTMLInputElement ? noGaleToggle.checked : prev.noGale === true,
+    observeOnly:
+      observeToggle instanceof HTMLInputElement
+        ? observeToggle.checked
+        : prev.observeOnly === true,
   };
   const r = await send("set-ice2f-config", { config });
   if (ice2fConfigStatus) {

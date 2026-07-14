@@ -16,18 +16,18 @@ const GOG = {
   /** 2 Fatores — entre fichas (entrada/gale 1–3). */
   CROSSING_FACTOR_CLICK_STAGGER_MS: 150,
   /** Bridge factor-1 → factor-2 (2F). */
-  ICE2F_FACTOR_BRIDGE_STAGGER_MS: 5,
+  KTO2F_FACTOR_BRIDGE_STAGGER_MS: 5,
   /** Intervalo entre fichas — gale 4 (recovery 4). */
   ICE2F_GALE4_CHIP_STAGGER_MS: 15,
   /** Intervalo entre fichas — gale 5 (recovery 5). */
   ICE2F_GALE5_CHIP_STAGGER_MS: 8,
   /** Intervalo entre cliques em Dobrar (gale). */
-  ICE2F_DOUBLE_CLICK_STAGGER_MS: 20,
+  KTO2F_DOUBLE_CLICK_STAGGER_MS: 20,
   /** Stake base real (R$) — enviado pela automação global. */
   REAL_BASE_STAKE: 50,
   /** Aguardar cliques CDP antes de fechar o separador da mesa. */
   CLOSE_MESA_DELAY_MS: 2500,
-  /** Após abrir/focar a mesa — pausa extra antes do 1.º clique de aposta. */
+  /** Após abrir/focar a mesa — pausa antes do 1.º clique de aposta. */
   MESA_FIRST_CLICK_SETTLE_MS: 6000,
 };
 
@@ -121,64 +121,40 @@ function zoneFibStepLabel(context, recovery) {
   return recovery > 0 ? `${tag} ${recovery + 1}` : "Sinal";
 }
 
-function isRepeticaoContext(context) {
-  return (
-    context?.strategy === "repeticao" ||
-    context?.rotativaTrigger === "repeticao" ||
-    (typeof context?.signalId === "string" && context.signalId.trim().startsWith("rep:"))
-  );
-}
-
 const CLICK_STAGGER_BASE_MS = 450;
 
 function isKto2fCrossingContext(context) {
   return context?.strategy === "kto2fcruzamento";
 }
 
-function isDois2FatoresCrossingContext(context) {
-  return context?.strategy === "dois2fatores" && context?.singleFactorMode !== true;
-}
+/** Unidades KTO 2F: 1 · 1 · 2 · 4 · 8 · 16 · 32 (entrada + 6 gales). */
+const KTO2F_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32];
 
-/** Unidades KTO: 1 · 1 · 2 · 4 · 8 · 16 · 32 (entrada + 6 gales). */
-const KTO_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32];
-
-function ktoStakeUnitsForRecovery(recovery) {
+function kto2fStakeUnitsForRecovery(recovery) {
   const r = Math.max(0, Math.floor(recovery));
-  return KTO_STAKE_UNITS[Math.min(r, KTO_STAKE_UNITS.length - 1)] ?? 1;
+  return KTO2F_STAKE_UNITS[Math.min(r, KTO2F_STAKE_UNITS.length - 1)] ?? 1;
 }
 
 /** Gale 3 (8 unidades) — referência de ritmo de digitação ICE 3F. */
 const KTO2F_GALE3_REFERENCE_UNITS = 8;
 
 /** Intervalo entre cliques de ficha — 2F (gale 4/5 fixos). */
-function ice2fChipClickStaggerMs(recovery) {
+function kto2fChipClickStaggerMs(recovery) {
   const r = Math.max(0, Math.floor(recovery));
   if (r >= 5) return GOG.ICE2F_GALE5_CHIP_STAGGER_MS ?? 8;
   if (r >= 4) return GOG.ICE2F_GALE4_CHIP_STAGGER_MS ?? 15;
   return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150;
 }
 
-/** Pausa entre factor-1 e factor-2 no bridge. */
-function kto2fFactorClickStaggerMs(_recovery) {
-  return GOG.ICE2F_FACTOR_BRIDGE_STAGGER_MS ?? 5;
-}
-
-/** Repetição — 3 últimas entradas Fibonacci (8/13/21 cliques): ritmo mais rápido na janela de apostas. */
 function clickStaggerMsForContext(context, recovery) {
   const r =
     typeof recovery === "number" && Number.isFinite(recovery)
       ? Math.max(0, Math.floor(recovery))
       : 0;
   if (isKto2fCrossingContext(context) && context?.singleFactorMode !== true) {
-    return ice2fChipClickStaggerMs(r);
+    return kto2fChipClickStaggerMs(r);
   }
-  if (isDois2FatoresCrossingContext(context)) {
-    if (r >= 4) return ice2fChipClickStaggerMs(r);
-    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_BASE_MS * 2;
-  }
-  if (!isRepeticaoContext(context) || r < 5) return CLICK_STAGGER_BASE_MS;
-  const mult = r >= 7 ? 4 : r >= 6 ? 3 : 2;
-  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
+  return CLICK_STAGGER_BASE_MS;
 }
 
 async function setStoredMode(mode) {
@@ -242,7 +218,7 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount: 0.5 * ktoStakeUnitsForRecovery(recovery),
+      stakeAmount: 0.5 * kto2fStakeUnitsForRecovery(recovery),
       currentRecovery: recovery,
       baseStake: 0.5,
       executionMode: data.mode ?? data.executionMode ?? null,

@@ -121,30 +121,18 @@ function zoneFibStepLabel(context, recovery) {
   return recovery > 0 ? `${tag} ${recovery + 1}` : "Sinal";
 }
 
-function isRepeticaoContext(context) {
-  return (
-    context?.strategy === "repeticao" ||
-    context?.rotativaTrigger === "repeticao" ||
-    (typeof context?.signalId === "string" && context.signalId.trim().startsWith("rep:"))
-  );
-}
-
 const CLICK_STAGGER_BASE_MS = 450;
 
 function isIce2fCrossingContext(context) {
   return context?.strategy === "ice2fcruzamento";
 }
 
-function isDois2FatoresCrossingContext(context) {
-  return context?.strategy === "dois2fatores" && context?.singleFactorMode !== true;
-}
+/** Unidades ICE 2F: 1 · 1 · 2 · 4 · 8 · 16 · 32 (entrada + 6 gales). */
+const ICE2F_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32];
 
-/** Unidades KTO: 1 · 1 · 2 · 4 · 8 · 16 · 32 (entrada + 6 gales). */
-const KTO_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32];
-
-function ktoStakeUnitsForRecovery(recovery) {
+function ice2fStakeUnitsForRecovery(recovery) {
   const r = Math.max(0, Math.floor(recovery));
-  return KTO_STAKE_UNITS[Math.min(r, KTO_STAKE_UNITS.length - 1)] ?? 1;
+  return ICE2F_STAKE_UNITS[Math.min(r, ICE2F_STAKE_UNITS.length - 1)] ?? 1;
 }
 
 /** Gale 3 (8 unidades) — referência de ritmo de digitação ICE 3F. */
@@ -158,7 +146,6 @@ function ice2fChipClickStaggerMs(recovery) {
   return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? 150;
 }
 
-/** Repetição — 3 últimas entradas Fibonacci (8/13/21 cliques): ritmo mais rápido na janela de apostas. */
 function clickStaggerMsForContext(context, recovery) {
   const r =
     typeof recovery === "number" && Number.isFinite(recovery)
@@ -167,13 +154,7 @@ function clickStaggerMsForContext(context, recovery) {
   if (isIce2fCrossingContext(context) && context?.singleFactorMode !== true) {
     return ice2fChipClickStaggerMs(r);
   }
-  if (isDois2FatoresCrossingContext(context)) {
-    if (r >= 4) return ice2fChipClickStaggerMs(r);
-    return GOG.CROSSING_FACTOR_CLICK_STAGGER_MS ?? CLICK_STAGGER_BASE_MS * 2;
-  }
-  if (!isRepeticaoContext(context) || r < 5) return CLICK_STAGGER_BASE_MS;
-  const mult = r >= 7 ? 4 : r >= 6 ? 3 : 2;
-  return Math.max(40, Math.round(CLICK_STAGGER_BASE_MS / mult));
+  return CLICK_STAGGER_BASE_MS;
 }
 
 async function setStoredMode(mode) {
@@ -237,7 +218,7 @@ function panelSignalToBridge(data) {
       factor2BetKey: null,
       singleFactorMode: true,
       signalId,
-      stakeAmount: 0.5 * ktoStakeUnitsForRecovery(recovery),
+      stakeAmount: 0.5 * ice2fStakeUnitsForRecovery(recovery),
       currentRecovery: recovery,
       baseStake: 0.5,
       executionMode: data.mode ?? data.executionMode ?? null,

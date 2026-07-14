@@ -455,29 +455,20 @@ async function handleBridgePayload(payload, sourceTabId) {
   }
 }
 
-function isDois2FatoresBridgeContext(context) {
-  return (
-    (context?.strategy === "dois2fatores" || context?.strategy === "ice2fcruzamento") &&
-    context?.singleFactorMode !== true
-  );
-}
-
 function isIce2fCrossingContext(context) {
   return context?.strategy === "ice2fcruzamento";
 }
 
-/** Pausa entre cliques do plano bridge — 3F/2F usam ritmo de cruzamento entre factores. */
+/** Pausa entre cliques do plano bridge — ritmo de cruzamento 2F entre factores. */
 function bridgeActionStaggerMs(prevAction, action, context) {
   if (
-    (isDois2FatoresBridgeContext(context) || isIce2fCrossingContext(context)) &&
-    ((prevAction?.target === "factor-1" && action?.target === "factor-2"))
+    isIce2fCrossingContext(context) &&
+    prevAction?.target === "factor-1" &&
+    action?.target === "factor-2"
   ) {
     return GOG.ICE2F_FACTOR_BRIDGE_STAGGER_MS ?? 5;
   }
-  if (
-    (isDois2FatoresBridgeContext(context) || isIce2fCrossingContext(context)) &&
-    action?.target === "repeat-bet"
-  ) {
+  if (isIce2fCrossingContext(context) && action?.target === "repeat-bet") {
     return GOG.ICE2F_DOUBLE_CLICK_STAGGER_MS ?? 20;
   }
   return CLICK_STAGGER_MS;
@@ -530,7 +521,7 @@ async function runBridgePlan(payload, sourceTabId) {
       await sleep(bridgeActionDelayMs(filtered[i - 1], filtered[i], payload.context));
     } else if (isBettingClickTarget(filtered[0]?.target)) {
       const motorSettled =
-        isDois2FatoresBridgeContext(payload.context) &&
+        isIce2fCrossingContext(payload.context) &&
         typeof payload.context?.betDelayUntilMs === "number";
       if (!motorSettled) {
         await sleep(bridgeFirstBetSettleMs(filtered[0]?.target));
@@ -577,7 +568,7 @@ async function waitForFibonacciRecoverySettle(context) {
 }
 
 async function waitForCrossingBetDelay(context) {
-  if (context?.strategy === "dois2fatores" || context?.strategy === "tres3fatores" || context?.strategy === "ice2fcruzamento") return;
+  if (context?.strategy === "ice2fcruzamento") return;
   const candidates = [context?.betDelayUntilMs, context?.postResultHoldUntilMs].filter(
     (value) => typeof value === "number" && Number.isFinite(value),
   );
@@ -1303,15 +1294,6 @@ async function selectChipOnTab(tabId, dryRun, options = {}) {
   }
 }
 
-function isKtoCrossingContext(context) {
-  return (
-    context?.strategy === "dois2fatores" &&
-    context?.singleFactorMode !== true &&
-    typeof context?.signalId === "string" &&
-    context.signalId.startsWith("kto:")
-  );
-}
-
 function stakeUnitsForContext(context, chip) {
   const recovery = recoveryFromContext(context);
 
@@ -1322,24 +1304,6 @@ function stakeUnitsForContext(context, chip) {
       typeof context?.units === "number" && Number.isFinite(context.units) && context.units > 0
         ? Math.max(1, Math.floor(context.units))
         : 1;
-    const stakeAmount =
-      typeof context?.stakeAmount === "number" && context.stakeAmount > 0
-        ? context.stakeAmount
-        : baseStake * units;
-    const rawChip = chip?.value === 50 ? DEFAULT_CHIP_VALUE : chip?.value;
-    const chipValue =
-      typeof rawChip === "number" && rawChip > 0 ? rawChip : baseStake;
-    return { stakeAmount, chipValue, units, recovery };
-  }
-
-  if (isKtoCrossingContext(context)) {
-    const baseStake =
-      typeof context?.baseStake === "number" && context.baseStake > 0 ? context.baseStake : 0.5;
-    const KTO_UNITS = [1, 1, 2, 4, 8, 16, 32];
-    const units =
-      typeof context?.units === "number" && Number.isFinite(context.units) && context.units > 0
-        ? Math.max(1, Math.floor(context.units))
-        : KTO_UNITS[Math.min(Math.max(0, recovery), KTO_UNITS.length - 1)] ?? 1;
     const stakeAmount =
       typeof context?.stakeAmount === "number" && context.stakeAmount > 0
         ? context.stakeAmount

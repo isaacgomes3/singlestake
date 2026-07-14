@@ -2,7 +2,7 @@
  * Cruzamento 2 Fatores — comparação de pares de posições (newest-first).
  *
  * **Default (ICE):** pares **independentes** (paralelo):
- * - **3×6**
+ * - **3×6**, **2×4**
  * - Cada par tem contagem de falhas própria
  * - Indica no **match** (sem exigir falhas prévias)
  * - Empate **não** conta como falha
@@ -84,6 +84,7 @@ function normalizePair(
 /** Default ICE: todos os pares indicam no primeiro match. */
 const ICE_2F_DEFAULT_COMPARE_PAIRS: readonly Ice2fComparePairConfig[] = [
   normalizePair(3, 6, 0),
+  normalizePair(2, 4, 0),
 ];
 
 const ice2fCompareConfig: { pairs: Ice2fComparePairConfig[] } = {
@@ -1053,6 +1054,8 @@ export function tickIce2fPlacar(
       );
       nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
       nextStats = recordIce2fPairIndication(nextStats, active.pairId, "win");
+      nextStats = recordIce2fIndicationOutcome(nextStats, "W");
+      nextStats = recordIce2fClosedOutcome(nextStats, "W");
       statsChanged = true;
       nextMachine = ice2fClearCycleKeepGale(
         applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
@@ -1088,6 +1091,8 @@ export function tickIce2fPlacar(
       if (nextRecovery > maxRecovery) {
         nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
         nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
+        nextStats = recordIce2fIndicationOutcome(nextStats, "L");
+        nextStats = recordIce2fClosedOutcome(nextStats, "L");
         statsChanged = true;
         nextMachine = {
           ...ice2fClearCycleKeepGale(nextMachine, 0),
@@ -1108,6 +1113,7 @@ export function tickIce2fPlacar(
       } else {
         nextStats = recordRotatingRoomSessionPartialLoss(nextStats, recovery, maxRecovery);
         nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
+        nextStats = recordIce2fIndicationOutcome(nextStats, "L");
         statsChanged = true;
         flash = {
           resultNumber,
@@ -1197,6 +1203,123 @@ function recordIce2fPairIndication(
   };
 }
 
+const ICE_2F_OUTCOME_HISTORY_MAX = 200;
+
+function recordIce2fClosedOutcome(
+  stats: RotatingRoomSessionStats,
+  kind: "W" | "L",
+): RotatingRoomSessionStats {
+  const prev = Array.isArray(stats.outcomeHistory) ? stats.outcomeHistory : [];
+  const next = [...prev, kind];
+  if (next.length > ICE_2F_OUTCOME_HISTORY_MAX) {
+    next.splice(0, next.length - ICE_2F_OUTCOME_HISTORY_MAX);
+  }
+  return { ...stats, outcomeHistory: next };
+}
+
+/** Cada indicação do gatilho (OK/ERR) — inclui derrotas durante gale. */
+function recordIce2fIndicationOutcome(
+  stats: RotatingRoomSessionStats,
+  kind: "W" | "L",
+): RotatingRoomSessionStats {
+  const prev = Array.isArray(stats.indicationOutcomeHistory)
+    ? stats.indicationOutcomeHistory
+    : [];
+  const next = [...prev, kind];
+  if (next.length > ICE_2F_OUTCOME_HISTORY_MAX) {
+    next.splice(0, next.length - ICE_2F_OUTCOME_HISTORY_MAX);
+  }
+  return { ...stats, indicationOutcomeHistory: next };
+}
+
+export type Ice2fStreakChartMetrics = {
+  outcomes: Array<"W" | "L">;
+  /** Streak de vitórias do placar (gale) após cada resultado. */
+  winStreakSeries: number[];
+  /** Streak de derrotas do gatilho (negativo) após cada indicação. */
+  lossStreakSeries: number[];
+  currentWinStreak: number;
+  currentLossStreak: number;
+  maxWinStreak: number;
+  maxLossStreak: number;
+  totalWins: number;
+  totalLosses: number;
+  /** Totais OK/ERR do gatilho (indicações). */
+  triggerWins: number;
+  triggerLosses: number;
+};
+
+export function buildIce2fStreakChartMetrics(
+  stats: RotatingRoomSessionStats | null | undefined,
+): Ice2fStreakChartMetrics {
+  const placarOutcomes = Array.isArray(stats?.outcomeHistory)
+    ? stats!.outcomeHistory.filter((x): x is "W" | "L" => x === "W" || x === "L")
+    : [];
+  // Drawdown usa sequência do gatilho (cada indicação); fallback = placar.
+  const triggerOutcomes = Array.isArray(stats?.indicationOutcomeHistory)
+    ? stats!.indicationOutcomeHistory.filter((x): x is "W" | "L" => x === "W" || x === "L")
+    : placarOutcomes;
+
+  const winStreakSeries: number[] = [];
+  let winStreak = 0;
+  let maxWinStreak = 0;
+  for (const o of placarOutcomes) {
+    if (o === "W") {
+      winStreak += 1;
+      maxWinStreak = Math.max(maxWinStreak, winStreak);
+    } else {
+      winStreak = 0;
+    }
+    winStreakSeries.push(winStreak);
+  }
+
+  const lossStreakSeries: number[] = [];
+  let lossStreak = 0;
+  let maxLossStreak = 0;
+  let triggerWins = 0;
+  let triggerLosses = 0;
+  for (const o of triggerOutcomes) {
+    if (o === "L") {
+      triggerLosses += 1;
+      lossStreak += 1;
+      maxLossStreak = Math.max(maxLossStreak, lossStreak);
+    } else {
+      triggerWins += 1;
+      lossStreak = 0;
+    }
+    lossStreakSeries.push(-lossStreak);
+  }
+
+  // Preferir contadores persistidos dos pares do gatilho se existirem.
+  let pairWins = 0;
+  let pairLosses = 0;
+  let hasPair = false;
+  for (const slot of Object.values(stats?.pairIndication ?? {})) {
+    if (!slot) continue;
+    hasPair = true;
+    pairWins += slot.wins ?? 0;
+    pairLosses += slot.losses ?? 0;
+  }
+  if (hasPair) {
+    triggerWins = pairWins;
+    triggerLosses = pairLosses;
+  }
+
+  return {
+    outcomes: placarOutcomes,
+    winStreakSeries,
+    lossStreakSeries,
+    currentWinStreak: winStreak,
+    currentLossStreak: lossStreak,
+    maxWinStreak,
+    maxLossStreak,
+    totalWins: stats?.wins ?? placarOutcomes.filter((x) => x === "W").length,
+    totalLosses: stats?.losses ?? placarOutcomes.filter((x) => x === "L").length,
+    triggerWins,
+    triggerLosses,
+  };
+}
+
 export function parseIce2fStats(
   raw: unknown,
   maxRecovery = ICE_2F_MAX_RECOVERY,
@@ -1211,13 +1334,28 @@ export function parseIce2fStats(
   for (const [id, slot] of Object.entries(rawPairs)) {
     if (!(id in base) && slot) base[id] = { wins: slot.wins, losses: slot.losses };
   }
-  return { ...parsed, pairIndication: base };
+  const outcomeHistory = Array.isArray(parsed.outcomeHistory)
+    ? parsed.outcomeHistory.filter((x): x is "W" | "L" => x === "W" || x === "L").slice(-ICE_2F_OUTCOME_HISTORY_MAX)
+    : [];
+  const indicationOutcomeHistory = Array.isArray(parsed.indicationOutcomeHistory)
+    ? parsed.indicationOutcomeHistory
+        .filter((x): x is "W" | "L" => x === "W" || x === "L")
+        .slice(-ICE_2F_OUTCOME_HISTORY_MAX)
+    : [];
+  return {
+    ...parsed,
+    pairIndication: base,
+    outcomeHistory,
+    indicationOutcomeHistory,
+  };
 }
 
 export function emptyIce2fStats(maxRecovery = ICE_2F_MAX_RECOVERY): RotatingRoomSessionStats {
   return {
     ...emptyRotatingRoomSessionStats(maxRecovery),
     pairIndication: emptyIce2fPairIndicationStats(),
+    outcomeHistory: [],
+    indicationOutcomeHistory: [],
   };
 }
 

@@ -70,6 +70,10 @@ export type RotatingRoomSessionStats = {
   repeticaoZoneKind?: FibonacciZoneKindStats;
   /** ICE 2F — acertos/erros de indicação por gatilho (`5x10`, `2x4`, …). */
   pairIndication?: Record<string, { wins: number; losses: number }>;
+  /** ICE 2F — histórico W/L de ciclos fechados (placar com gale). */
+  outcomeHistory?: Array<"W" | "L">;
+  /** ICE 2F — histórico W/L de cada indicação do gatilho (inclui perdas em gale). */
+  indicationOutcomeHistory?: Array<"W" | "L">;
 };
 
 export type UmFatorMatchTierBucket = {

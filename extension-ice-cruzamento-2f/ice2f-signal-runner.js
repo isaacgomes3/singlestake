@@ -27,6 +27,8 @@ const ICE2F_DEFAULTS = {
   casinoId: SinglestakeDgaHub?.DGA_DEFAULTS?.casinoId ?? "ppcdk00000005148",
   currency: SinglestakeDgaHub?.DGA_DEFAULTS?.currency ?? "BRL",
   maxRecovery: DEFAULT_MAX_GALES,
+  noGale: false,
+  observeOnly: false,
 };
 
 function clampMaxGales(value) {
@@ -50,10 +52,19 @@ async function readIce2fAutopilotEnabled() {
 async function readIce2fConfig() {
   const data = await chrome.storage.local.get([STORAGE_ICE2F_CONFIG]);
   const stored = data[STORAGE_ICE2F_CONFIG];
-  if (!stored || typeof stored !== "object") return { ...ICE2F_DEFAULTS };
+  if (!stored || typeof stored !== "object") {
+    return {
+      ...ICE2F_DEFAULTS,
+      maxRecoveryPreference: ICE2F_DEFAULTS.maxRecovery,
+    };
+  }
   const legacyWrong =
     stored.tableId === 237 ||
     (typeof stored.mesaUrl === "string" && stored.mesaUrl.includes("roleta-ao-vivo"));
+  const noGale = stored.noGale === true;
+  const maxRecoveryPreference = clampMaxGales(
+    stored.maxRecovery ?? ICE2F_DEFAULTS.maxRecovery,
+  );
   return {
     tableId:
       legacyWrong
@@ -76,7 +87,11 @@ async function readIce2fConfig() {
       typeof stored.currency === "string" && stored.currency.trim()
         ? stored.currency.trim()
         : ICE2F_DEFAULTS.currency,
-    maxRecovery: clampMaxGales(stored.maxRecovery ?? ICE2F_DEFAULTS.maxRecovery),
+    noGale,
+    maxRecoveryPreference,
+    /** Efectivo no motor: 0 = stake única, W/L sem recuperação. */
+    maxRecovery: noGale ? 0 : maxRecoveryPreference,
+    observeOnly: stored.observeOnly === true,
   };
 }
 
@@ -218,6 +233,7 @@ async function resetIce2fStats() {
       lossesAtRecovery: [],
       pairIndication: {
         "3x6": { wins: 0, losses: 0 },
+        "2x4": { wins: 0, losses: 0 },
       },
     };
   await persistIce2fStats(empty, cfg.maxRecovery);
@@ -238,7 +254,51 @@ async function getIce2fConfigForPopup() {
 }
 
 async function setIce2fConfigFromPopup(config) {
-  await chrome.storage.local.set({ [STORAGE_ICE2F_CONFIG]: config });
+  const data = await chrome.storage.local.get([STORAGE_ICE2F_CONFIG]);
+  const stored =
+    data[STORAGE_ICE2F_CONFIG] && typeof data[STORAGE_ICE2F_CONFIG] === "object"
+      ? data[STORAGE_ICE2F_CONFIG]
+      : {};
+  const prev = await readIce2fConfig();
+  const patch = config && typeof config === "object" ? config : {};
+  const noGale =
+    patch.noGale === true ? true : patch.noGale === false ? false : stored.noGale === true;
+  const observeOnly =
+    patch.observeOnly === true
+      ? true
+      : patch.observeOnly === false
+        ? false
+        : stored.observeOnly === true;
+
+  let maxRecoveryPreference = prev.maxRecoveryPreference ?? DEFAULT_MAX_GALES;
+  if (patch.maxRecoveryPreference != null) {
+    maxRecoveryPreference = clampMaxGales(patch.maxRecoveryPreference);
+  } else if (patch.maxRecovery != null) {
+    const requested = clampMaxGales(patch.maxRecovery);
+    // Evitar gravar 0 efectivo do modo sem gale por cima da preferência.
+    if (!(noGale && requested === 0 && (prev.maxRecoveryPreference ?? 0) > 0)) {
+      maxRecoveryPreference = requested;
+    }
+  }
+
+  const next = {
+    ...ICE2F_DEFAULTS,
+    ...stored,
+    tableId: patch.tableId ?? prev.tableId,
+    mesaUrl: patch.mesaUrl ?? prev.mesaUrl,
+    wsUrl: patch.wsUrl ?? prev.wsUrl,
+    casinoId: patch.casinoId ?? prev.casinoId,
+    currency: patch.currency ?? prev.currency,
+    maxRecovery: maxRecoveryPreference,
+    noGale,
+    observeOnly,
+  };
+  await chrome.storage.local.set({ [STORAGE_ICE2F_CONFIG]: next });
+  if (noGale) {
+    await clearIce2fMachineState();
+    await writeIce2fStatus({ recovery: 0, waitingReference: false });
+  }
+  return { ok: true, ...(await readIce2fConfig()) };
 }
 
 async function writeIce2fStatus(patch) {
@@ -354,6 +414,9 @@ async function executeBridgePayload(payload, mesaUrl) {
   if (payload.context.signalId === lastEmittedSignalId) return;
   if (!payloadMatchesEngine(payload)) return;
 
+  const cfg = await readIce2fConfig();
+  const observeOnly = cfg.observeOnly === true;
+
   const committedSignalId = payload.context.signalId;
   lastEmittedSignalId = committedSignalId;
   const cycle = liveAwaitingBetCycle();
@@ -387,12 +450,35 @@ async function executeBridgePayload(payload, mesaUrl) {
     signalId: payload.context.signalId,
     recovery,
     waitingBet: false,
+    observeOnly,
     lastError: null,
     lastBetDetail: null,
   });
 
   engine?.beginBetCommit?.();
   const commitArmedHead = cycle?.armedHead ?? null;
+
+  if (observeOnly) {
+    const confirmed = engine?.markBetPlaced?.();
+    if (confirmed === false) {
+      engine?.abortBetCommit?.();
+      if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+      await writeIce2fStatus({
+        lastError: "Observação — histórico mudou antes de confirmar",
+        waitingBet: true,
+      });
+      return;
+    }
+    const live = engine?.getState?.();
+    if (live?.machine) await persistIce2fMachineState(live.machine);
+    await writeIce2fStatus({
+      lastBetDetail: "Sem clique — só observação (aposta virtual)",
+      lastError: null,
+      observeOnly: true,
+      recovery: liveRecoveryForStatus(),
+    });
+    return;
+  }
 
   try {
     const bridgeResult = await bridgeHandler(payload, null);
@@ -806,6 +892,8 @@ async function startIce2fAutopilot(handleBridgePayload) {
     tableId: cfg.tableId,
     mesaUrl: cfg.mesaUrl,
     maxRecovery: cfg.maxRecovery,
+    noGale: cfg.noGale === true,
+    observeOnly: cfg.observeOnly === true,
     wins: saved?.stats?.wins ?? 0,
     losses: saved?.stats?.losses ?? 0,
     pairIndication: saved?.stats?.pairIndication ?? {},
@@ -866,6 +954,11 @@ async function getIce2fAutopilotStatus() {
   }
   const maxRecovery =
     live?.maxRecovery ?? statsPack?.maxRecovery ?? data[STORAGE_ICE2F_STATUS]?.maxRecovery ?? DEFAULT_MAX_GALES;
+  const cfg = await readIce2fConfig();
+  const streak =
+    globalThis.SinglestakeIce2f?.buildIce2fStreakChartMetrics?.(
+      live?.stats ?? statsPack?.stats ?? { wins, losses, outcomeHistory: [] },
+    ) ?? null;
   return {
     enabled: data[STORAGE_ICE2F_AUTOPLAY] === true,
     status: {
@@ -873,7 +966,18 @@ async function getIce2fAutopilotStatus() {
       wins,
       losses,
       pairIndication,
+      outcomeHistory:
+        live?.stats?.outcomeHistory ??
+        statsPack?.stats?.outcomeHistory ??
+        [],
+      indicationOutcomeHistory:
+        live?.stats?.indicationOutcomeHistory ??
+        statsPack?.stats?.indicationOutcomeHistory ??
+        [],
+      streak,
       maxRecovery,
+      noGale: cfg.noGale === true,
+      observeOnly: cfg.observeOnly === true,
       recovery: pendingRecovery,
       extensionVersion: chrome.runtime.getManifest().version,
     },

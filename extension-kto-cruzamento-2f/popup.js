@@ -1,17 +1,17 @@
 const out = document.getElementById("out");
 const calStatus = document.getElementById("calStatus");
-const kto2fStatus = document.getElementById("kto2fStatus");
+const ice2fStatus = document.getElementById("ice2fStatus");
 const winsEl = document.getElementById("wins");
 const lossesEl = document.getElementById("losses");
 const modeDemoBtn = document.getElementById("modeDemo");
 const modeRealBtn = document.getElementById("modeReal");
 const modePill = document.getElementById("modePill");
-const kto2fOnBtn = document.getElementById("kto2fOn");
-const kto2fOffBtn = document.getElementById("kto2fOff");
-const kto2fResetBtn = document.getElementById("kto2fReset");
-const kto2fCasinoId = document.getElementById("kto2fCasinoId");
+const ice2fOnBtn = document.getElementById("ice2fOn");
+const ice2fOffBtn = document.getElementById("ice2fOff");
+const ice2fResetBtn = document.getElementById("ice2fReset");
+const ice2fCasinoId = document.getElementById("ice2fCasinoId");
 const maxGales = document.getElementById("maxGales");
-const kto2fSaveBtn = document.getElementById("kto2fSave");
+const ice2fSaveBtn = document.getElementById("ice2fSave");
 const kto2fConfigStatus = document.getElementById("kto2fConfigStatus");
 
 function send(kind, extra = {}) {
@@ -42,70 +42,102 @@ function clampMaxGales(value) {
   return Math.min(6, Math.max(0, n));
 }
 
-function renderKtoAutopilot(kto2f, mode) {
-  const st = kto2f?.status ?? {};
-  const on = kto2f?.enabled === true;
+const PAIR_IDS = ["3x6", "2x4"];
+const noGaleToggle = document.getElementById("noGaleToggle");
+const noGaleRow = document.getElementById("noGaleRow");
+const observeToggle = document.getElementById("observeToggle");
+const observeRow = document.getElementById("observeRow");
+
+function renderPairIndication(pairIndication) {
+  const map = pairIndication && typeof pairIndication === "object" ? pairIndication : {};
+  for (const id of PAIR_IDS) {
+    const slot = map[id] ?? {};
+    const wEl = document.getElementById(`pair-${id}-w`);
+    const lEl = document.getElementById(`pair-${id}-l`);
+    if (wEl) wEl.textContent = String(slot.wins ?? 0);
+    if (lEl) lEl.textContent = String(slot.losses ?? 0);
+  }
+}
+
+function renderKtoAutopilot(ice2f, mode, kto2fConfig) {
+  const st = ice2f?.status ?? {};
+  const on = ice2f?.enabled === true;
   const running = st.running === true;
   const wins = st.wins ?? 0;
   const losses = st.losses ?? 0;
+  const noGale =
+    kto2fConfig?.noGale === true || st.noGale === true || st.maxRecovery === 0;
+  const observeOnly = kto2fConfig?.observeOnly === true || st.observeOnly === true;
 
   if (winsEl) winsEl.textContent = String(wins);
   if (lossesEl) lossesEl.textContent = String(losses);
+  renderPairIndication(st.pairIndication);
+  if (noGaleToggle instanceof HTMLInputElement) noGaleToggle.checked = noGale;
+  noGaleRow?.classList.toggle("on", noGale);
+  if (observeToggle instanceof HTMLInputElement) observeToggle.checked = observeOnly;
+  observeRow?.classList.toggle("on", observeOnly);
 
-  kto2fOnBtn?.classList.toggle("active-real", on);
-  kto2fOffBtn?.classList.toggle("active-demo", !on);
+  ice2fOnBtn?.classList.toggle("active-real", on);
+  ice2fOffBtn?.classList.toggle("active-demo", !on);
 
-  if (!kto2fStatus) return;
+  if (!ice2fStatus) return;
 
   if (!on) {
-    kto2fStatus.textContent = "Parada — clique Ligar para seguir a mesa 230 via DGA.";
+    ice2fStatus.textContent = "Parada — clique Ligar para seguir a mesa 230 via DGA.";
     return;
   }
 
   if (st.lastError) {
-    kto2fStatus.textContent = `Erro: ${st.lastError}`;
+    ice2fStatus.textContent = `Erro: ${st.lastError}`;
     return;
   }
 
   if (st.waitingBet) {
-    kto2fStatus.textContent = `Aguardando janela de aposta · ${st.label ?? "—"} (gale ${st.recovery ?? 0})`;
+    ice2fStatus.textContent = `Aguardando janela de aposta · ${st.label ?? "—"} (gale ${st.recovery ?? 0})`;
     return;
   }
 
   if (st.active && st.label) {
-    kto2fStatus.textContent = `Activa · ${st.label} · gale ${st.recovery ?? 0} · modo ${mode === "real" ? "REAL" : "demo"}`;
+    const stakeHint = noGale ? "sem gale" : `gale ${st.recovery ?? 0}`;
+    ice2fStatus.textContent = `Activa · ${st.label} · ${stakeHint} · modo ${mode === "real" ? "REAL" : "demo"}`;
     return;
   }
 
   if (running) {
-    const galeHint =
-      (st.recovery ?? 0) > 0 ? ` · gale pendente ${st.recovery}` : "";
+    const galeHint = noGale
+      ? " · sem gale"
+      : (st.recovery ?? 0) > 0
+        ? ` · gale pendente ${st.recovery}`
+        : "";
     const ver = st.extensionVersion ? ` · v${st.extensionVersion}` : "";
-    kto2fStatus.textContent =
-      (st.reason ?? "A monitorizar gatilhos (2 factores em comum)…") + galeHint + ver;
+    ice2fStatus.textContent =
+      (st.reason ?? "A monitorizar gatilhos 3×6 · 2×4…") + galeHint + ver;
     return;
   }
 
-  kto2fStatus.textContent = (st.reason ?? "A ligar DGA…") + (st.extensionVersion ? ` · v${st.extensionVersion}` : "");
+  ice2fStatus.textContent = (st.reason ?? "A ligar DGA…") + (st.extensionVersion ? ` · v${st.extensionVersion}` : "");
 }
 
 function renderStatus(status) {
   const mode = status?.mode ?? "demo";
   setModeUi(mode);
-  renderKtoAutopilot(status?.kto2fAutopilot, mode);
+  renderKtoAutopilot(status?.kto2fAutopilot, mode, status?.kto2fConfig);
 
   const cfg = status?.kto2fConfig ?? {};
-  if (kto2fCasinoId instanceof HTMLInputElement && !kto2fCasinoId.dataset.touched) {
-    kto2fCasinoId.value = cfg.casinoId ?? "";
+  if (ice2fCasinoId instanceof HTMLInputElement && !ice2fCasinoId.dataset.touched) {
+    ice2fCasinoId.value = cfg.casinoId ?? "";
   }
   if (maxGales instanceof HTMLSelectElement) {
-    maxGales.value = String(clampMaxGales(cfg.maxRecovery ?? 6));
+    maxGales.value = String(
+      clampMaxGales(cfg.maxRecoveryPreference ?? (cfg.noGale ? 5 : cfg.maxRecovery) ?? 5),
+    );
+    maxGales.disabled = cfg.noGale === true;
   }
 
   const lines = [];
   lines.push(`Modo: ${mode === "real" ? "REAL (cliques CDP)" : "DEMO (simulado)"}`);
-  lines.push(`Mesa: ${cfg.mesaUrl ?? "kto.bet.br/roulette-3-ppl"}`);
-  lines.push(`Table ID: ${cfg.tableId ?? 230}`);
+  lines.push(`Mesa: ${cfg.mesaUrl ?? "kto.bet.br/liveroulettea-pragmaticexternal"}`);
+  lines.push(`Table ID: ${cfg.tableId ?? 201}`);
   lines.push(`Extensão: v${chrome.runtime.getManifest().version}`);
 
   if (status?.lastTest) {
@@ -133,7 +165,7 @@ function renderStatus(status) {
       ? `Overlay activo — clique em ${status.calibrationArmed.label} na roleta`
       : status?.calibration?.bets
         ? "Calibração gravada para este site."
-        : "Abra a roleta KTO 2F, aguarde carregar, clique na aba e use 📍.";
+        : "Abra Roulette 3 no KTO num separador e aguarde carregar.";
   }
 }
 
@@ -153,18 +185,46 @@ modeRealBtn?.addEventListener("click", async () => {
   await loadStatus();
 });
 
-kto2fOnBtn?.addEventListener("click", async () => {
+ice2fOnBtn?.addEventListener("click", async () => {
   await send("set-kto2f-autopilot", { enabled: true });
   await loadStatus();
 });
 
-kto2fOffBtn?.addEventListener("click", async () => {
+ice2fOffBtn?.addEventListener("click", async () => {
   await send("set-kto2f-autopilot", { enabled: false });
   await loadStatus();
 });
 
-kto2fResetBtn?.addEventListener("click", async () => {
+ice2fResetBtn?.addEventListener("click", async () => {
   await send("reset-kto2f-stats");
+  await loadStatus();
+});
+
+noGaleToggle?.addEventListener("change", async () => {
+  const want = noGaleToggle instanceof HTMLInputElement && noGaleToggle.checked;
+  const status = await send("get-status");
+  const prev = status?.kto2fConfig ?? {};
+  await send("set-kto2f-config", {
+    config: {
+      ...prev,
+      noGale: want,
+      maxRecoveryPreference:
+        prev.maxRecoveryPreference ?? (prev.noGale ? 5 : prev.maxRecovery) ?? 5,
+    },
+  });
+  await loadStatus();
+});
+
+observeToggle?.addEventListener("change", async () => {
+  const want = observeToggle instanceof HTMLInputElement && observeToggle.checked;
+  const status = await send("get-status");
+  const prev = status?.kto2fConfig ?? {};
+  await send("set-kto2f-config", {
+    config: {
+      ...prev,
+      observeOnly: want,
+    },
+  });
   await loadStatus();
 });
 
@@ -184,9 +244,28 @@ document.querySelectorAll(".cal").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const betKey = btn.getAttribute("data-cal");
     const label = btn.getAttribute("data-cal-label");
+    if (calStatus) calStatus.textContent = "A activar overlay azul…";
     const r = await send("arm-calibration", { betKey, label });
-    if (calStatus) calStatus.textContent = r.detail ?? r.error ?? "Overlay activo";
-    await loadStatus();
+    const detail = r.detail ?? r.error ?? (r.ok ? "Overlay activo" : "Falha no overlay");
+    if (calStatus) {
+      calStatus.textContent = r.ok ? detail : `⚠ ${detail}`;
+      calStatus.style.color = r.ok ? "#93c5fd" : "#fca5a5";
+    }
+    // Não chamar loadStatus de imediato — ele apagava o erro/sucesso do overlay.
+    const status = await send("get-status");
+    if (out) {
+      const lines = [];
+      lines.push(`Overlay: ${r.ok ? "OK" : "FALHOU"}`);
+      lines.push(detail);
+      if (r.tabId != null) lines.push(`Aba: ${r.tabId}`);
+      if (r.frames != null) lines.push(`Frames pintados: ${r.frames}`);
+      if (r.interactive != null) lines.push(`Frames com clique: ${r.interactive}`);
+      if (Array.isArray(r.probe)) lines.push(`Probe: ${JSON.stringify(r.probe).slice(0, 400)}`);
+      if (status?.calibrationArmed) {
+        lines.push(`Armado: ${status.calibrationArmed.label}`);
+      }
+      out.textContent = lines.join("\n");
+    }
   });
 });
 
@@ -196,20 +275,28 @@ document.getElementById("calClear")?.addEventListener("click", async () => {
   await loadStatus();
 });
 
-kto2fCasinoId?.addEventListener("input", () => {
-  if (kto2fCasinoId instanceof HTMLInputElement) kto2fCasinoId.dataset.touched = "1";
+ice2fCasinoId?.addEventListener("input", () => {
+  if (ice2fCasinoId instanceof HTMLInputElement) ice2fCasinoId.dataset.touched = "1";
 });
 
-kto2fSaveBtn?.addEventListener("click", async () => {
+ice2fSaveBtn?.addEventListener("click", async () => {
   const status = await send("get-status");
   const prev = status?.kto2fConfig ?? {};
   const config = {
     ...prev,
     casinoId:
-      (kto2fCasinoId instanceof HTMLInputElement ? kto2fCasinoId.value : "").trim() || prev.casinoId,
-    maxRecovery: clampMaxGales(
-      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecovery,
+      (ice2fCasinoId instanceof HTMLInputElement ? ice2fCasinoId.value : "").trim() || prev.casinoId,
+    maxRecoveryPreference: clampMaxGales(
+      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecoveryPreference,
     ),
+    maxRecovery: clampMaxGales(
+      maxGales instanceof HTMLSelectElement ? maxGales.value : prev.maxRecoveryPreference,
+    ),
+    noGale: noGaleToggle instanceof HTMLInputElement ? noGaleToggle.checked : prev.noGale === true,
+    observeOnly:
+      observeToggle instanceof HTMLInputElement
+        ? observeToggle.checked
+        : prev.observeOnly === true,
   };
   const r = await send("set-kto2f-config", { config });
   if (kto2fConfigStatus) {

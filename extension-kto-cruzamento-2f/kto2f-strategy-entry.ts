@@ -4,16 +4,20 @@
 import { doisFatoresFactorLabel } from "../src/lib/roulette/doisFatoresStrategy";
 import { pragmaticExteriorBetKeyFromFactor } from "../src/lib/roulette/pragmaticExteriorBetMap";
 import {
+  buildIce2fStreakChartMetrics,
   canPlaceIce2fBet,
+  configureIce2fDefaultComparePairs,
   defaultIce2fMachineState,
   emptyIce2fStats,
   formatIce2fWatchLabel,
+  getIce2fComparePairs,
   ice2fWatchLabelForMachine,
   ICE_2F_BET_DELAY_MS,
   ICE_2F_FIRST_BET_SETTLE_MS,
   ICE_2F_IMMEDIATE_REBET_DELAY_MS,
   ICE_2F_MAX_RECOVERY,
   ICE_2F_MIN_HISTORY,
+  getIce2fSoftMinHistory,
   ICE_2F_RECOVERY_BET_DELAY_MS,
   ICE_2F_ROULETTE_MESA_URL,
   ICE_2F_ROULETTE_TABLE_ID,
@@ -34,6 +38,8 @@ import {
 } from "../src/lib/roulette/iceCruzamento2fStrategy";
 import type { RotatingRoomSessionStats } from "../src/lib/roulette/rotatingRoomStrategy";
 
+configureIce2fDefaultComparePairs();
+
 export const KTO2F_TABLE_ID = 230;
 export const KTO2F_MESA_URL =
   "https://www.kto.bet.br/app/cassino/game/roulette-3-ppl/";
@@ -43,8 +49,11 @@ export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
 const BASE_STAKE = 0.5;
 
-const KTO2F_POSITIONS = new Set([11, 22]);
+const KTO2F_POSITIONS = new Set(
+  getIce2fComparePairs().flatMap((p) => [...p.positions]),
+);
 const KTO2F_AXES = new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
+const KTO2F_PAIR_IDS = new Set(getIce2fComparePairs().map((p) => p.id));
 
 export type Kto2fPersistedMachine = {
   lastSpinHead?: string | null;
@@ -56,7 +65,23 @@ export type Kto2fPersistedMachine = {
   nextEntryAxis?: Ice2fCrossingAxis | null;
   lockedPosition?: number | null;
   pendingRecovery?: number;
+  gatePairId?: string | null;
+  watch?: Record<string, { failures?: number }> | null;
 };
+
+function parsePersistedWatch(
+  raw: Kto2fPersistedMachine["watch"],
+): Ice2fMachineState["watch"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const base = defaultIce2fMachineState().watch;
+  for (const id of KTO2F_PAIR_IDS) {
+    const slot = raw[id];
+    if (slot && typeof slot.failures === "number" && Number.isFinite(slot.failures)) {
+      base[id] = { failures: Math.max(0, Math.floor(slot.failures)) };
+    }
+  }
+  return base;
+}
 
 export type CreateKto2fEngineOptions = {
   maxRecovery?: number;
@@ -81,8 +106,6 @@ function pendingRecoveryFromSaved(saved: Kto2fPersistedMachine): number {
     typeof saved.recovery === "number" && Number.isFinite(saved.recovery)
       ? Math.max(0, Math.floor(saved.recovery))
       : 0;
-  // Ciclo aberto sem aposta confirmada → gale volta a pendente; awaiting_result
-  // em restart também (não temos factores persistidos fiáveis).
   if (
     saved.phase === "awaiting_bet" ||
     saved.phase === "awaiting_result" ||
@@ -99,6 +122,7 @@ export type Kto2fEngineSpinResult = {
   machine: Ice2fMachineState;
   stats: RotatingRoomSessionStats;
   flash: ReturnType<typeof tickIce2fPlacar>["flash"];
+  missedBetWindow?: boolean;
 };
 
 export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
@@ -106,6 +130,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
   let machine = defaultIce2fMachineState();
   if (options.initialMachine) {
     const saved = options.initialMachine;
+    const restoredWatch = parsePersistedWatch(saved.watch);
     machine = {
       ...machine,
       lastSpinHead: saved.lastSpinHead ?? null,
@@ -122,6 +147,11 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
         typeof saved.pendingRecovery === "number" && Number.isFinite(saved.pendingRecovery)
           ? Math.max(0, Math.floor(saved.pendingRecovery))
           : 0,
+      gatePairId:
+        typeof saved.gatePairId === "string" && KTO2F_PAIR_IDS.has(saved.gatePairId)
+          ? saved.gatePairId
+          : machine.gatePairId,
+      ...(restoredWatch ? { watch: restoredWatch } : {}),
     };
   }
   let pendingRestore: Kto2fPersistedMachine | null = options.initialMachine ?? null;
@@ -150,6 +180,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
       machine: tick.machine,
       stats: tick.stats,
       flash: tick.flash,
+      missedBetWindow: tick.missedBetWindow === true,
     };
   }
 
@@ -174,7 +205,6 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
     };
 
     if (preservedCycle?.phase === "awaiting_result") {
-      // Só mantém ciclo se a aposta já foi colocada (aguarda resultado).
       machine = {
         ...machine,
         lockedPosition: null,
@@ -201,17 +231,26 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
           ? pendingRestore.lockedPosition
           : null;
       const pendingRecovery = pendingRecoveryFromSaved(pendingRestore);
+      const restoredWatch = parsePersistedWatch(pendingRestore.watch);
+      const gatePairId =
+        typeof pendingRestore.gatePairId === "string" &&
+        KTO2F_PAIR_IDS.has(pendingRestore.gatePairId)
+          ? pendingRestore.gatePairId
+          : machine.gatePairId;
       pendingRestore = null;
       machine = {
         ...machine,
         nextEntryAxis: axis,
         lockedPosition: locked,
         pendingRecovery,
+        gatePairId,
+        // Preferir watch persistido (falhas) sobre só o prime do snapshot.
+        watch: restoredWatch ?? machine.watch,
       };
-      if (history.length >= ICE_2F_MIN_HISTORY) {
+      if (history.length >= getIce2fSoftMinHistory()) {
         machine = tryArmCycleFromWatch(machine, history, head);
       }
-    } else if (history.length >= ICE_2F_MIN_HISTORY) {
+    } else if (history.length >= getIce2fSoftMinHistory()) {
       machine = tryArmCycleFromWatch(machine, history, head);
     }
 
@@ -224,6 +263,7 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
       machine: tick.machine,
       stats: tick.stats,
       flash: tick.flash,
+      missedBetWindow: tick.missedBetWindow === true,
     };
   }
 
@@ -248,25 +288,51 @@ export function createKto2fEngine(options: CreateKto2fEngineOptions = {}) {
 
   function beginBetCommit() {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") return false;
-    machine = { ...machine, betCommitInFlight: true };
+    machine = {
+      ...machine,
+      betCommitInFlight: true,
+      betCommitArmedHead: machine.cycle.armedHead,
+    };
     return true;
   }
 
   function abortBetCommit() {
-    if (!machine.betCommitInFlight) return;
-    machine = { ...machine, betCommitInFlight: false };
+    if (!machine.betCommitInFlight && machine.betCommitArmedHead == null) return;
+    machine = {
+      ...machine,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+    };
   }
 
   function markBetPlaced() {
     if (!machine.cycle || machine.cycle.phase !== "awaiting_bet") {
-      machine = { ...machine, betCommitInFlight: false };
-      return;
+      machine = {
+        ...machine,
+        betCommitInFlight: false,
+        betCommitArmedHead: null,
+      };
+      return false;
+    }
+    // Giro novo entretanto — não confirmar aposta da janela antiga.
+    if (
+      machine.betCommitArmedHead != null &&
+      machine.cycle.armedHead !== machine.betCommitArmedHead
+    ) {
+      machine = {
+        ...machine,
+        betCommitInFlight: false,
+        betCommitArmedHead: null,
+      };
+      return false;
     }
     machine = {
       ...machine,
       betCommitInFlight: false,
+      betCommitArmedHead: null,
       cycle: { ...machine.cycle, phase: "awaiting_result", immediateBet: false },
     };
+    return true;
   }
 
   function buildBridgePayload(mesaEmbedUrl: string | null = KTO2F_MESA_URL) {
@@ -392,6 +458,8 @@ const api = {
   ICE_2F_RECOVERY_BET_DELAY_MS,
   ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
   ROTATING_ROOM_CROSSING_BET_DELAY_MS,
+  emptyIce2fStats,
+  buildIce2fStreakChartMetrics,
   formatIce2fWatchLabel,
   ice2fWatchLabelForMachine,
   ice2fBetDelayMs,

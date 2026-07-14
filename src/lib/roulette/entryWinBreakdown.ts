@@ -154,6 +154,15 @@ function parsePairIndicationStats(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+function parseOutcomeHistory(raw: unknown): Array<"W" | "L"> | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: Array<"W" | "L"> = [];
+  for (const item of raw) {
+    if (item === "W" || item === "L") out.push(item);
+  }
+  return out.length > 0 ? out.slice(-200) : undefined;
+}
+
 export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): RotatingRoomSessionStats {
   const o = (raw ?? {}) as {
     wins?: number;
@@ -165,14 +174,20 @@ export function parseRotatingRoomSessionStats(raw: unknown, maxRecovery = 5): Ro
     crossingAbsenceAxis?: unknown;
     fibonacciZoneKind?: unknown;
     pairIndication?: unknown;
+    outcomeHistory?: unknown;
+    indicationOutcomeHistory?: unknown;
   };
   const pairIndication = parsePairIndicationStats(o.pairIndication);
+  const outcomeHistory = parseOutcomeHistory(o.outcomeHistory);
+  const indicationOutcomeHistory = parseOutcomeHistory(o.indicationOutcomeHistory);
   const base = {
     wins: Number(o.wins) || 0,
     losses: Number(o.losses) || 0,
     winsAtRecovery: parseRecoveryLevelCounts(o.winsAtRecovery, maxRecovery),
     lossesAtRecovery: parseRecoveryLevelCounts(o.lossesAtRecovery, maxRecovery),
     ...(pairIndication ? { pairIndication } : {}),
+    ...(outcomeHistory ? { outcomeHistory } : {}),
+    ...(indicationOutcomeHistory ? { indicationOutcomeHistory } : {}),
   };
   const withUm =
     o.umFatorMatchTier != null

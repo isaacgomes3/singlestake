@@ -110,6 +110,44 @@
       .pair-ok { color: #86efac; }
       .pair-bad { color: #fca5a5; }
       .pair-head .pair-ok, .pair-head .pair-bad { color: #64748b; }
+      .nogale-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        cursor: pointer;
+      }
+      .nogale-row.on { border-color: #b45309; background: #1c1410; }
+      .nogale-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .nogale-copy strong { font-size: 11px; color: #e2e8f0; }
+      .nogale-copy small { font-size: 9px; color: #94a3b8; line-height: 1.35; }
+      .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider {
+        position: absolute;
+        inset: 0;
+        background: #334155;
+        border-radius: 999px;
+        transition: 0.15s;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        top: 3px;
+        background: #f8fafc;
+        border-radius: 50%;
+        transition: 0.15s;
+      }
+      .switch input:checked + .slider { background: #b45309; }
+      .switch input:checked + .slider::before { transform: translateX(18px); }
       .field { margin-top: 8px; }
       .field label {
         display: block;
@@ -133,7 +171,7 @@
   </head>
   <body>
     <h1>stake37 · ICE 2F <span id="modePill" class="pill demo">DEMO</span></h1>
-    <p class="sub">2 Fatores · 3×6 · match imediato · mesa 201</p>
+    <p class="sub">2 Fatores · 3×6 · 2×4 · match imediato · opcional sem gale · mesa 201</p>
 
     <div class="modes">
       <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
@@ -150,7 +188,28 @@
     <div id="pairStats" class="pair-stats">
       <div class="pair-head"><span></span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
       <div class="pair-row" data-pair="3x6"><span class="pair-id">3×6</span><span class="pair-ok" id="pair-3x6-w">0</span><span class="pair-bad" id="pair-3x6-l">0</span></div>
+      <div class="pair-row" data-pair="2x4"><span class="pair-id">2×4</span><span class="pair-ok" id="pair-2x4-w">0</span><span class="pair-bad" id="pair-2x4-l">0</span></div>
     </div>
+    <label class="nogale-row" id="noGaleRow">
+      <span class="nogale-copy">
+        <strong>Modo sem gale</strong>
+        <small>Stake única · W/L sem recuperação</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="noGaleToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
+    <label class="nogale-row" id="observeRow">
+      <span class="nogale-copy">
+        <strong>Sem clique</strong>
+        <small>Só observação — sem apostar na mesa</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="observeToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
     <div class="row">
       <button type="button" id="ice2fOn" class="mode" style="flex:1">Ligar</button>
       <button type="button" id="ice2fOff" class="mode" style="flex:1">Parar</button>

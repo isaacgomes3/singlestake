@@ -27,6 +27,8 @@ const KTO2F_DEFAULTS = {
   casinoId: SinglestakeDgaHub?.DGA_DEFAULTS?.casinoId ?? "ppcdk00000005148",
   currency: SinglestakeDgaHub?.DGA_DEFAULTS?.currency ?? "BRL",
   maxRecovery: DEFAULT_MAX_GALES,
+  noGale: false,
+  observeOnly: false,
 };
 
 function clampMaxGales(value) {
@@ -50,10 +52,21 @@ async function readKto2fAutopilotEnabled() {
 async function readKto2fConfig() {
   const data = await chrome.storage.local.get([STORAGE_KTO2F_CONFIG]);
   const stored = data[STORAGE_KTO2F_CONFIG];
-  if (!stored || typeof stored !== "object") return { ...KTO2F_DEFAULTS };
+  if (!stored || typeof stored !== "object") {
+    return {
+      ...KTO2F_DEFAULTS,
+      maxRecoveryPreference: KTO2F_DEFAULTS.maxRecovery,
+    };
+  }
   const legacyWrong =
-    stored.tableId === 237 ||
-    (typeof stored.mesaUrl === "string" && stored.mesaUrl.includes("roleta-ao-vivo"));
+    (typeof stored.tableId === "number" && stored.tableId !== 230) ||
+    (typeof stored.mesaUrl === "string" &&
+      stored.mesaUrl.trim() !== "" &&
+      !stored.mesaUrl.toLowerCase().includes("kto.bet.br"));
+  const noGale = stored.noGale === true;
+  const maxRecoveryPreference = clampMaxGales(
+    stored.maxRecovery ?? KTO2F_DEFAULTS.maxRecovery,
+  );
   return {
     tableId:
       legacyWrong
@@ -76,7 +89,11 @@ async function readKto2fConfig() {
       typeof stored.currency === "string" && stored.currency.trim()
         ? stored.currency.trim()
         : KTO2F_DEFAULTS.currency,
-    maxRecovery: clampMaxGales(stored.maxRecovery ?? KTO2F_DEFAULTS.maxRecovery),
+    noGale,
+    maxRecoveryPreference,
+    /** Efectivo no motor: 0 = stake única, W/L sem recuperação. */
+    maxRecovery: noGale ? 0 : maxRecoveryPreference,
+    observeOnly: stored.observeOnly === true,
   };
 }
 
@@ -102,6 +119,14 @@ async function readKto2fMachineState() {
     typeof raw.criticalPosition === "number" && Number.isFinite(raw.criticalPosition)
       ? Math.floor(raw.criticalPosition)
       : null;
+  const lockedPosition =
+    typeof raw.lockedPosition === "number" && Number.isFinite(raw.lockedPosition)
+      ? Math.floor(raw.lockedPosition)
+      : null;
+  const pendingRecovery =
+    typeof raw.pendingRecovery === "number" && Number.isFinite(raw.pendingRecovery)
+      ? Math.max(0, Math.floor(raw.pendingRecovery))
+      : 0;
   const axis =
     raw.axis === "cor-altura" ||
     raw.axis === "altura-paridade" ||
@@ -114,15 +139,15 @@ async function readKto2fMachineState() {
     raw.nextEntryAxis === "cor-paridade"
       ? raw.nextEntryAxis
       : null;
-  const lockedPosition =
-    typeof raw.lockedPosition === "number" && Number.isFinite(raw.lockedPosition)
-      ? Math.floor(raw.lockedPosition)
-      : null;
-  const pendingRecovery =
-    typeof raw.pendingRecovery === "number" && Number.isFinite(raw.pendingRecovery)
-      ? Math.max(0, Math.floor(raw.pendingRecovery))
-      : 0;
   const relaxedEntry = raw.relaxedEntry === true;
+  const gatePairId =
+    typeof raw.gatePairId === "string" && raw.gatePairId.trim()
+      ? raw.gatePairId.trim()
+      : null;
+  const watch =
+    raw.watch && typeof raw.watch === "object" && !Array.isArray(raw.watch)
+      ? raw.watch
+      : null;
   return {
     recovery,
     lastSpinHead,
@@ -133,6 +158,8 @@ async function readKto2fMachineState() {
     lockedPosition,
     pendingRecovery,
     relaxedEntry,
+    gatePairId,
+    watch,
   };
 }
 
@@ -140,22 +167,35 @@ async function persistKto2fMachineState(machine) {
   if (!machine || typeof machine !== "object") return;
   const cycle = machine.cycle;
   const cycleRecovery = cycle?.recovery;
+  const watchOut = {};
+  if (machine.watch && typeof machine.watch === "object") {
+    for (const [id, slot] of Object.entries(machine.watch)) {
+      const f = slot?.failures;
+      if (typeof f === "number" && Number.isFinite(f)) {
+        watchOut[id] = { failures: Math.max(0, Math.floor(f)) };
+      }
+    }
+  }
   await chrome.storage.local.set({
     [STORAGE_KTO2F_MACHINE]: {
       recovery:
         typeof cycleRecovery === "number" && Number.isFinite(cycleRecovery)
           ? Math.max(0, Math.floor(cycleRecovery))
-          : 0,
+          : typeof machine.pendingRecovery === "number"
+            ? Math.max(0, Math.floor(machine.pendingRecovery))
+            : 0,
       lastSpinHead:
         typeof machine.lastSpinHead === "string" ? machine.lastSpinHead : null,
       phase: cycle?.phase ?? null,
       criticalPosition: cycle?.active?.criticalPosition ?? null,
       axis: cycle?.active?.axis ?? null,
-      nextEntryAxis: machine.nextEntryAxis ?? null,
+      nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
       lockedPosition: machine.lockedPosition ?? cycle?.active?.criticalPosition ?? null,
       pendingRecovery:
         typeof machine.pendingRecovery === "number" ? machine.pendingRecovery : 0,
       relaxedEntry: cycle?.relaxedEntry === true,
+      gatePairId: typeof machine.gatePairId === "string" ? machine.gatePairId : null,
+      watch: watchOut,
       updatedAt: new Date().toISOString(),
     },
   });
@@ -177,17 +217,38 @@ async function persistKto2fStats(stats, maxRecovery) {
   await chrome.storage.local.set({
     [STORAGE_KTO2F_STATS]: { stats, maxRecovery: mr, updatedAt: new Date().toISOString() },
   });
-  await writeKto2fStatus({ wins: stats.wins ?? 0, losses: stats.losses ?? 0, maxRecovery: mr });
+  await writeKto2fStatus({
+    wins: stats.wins ?? 0,
+    losses: stats.losses ?? 0,
+    pairIndication: stats.pairIndication ?? {},
+    maxRecovery: mr,
+  });
 }
 
 async function resetKto2fStats() {
   const cfg = await readKto2fConfig();
-  const empty = { wins: 0, losses: 0, winsAtRecovery: [], lossesAtRecovery: [] };
+  const empty =
+    globalThis.SinglestakeKto2f?.emptyIce2fStats?.(cfg.maxRecovery) ?? {
+      wins: 0,
+      losses: 0,
+      winsAtRecovery: [],
+      lossesAtRecovery: [],
+      pairIndication: {
+        "3x6": { wins: 0, losses: 0 },
+        "2x4": { wins: 0, losses: 0 },
+      },
+    };
   await persistKto2fStats(empty, cfg.maxRecovery);
   await clearKto2fMachineState();
   if (engine?.resetStats) engine.resetStats();
   if (engine?.reset) engine.reset();
-  return { ok: true, wins: 0, losses: 0, maxRecovery: cfg.maxRecovery };
+  return {
+    ok: true,
+    wins: 0,
+    losses: 0,
+    pairIndication: empty.pairIndication ?? {},
+    maxRecovery: cfg.maxRecovery,
+  };
 }
 
 async function getKto2fConfigForPopup() {
@@ -195,7 +256,51 @@ async function getKto2fConfigForPopup() {
 }
 
 async function setKto2fConfigFromPopup(config) {
-  await chrome.storage.local.set({ [STORAGE_KTO2F_CONFIG]: config });
+  const data = await chrome.storage.local.get([STORAGE_KTO2F_CONFIG]);
+  const stored =
+    data[STORAGE_KTO2F_CONFIG] && typeof data[STORAGE_KTO2F_CONFIG] === "object"
+      ? data[STORAGE_KTO2F_CONFIG]
+      : {};
+  const prev = await readKto2fConfig();
+  const patch = config && typeof config === "object" ? config : {};
+  const noGale =
+    patch.noGale === true ? true : patch.noGale === false ? false : stored.noGale === true;
+  const observeOnly =
+    patch.observeOnly === true
+      ? true
+      : patch.observeOnly === false
+        ? false
+        : stored.observeOnly === true;
+
+  let maxRecoveryPreference = prev.maxRecoveryPreference ?? DEFAULT_MAX_GALES;
+  if (patch.maxRecoveryPreference != null) {
+    maxRecoveryPreference = clampMaxGales(patch.maxRecoveryPreference);
+  } else if (patch.maxRecovery != null) {
+    const requested = clampMaxGales(patch.maxRecovery);
+    // Evitar gravar 0 efectivo do modo sem gale por cima da preferência.
+    if (!(noGale && requested === 0 && (prev.maxRecoveryPreference ?? 0) > 0)) {
+      maxRecoveryPreference = requested;
+    }
+  }
+
+  const next = {
+    ...KTO2F_DEFAULTS,
+    ...stored,
+    tableId: patch.tableId ?? prev.tableId,
+    mesaUrl: patch.mesaUrl ?? prev.mesaUrl,
+    wsUrl: patch.wsUrl ?? prev.wsUrl,
+    casinoId: patch.casinoId ?? prev.casinoId,
+    currency: patch.currency ?? prev.currency,
+    maxRecovery: maxRecoveryPreference,
+    noGale,
+    observeOnly,
+  };
+  await chrome.storage.local.set({ [STORAGE_KTO2F_CONFIG]: next });
+  if (noGale) {
+    await clearKto2fMachineState();
+    await writeKto2fStatus({ recovery: 0, waitingReference: false });
+  }
+  return { ok: true, ...(await readKto2fConfig()) };
 }
 
 async function writeKto2fStatus(patch) {
@@ -235,7 +340,12 @@ function formatActiveLabel(active, recovery) {
           ? "c/p"
           : (active.axis ?? "");
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
-  return `${f1} · ${f2}${gale} · pos11/22 ${axis}`.trim();
+  const pair =
+    active?.pairId ??
+    (active?.criticalPosition != null && active?.matchPosition != null
+      ? `${active.criticalPosition}x${active.matchPosition}`
+      : "pos?");
+  return `${f1} · ${f2}${gale} · ${pair} ${axis}`.trim();
 }
 
 function axisFromActive(active) {
@@ -272,7 +382,7 @@ function referencePauseLabel(cycle) {
   const pos = cycle?.active?.criticalPosition ?? "?";
   const recovery = cycle?.recovery ?? 0;
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
-  return `Zero na pos${pos}${gale} — aguarda próxima rodada`;
+  return `Aguarda referência na pos${pos}${gale}`;
 }
 
 function liveAwaitingBetCycle() {
@@ -306,6 +416,9 @@ async function executeBridgePayload(payload, mesaUrl) {
   if (payload.context.signalId === lastEmittedSignalId) return;
   if (!payloadMatchesEngine(payload)) return;
 
+  const cfg = await readKto2fConfig();
+  const observeOnly = cfg.observeOnly === true;
+
   const committedSignalId = payload.context.signalId;
   lastEmittedSignalId = committedSignalId;
   const cycle = liveAwaitingBetCycle();
@@ -315,7 +428,12 @@ async function executeBridgePayload(payload, mesaUrl) {
     payload.context.factor1Label && payload.context.factor2Label
       ? `${payload.context.factor1Label} · ${payload.context.factor2Label}${
           recovery > 0 ? ` · gale ${recovery}` : ""
-        } · pos11/22 ${
+        } · ${
+          active?.pairId ??
+          (active?.criticalPosition != null
+            ? `pos${active.criticalPosition}/${active.matchPosition ?? "?"}`
+            : "?")
+        } ${
           active?.axis === "cor-altura"
             ? "c/a"
             : active?.axis === "altura-paridade"
@@ -334,11 +452,35 @@ async function executeBridgePayload(payload, mesaUrl) {
     signalId: payload.context.signalId,
     recovery,
     waitingBet: false,
+    observeOnly,
     lastError: null,
     lastBetDetail: null,
   });
 
   engine?.beginBetCommit?.();
+  const commitArmedHead = cycle?.armedHead ?? null;
+
+  if (observeOnly) {
+    const confirmed = engine?.markBetPlaced?.();
+    if (confirmed === false) {
+      engine?.abortBetCommit?.();
+      if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+      await writeKto2fStatus({
+        lastError: "Observação — histórico mudou antes de confirmar",
+        waitingBet: true,
+      });
+      return;
+    }
+    const live = engine?.getState?.();
+    if (live?.machine) await persistKto2fMachineState(live.machine);
+    await writeKto2fStatus({
+      lastBetDetail: "Sem clique — só observação (aposta virtual)",
+      lastError: null,
+      observeOnly: true,
+      recovery: liveRecoveryForStatus(),
+    });
+    return;
+  }
 
   try {
     const bridgeResult = await bridgeHandler(payload, null);
@@ -348,13 +490,29 @@ async function executeBridgePayload(payload, mesaUrl) {
       if (
         !liveCycle ||
         liveCycle.phase !== "awaiting_bet" ||
-        (liveCycle.recovery ?? 0) !== recovery
+        (liveCycle.recovery ?? 0) !== recovery ||
+        (commitArmedHead != null && liveCycle.armedHead !== commitArmedHead)
       ) {
         engine?.abortBetCommit?.();
         if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+        await writeKto2fStatus({
+          lastError: "Janela de aposta expirou — giro novo antes dos cliques confirmados",
+          lastBetDetail: detail || null,
+          waitingBet: true,
+        });
         return;
       }
-      engine.markBetPlaced();
+      const confirmed = engine.markBetPlaced();
+      if (confirmed === false) {
+        engine?.abortBetCommit?.();
+        if (lastEmittedSignalId === committedSignalId) lastEmittedSignalId = null;
+        await writeKto2fStatus({
+          lastError: "Aposta não confirmada — histórico mudou durante os cliques",
+          lastBetDetail: detail || null,
+          waitingBet: true,
+        });
+        return;
+      }
       const live = engine.getState?.();
       if (live?.machine) await persistKto2fMachineState(live.machine);
       await writeKto2fStatus({
@@ -371,7 +529,6 @@ async function executeBridgePayload(payload, mesaUrl) {
         lastError: errDetail,
         lastBetDetail: detail || null,
       });
-      if (!liveAwaitingBetCycle()) return;
       const cfg = await readKto2fConfig();
       const retry = engine.runTick();
       const waitMs = Math.max(BET_RETRY_MS, betDelayRemainingMs(retry));
@@ -433,7 +590,7 @@ async function syncReferencePauseStatus(result, cfg) {
     waitingReference: true,
     lastError: null,
     lastBetDetail: null,
-    reason: `Gale ${cycle?.recovery ?? 0} mantido — zero na posição crítica`,
+    reason: `Gale ${cycle?.recovery ?? 0} mantido — aguarda referência na posição crítica`,
   });
   return true;
 }
@@ -537,6 +694,24 @@ async function processEngineResult(result, mesaUrl, cfg) {
     await persistKto2fStats(result.stats, cfg.maxRecovery);
   }
 
+  if (result.missedBetWindow) {
+    lastEmittedSignalId = null;
+    engine.abortBetCommit?.();
+    clearPendingBetTimers();
+    const cycle = cycleFromResult(result);
+    await writeKto2fStatus({
+      active: true,
+      tableId: cfg.tableId,
+      label: formatActiveLabel(cycle?.active ?? result.active, cycle?.recovery ?? result.recovery ?? 0),
+      axis: axisFromActive(cycle?.active ?? result.active),
+      recovery: cycle?.recovery ?? result.recovery ?? 0,
+      waitingBet: true,
+      waitingReference: false,
+      lastError: "Giro novo antes da aposta — não contou; a tentar de novo",
+      reason: "Janela de aposta perdida (sem cliques confirmados)",
+    });
+  }
+
   if (isAwaitingReference(cycleFromResult(result)) && !result.flash) {
     await syncReferencePauseStatus(result, cfg);
   }
@@ -560,27 +735,21 @@ async function processEngineResult(result, mesaUrl, cfg) {
     const idleReason = cycleClosed
       ? flashKind === "tie"
         ? idleRecovery > 0
-          ? `Empate — gale ${idleRecovery} mantido · aguarda novo gatilho`
-          : "Empate — aguarda novo gatilho (4 falhas cruzamento)"
+          ? `Empate — indicação única fechada · insiste no gatilho · gale ${idleRecovery}`
+          : "Empate — indicação única fechada · insiste no gatilho"
         : flashKind === "loss"
           ? idleRecovery > 0
             ? `Aguarda novo gatilho · próxima entrada gale ${idleRecovery}`
             : idleRecovery === 0 && (result.stats?.losses ?? 0) > 0
               ? "Derrota final — aguarda novo gatilho"
-              : "Aguarda novo gatilho (4 falhas cruzamento)"
+              : "Aguarda novo gatilho"
           : flashKind === "win"
             ? "Vitória — aguarda novo gatilho"
             : idleRecovery > 0
               ? `Aguarda novo gatilho · próxima entrada gale ${idleRecovery}`
-              : "Aguarda novo gatilho (4 falhas cruzamento)"
+              : "Aguarda novo gatilho"
       : isAwaitingReference(pausedCycle)
-        ? flashKind === "tie"
-          ? `Empate (${result.flash.resultNumber}) — gale ${pausedCycle.recovery ?? 0} mantido · zero na pos${pausedCycle.active?.criticalPosition ?? "?"}`
-          : flashKind === "win"
-            ? `Vitória parcial — gale ${pausedCycle.recovery ?? 0} · zero na pos${pausedCycle.active?.criticalPosition ?? "?"}`
-            : flashKind === "zero"
-              ? `Zero na indicação — gale ${pausedCycle.recovery ?? 0} mantido · recup. ${result.machine?.zeroRecoveredUnits ?? 0}/${result.machine?.zeroDebtUnits ?? 0}u · +${result.machine?.zeroShift ?? 0}×`
-              : `Gale ${pausedCycle.recovery ?? 0} mantido — zero na posição crítica`
+        ? `Aguarda referência na pos${pausedCycle.active?.criticalPosition ?? "?"} · gale ${pausedCycle.recovery ?? 0}`
         : null;
     await writeKto2fStatus({
       lastFlash: flashKind,
@@ -725,8 +894,11 @@ async function startKto2fAutopilot(handleBridgePayload) {
     tableId: cfg.tableId,
     mesaUrl: cfg.mesaUrl,
     maxRecovery: cfg.maxRecovery,
+    noGale: cfg.noGale === true,
+    observeOnly: cfg.observeOnly === true,
     wins: saved?.stats?.wins ?? 0,
     losses: saved?.stats?.losses ?? 0,
+    pairIndication: saved?.stats?.pairIndication ?? {},
   });
 }
 
@@ -762,6 +934,11 @@ async function getKto2fAutopilotStatus() {
   const live = engine?.getState?.();
   const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_KTO2F_STATUS]?.wins ?? 0;
   const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_KTO2F_STATUS]?.losses ?? 0;
+  const pairIndication =
+    live?.stats?.pairIndication ??
+    statsPack?.stats?.pairIndication ??
+    data[STORAGE_KTO2F_STATUS]?.pairIndication ??
+    {};
   const stored = data[STORAGE_KTO2F_STATUS] ?? {};
   const liveCycle = live?.machine?.cycle ?? null;
   let pendingRecovery = liveCycle?.recovery ?? 0;
@@ -779,13 +956,30 @@ async function getKto2fAutopilotStatus() {
   }
   const maxRecovery =
     live?.maxRecovery ?? statsPack?.maxRecovery ?? data[STORAGE_KTO2F_STATUS]?.maxRecovery ?? DEFAULT_MAX_GALES;
+  const cfg = await readKto2fConfig();
+  const streak =
+    globalThis.SinglestakeKto2f?.buildIce2fStreakChartMetrics?.(
+      live?.stats ?? statsPack?.stats ?? { wins, losses, outcomeHistory: [] },
+    ) ?? null;
   return {
     enabled: data[STORAGE_KTO2F_AUTOPLAY] === true,
     status: {
       ...(data[STORAGE_KTO2F_STATUS] ?? { running: false }),
       wins,
       losses,
+      pairIndication,
+      outcomeHistory:
+        live?.stats?.outcomeHistory ??
+        statsPack?.stats?.outcomeHistory ??
+        [],
+      indicationOutcomeHistory:
+        live?.stats?.indicationOutcomeHistory ??
+        statsPack?.stats?.indicationOutcomeHistory ??
+        [],
+      streak,
       maxRecovery,
+      noGale: cfg.noGale === true,
+      observeOnly: cfg.observeOnly === true,
       recovery: pendingRecovery,
       extensionVersion: chrome.runtime.getManifest().version,
     },

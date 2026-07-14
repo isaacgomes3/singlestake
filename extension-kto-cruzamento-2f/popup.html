@@ -78,6 +78,76 @@
       .stat.win strong { color: #86efac; }
       .stat.loss { border-color: #991b1b; background: #450a0a; }
       .stat.loss strong { color: #fca5a5; }
+      .pair-stats {
+        display: grid;
+        gap: 4px;
+        margin: 0 0 8px;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid #1e293b;
+        background: #040a08;
+      }
+      .pair-head, .pair-row {
+        display: grid;
+        grid-template-columns: 1fr 44px 44px;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+      }
+      .pair-head {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 2px;
+      }
+      .pair-id { font-weight: 700; color: #cbd5e1; }
+      .pair-ok, .pair-bad {
+        text-align: center;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .pair-ok { color: #86efac; }
+      .pair-bad { color: #fca5a5; }
+      .pair-head .pair-ok, .pair-head .pair-bad { color: #64748b; }
+      .nogale-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        cursor: pointer;
+      }
+      .nogale-row.on { border-color: #b45309; background: #1c1410; }
+      .nogale-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .nogale-copy strong { font-size: 11px; color: #e2e8f0; }
+      .nogale-copy small { font-size: 9px; color: #94a3b8; line-height: 1.35; }
+      .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider {
+        position: absolute;
+        inset: 0;
+        background: #334155;
+        border-radius: 999px;
+        transition: 0.15s;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        top: 3px;
+        background: #f8fafc;
+        border-radius: 50%;
+        transition: 0.15s;
+      }
+      .switch input:checked + .slider { background: #b45309; }
+      .switch input:checked + .slider::before { transform: translateX(18px); }
       .field { margin-top: 8px; }
       .field label {
         display: block;
@@ -101,7 +171,7 @@
   </head>
   <body>
     <h1>stake37 · KTO 2F <span id="modePill" class="pill demo">DEMO</span></h1>
-    <p class="sub">2 Fatores · pos 11×22 · c/a · p/a · c/p · mesa 230</p>
+    <p class="sub">2 Fatores · 3×6 · 2×4 · match imediato · opcional sem gale · mesa 230</p>
 
     <div class="modes">
       <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
@@ -109,15 +179,41 @@
     </div>
 
     <h2>Estratégia</h2>
-    <p id="kto2fStatus" class="muted" style="margin-top:0">A carregar…</p>
+    <p id="ice2fStatus" class="muted" style="margin-top:0">A carregar…</p>
     <div class="stat-grid">
       <div class="stat win"><strong id="wins">0</strong><small>Vitórias</small></div>
       <div class="stat loss"><strong id="losses">0</strong><small>Derrotas</small></div>
     </div>
+    <h2>Gatilhos (indicações)</h2>
+    <div id="pairStats" class="pair-stats">
+      <div class="pair-head"><span></span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
+      <div class="pair-row" data-pair="3x6"><span class="pair-id">3×6</span><span class="pair-ok" id="pair-3x6-w">0</span><span class="pair-bad" id="pair-3x6-l">0</span></div>
+      <div class="pair-row" data-pair="2x4"><span class="pair-id">2×4</span><span class="pair-ok" id="pair-2x4-w">0</span><span class="pair-bad" id="pair-2x4-l">0</span></div>
+    </div>
+    <label class="nogale-row" id="noGaleRow">
+      <span class="nogale-copy">
+        <strong>Modo sem gale</strong>
+        <small>Stake única · W/L sem recuperação</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="noGaleToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
+    <label class="nogale-row" id="observeRow">
+      <span class="nogale-copy">
+        <strong>Sem clique</strong>
+        <small>Só observação — sem apostar na mesa</small>
+      </span>
+      <span class="switch">
+        <input type="checkbox" id="observeToggle" />
+        <span class="slider"></span>
+      </span>
+    </label>
     <div class="row">
-      <button type="button" id="kto2fOn" class="mode" style="flex:1">Ligar</button>
-      <button type="button" id="kto2fOff" class="mode" style="flex:1">Parar</button>
-      <button type="button" id="kto2fReset">Zerar</button>
+      <button type="button" id="ice2fOn" class="mode" style="flex:1">Ligar</button>
+      <button type="button" id="ice2fOff" class="mode" style="flex:1">Parar</button>
+      <button type="button" id="ice2fReset">Zerar</button>
     </div>
 
     <h2>Testar mesa (aba activa)</h2>
@@ -136,9 +232,7 @@
 
     <h2>Calibrar tapete</h2>
     <p id="calStatus" class="muted" style="margin-top:0">
-      Abra a roleta KTO 2F, aguarde carregar, clique na aba e use 📍.
-    </p>
-    <div class="row">
+      Abra Roulette 3 no KTO num separador e aguarde carregar."row">
       <button type="button" class="cal" data-cal="even" data-cal-label="Par">📍 Par</button>
       <button type="button" class="cal" data-cal="odd" data-cal-label="Ímpar">📍 Ímpar</button>
       <button type="button" class="cal" data-cal="red" data-cal-label="Vermelho">📍 Verm.</button>
@@ -156,8 +250,8 @@
     <details>
       <summary>Configuração avançada (DGA)</summary>
       <div class="field">
-        <label for="kto2fCasinoId">Casino ID</label>
-        <input id="kto2fCasinoId" type="text" placeholder="ppcdk00000005148" />
+        <label for="ice2fCasinoId">Casino ID</label>
+        <input id="ice2fCasinoId" type="text" placeholder="ppcdk00000005148" />
       </div>
       <div class="field">
         <label for="maxGales">Máximo de gales</label>
@@ -172,7 +266,7 @@
         </select>
       </div>
       <div class="row">
-        <button type="button" id="kto2fSave">Guardar</button>
+        <button type="button" id="ice2fSave">Guardar</button>
       </div>
       <p id="kto2fConfigStatus" class="muted"></p>
     </details>
