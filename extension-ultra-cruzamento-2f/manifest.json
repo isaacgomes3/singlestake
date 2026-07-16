@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "stake37 — Ultra Cruzamento 2F",
+  "version": "1.3.8",
+  "description": "Gatilho 2×4 — 6s; limpa indicação no liquidar (não rearma no mesmo giro).",
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "debugger",
+    "windows"
+  ],
+  "host_permissions": [
+    "https://www.ultra.bet.br/*",
+    "https://ultra.bet.br/*",
+    "https://*.pragmaticplaylive.net/*",
+    "https://*.pragmaticplay.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.ultra.bet.br/*",
+        "https://ultra.bet.br/*"
+      ],
+      "js": [
+        "content-casino.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.pragmaticplaylive.net/*",
+        "https://*.pragmaticplay.net/*"
+      ],
+      "js": [
+        "content-casino.js",
+        "calibration-relay.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "stake37 Ultra 2F Cruzamento"
+  }
+}

@@ -6,9 +6,9 @@ URL: https://lotogreen.bet.br/play/pragmatic/auto-roulette
 
 ## Estratégia (idêntica à ICE Cruzamento 2F)
 
-- Pares **3×6** e **2×4** em paralelo — indica no match
+- Gatilho **2×4** — indica no match
 - Empate fecha indicação; chave **sem gale** e **sem clique** (observação)
-- Gráfico run-up / drawdown; contadores OK/ERR por gatilho
+- Gráfico run-up / drawdown; contadores OK/ERR
 
 ## Build
 

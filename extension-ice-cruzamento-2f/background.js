@@ -294,12 +294,12 @@ function normalizeBridgePayload(raw) {
   return null;
 }
 
-const DEFAULT_BRIDGE_PREFS = { maxRecovery: 6, wins: 0, losses: 0, closeMesaOnFinish: true };
+const DEFAULT_BRIDGE_PREFS = { maxRecovery: 8, wins: 0, losses: 0, closeMesaOnFinish: true };
 
 function clampBridgeMaxRecovery(value) {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return DEFAULT_BRIDGE_PREFS.maxRecovery;
-  return Math.min(6, Math.max(0, Math.floor(n)));
+  return Math.min(8, Math.max(0, Math.floor(n)));
 }
 
 async function readBridgeEnabled() {

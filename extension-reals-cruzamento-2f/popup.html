@@ -89,7 +89,7 @@
       }
       .pair-head, .pair-row {
         display: grid;
-        grid-template-columns: 1fr 44px 44px;
+        grid-template-columns: 1fr auto 44px 44px;
         align-items: center;
         gap: 4px;
         font-size: 11px;
@@ -102,6 +102,35 @@
         margin-bottom: 2px;
       }
       .pair-id { font-weight: 700; color: #cbd5e1; }
+      .pair-row.off .pair-id { color: #64748b; }
+      .pair-enable {
+        position: relative;
+        width: 34px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .pair-enable input { opacity: 0; width: 0; height: 0; }
+      .pair-enable .slider-mini {
+        position: absolute;
+        inset: 0;
+        background: #334155;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .pair-enable .slider-mini::before {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 2px;
+        top: 2px;
+        background: #e2e8f0;
+        border-radius: 50%;
+        transition: 0.15s;
+      }
+      .pair-enable input:checked + .slider-mini { background: #15803d; }
+      .pair-enable input:checked + .slider-mini::before { transform: translateX(16px); }
       .pair-ok, .pair-bad {
         text-align: center;
         font-weight: 700;
@@ -109,7 +138,7 @@
       }
       .pair-ok { color: #86efac; }
       .pair-bad { color: #fca5a5; }
-      .pair-head .pair-ok, .pair-head .pair-bad { color: #64748b; }
+      .pair-head .pair-ok, .pair-head .pair-bad, .pair-head .pair-en { color: #64748b; text-align: center; }
       .nogale-row {
         display: flex;
         align-items: center;
@@ -171,7 +200,7 @@
   </head>
   <body>
     <h1>stake37 · Reals 2F <span id="modePill" class="pill demo">DEMO</span></h1>
-    <p class="sub">2 Fatores · 3×6 · 2×4 · match imediato · opcional sem gale · mesa 237</p>
+    <p class="sub">2 Fatores · gatilhos activáveis · match imediato · mesa 237</p>
 
     <div class="modes">
       <button type="button" id="modeDemo" class="mode active-demo">Demo</button>
@@ -184,11 +213,9 @@
       <div class="stat win"><strong id="wins">0</strong><small>Vitórias</small></div>
       <div class="stat loss"><strong id="losses">0</strong><small>Derrotas</small></div>
     </div>
-    <h2>Gatilhos (indicações)</h2>
+    <h2>Gatilhos (OK/ERR · activar)</h2>
     <div id="pairStats" class="pair-stats">
-      <div class="pair-head"><span></span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
-      <div class="pair-row" data-pair="3x6"><span class="pair-id">3×6</span><span class="pair-ok" id="pair-3x6-w">0</span><span class="pair-bad" id="pair-3x6-l">0</span></div>
-      <div class="pair-row" data-pair="2x4"><span class="pair-id">2×4</span><span class="pair-ok" id="pair-2x4-w">0</span><span class="pair-bad" id="pair-2x4-l">0</span></div>
+      <div class="pair-head"><span></span><span class="pair-en">ON</span><span class="pair-ok">OK</span><span class="pair-bad">ERR</span></div>
     </div>
     <label class="nogale-row" id="noGaleRow">
       <span class="nogale-copy">
@@ -232,7 +259,9 @@
 
     <h2>Calibrar tapete</h2>
     <p id="calStatus" class="muted" style="margin-top:0">
-      Abra Brazilian Roulette no Reals num separador e aguarde carregar."row">
+      Abra a roleta Reals 2F, aguarde carregar, clique na aba e use 📍.
+    </p>
+    <div class="row">
       <button type="button" class="cal" data-cal="even" data-cal-label="Par">📍 Par</button>
       <button type="button" class="cal" data-cal="odd" data-cal-label="Ímpar">📍 Ímpar</button>
       <button type="button" class="cal" data-cal="red" data-cal-label="Vermelho">📍 Verm.</button>
@@ -262,7 +291,9 @@
           <option value="3">3</option>
           <option value="4">4</option>
           <option value="5">5</option>
-          <option value="6" selected>6</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8" selected>8</option>
         </select>
       </div>
       <div class="row">

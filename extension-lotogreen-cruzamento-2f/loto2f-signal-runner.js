@@ -5,7 +5,7 @@ const STORAGE_LOTO2F_STATUS = "gogLoto2fAutopilotStatus";
 const STORAGE_LOTO2F_STATS = "gogLoto2fAutopilotSessionStats";
 const STORAGE_LOTO2F_MACHINE = "gogLoto2fMachineState";
 
-const DEFAULT_MAX_GALES = 5;
+const DEFAULT_MAX_GALES = 8;
 const BET_RETRY_MS = 1500;
 
 /** @type {ReturnType<import('./dga-hub.js').createDgaHub>|null} */
@@ -16,7 +16,14 @@ let lastEmittedSignalId = null;
 /** @type {((payload: unknown, tabId: number|null) => Promise<unknown>)|null} */
 let bridgeHandler = null;
 /** @type {Map<string, ReturnType<typeof setTimeout>>} */
-const pendingBetTimers = new Map();
+let pendingBetTimers = new Map();
+/** Evita corridas: dois giros a escrever status/placar fora de ordem. */
+let engineResultTail = Promise.resolve();
+
+function enqueueEngineResult(task) {
+  engineResultTail = engineResultTail.then(task, task).catch(() => {});
+  return engineResultTail;
+}
 
 const LOTO2F_DEFAULTS = {
   tableId: SinglestakeLoto2f?.LOTO2F_TABLE_ID ?? 225,
@@ -29,12 +36,85 @@ const LOTO2F_DEFAULTS = {
   maxRecovery: DEFAULT_MAX_GALES,
   noGale: false,
   observeOnly: false,
+  enabledPairIds: ["2x4"],
 };
+
+function knownPairIds() {
+  const known = SinglestakeLoto2f?.ICE_2F_KNOWN_COMPARE_PAIRS;
+  if (Array.isArray(known) && known.length > 0) {
+    return known.map((p) => p.id).filter((id) => typeof id === "string");
+  }
+  return ["2x4"];
+}
+
+function defaultEnabledPairIds() {
+  const ids = SinglestakeLoto2f?.ICE_2F_DEFAULT_ENABLED_PAIR_IDS;
+  if (Array.isArray(ids) && ids.length > 0) return ids.map(String);
+  return ["2x4"];
+}
+
+function normalizeEnabledPairIds(raw) {
+  const known = new Set(knownPairIds());
+  const fallback = defaultEnabledPairIds().filter((id) => known.has(id));
+  if (!Array.isArray(raw)) return fallback.length > 0 ? fallback : ["2x4"];
+  const next = [];
+  for (const item of raw) {
+    const id = typeof item === "string" ? item.trim() : "";
+    if (!id || !known.has(id) || next.includes(id)) continue;
+    next.push(id);
+  }
+  return next.length > 0 ? next : fallback.length > 0 ? fallback : ["2x4"];
+}
+
+function applyEnabledPairsFromConfig(cfg) {
+  const ids = normalizeEnabledPairIds(cfg?.enabledPairIds);
+  const api =
+    typeof SinglestakeLoto2f !== "undefined"
+      ? SinglestakeLoto2f.applyIce2fEnabledPairIds
+        ? SinglestakeLoto2f
+        : SinglestakeLoto2f.default
+      : null;
+  if (typeof api?.applyIce2fEnabledPairIds === "function") {
+    api.applyIce2fEnabledPairIds(ids);
+  }
+  // Ciclo activo de gatilho desligado → cancelar e limpar status.
+  if (typeof engine?.dropCycleIfPairDisabled === "function") {
+    const dropped = engine.dropCycleIfPairDisabled(ids);
+    if (dropped) {
+      clearPendingBetTimers();
+      lastEmittedSignalId = null;
+      void writeLoto2fStatus({
+        active: false,
+        label: null,
+        waitingBet: false,
+        waitingReference: false,
+        reason: `Gatilho desactivado — activos: ${ids.map((id) => String(id).replace(/x/gi, "×")).join(" · ")}`,
+        criticalPosition: null,
+        matchPosition: null,
+        triggerNumber: null,
+        matchNumber: null,
+        pairId: null,
+      });
+    }
+  }
+  return ids;
+}
+
+function mergePairIndicationForUi(pairIndication) {
+  const map =
+    pairIndication && typeof pairIndication === "object" && !Array.isArray(pairIndication)
+      ? { ...pairIndication }
+      : {};
+  for (const id of knownPairIds()) {
+    if (!map[id]) map[id] = { wins: 0, losses: 0 };
+  }
+  return map;
+}
 
 function clampMaxGales(value) {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return DEFAULT_MAX_GALES;
-  return Math.min(5, Math.max(0, Math.floor(n)));
+  return Math.min(8, Math.max(0, Math.floor(n)));
 }
 
 function clearPendingBetTimers() {
@@ -56,6 +136,7 @@ async function readLoto2fConfig() {
     return {
       ...LOTO2F_DEFAULTS,
       maxRecoveryPreference: LOTO2F_DEFAULTS.maxRecovery,
+      enabledPairIds: defaultEnabledPairIds(),
     };
   }
   const legacyWrong =
@@ -94,6 +175,7 @@ async function readLoto2fConfig() {
     /** Efectivo no motor: 0 = stake única, W/L sem recuperação. */
     maxRecovery: noGale ? 0 : maxRecoveryPreference,
     observeOnly: stored.observeOnly === true,
+    enabledPairIds: normalizeEnabledPairIds(stored.enabledPairIds),
   };
 }
 
@@ -234,7 +316,6 @@ async function resetLoto2fStats() {
       winsAtRecovery: [],
       lossesAtRecovery: [],
       pairIndication: {
-        "3x6": { wins: 0, losses: 0 },
         "2x4": { wins: 0, losses: 0 },
       },
     };
@@ -283,6 +364,11 @@ async function setLoto2fConfigFromPopup(config) {
     }
   }
 
+  const enabledPairIds =
+    patch.enabledPairIds != null
+      ? normalizeEnabledPairIds(patch.enabledPairIds)
+      : normalizeEnabledPairIds(prev.enabledPairIds);
+
   const next = {
     ...LOTO2F_DEFAULTS,
     ...stored,
@@ -294,8 +380,10 @@ async function setLoto2fConfigFromPopup(config) {
     maxRecovery: maxRecoveryPreference,
     noGale,
     observeOnly,
+    enabledPairIds,
   };
   await chrome.storage.local.set({ [STORAGE_LOTO2F_CONFIG]: next });
+  applyEnabledPairsFromConfig(next);
   if (noGale) {
     await clearLoto2fMachineState();
     await writeLoto2fStatus({ recovery: 0, waitingReference: false });
@@ -340,12 +428,19 @@ function formatActiveLabel(active, recovery) {
           ? "c/p"
           : (active.axis ?? "");
   const gale = recovery > 0 ? ` · gale ${recovery}` : "";
+  const posA = active?.criticalPosition;
+  const posB = active?.matchPosition;
   const pair =
     active?.pairId ??
-    (active?.criticalPosition != null && active?.matchPosition != null
-      ? `${active.criticalPosition}x${active.matchPosition}`
-      : "pos?");
-  return `${f1} · ${f2}${gale} · ${pair} ${axis}`.trim();
+    (posA != null && posB != null ? `${posA}x${posB}` : "pos?");
+  const pairLabel = String(pair).replace(/x/gi, "×");
+  const n1 = active?.triggerNumber ?? active?.referenceNumber;
+  const n2 = active?.matchNumber;
+  const nums =
+    n1 != null && n2 != null && Number.isFinite(n1) && Number.isFinite(n2)
+      ? ` · nº${n1}·${n2}`
+      : "";
+  return `${f1} · ${f2}${gale} · ${pairLabel}${nums} ${axis}`.trim();
 }
 
 function axisFromActive(active) {
@@ -354,6 +449,31 @@ function axisFromActive(active) {
     active?.axis === "cor-paridade"
     ? active.axis
     : null;
+}
+
+function positionFieldsFromActive(active) {
+  if (!active) {
+    return {
+      criticalPosition: null,
+      matchPosition: null,
+      triggerNumber: null,
+      matchNumber: null,
+      pairId: null,
+    };
+  }
+  return {
+    criticalPosition:
+      typeof active.criticalPosition === "number" ? active.criticalPosition : null,
+    matchPosition: typeof active.matchPosition === "number" ? active.matchPosition : null,
+    triggerNumber:
+      typeof active.triggerNumber === "number"
+        ? active.triggerNumber
+        : typeof active.referenceNumber === "number"
+          ? active.referenceNumber
+          : null,
+    matchNumber: typeof active.matchNumber === "number" ? active.matchNumber : null,
+    pairId: typeof active.pairId === "string" ? active.pairId : null,
+  };
 }
 
 function idleRecoveryFromResult(result, engine) {
@@ -395,7 +515,16 @@ function payloadMatchesEngine(payload) {
   const cycle = liveAwaitingBetCycle();
   if (!cycle) return false;
   const expected = payload?.context?.currentRecovery ?? 0;
-  return (cycle.recovery ?? 0) === expected;
+  if ((cycle.recovery ?? 0) !== expected) return false;
+  const payloadHead = payload?.context?.armedHead;
+  if (typeof payloadHead === "string" && payloadHead.length > 0) {
+    if (cycle.armedHead !== payloadHead) return false;
+  }
+  const payloadPair = payload?.context?.pairId;
+  if (typeof payloadPair === "string" && payloadPair.length > 0) {
+    if ((cycle.active?.pairId ?? null) !== payloadPair) return false;
+  }
+  return true;
 }
 
 function liveRecoveryForStatus() {
@@ -667,6 +796,7 @@ async function scheduleBetAttempt(result, mesaUrl, cfg) {
       waitRemainingSec: Math.ceil(remaining / 1000),
       recovery: result.recovery,
       lastError: null,
+      ...positionFieldsFromActive(active),
     });
 
     const signalKey = `loto2f:pos${active?.criticalPosition ?? "?"}:${active?.axis ?? "?"}:${result.recovery}`;
@@ -686,6 +816,10 @@ async function scheduleBetAttempt(result, mesaUrl, cfg) {
 }
 
 async function processEngineResult(result, mesaUrl, cfg) {
+  return enqueueEngineResult(() => processEngineResultLocked(result, mesaUrl, cfg));
+}
+
+async function processEngineResultLocked(result, mesaUrl, cfg) {
   if (!result || !engine) return;
   if (result.machine) {
     await persistLoto2fMachineState(result.machine);
@@ -698,17 +832,22 @@ async function processEngineResult(result, mesaUrl, cfg) {
     lastEmittedSignalId = null;
     engine.abortBetCommit?.();
     clearPendingBetTimers();
-    const cycle = cycleFromResult(result);
+    // Limpa o painel; se o mesmo tick rearma (match novo), o bloco
+    // `result.active` volta a activar. Sem isso o status ficava
+    // "ligado" sem ciclo até ao giro seguinte.
     await writeLoto2fStatus({
-      active: true,
+      active: false,
       tableId: cfg.tableId,
-      label: formatActiveLabel(cycle?.active ?? result.active, cycle?.recovery ?? result.recovery ?? 0),
-      axis: axisFromActive(cycle?.active ?? result.active),
-      recovery: cycle?.recovery ?? result.recovery ?? 0,
-      waitingBet: true,
+      label: null,
+      lastTrigger: null,
+      signalId: null,
+      axis: null,
+      recovery: result.recovery ?? idleRecoveryFromResult(result, engine),
+      waitingBet: false,
       waitingReference: false,
-      lastError: "Giro novo antes da aposta — não contou; a tentar de novo",
+      lastError: "Giro novo antes da aposta — não contou",
       reason: "Janela de aposta perdida (sem cliques confirmados)",
+      ...positionFieldsFromActive(null),
     });
   }
 
@@ -723,14 +862,8 @@ async function processEngineResult(result, mesaUrl, cfg) {
     // result.active só existe em awaiting_bet — empate/vitória parcial podem
     // ficar em awaiting_reference com ciclo aberto; não tratar como fim de ciclo.
     const cycleClosed = !cycleOpen;
-    if (cycleClosed) {
-      clearPendingBetTimers();
-      lastEmittedSignalId = null;
-    } else if (result.flash) {
-      // Nova aposta do mesmo ciclo (empate / gale) — permite reemitir o mesmo signalId.
-      lastEmittedSignalId = null;
-      clearPendingBetTimers();
-    }
+    clearPendingBetTimers();
+    lastEmittedSignalId = null;
     const idleRecovery = idleRecoveryFromResult(result, engine);
     const idleReason = cycleClosed
       ? flashKind === "tie"
@@ -750,37 +883,43 @@ async function processEngineResult(result, mesaUrl, cfg) {
               : "Aguarda novo gatilho"
       : isAwaitingReference(pausedCycle)
         ? `Aguarda referência na pos${pausedCycle.active?.criticalPosition ?? "?"} · gale ${pausedCycle.recovery ?? 0}`
-        : null;
+        : flashKind === "win"
+          ? "Vitória — liquidado"
+          : flashKind === "loss"
+            ? "Derrota — liquidado"
+            : flashKind === "tie"
+              ? "Empate — liquidado"
+              : "Liquidado";
+
+    // Sempre limpa a indicação liquidada. Se o mesmo giro rearma,
+    // `result.active` (ou pausa de referência) volta a activar a seguir.
     await writeLoto2fStatus({
       lastFlash: flashKind,
       lastResult: result.flash.resultNumber,
-      // Só zera recovery no status quando o ciclo fechou de verdade.
+      active: false,
+      label: null,
+      lastTrigger: null,
+      signalId: null,
+      axis: null,
+      waitingBet: false,
+      waitingReference: false,
+      lastBetDetail: null,
+      lastError: null,
+      reason: idleReason,
+      ...positionFieldsFromActive(null),
       ...(flashKind === "win" && cycleClosed ? { recovery: 0 } : {}),
       ...(cycleOpen && pausedCycle
-        ? {
-            recovery: pausedCycle.recovery ?? result.recovery ?? 0,
-            ...(isAwaitingReference(pausedCycle)
-              ? {
-                  active: true,
-                  label: referencePauseLabel(pausedCycle),
-                  waitingBet: true,
-                  waitingReference: true,
-                  lastError: null,
-                  reason: idleReason,
-                }
-              : {}),
-          }
+        ? { recovery: pausedCycle.recovery ?? result.recovery ?? 0 }
         : {}),
-      ...(cycleClosed && idleReason
+      ...(cycleClosed
+        ? { recovery: flashKind === "win" ? 0 : idleRecovery }
+        : {}),
+      ...(cycleOpen && pausedCycle && isAwaitingReference(pausedCycle)
         ? {
-            active: false,
-            label: null,
-            lastTrigger: null,
-            signalId: null,
-            waitingBet: false,
-            waitingReference: false,
-            recovery: flashKind === "win" ? 0 : idleRecovery,
-            reason: idleReason,
+            active: true,
+            label: referencePauseLabel(pausedCycle),
+            waitingBet: true,
+            waitingReference: true,
           }
         : {}),
     });
@@ -804,6 +943,7 @@ async function processEngineResult(result, mesaUrl, cfg) {
       waitingBet: false,
       waitingReference: false,
       lastError: null,
+      ...positionFieldsFromActive(result.active),
     });
   }
 
@@ -852,6 +992,7 @@ async function startLoto2fAutopilot(handleBridgePayload) {
   stopLoto2fAutopilot();
 
   const cfg = await readLoto2fConfig();
+  applyEnabledPairsFromConfig(cfg);
   const saved = await readLoto2fStats(cfg.maxRecovery);
   const savedMachine = await readLoto2fMachineState();
   engine = SinglestakeLoto2f.createLoto2fEngine({
@@ -934,11 +1075,12 @@ async function getLoto2fAutopilotStatus() {
   const live = engine?.getState?.();
   const wins = live?.stats?.wins ?? statsPack?.stats?.wins ?? data[STORAGE_LOTO2F_STATUS]?.wins ?? 0;
   const losses = live?.stats?.losses ?? statsPack?.stats?.losses ?? data[STORAGE_LOTO2F_STATUS]?.losses ?? 0;
-  const pairIndication =
+  const pairIndication = mergePairIndicationForUi(
     live?.stats?.pairIndication ??
-    statsPack?.stats?.pairIndication ??
-    data[STORAGE_LOTO2F_STATUS]?.pairIndication ??
-    {};
+      statsPack?.stats?.pairIndication ??
+      data[STORAGE_LOTO2F_STATUS]?.pairIndication ??
+      {},
+  );
   const stored = data[STORAGE_LOTO2F_STATUS] ?? {};
   const liveCycle = live?.machine?.cycle ?? null;
   let pendingRecovery = liveCycle?.recovery ?? 0;
@@ -961,6 +1103,14 @@ async function getLoto2fAutopilotStatus() {
     globalThis.SinglestakeLoto2f?.buildIce2fStreakChartMetrics?.(
       live?.stats ?? statsPack?.stats ?? { wins, losses, outcomeHistory: [] },
     ) ?? null;
+  const knownPairs = knownPairIds().map((id) => ({
+    id,
+    label:
+      typeof SinglestakeLoto2f?.ice2fPairLabel === "function"
+        ? SinglestakeLoto2f.ice2fPairLabel(id)
+        : String(id).replace(/x/gi, "×"),
+  }));
+  const enabledPairIds = normalizeEnabledPairIds(cfg.enabledPairIds);
   return {
     enabled: data[STORAGE_LOTO2F_AUTOPLAY] === true,
     status: {
@@ -968,6 +1118,8 @@ async function getLoto2fAutopilotStatus() {
       wins,
       losses,
       pairIndication,
+      knownPairs,
+      enabledPairIds,
       outcomeHistory:
         live?.stats?.outcomeHistory ??
         statsPack?.stats?.outcomeHistory ??
@@ -989,6 +1141,7 @@ async function getLoto2fAutopilotStatus() {
 function initLoto2fSignalRunner(handleBridgePayload) {
   bridgeHandler = handleBridgePayload;
   globalThis.__singlestakeLoto2fBridgeHandler = handleBridgePayload;
+  void readLoto2fConfig().then((cfg) => applyEnabledPairsFromConfig(cfg));
   void readLoto2fAutopilotEnabled().then((on) => {
     if (on) void startLoto2fAutopilot(handleBridgePayload);
   });
@@ -1002,8 +1155,11 @@ function initLoto2fSignalRunner(handleBridgePayload) {
       }
     }
     if (changes[STORAGE_LOTO2F_CONFIG] && bridgeHandler) {
-      void readLoto2fAutopilotEnabled().then((on) => {
-        if (on) void startLoto2fAutopilot(bridgeHandler);
+      void readLoto2fConfig().then((cfg) => {
+        applyEnabledPairsFromConfig(cfg);
+        return readLoto2fAutopilotEnabled().then((on) => {
+          if (on) void startLoto2fAutopilot(bridgeHandler);
+        });
       });
     }
   });

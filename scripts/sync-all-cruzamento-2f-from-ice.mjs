@@ -1,6 +1,6 @@
 /**
  * Sincroniza extensões Cruzamento 2F a partir da ICE actual.
- * Estratégia única: iceCruzamento2fStrategy (3×6 · 2×4).
+ * Estratégia única: iceCruzamento2fStrategy (2×4).
  * Mantém só hosts / mesa / tableId / branding por site.
  */
 import fs from "node:fs";
@@ -9,9 +9,9 @@ import { execSync } from "node:child_process";
 
 const root = path.resolve(import.meta.dirname, "..");
 const srcDir = path.join(root, "extension-ice-cruzamento-2f");
-const VERSION = "1.2.6";
+const VERSION = "1.3.8";
 const DESCRIPTION =
-  "Gatilhos 3×6·2×4 — gráfico run-up/drawdown, sem gale, sem clique (observação).";
+  "Gatilho 2×4 — 6s; limpa indicação no liquidar (não rearma no mesmo giro).";
 
 /**
  * @typedef {{
@@ -146,6 +146,42 @@ const SITES = [
     signalPrefix: "sportingbet2f:",
     calibKey: "sportingbet.bet.br|pragmatic-roulette",
     hostPermissions: ["https://*.br4.bet.br/*"],
+  },
+  {
+    dir: "extension-ultra-cruzamento-2f",
+    filePrefix: "ultra2f",
+    Pascal: "Ultra2f",
+    brandTitle: "Ultra",
+    tableId: 227,
+    mesaUrl: "https://ultra.bet.br/jogo/3330041/pragmatic-play-live/roulette-1",
+    hosts: ["www.ultra.bet.br", "ultra.bet.br"],
+    hostnameRe: String.raw`ultra\.bet\.br`,
+    isHostBody: `return host === "ultra.bet.br" || host.endsWith(".ultra.bet.br");`,
+    isRoulettePathBody: `return /\\/jogo\\/3330041\\/pragmatic-play-live\\/roulette-1/i.test(path) || /roulette-1|pragmatic-play-live/i.test(path);`,
+    panelPathBody: `return /\\/jogo\\/3330041\\/pragmatic-play-live\\/roulette-1/i.test(path) || /roulette|pragmatic|jogo|casino|live/i.test(path);`,
+    gameLabel: "Roulette 1",
+    npmBuild: "extension:ultra2f:build",
+    strategy: "ultra2fcruzamento",
+    signalPrefix: "ultra2f:",
+    calibKey: "ultra.bet.br|pragmatic-roulette",
+  },
+  {
+    dir: "extension-brazino777-cruzamento-2f",
+    filePrefix: "brazino2f",
+    Pascal: "Brazino2f",
+    brandTitle: "Brazino777",
+    tableId: 237,
+    mesaUrl: "https://www.brazino777.bet.br/game/brazilian_roulette_pr",
+    hosts: ["www.brazino777.bet.br", "brazino777.bet.br"],
+    hostnameRe: String.raw`brazino777\.bet\.br`,
+    isHostBody: `return host === "brazino777.bet.br" || host.endsWith(".brazino777.bet.br");`,
+    isRoulettePathBody: `return /\\/game\\/brazilian_roulette_pr/i.test(path) || /brazilian_roulette/i.test(path);`,
+    panelPathBody: `return /\\/game\\/brazilian_roulette_pr/i.test(path) || /roulette|pragmatic|game|casino|live|brazilian/i.test(path);`,
+    gameLabel: "Brazilian Roulette",
+    npmBuild: "extension:brazino2f:build",
+    strategy: "brazino2fcruzamento",
+    signalPrefix: "brazino2f:",
+    calibKey: "brazino777.bet.br|pragmatic-roulette",
   },
 ];
 
@@ -334,14 +370,14 @@ function rewriteExtensionShell(content, site) {
 }`,
   );
 
-  // Mensagens UX
+  // Mensagens UX — só strings JS entre aspas (nunca atravessar HTML do popup)
   c = c.replace(
     /Nenhuma aba [^.]+encontrada\.[^"]*/g,
     `Nenhuma aba ${brandTitle} encontrada. Abra ${site.gameLabel} no ${brandTitle} num separador normal do Chrome (não neste painel).`,
   );
   c = c.replace(
-    /Abra [^"]{10,160}"/g,
-    `Abra ${site.gameLabel} no ${brandTitle} num separador e aguarde carregar."`,
+    /"Abra [^"]{5,200}"/g,
+    `"Abra ${site.gameLabel} no ${brandTitle} num separador e aguarde carregar."`,
   );
 
   // Legacy config wrong-table cleanup no runner
@@ -489,9 +525,9 @@ URL: ${site.mesaUrl || "(abrir mesa manualmente)"}
 
 ## Estratégia (idêntica à ICE Cruzamento 2F)
 
-- Pares **3×6** e **2×4** em paralelo — indica no match
+- Gatilho **2×4** — indica no match
 - Empate fecha indicação; chave **sem gale** e **sem clique** (observação)
-- Gráfico run-up / drawdown; contadores OK/ERR por gatilho
+- Gráfico run-up / drawdown; contadores OK/ERR
 
 ## Build
 
@@ -592,6 +628,10 @@ function ensurePackageScripts() {
       "npx --yes esbuild extension-reals-cruzamento-2f/reals2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeReals2f --outfile=extension-reals-cruzamento-2f/reals2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
     "extension:sportingbet2f:build":
       "npx --yes esbuild extension-sportingbet-cruzamento-2f/sportingbet2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeSportingbet2f --outfile=extension-sportingbet-cruzamento-2f/sportingbet2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:ultra2f:build":
+      "npx --yes esbuild extension-ultra-cruzamento-2f/ultra2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeUltra2f --outfile=extension-ultra-cruzamento-2f/ultra2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
+    "extension:brazino2f:build":
+      "npx --yes esbuild extension-brazino777-cruzamento-2f/brazino2f-strategy-entry.ts --bundle --format=iife --global-name=SinglestakeBrazino2f --outfile=extension-brazino777-cruzamento-2f/brazino2f-engine.js --platform=browser --target=chrome110 --alias:@=./src",
   };
   let changed = false;
   for (const [k, v] of Object.entries(defs)) {
@@ -606,22 +646,45 @@ function ensurePackageScripts() {
   }
 }
 
-for (const site of SITES) syncSite(site);
+const filterArg = (process.argv[2] ?? "").trim().toLowerCase();
+const targets = filterArg
+  ? SITES.filter(
+      (s) =>
+        s.dir.toLowerCase().includes(filterArg) ||
+        s.filePrefix.toLowerCase().includes(filterArg) ||
+        s.brandTitle.toLowerCase().includes(filterArg),
+    )
+  : SITES;
+
+if (filterArg && targets.length === 0) {
+  console.error(`Nenhum site corresponde a "${filterArg}".`);
+  process.exit(1);
+}
+
+for (const site of targets) syncSite(site);
 ensurePackageScripts();
 
-const builds = [
-  "extension:ice2f:build",
-  "extension:kto2f:build",
-  "extension:golde2f:build",
-  "extension:bn2f:build",
-  "extension:loto2f:build",
-  "extension:reals2f:build",
-  "extension:sportingbet2f:build",
-];
+const builds = filterArg
+  ? ["extension:ice2f:build", ...targets.map((s) => s.npmBuild)]
+  : [
+      "extension:ice2f:build",
+      "extension:kto2f:build",
+      "extension:golde2f:build",
+      "extension:bn2f:build",
+      "extension:loto2f:build",
+      "extension:reals2f:build",
+      "extension:sportingbet2f:build",
+      "extension:ultra2f:build",
+      "extension:brazino2f:build",
+    ];
 
-for (const b of builds) {
+for (const b of [...new Set(builds)]) {
   console.log(`→ npm run ${b}`);
   execSync(`npm run ${b}`, { cwd: root, stdio: "inherit" });
 }
 
-console.log("Todas as extensões Cruzamento 2F sincronizadas a partir da ICE.");
+console.log(
+  filterArg
+    ? `Extensão(ões) Cruzamento 2F sincronizada(s) (${filterArg}).`
+    : "Todas as extensões Cruzamento 2F sincronizadas a partir da ICE.",
+);

@@ -413,7 +413,7 @@ function pageIsLoto2fRoulette() {
     #${PANEL_ID} .ss-loto2f-pair-head,
     #${PANEL_ID} .ss-loto2f-pair-row {
       display: grid;
-      grid-template-columns: 1fr 40px 40px;
+      grid-template-columns: 1fr auto 40px 40px;
       align-items: center;
       gap: 4px;
       font-size: 11px;
@@ -425,6 +425,43 @@ function pageIsLoto2fRoulette() {
       color: #64748b;
     }
     #${PANEL_ID} .ss-loto2f-pair-id { font-weight: 700; color: #cbd5e1; }
+    #${PANEL_ID} .ss-loto2f-pair-row.off .ss-loto2f-pair-id { color: #64748b; }
+    #${PANEL_ID} .ss-loto2f-pair-enable {
+      position: relative;
+      width: 34px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    #${PANEL_ID} .ss-loto2f-pair-enable input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    #${PANEL_ID} .ss-loto2f-pair-enable .ss-loto2f-slider {
+      position: absolute;
+      inset: 0;
+      background: #334155;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    #${PANEL_ID} .ss-loto2f-pair-enable .ss-loto2f-slider::before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 2px;
+      background: #e2e8f0;
+      border-radius: 50%;
+      transition: 0.15s;
+    }
+    #${PANEL_ID} .ss-loto2f-pair-enable input:checked + .ss-loto2f-slider {
+      background: #15803d;
+    }
+    #${PANEL_ID} .ss-loto2f-pair-enable input:checked + .ss-loto2f-slider::before {
+      transform: translateX(16px);
+    }
     #${PANEL_ID} .ss-loto2f-pair-ok,
     #${PANEL_ID} .ss-loto2f-pair-bad {
       text-align: center;
@@ -434,7 +471,11 @@ function pageIsLoto2fRoulette() {
     #${PANEL_ID} .ss-loto2f-pair-ok { color: #86efac; }
     #${PANEL_ID} .ss-loto2f-pair-bad { color: #fca5a5; }
     #${PANEL_ID} .ss-loto2f-pair-head .ss-loto2f-pair-ok,
-    #${PANEL_ID} .ss-loto2f-pair-head .ss-loto2f-pair-bad { color: #64748b; }
+    #${PANEL_ID} .ss-loto2f-pair-head .ss-loto2f-pair-bad,
+    #${PANEL_ID} .ss-loto2f-pair-head .ss-loto2f-pair-en {
+      color: #64748b;
+      text-align: center;
+    }
     #${PANEL_ID} .ss-loto2f-actions {
       display: flex;
       flex-wrap: wrap;
@@ -567,24 +608,61 @@ function pageIsLoto2fRoulette() {
   chartRow.append(canvasBox);
   chartWrap.append(chartRow, chartMetrics);
 
-  const PAIR_IDS = [
-    ["3x6", "3×6"],
-    ["2x4", "2×4"],
-  ];
-  const pairTitle = el("div", "ss-loto2f-pair-title", "Gatilhos (indicações)");
+  const FALLBACK_PAIRS = [{ id: "2x4", label: "2×4" }];
+  const pairTitle = el("div", "ss-loto2f-pair-title", "Gatilho (OK/ERR · activar)");
   const pairBoard = el("div", "ss-loto2f-pairs");
   const pairHead = el("div", "ss-loto2f-pair-head");
-  pairHead.append(el("span"), el("span", "ss-loto2f-pair-ok", "OK"), el("span", "ss-loto2f-pair-bad", "ERR"));
+  pairHead.append(
+    el("span"),
+    el("span", "ss-loto2f-pair-en", "ON"),
+    el("span", "ss-loto2f-pair-ok", "OK"),
+    el("span", "ss-loto2f-pair-bad", "ERR"),
+  );
   pairBoard.append(pairHead);
+  /** @type {Record<string, { ok: HTMLElement, bad: HTMLElement, input: HTMLInputElement, row: HTMLElement }>} */
   const pairCells = {};
-  for (const [id, label] of PAIR_IDS) {
+
+  function ensurePairRow(id, label) {
+    if (pairCells[id]) {
+      const idEl = pairCells[id].row.querySelector(".ss-loto2f-pair-id");
+      if (idEl && label) idEl.textContent = label;
+      return pairCells[id];
+    }
     const row = el("div", "ss-loto2f-pair-row");
+    const enable = el("label", "ss-loto2f-pair-enable");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("aria-label", `Activar ${label || id}`);
+    const slider = el("span", "ss-loto2f-slider");
+    enable.append(input, slider);
     const okEl = el("span", "ss-loto2f-pair-ok", "0");
     const badEl = el("span", "ss-loto2f-pair-bad", "0");
-    row.append(el("span", "ss-loto2f-pair-id", label), okEl, badEl);
+    row.append(el("span", "ss-loto2f-pair-id", label || id), enable, okEl, badEl);
     pairBoard.append(row);
-    pairCells[id] = { ok: okEl, bad: badEl };
+    pairCells[id] = { ok: okEl, bad: badEl, input, row };
+    input.addEventListener("change", async () => {
+      const want = input.checked === true;
+      const enabled = Object.entries(pairCells)
+        .filter(([, cell]) => cell.input.checked)
+        .map(([pairId]) => pairId);
+      if (enabled.length === 0) {
+        input.checked = true;
+        statusEl.textContent = "Mantém pelo menos 1 gatilho activo.";
+        return;
+      }
+      input.disabled = true;
+      const r = await send("set-loto2f-config", { config: { enabledPairIds: enabled } });
+      if (r?.ok === false) {
+        input.checked = !want;
+        statusEl.textContent = r.error ?? "Falha ao gravar gatilhos";
+      }
+      input.disabled = false;
+      await refresh();
+    });
+    return pairCells[id];
   }
+
+  for (const p of FALLBACK_PAIRS) ensurePairRow(p.id, p.label);
 
   const actions = el("div", "ss-loto2f-actions");
   const btnDemo = el("button", "ss-loto2f-btn on-demo", "Demo");
@@ -646,8 +724,8 @@ function pageIsLoto2fRoulette() {
         noGale: want,
         maxRecoveryPreference:
           cfg?.maxRecoveryPreference ??
-          (cfg?.noGale ? 5 : cfg?.maxRecovery) ??
-          5,
+          (cfg?.noGale ? 8 : cfg?.maxRecovery) ??
+          8,
       },
     });
     if (r?.ok === false) {
@@ -908,10 +986,8 @@ function pageIsLoto2fRoulette() {
 
   function parseSignalFromStatus(st) {
     const label = String(st.label ?? "");
-    const posFromLabel = label.match(/pos(?:11\/22|\s*(\d+))/i);
-    const axisFromLabel = label.match(
-      /pos(?:11\/22|\s*\d+)\s*(c\/a|p\/a|c\/p|cor\/altura|paridade\/altura|cor\/paridade|cor-altura|altura-paridade|cor-paridade)/i,
-    );
+    const pairFromLabel = label.match(/(\d+)\s*[x×]\s*(\d+)/i);
+    const posFromLegacy = label.match(/pos\s*(\d+)\s*[\/]\s*(\d+)/i);
     const galeFromLabel = label.match(/gale\s*(\d+)/i);
     const recovery =
       typeof st.recovery === "number" && Number.isFinite(st.recovery)
@@ -921,26 +997,46 @@ function pageIsLoto2fRoulette() {
           : 0;
 
     let indication = "";
+    const pairIdx = label.search(/\s·\s*\d+\s*[x×]\s*\d+/i);
     const posIdx = label.search(/\s·\s*pos\s*\d/i);
-    if (posIdx > 0) {
+    const cutIdx =
+      pairIdx > 0 ? pairIdx : posIdx > 0 ? posIdx : -1;
+    if (cutIdx > 0) {
       indication = label
-        .slice(0, posIdx)
+        .slice(0, cutIdx)
         .replace(/\s*·\s*gale\s*\d+/gi, "")
         .trim();
     } else if (label && !/aguarda refer/i.test(label)) {
       indication = label.replace(/\s*·\s*gale\s*\d+/gi, "").trim();
     }
 
-    // Só factores da aposta (ex.: Baixo · Ímpar) — remove par/eixo (3x6 p/a, etc.).
+    // Só factores da aposta (ex.: Baixo · Ímpar) — remove par/eixo (2×4 p/a, etc.).
     indication = indication
       .replace(/\s*[+·]\s*\d+\s*[x×]\s*\d+\b.*$/i, "")
       .replace(/\s*[+·]\s*(c\/a|p\/a|c\/p|cor\/altura|paridade\/altura|cor\/paridade|cor-altura|altura-paridade|cor-paridade)\b.*$/i, "")
       .trim();
 
-    const pausePos = label.match(/pos(\d+)/i);
-    const axisRaw = st.axis ?? axisFromLabel?.[1] ?? null;
+    const numsFromLabel = label.match(/n[ºo]\s*(\d+)\s*[·.]\s*(\d+)/i);
+    const axisRaw = st.axis ?? null;
+    const posA =
+      st.criticalPosition ??
+      (pairFromLabel ? Number(pairFromLabel[1]) : null) ??
+      (posFromLegacy ? Number(posFromLegacy[1]) : null);
+    const posB =
+      st.matchPosition ??
+      (pairFromLabel ? Number(pairFromLabel[2]) : null) ??
+      (posFromLegacy ? Number(posFromLegacy[2]) : null);
     return {
-      position: posFromLabel?.[1] ?? (/pos5\/10/i.test(label) ? "5/10" : null) ?? pausePos?.[1] ?? null,
+      position:
+        posA != null && posB != null && Number.isFinite(posA) && Number.isFinite(posB)
+          ? `${posA}/${posB}`
+          : null,
+      nums:
+        numsFromLabel != null
+          ? `${numsFromLabel[1]}·${numsFromLabel[2]}`
+          : st.triggerNumber != null && st.matchNumber != null
+            ? `${st.triggerNumber}·${st.matchNumber}`
+            : null,
       axis: axisRaw,
       indication,
       recovery,
@@ -982,7 +1078,12 @@ function pageIsLoto2fRoulette() {
       } else if (noGale) {
         signalIdle.textContent = "Sem sinal — sem gale · stake única";
       } else {
-        signalIdle.textContent = "Sem sinal — 3×6 · 2×4 · indica no match";
+        const enabled = Array.isArray(st.enabledPairIds) ? st.enabledPairIds : [];
+        const labels = enabled.map((id) => String(id).replace(/x/gi, "×"));
+        signalIdle.textContent =
+          labels.length > 0
+            ? `Sem sinal — ${labels.join(" · ")} · indica no match`
+            : "Sem sinal — activa pelo menos 1 gatilho";
       }
       if (st.watchLabel) {
         signalWatch.classList.remove("ss-loto2f-hidden");
@@ -999,6 +1100,19 @@ function pageIsLoto2fRoulette() {
       signalGale.className = "ss-loto2f-gale wait";
       signalGale.textContent = parsed.recovery > 0 ? `GALE ${parsed.recovery} MANTIDO` : "AGUARDA REF.";
     } else {
+      if (parsed.position) {
+        signalPos.classList.remove("ss-loto2f-hidden");
+        signalPos.textContent = parsed.nums
+          ? `${String(parsed.position).replace("/", "×")} · nº${parsed.nums}`
+          : `${String(parsed.position).replace("/", "×")}`;
+      }
+      if (parsed.axis) {
+        const ax = axisLabel(parsed.axis);
+        if (ax) {
+          signalAxis.classList.remove("ss-loto2f-hidden");
+          signalAxis.textContent = ax;
+        }
+      }
       const factors =
         factorsOnlyLabel(parsed.indication) || factorsOnlyLabel(st.label);
       if (factors) {
@@ -1086,14 +1200,37 @@ function pageIsLoto2fRoulette() {
         : "Auto Roulette · mesa 225 · stake 2·4·8·16·32·64";
 
     const pairMap = st.pairIndication && typeof st.pairIndication === "object" ? st.pairIndication : {};
-    for (const [id, cells] of Object.entries(pairCells)) {
+    const known =
+      Array.isArray(st.knownPairs) && st.knownPairs.length > 0
+        ? st.knownPairs
+        : FALLBACK_PAIRS;
+    const enabledSet = new Set(
+      Array.isArray(st.enabledPairIds) && st.enabledPairIds.length > 0
+        ? st.enabledPairIds
+        : Array.isArray(data.loto2fConfig?.enabledPairIds)
+          ? data.loto2fConfig.enabledPairIds
+          : ["2x4"],
+    );
+    for (const meta of known) {
+      const id = meta.id;
+      const label = meta.label || String(id).replace(/x/gi, "×");
+      const cells = ensurePairRow(id, label);
       const slot = pairMap[id] ?? {};
       cells.ok.textContent = String(slot.wins ?? 0);
       cells.bad.textContent = String(slot.losses ?? 0);
+      const on = enabledSet.has(id);
+      cells.input.checked = on;
+      cells.row.classList.toggle("off", !on);
     }
 
+    const activeLabels = [...enabledSet].map((id) => String(id).replace(/x/gi, "×"));
+    signalIdle.textContent =
+      activeLabels.length > 0
+        ? `Sem sinal — ${activeLabels.join(" · ")} · indica no match`
+        : "Sem sinal — activa pelo menos 1 gatilho";
+
     renderStreakUi(st);
-    renderSignalBlock({ ...st, noGale, observeOnly });
+    renderSignalBlock({ ...st, noGale, observeOnly, enabledPairIds: [...enabledSet] });
 
     const parts = [];
     parts.push(mode === "real" ? "Modo REAL" : "Modo DEMO");

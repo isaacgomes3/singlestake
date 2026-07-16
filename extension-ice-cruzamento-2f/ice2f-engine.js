@@ -24,10 +24,32 @@ var SinglestakeIce2f = (() => {
     ICE2F_MAX_GALES: () => ICE2F_MAX_GALES,
     ICE2F_MESA_URL: () => ICE2F_MESA_URL,
     ICE2F_TABLE_ID: () => ICE2F_TABLE_ID,
+    ICE_2F_BET_DELAY_MS: () => ICE_2F_BET_DELAY_MS,
+    ICE_2F_DEFAULT_ENABLED_PAIR_IDS: () => ICE_2F_DEFAULT_ENABLED_PAIR_IDS,
+    ICE_2F_FIRST_BET_SETTLE_MS: () => ICE_2F_FIRST_BET_SETTLE_MS,
+    ICE_2F_IMMEDIATE_REBET_DELAY_MS: () => ICE_2F_IMMEDIATE_REBET_DELAY_MS,
+    ICE_2F_KNOWN_COMPARE_PAIRS: () => ICE_2F_KNOWN_COMPARE_PAIRS,
+    ICE_2F_MAX_RECOVERY: () => ICE_2F_MAX_RECOVERY,
+    ICE_2F_RECOVERY_BET_DELAY_MS: () => ICE_2F_RECOVERY_BET_DELAY_MS,
     ROTATING_ROOM_CROSSING_BET_DELAY_MS: () => ROTATING_ROOM_CROSSING_BET_DELAY_MS,
     ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS: () => ROTATING_ROOM_MESA_FIRST_CLICK_SETTLE_MS,
+    applyIce2fEnabledPairIds: () => applyIce2fEnabledPairIds,
+    buildIce2fStreakChartMetrics: () => buildIce2fStreakChartMetrics,
+    configureIce2fComparePairs: () => configureIce2fComparePairs,
+    configureIce2fDefaultComparePairs: () => configureIce2fDefaultComparePairs,
     createIce2fEngine: () => createIce2fEngine,
-    default: () => ice2f_strategy_entry_default
+    default: () => ice2f_strategy_entry_default,
+    emptyIce2fStats: () => emptyIce2fStats,
+    formatIce2fWatchLabel: () => formatIce2fWatchLabel,
+    getIce2fComparePairs: () => getIce2fComparePairs,
+    ice2fBetDelayMs: () => ice2fBetDelayMs,
+    ice2fBetDelayUntilMs: () => ice2fBetDelayUntilMs,
+    ice2fDoubleClicks: () => ice2fDoubleClicks,
+    ice2fEffectiveZeroShift: () => ice2fEffectiveZeroShift,
+    ice2fPadFactorPlacementMs: () => ice2fPadFactorPlacementMs,
+    ice2fPairLabel: () => ice2fPairLabel,
+    ice2fStakeUnits: () => ice2fStakeUnits,
+    ice2fWatchLabelForMachine: () => ice2fWatchLabelForMachine
   });
 
   // src/lib/roulette/streetPairTrigger.ts
@@ -306,9 +328,33 @@ var SinglestakeIce2f = (() => {
     };
   }
   var ICE_2F_DEFAULT_COMPARE_PAIRS = [
-    normalizePair(3, 6, 0),
     normalizePair(2, 4, 0)
   ];
+  var ICE_2F_KNOWN_COMPARE_PAIRS = [
+    normalizePair(2, 4, 0)
+  ];
+  var ICE_2F_DEFAULT_ENABLED_PAIR_IDS = ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => p.id);
+  function ice2fPairLabel(pairId) {
+    return String(pairId ?? "").replace(/x/gi, "\xD7");
+  }
+  function applyIce2fEnabledPairIds(enabledIds) {
+    const known = new Map(ICE_2F_KNOWN_COMPARE_PAIRS.map((p) => [p.id, p]));
+    const next = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const raw of enabledIds) {
+      const id = typeof raw === "string" ? raw.trim() : "";
+      if (!id || seen.has(id)) continue;
+      const pair = known.get(id);
+      if (!pair) continue;
+      seen.add(id);
+      next.push({ positions: pair.positions, requiredFailures: pair.requiredFailures });
+    }
+    if (next.length === 0) {
+      configureIce2fDefaultComparePairs();
+      return;
+    }
+    configureIce2fComparePairs(next);
+  }
   var ice2fCompareConfig = {
     pairs: ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({ ...p, positions: [...p.positions] }))
   };
@@ -317,7 +363,7 @@ var SinglestakeIce2f = (() => {
   }
   function getIce2fComparePositions() {
     const first = ice2fCompareConfig.pairs[0];
-    return first?.positions ?? [3, 6];
+    return first?.positions ?? [2, 4];
   }
   function getIce2fMinHistory() {
     let max = 1;
@@ -339,7 +385,7 @@ var SinglestakeIce2f = (() => {
   var ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
   var ICE_2F_CRITICAL_POSITIONS = getIce2fComparePositions();
   var ICE_2F_MIN_HISTORY = getIce2fMinHistory();
-  var ICE_2F_MAX_RECOVERY = 5;
+  var ICE_2F_MAX_RECOVERY = 8;
   function syncDeprecatedPositionExports() {
     ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
     ICE_2F_CRITICAL_POSITIONS = getIce2fComparePositions();
@@ -363,10 +409,10 @@ var SinglestakeIce2f = (() => {
   }
   var ICE_2F_REQUIRED_FAILURES = 0;
   var ICE_2F_RECOVERY_BET_DELAY_MS = 6e3;
-  var ICE_2F_IMMEDIATE_REBET_DELAY_MS = 800;
+  var ICE_2F_IMMEDIATE_REBET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
-  var ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32];
+  var ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32, 64, 128, 256];
   function ice2fPadFactorPlacementMs(_units) {
     return 0;
   }
@@ -925,10 +971,10 @@ var SinglestakeIce2f = (() => {
         }
       }
     }
-    if (!nextMachine.cycle && headChanged && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
+    if (!flash && !nextMachine.cycle && headChanged && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
-    if (!nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
+    if (!flash && !nextMachine.cycle && machine.lastSpinHead == null && historyNewestFirst.length >= getIce2fSoftMinHistory()) {
       nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
     }
     const globalActive = nextMachine.cycle?.phase === "awaiting_bet" || nextMachine.cycle?.phase === "awaiting_result" ? nextMachine.cycle.active : null;
@@ -1099,10 +1145,10 @@ var SinglestakeIce2f = (() => {
   var ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
   var BASE_STAKE = 0.5;
   var ICE2F_POSITIONS = new Set(
-    getIce2fComparePairs().flatMap((p) => [...p.positions])
+    ICE_2F_KNOWN_COMPARE_PAIRS.flatMap((p) => [...p.positions])
   );
   var ICE2F_AXES = /* @__PURE__ */ new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
-  var ICE2F_PAIR_IDS = new Set(getIce2fComparePairs().map((p) => p.id));
+  var ICE2F_PAIR_IDS = new Set(ICE_2F_KNOWN_COMPARE_PAIRS.map((p) => p.id));
   function parsePersistedWatch(raw) {
     if (!raw || typeof raw !== "object") return null;
     const base = defaultIce2fMachineState().watch;
@@ -1298,7 +1344,7 @@ var SinglestakeIce2f = (() => {
       const zeroShift = ice2fEffectiveZeroShift(machine);
       const units = ice2fStakeUnits(recovery, zeroShift);
       const doubles = ice2fDoubleClicks(recovery, zeroShift);
-      const signalId = `ice2f:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}`;
+      const signalId = `ice2f:${active.pairId ?? "pair"}:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}:h${machine.cycle.armedHead}`;
       const f1Key = pragmaticExteriorBetKeyFromFactor(active.factor1);
       const f2Key = pragmaticExteriorBetKeyFromFactor(active.factor2);
       const f1Label = doisFatoresFactorLabel(active.factor1);
@@ -1345,6 +1391,8 @@ var SinglestakeIce2f = (() => {
           factor2BetKey: f2Key,
           singleFactorMode: false,
           signalId,
+          armedHead: machine.cycle.armedHead,
+          pairId: active.pairId ?? null,
           stakeAmount,
           units,
           chipClicks: 1,
@@ -1361,6 +1409,21 @@ var SinglestakeIce2f = (() => {
         }
       };
     }
+    function dropCycleIfPairDisabled(enabledIds) {
+      const pairId = machine.cycle?.active?.pairId;
+      if (!pairId || !machine.cycle) return false;
+      const allowed = new Set(
+        (enabledIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+      );
+      if (allowed.has(pairId)) return false;
+      machine = {
+        ...machine,
+        cycle: null,
+        betCommitInFlight: false,
+        betCommitArmedHead: null
+      };
+      return true;
+    }
     return {
       tableId: ICE2F_TABLE_ID,
       ingestHistorySnapshot,
@@ -1371,6 +1434,7 @@ var SinglestakeIce2f = (() => {
       beginBetCommit,
       abortBetCommit,
       markBetPlaced,
+      dropCycleIfPairDisabled,
       getState: () => ({
         machine,
         stats,
@@ -1414,6 +1478,13 @@ var SinglestakeIce2f = (() => {
     ice2fDoubleClicks,
     ice2fEffectiveZeroShift,
     ice2fStakeUnits,
+    ICE_2F_KNOWN_COMPARE_PAIRS,
+    ICE_2F_DEFAULT_ENABLED_PAIR_IDS,
+    ice2fPairLabel,
+    applyIce2fEnabledPairIds,
+    configureIce2fComparePairs,
+    configureIce2fDefaultComparePairs,
+    getIce2fComparePairs,
     createIce2fEngine
   };
   if (typeof globalThis !== "undefined") {

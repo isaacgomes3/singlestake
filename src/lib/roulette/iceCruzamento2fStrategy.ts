@@ -1,9 +1,7 @@
 /**
  * Cruzamento 2 Fatores — comparação de pares de posições (newest-first).
  *
- * **Default (ICE):** pares **independentes** (paralelo):
- * - **3×6**, **2×4**
- * - Cada par tem contagem de falhas própria
+ * **Default (ICE):** gatilho **2×4**
  * - Indica no **match** (sem exigir falhas prévias)
  * - Empate **não** conta como falha
  *
@@ -81,11 +79,42 @@ function normalizePair(
   };
 }
 
-/** Default ICE: todos os pares indicam no primeiro match. */
+/** Default ICE: só 2×4 — indica no primeiro match. */
 const ICE_2F_DEFAULT_COMPARE_PAIRS: readonly Ice2fComparePairConfig[] = [
-  normalizePair(3, 6, 0),
   normalizePair(2, 4, 0),
 ];
+
+/** Gatilhos activos nesta linha 2F (só 2×4). */
+export const ICE_2F_KNOWN_COMPARE_PAIRS: readonly Ice2fComparePairConfig[] = [
+  normalizePair(2, 4, 0),
+];
+
+export const ICE_2F_DEFAULT_ENABLED_PAIR_IDS: readonly string[] =
+  ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => p.id);
+
+export function ice2fPairLabel(pairId: string): string {
+  return String(pairId ?? "").replace(/x/gi, "×");
+}
+
+/** Activa só os ids conhecidos (ordem = prioridade). Vazio → default. */
+export function applyIce2fEnabledPairIds(enabledIds: readonly string[]): void {
+  const known = new Map(ICE_2F_KNOWN_COMPARE_PAIRS.map((p) => [p.id, p]));
+  const next: { positions: readonly [number, number]; requiredFailures: number }[] = [];
+  const seen = new Set<string>();
+  for (const raw of enabledIds) {
+    const id = typeof raw === "string" ? raw.trim() : "";
+    if (!id || seen.has(id)) continue;
+    const pair = known.get(id);
+    if (!pair) continue;
+    seen.add(id);
+    next.push({ positions: pair.positions, requiredFailures: pair.requiredFailures });
+  }
+  if (next.length === 0) {
+    configureIce2fDefaultComparePairs();
+    return;
+  }
+  configureIce2fComparePairs(next);
+}
 
 const ice2fCompareConfig: { pairs: Ice2fComparePairConfig[] } = {
   pairs: ICE_2F_DEFAULT_COMPARE_PAIRS.map((p) => ({ ...p, positions: [...p.positions] as [number, number] })),
@@ -95,10 +124,10 @@ export function getIce2fComparePairs(): readonly Ice2fComparePairConfig[] {
   return ice2fCompareConfig.pairs;
 }
 
-/** Primeiro par (compat) — ICE default 3×6; KTO após configure → 2×4. */
+/** Primeiro par (compat) — ICE default 3×6. */
 export function getIce2fComparePositions(): readonly [number, number] {
   const first = ice2fCompareConfig.pairs[0];
-  return first?.positions ?? [3, 6];
+  return first?.positions ?? [2, 4];
 }
 
 export function getIce2fMinHistory(): number {
@@ -136,7 +165,7 @@ export const ICE_2F_CROSSING_AXES = [
 export let ICE_2F_MIN_HISTORY = getIce2fMinHistory();
 /** @deprecated Janela de eco removida — gatilho é o par configurado. */
 export const ICE_2F_SCAN_WINDOW = 11;
-export const ICE_2F_MAX_RECOVERY = 5;
+export const ICE_2F_MAX_RECOVERY = 8;
 
 function syncDeprecatedPositionExports(): void {
   ICE_2F_COMPARE_POSITIONS = getIce2fComparePositions();
@@ -186,13 +215,14 @@ export const ICE_2F_RELAXED_REQUIRED_FAILURES = 0;
 export const ICE_2F_RELAXED_FALLBACK_FAILURES = 0;
 export const ICE_2F_INACTIVE_SPINS_FOR_RELAX = 0;
 
-/** Delays curtos — Extra Time: janela fecha se esperar 6s + open mesa. */
+/** Esperas de clique: entrada, gale e reentrada pós-empate — todas 6s após o giro. */
 export const ICE_2F_RECOVERY_BET_DELAY_MS = 6_000;
-export const ICE_2F_IMMEDIATE_REBET_DELAY_MS = 800;
+export const ICE_2F_IMMEDIATE_REBET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 export const ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 export const ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
-export const ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32] as const;
+/** Entrada + 8 gales: 1 · 2 · 4 · 8 · 16 · 32 · 64 · 128 · 256. */
+export const ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
 export const ICE_2F_GALE3_REFERENCE_UNITS = 8;
 
 export function ice2fPadFactorPlacementMs(_units: number): number {
@@ -1138,16 +1168,18 @@ export function tickIce2fPlacar(
     }
   }
 
+  // Após W/L/empate: NÃO rearma no mesmo giro (indicação única / anti-fantasma).
   if (
+    !flash &&
     !nextMachine.cycle &&
     headChanged &&
     historyNewestFirst.length >= getIce2fSoftMinHistory()
   ) {
-    // Novo giro → leitura fresca do gatilho efectivo.
     nextMachine = tryArmCycleFromWatch(nextMachine, historyNewestFirst, head);
   }
 
   if (
+    !flash &&
     !nextMachine.cycle &&
     machine.lastSpinHead == null &&
     historyNewestFirst.length >= getIce2fSoftMinHistory()

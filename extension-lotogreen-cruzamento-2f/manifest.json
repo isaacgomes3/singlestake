@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "stake37 — Lotogreen Cruzamento 2F",
-  "version": "1.2.6",
-  "description": "Gatilhos 3×6·2×4 — gráfico run-up/drawdown, sem gale, sem clique (observação).",
+  "version": "1.3.8",
+  "description": "Gatilho 2×4 — 6s; limpa indicação no liquidar (não rearma no mesmo giro).",
   "permissions": [
     "tabs",
     "storage",

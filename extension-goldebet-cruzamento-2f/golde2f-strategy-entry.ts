@@ -7,6 +7,11 @@ import {
   buildIce2fStreakChartMetrics,
   canPlaceIce2fBet,
   configureIce2fDefaultComparePairs,
+  applyIce2fEnabledPairIds,
+  ICE_2F_DEFAULT_ENABLED_PAIR_IDS,
+  ICE_2F_KNOWN_COMPARE_PAIRS,
+  ice2fPairLabel,
+  configureIce2fComparePairs,
   defaultIce2fMachineState,
   emptyIce2fStats,
   formatIce2fWatchLabel,
@@ -50,10 +55,10 @@ export const ROTATING_ROOM_CROSSING_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 const BASE_STAKE = 0.5;
 
 const GOLDE2F_POSITIONS = new Set(
-  getIce2fComparePairs().flatMap((p) => [...p.positions]),
+  ICE_2F_KNOWN_COMPARE_PAIRS.flatMap((p) => [...p.positions]),
 );
 const GOLDE2F_AXES = new Set(["cor-altura", "altura-paridade", "cor-paridade"]);
-const GOLDE2F_PAIR_IDS = new Set(getIce2fComparePairs().map((p) => p.id));
+const GOLDE2F_PAIR_IDS = new Set(ICE_2F_KNOWN_COMPARE_PAIRS.map((p) => p.id));
 
 export type Golde2fPersistedMachine = {
   lastSpinHead?: string | null;
@@ -343,7 +348,7 @@ export function createGolde2fEngine(options: CreateGolde2fEngineOptions = {}) {
     const zeroShift = ice2fEffectiveZeroShift(machine);
     const units = ice2fStakeUnits(recovery, zeroShift);
     const doubles = ice2fDoubleClicks(recovery, zeroShift);
-    const signalId = `golde2f:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}`;
+    const signalId = `golde2f:${active.pairId ?? "pair"}:pos${active.criticalPosition}:${active.axis}:ref${active.referenceNumber}:r${recovery}:h${machine.cycle.armedHead}`;
     const f1Key = pragmaticExteriorBetKeyFromFactor(active.factor1);
     const f2Key = pragmaticExteriorBetKeyFromFactor(active.factor2);
     const f1Label = doisFatoresFactorLabel(active.factor1);
@@ -397,6 +402,8 @@ export function createGolde2fEngine(options: CreateGolde2fEngineOptions = {}) {
         factor2BetKey: f2Key,
         singleFactorMode: false,
         signalId,
+        armedHead: machine.cycle.armedHead,
+        pairId: active.pairId ?? null,
         stakeAmount,
         units,
         chipClicks: 1,
@@ -414,6 +421,22 @@ export function createGolde2fEngine(options: CreateGolde2fEngineOptions = {}) {
     };
   }
 
+  function dropCycleIfPairDisabled(enabledIds: readonly string[]): boolean {
+    const pairId = machine.cycle?.active?.pairId;
+    if (!pairId || !machine.cycle) return false;
+    const allowed = new Set(
+      (enabledIds ?? []).map((id) => String(id).trim()).filter(Boolean),
+    );
+    if (allowed.has(pairId)) return false;
+    machine = {
+      ...machine,
+      cycle: null,
+      betCommitInFlight: false,
+      betCommitArmedHead: null,
+    };
+    return true;
+  }
+
   return {
     tableId: GOLDE2F_TABLE_ID,
     ingestHistorySnapshot,
@@ -424,6 +447,7 @@ export function createGolde2fEngine(options: CreateGolde2fEngineOptions = {}) {
     beginBetCommit,
     abortBetCommit,
     markBetPlaced,
+    dropCycleIfPairDisabled,
     getState: () => ({
       machine,
       stats,
@@ -468,7 +492,41 @@ const api = {
   ice2fDoubleClicks,
   ice2fEffectiveZeroShift,
   ice2fStakeUnits,
+  ICE_2F_KNOWN_COMPARE_PAIRS,
+  ICE_2F_DEFAULT_ENABLED_PAIR_IDS,
+  ice2fPairLabel,
+  applyIce2fEnabledPairIds,
+  configureIce2fComparePairs,
+  configureIce2fDefaultComparePairs,
+  getIce2fComparePairs,
   createGolde2fEngine,
+};
+
+// Reexportar nomes usados pelo runner/background — o esbuild IIFE só expõe
+// named exports; sem isto SinglestakeGolde2f.applyIce2fEnabledPairIds fica undefined.
+export {
+  applyIce2fEnabledPairIds,
+  configureIce2fComparePairs,
+  configureIce2fDefaultComparePairs,
+  getIce2fComparePairs,
+  ICE_2F_KNOWN_COMPARE_PAIRS,
+  ICE_2F_DEFAULT_ENABLED_PAIR_IDS,
+  ice2fPairLabel,
+  emptyIce2fStats,
+  buildIce2fStreakChartMetrics,
+  formatIce2fWatchLabel,
+  ice2fWatchLabelForMachine,
+  ice2fBetDelayMs,
+  ice2fBetDelayUntilMs,
+  ice2fPadFactorPlacementMs,
+  ice2fDoubleClicks,
+  ice2fEffectiveZeroShift,
+  ice2fStakeUnits,
+  ICE_2F_BET_DELAY_MS,
+  ICE_2F_FIRST_BET_SETTLE_MS,
+  ICE_2F_IMMEDIATE_REBET_DELAY_MS,
+  ICE_2F_MAX_RECOVERY,
+  ICE_2F_RECOVERY_BET_DELAY_MS,
 };
 
 if (typeof globalThis !== "undefined") {

@@ -94,6 +94,12 @@ function recoveryFromContext(context) {
       if (Number.isFinite(n)) return Math.max(0, n);
     }
     const part = parts[parts.length - 1];
+    // Prefixo `rN` (Bet Nacional 2F): ice2f:…:r2
+    const rMatch = typeof part === "string" ? /^r(\d+)$/i.exec(part.trim()) : null;
+    if (rMatch) {
+      const n = parseInt(rMatch[1] ?? "", 10);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
     const n = parseInt(part ?? "", 10);
     if (Number.isFinite(n)) return Math.max(0, n);
   }
@@ -127,8 +133,8 @@ function isBn2fCrossingContext(context) {
   return context?.strategy === "bn2fcruzamento";
 }
 
-/** Unidades Bet Nacional 2F: 1 · 1 · 2 · 4 · 8 · 16 · 32 (entrada + 6 gales). */
-const BN2F_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32];
+/** Unidades Bet Nacional 2F: 1 · 2 · 4 · 8 · 16 · 32 · 64 · 128 · 256 (entrada + 8 gales). */
+const BN2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32, 64, 128, 256];
 
 function bn2fStakeUnitsForRecovery(recovery) {
   const r = Math.max(0, Math.floor(recovery));

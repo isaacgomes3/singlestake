@@ -38,24 +38,91 @@ function setModeUi(mode) {
 
 function clampMaxGales(value) {
   const n = typeof value === "number" ? value : parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(n)) return 6;
-  return Math.min(6, Math.max(0, n));
+  if (!Number.isFinite(n)) return 8;
+  return Math.min(8, Math.max(0, n));
 }
 
-const PAIR_IDS = ["3x6", "2x4"];
+const FALLBACK_PAIR_IDS = [{ id: "2x4", label: "2×4" }];
 const noGaleToggle = document.getElementById("noGaleToggle");
 const noGaleRow = document.getElementById("noGaleRow");
 const observeToggle = document.getElementById("observeToggle");
 const observeRow = document.getElementById("observeRow");
+const pairStatsEl = document.getElementById("pairStats");
+/** @type {Record<string, { wEl: HTMLElement, lEl: HTMLElement, input: HTMLInputElement, row: HTMLElement }>} */
+const pairCells = {};
 
-function renderPairIndication(pairIndication) {
+function ensurePairRow(id, label) {
+  if (pairCells[id]) {
+    const idEl = pairCells[id].row.querySelector(".pair-id");
+    if (idEl && label) idEl.textContent = label;
+    return pairCells[id];
+  }
+  if (!(pairStatsEl instanceof HTMLElement)) return null;
+  const row = document.createElement("div");
+  row.className = "pair-row";
+  row.dataset.pair = id;
+  const idSpan = document.createElement("span");
+  idSpan.className = "pair-id";
+  idSpan.textContent = label || id;
+  const enable = document.createElement("label");
+  enable.className = "pair-enable";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.setAttribute("aria-label", `Activar ${label || id}`);
+  const slider = document.createElement("span");
+  slider.className = "slider-mini";
+  enable.append(input, slider);
+  const wEl = document.createElement("span");
+  wEl.className = "pair-ok";
+  wEl.textContent = "0";
+  const lEl = document.createElement("span");
+  lEl.className = "pair-bad";
+  lEl.textContent = "0";
+  row.append(idSpan, enable, wEl, lEl);
+  pairStatsEl.append(row);
+  pairCells[id] = { wEl, lEl, input, row };
+  input.addEventListener("change", async () => {
+    const want = input.checked === true;
+    const enabled = Object.entries(pairCells)
+      .filter(([, cell]) => cell.input.checked)
+      .map(([pairId]) => pairId);
+    if (enabled.length === 0) {
+      input.checked = true;
+      if (ice2fStatus) ice2fStatus.textContent = "Mantém pelo menos 1 gatilho activo.";
+      return;
+    }
+    input.disabled = true;
+    const r = await send("set-loto2f-config", { config: { enabledPairIds: enabled } });
+    if (r?.ok === false) {
+      input.checked = !want;
+      if (ice2fStatus) ice2fStatus.textContent = r.error ?? "Falha ao gravar gatilhos";
+    }
+    input.disabled = false;
+    await loadStatus();
+  });
+  return pairCells[id];
+}
+
+function renderPairIndication(pairIndication, knownPairs, enabledPairIds) {
   const map = pairIndication && typeof pairIndication === "object" ? pairIndication : {};
-  for (const id of PAIR_IDS) {
+  const known =
+    Array.isArray(knownPairs) && knownPairs.length > 0 ? knownPairs : FALLBACK_PAIR_IDS;
+  const enabledSet = new Set(
+    Array.isArray(enabledPairIds) && enabledPairIds.length > 0
+      ? enabledPairIds
+      : ["2x4"],
+  );
+  for (const meta of known) {
+    const id = meta.id;
+    const label = meta.label || String(id).replace(/x/gi, "×");
+    const cells = ensurePairRow(id, label);
+    if (!cells) continue;
     const slot = map[id] ?? {};
-    const wEl = document.getElementById(`pair-${id}-w`);
-    const lEl = document.getElementById(`pair-${id}-l`);
-    if (wEl) wEl.textContent = String(slot.wins ?? 0);
-    if (lEl) lEl.textContent = String(slot.losses ?? 0);
+    cells.wEl.textContent = String(slot.wins ?? 0);
+    cells.lEl.textContent = String(slot.losses ?? 0);
+    const on = enabledSet.has(id);
+    cells.input.checked = on;
+    cells.row.classList.toggle("off", !on);
   }
 }
 
@@ -71,7 +138,11 @@ function renderKtoAutopilot(ice2f, mode, loto2fConfig) {
 
   if (winsEl) winsEl.textContent = String(wins);
   if (lossesEl) lossesEl.textContent = String(losses);
-  renderPairIndication(st.pairIndication);
+  renderPairIndication(
+    st.pairIndication,
+    st.knownPairs,
+    st.enabledPairIds ?? loto2fConfig?.enabledPairIds,
+  );
   if (noGaleToggle instanceof HTMLInputElement) noGaleToggle.checked = noGale;
   noGaleRow?.classList.toggle("on", noGale);
   if (observeToggle instanceof HTMLInputElement) observeToggle.checked = observeOnly;
@@ -110,8 +181,15 @@ function renderKtoAutopilot(ice2f, mode, loto2fConfig) {
         ? ` · gale pendente ${st.recovery}`
         : "";
     const ver = st.extensionVersion ? ` · v${st.extensionVersion}` : "";
+    const enabled = Array.isArray(st.enabledPairIds) ? st.enabledPairIds : [];
+    const labels = enabled.map((id) => String(id).replace(/x/gi, "×")).join(" · ");
     ice2fStatus.textContent =
-      (st.reason ?? "A monitorizar gatilhos 3×6 · 2×4…") + galeHint + ver;
+      (st.reason ??
+        (labels
+          ? `A monitorizar gatilhos ${labels}…`
+          : "A monitorizar gatilhos…")) +
+      galeHint +
+      ver;
     return;
   }
 
@@ -129,7 +207,7 @@ function renderStatus(status) {
   }
   if (maxGales instanceof HTMLSelectElement) {
     maxGales.value = String(
-      clampMaxGales(cfg.maxRecoveryPreference ?? (cfg.noGale ? 5 : cfg.maxRecovery) ?? 5),
+      clampMaxGales(cfg.maxRecoveryPreference ?? (cfg.noGale ? 8 : cfg.maxRecovery) ?? 8),
     );
     maxGales.disabled = cfg.noGale === true;
   }
@@ -209,7 +287,7 @@ noGaleToggle?.addEventListener("change", async () => {
       ...prev,
       noGale: want,
       maxRecoveryPreference:
-        prev.maxRecoveryPreference ?? (prev.noGale ? 5 : prev.maxRecovery) ?? 5,
+        prev.maxRecoveryPreference ?? (prev.noGale ? 8 : prev.maxRecovery) ?? 8,
     },
   });
   await loadStatus();
