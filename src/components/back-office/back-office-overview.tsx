@@ -2,8 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { AutomationGlobalKpiCard } from "@/components/back-office/automation-global-kpi-card";
-import { AutomationOverviewSections } from "@/components/back-office/automation-overview-sections";
+import { BackOfficeCasinoContent } from "@/components/back-office/back-office-casino-content";
 import { DeferredMount } from "@/components/deferred-mount";
 import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { apiFetchOverview } from "@/lib/auth/api";
@@ -82,12 +81,11 @@ export function BackOfficeOverviewPage() {
   });
 
   const o = overview ?? MOCK_BACK_OFFICE_OVERVIEW;
-  const auto = o.automation;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <section
-        className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid items-stretch gap-4 sm:grid-cols-2"
         aria-label={t("overview.financialSummary")}
       >
         <SummaryCard
@@ -102,23 +100,17 @@ export function BackOfficeOverviewPage() {
           value={money(o.accumulatedEarnings)}
           label={t("overview.kpiNetwork")}
         />
-        <Link
-          to="/back-office/financeiro/carteira"
-          className="block h-full rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <SummaryCard
-            tone="teal"
-            icon={DollarSign}
-            value={money(auto.displayBalance)}
-            label={t("overview.kpiAutomation")}
-          />
-        </Link>
-        <AutomationGlobalKpiCard />
       </section>
 
-      <DeferredMount delayMs={50}>
-        <AutomationOverviewSections />
-      </DeferredMount>
+      <section aria-label={t("overview.casinoTitle")}>
+        <div className="mb-3">
+          <h2 className="text-sm font-bold text-text-primary">{t("overview.casinoTitle")}</h2>
+          <p className="mt-0.5 text-xs text-text-secondary">{t("overview.casinoDesc")}</p>
+        </div>
+        <DeferredMount delayMs={50}>
+          <BackOfficeCasinoContent />
+        </DeferredMount>
+      </section>
 
       <section>
         <Link

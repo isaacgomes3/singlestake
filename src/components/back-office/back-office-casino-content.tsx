@@ -1,19 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { RotatingRoomExtensionStatus } from "@/components/rotating-room-extension-status";
-import { RotatingRoomLobbyCard } from "@/components/rotating-room-panel";
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
-import { useUmFatorSession } from "@/hooks/useUmFatorSession";
-import {
-  buildUmFatorLiveViewForTable,
-  readUmFatorMachineState,
-} from "@/lib/roulette/umFatorCrossingStrategy";
-import {
-  useAutomationAlignedCrossingSession,
-  useAutomationAlignedRotativaSession,
-} from "@/hooks/useAutomationAlignedRotatingSession";
-import { useRotatingRoomHistories } from "@/hooks/useRotatingRoomHistories";
+import { useIce2fSession } from "@/hooks/useIce2fSession";
 import { useLiveSseStatus } from "@/hooks/useLiveSseStatus";
 import {
   lobbyTableCardFallbackBg,
@@ -29,9 +18,7 @@ import {
   lobbyTableDisplayName,
   LOBBY_MACAO_SLOT_INDEX,
   resolveLobbyCardTableIds,
-  resolveRotatingRoomTableIds,
   ROULETTE_MACAO_TABLE_ID,
-  ROTATING_ROOM_FIXED_TABLE_IDS,
 } from "@/lib/roulette/lobbyTables";
 import {
   liveTableHistoryStorageKey,
@@ -41,14 +28,9 @@ import {
   ROULETTE_LIVE_TABLE_HISTORY_EVENT,
   type RouletteLiveTableHistoryDetail,
 } from "@/lib/roulette/historyStorage";
-import { automationWorkspaceHref, isExternalHref } from "@/lib/app-profile";
-
-import type { BackOfficeModuleId } from "@/lib/back-office/navigation";
+import { tableHasLocalIce2fSignal } from "@/lib/roulette/ice2fTableSession";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/i18n-provider";
-
-const AUTOMATION_SALA_ROUTE = automationWorkspaceHref("/sala-rotativa-um-fator");
-const AUTOMATION_SALA_2F_ROUTE = automationWorkspaceHref("/sala-rotativa-dois-fatores");
 
 const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
@@ -64,35 +46,28 @@ function historyCellClass(n: number, highlight: boolean): string {
   return `${base} ${highlight ? "border-white" : "border-slate-700"} bg-slate-950 text-slate-100`;
 }
 
-function tableHasLocalUmFatorSignal(tableId: number, history: readonly number[]): boolean {
-  const machine = readUmFatorMachineState(tableId);
-  return buildUmFatorLiveViewForTable(tableId, history, machine).globalActive != null;
-}
-
 function CasinoTableCard({
   tableId,
   macaoTableId,
   title,
   tableLabel,
   recent,
+  fullHistory,
   noSpinsLabel,
   signalActiveLabel,
   isPrimary,
-  href,
-  external,
 }: {
   tableId: number;
   macaoTableId: number;
   title: string;
   tableLabel: string;
   recent: number[];
+  fullHistory: number[];
   noSpinsLabel: string;
   signalActiveLabel: string;
   isPrimary: boolean;
-  href: string;
-  external: boolean;
 }) {
-  const session = useUmFatorSession(tableId, recent, { observeOnly: true });
+  const session = useIce2fSession(tableId, fullHistory);
   const hasSignal = session.showTapeteSignal;
   const photoBg = lobbyTableCardPhotoUrl(tableId, macaoTableId);
   const photoStyle = lobbyTableCardPhotoStyle(tableId, macaoTableId);
@@ -150,13 +125,6 @@ function CasinoTableCard({
     </article>
   );
 
-  if (external) {
-    return (
-      <a href={href} className={cardClass} target="_blank" rel="noopener noreferrer">
-        {cardBody}
-      </a>
-    );
-  }
   return (
     <Link to="/casino-mesa" search={{ mesa: tableId }} className={cardClass}>
       {cardBody}
@@ -228,40 +196,20 @@ export function useBackOfficeCasinoLiveData() {
   const primaryId = getPrimaryLiveTableId() ?? lobbyCardTableIds[0] ?? ROULETTE_MACAO_TABLE_ID;
   const histories = useLobbyLiveHistories(lobbyCardTableIds);
 
-  const rotatingRoomTableIds = useMemo(() => {
-    const resolved = resolveRotatingRoomTableIds(getLiveRouletteTableIds());
-    return resolved.length > 0 ? resolved : [...ROTATING_ROOM_FIXED_TABLE_IDS];
-  }, [lobbyCardTableIds]);
-
-  const rotatingRoomHistories = useRotatingRoomHistories(rotatingRoomTableIds);
-  const rotatingRoomSession = useAutomationAlignedRotativaSession(
-    rotatingRoomTableIds,
-    rotatingRoomHistories,
-    { observeOnly: true },
-  );
-  const crossingSession = useAutomationAlignedCrossingSession(
-    rotatingRoomTableIds,
-    rotatingRoomHistories,
-    { observeOnly: true },
-  );
-
-  return { lobbyCardTableIds, histories, primaryId, rotatingRoomSession, crossingSession };
+  return { lobbyCardTableIds, histories, primaryId };
 }
-
-type CasinoModuleId = Extract<BackOfficeModuleId, "casino-ao-vivo">;
 
 function CassinoAoVivoRoletasGrid() {
   const { t } = useI18n();
   useDgaTableImages();
   const sseStatus = useLiveSseStatus();
-  const { lobbyCardTableIds, histories, primaryId, rotatingRoomSession, crossingSession } =
-    useBackOfficeCasinoLiveData();
+  const { lobbyCardTableIds, histories, primaryId } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
 
   const sortedTableIds = useMemo(() => {
     return [...lobbyCardTableIds].sort((a, b) => {
       const signal = (tid: number) =>
-        tableHasLocalUmFatorSignal(tid, histories[tid] ?? []) ? 1 : 0;
+        tableHasLocalIce2fSignal(tid, histories[tid] ?? []) ? 1 : 0;
       const diff = signal(b) - signal(a);
       if (diff !== 0) return diff;
       if (a === primaryId) return -1;
@@ -271,35 +219,14 @@ function CassinoAoVivoRoletasGrid() {
   }, [lobbyCardTableIds, histories, primaryId]);
 
   return (
-    <div className="space-y-6">
-      <RotatingRoomExtensionStatus />
+    <div className="space-y-4">
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : null}
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="flex min-h-0 flex-col gap-2 sm:col-span-1">
-          <div className="min-h-0 flex-1">
-            <RotatingRoomLobbyCard
-              session={rotatingRoomSession}
-              salaRoute={AUTOMATION_SALA_ROUTE}
-              salaLabel={t("casino.roomLabel")}
-            />
-          </div>
-        </div>
-        <div className="flex min-h-0 flex-col gap-2 sm:col-span-1">
-          <div className="min-h-0 flex-1">
-            <RotatingRoomLobbyCard
-              session={crossingSession}
-              salaRoute={AUTOMATION_SALA_2F_ROUTE}
-              salaLabel={t("casino.room2FatoresLabel")}
-              strategyBadge="2 Fatores"
-            />
-          </div>
-        </div>
         {sortedTableIds.map((tid) => {
           const hist = histories[tid] ?? [];
           const recent = hist.slice(0, 6);
-          const mesaHref = automationWorkspaceHref(`/casino-mesa?mesa=${tid}`);
           return (
             <CasinoTableCard
               key={tid}
@@ -308,11 +235,10 @@ function CassinoAoVivoRoletasGrid() {
               title={lobbyTableDisplayName(tid, macaoTid)}
               tableLabel={t("casino.tableLabel", { id: tid })}
               recent={recent}
+              fullHistory={hist}
               noSpinsLabel={t("casino.noSpins")}
               signalActiveLabel={t("casino.signalActive")}
               isPrimary={tid === primaryId}
-              href={mesaHref}
-              external={isExternalHref(mesaHref)}
             />
           );
         })}
@@ -321,6 +247,6 @@ function CassinoAoVivoRoletasGrid() {
   );
 }
 
-export function BackOfficeCasinoContent({ moduleId: _moduleId }: { moduleId: CasinoModuleId }) {
+export function BackOfficeCasinoContent() {
   return <CassinoAoVivoRoletasGrid />;
 }

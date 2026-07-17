@@ -4,8 +4,8 @@ export const navDescriptionsContent = {
       produtos: "Pacotes e mensalidades.",
       rede: "Afiliados, binário, qualificação e bônus.",
       operacoes: "Casino ao vivo e sala rotativa.",
-      financeiro: "Carteira, depósitos, saques e extrato.",
-      administracao: "Automação global, painel admin e auditoria.",
+      financeiro: "Carteira, depósitos e saques.",
+      administracao: "Painel admin e auditoria.",
     },
     modules: {
       pacotes: "Cadastro e gestão de planos de investimento.",
@@ -32,7 +32,7 @@ export const navDescriptionsContent = {
       "automacao-estatisticas": "Acerto por gatilho 2 Fatores (3 padrões) e 1 Fator.",
       "automacao-sequencias": "Monitor cor / altura / paridade por sequência limpa ou suja.",
       auditoria: "Registro de bônus, alterações e logins.",
-      "casino-ao-vivo": "Roletas ao vivo e sala rotativa 1 fator.",
+      "casino-ao-vivo": "Roletas individuais · Cruzamento 2F sem gale.",
     },
     suporte: "Canal de ajuda, contacto e tickets de suporte.",
     integrationBanner:
@@ -43,8 +43,8 @@ export const navDescriptionsContent = {
       produtos: "Packages and subscriptions.",
       rede: "Affiliates, binary, qualification and bonuses.",
       operacoes: "Live casino and rotating room.",
-      financeiro: "Wallet, deposits, withdrawals and statement.",
-      administracao: "Global automation, admin panel and audit.",
+      financeiro: "Wallet, deposits and withdrawals.",
+      administracao: "Admin panel and audit.",
     },
     modules: {
       pacotes: "Investment plan registration and management.",
@@ -82,8 +82,8 @@ export const navDescriptionsContent = {
       produtos: "Paquetes y mensualidades.",
       rede: "Afiliados, binario, calificación y bonos.",
       operacoes: "Casino en vivo y sala rotativa.",
-      financeiro: "Cartera, depósitos, retiros y extracto.",
-      administracao: "Automatización global, panel admin y auditoría.",
+      financeiro: "Cartera, depósitos y retiros.",
+      administracao: "Panel admin y auditoría.",
     },
     modules: {
       pacotes: "Registro y gestión de planes de inversión.",

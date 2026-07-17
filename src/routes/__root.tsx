@@ -175,14 +175,14 @@ function RootComponent() {
     !isAutomation &&
     backOfficeApp &&
     (pathname === "/back-office" || pathname === "/back-office/");
-  /** Motor global + automação — visão geral, salas rotativas, monitor Sequências e subdomínio automação. */
+  /** Motor global + automação — salas rotativas, monitor Sequências e subdomínio automação. */
   const needsGlobalAutomation =
-    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin || adminAutomation;
+    isAutomation || workspacePath || liveRouletteAdmin || adminAutomation;
   /** SSE roleta — mesas ao vivo (visão geral + salas + Sequências + subdomínio automação). */
   const needsRouletteStream =
-    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin;
-  /** Ponte extensão — visão geral (painel automação) + salas + subdomínio automação. */
-  const needsExtensionBridge = isAutomation || backOfficeOverview || workspacePath;
+    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin || pathname.startsWith("/casino-mesa");
+  /** Ponte extensão — salas + subdomínio automação. */
+  const needsExtensionBridge = isAutomation || workspacePath;
 
   const outlet = <Outlet />;
   const automationBridges = needsGlobalAutomation ? (

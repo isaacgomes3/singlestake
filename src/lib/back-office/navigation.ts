@@ -112,15 +112,15 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Financeiro",
     path: "/back-office/financeiro",
     icon: Wallet,
-    description: "Carteira, depósitos, saques e extrato.",
-    moduleIds: ["carteira", "depositos", "saques", "extrato"],
+    description: "Carteira, depósitos e saques.",
+    moduleIds: ["carteira", "depositos", "saques"],
   },
   {
     id: "administracao",
     label: "Administração",
     path: "/back-office/administracao",
     icon: Shield,
-    description: "Automação global, painel admin e auditoria.",
+    description: "Painel admin e auditoria.",
     moduleIds: [
       "automacao-config",
       "automacao-estatisticas",

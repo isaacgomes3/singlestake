@@ -11,13 +11,18 @@
  * - cor/altura, ou
  * - paridade/altura, ou
  * - cor/paridade
- * Se partilham **3** factores → prioriza **cor/paridade**.
+ * Se partilham **3** factores → prioriza **cor/altura**.
  *
- * **Indicação única:** cada entrada vale só aquele match (factores desse giro).
+ * **Indicação:** por defeito aposta nos **mesmos factores** do match
+ * (ex.: match Vermelho+Par → Vermelho+Par). Alterna automaticamente
+ * normal ↔ oposto ao **chegar a gale 4**, ou ao **chegar a gale 3 duas vezes
+ * num intervalo de 10 giros**. Depois de alternar, só volta a mudar com a
+ * mesma regra.
+ * **Indicação única:** cada entrada vale só aquele match.
  * **Empate** → fecha a indicação (não reaposta os mesmos factores); espera nova
  * entrada (qualquer par elegível). Empate **não** é falha.
- * **Vitória** → fecha, zera falhas desse par. **Falha** → fecha, +1 falha nesse par.
- * **Zero** na indicação = **derrota** (gale normal).
+ * **Vitória** → fecha; martingale positivo sobe pressão (até 2). **Falha** → volta à base.
+ * **Zero** na indicação = **derrota**.
  */
 
 import {
@@ -221,9 +226,35 @@ export const ICE_2F_IMMEDIATE_REBET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 export const ICE_2F_FIRST_BET_SETTLE_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 export const ICE_2F_BET_DELAY_MS = ICE_2F_RECOVERY_BET_DELAY_MS;
 
-/** Entrada + 8 gales: 1 · 2 · 4 · 8 · 16 · 32 · 64 · 128 · 256. */
-export const ICE_2F_STAKE_UNITS = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
+/** Entrada + 8 gales: 1 · 1 · 2 · 4 · 8 · 16 · 32 · 64 · 128. */
+export const ICE_2F_STAKE_UNITS = [1, 1, 2, 4, 8, 16, 32, 64, 128] as const;
 export const ICE_2F_GALE3_REFERENCE_UNITS = 8;
+
+/** clássico = sobe no L; positive = sobe no W e reset no L (tecto pressão 2). */
+export type Ice2fStakeMode = "martingale" | "positive";
+/** Tecto do martingale positivo: entrada + pressão 1·2. */
+export const ICE_2F_POSITIVE_MAX_RECOVERY = 2;
+
+/** Oposto = invertido do match; normal = mesmos factores do match. */
+export type Ice2fIndicationPolarity = "opposite" | "normal";
+/** Alterna polaridade ao entrar neste gale. */
+export const ICE_2F_POLARITY_FLIP_GALE = 4;
+/** Alterna polaridade se este gale ocorrer 2× na janela. */
+export const ICE_2F_POLARITY_GALE3 = 3;
+/** Janela (giros) para contar 2× gale 3. */
+export const ICE_2F_POLARITY_GALE3_WINDOW_SPINS = 10;
+
+export function normalizeIce2fIndicationPolarity(
+  value: unknown,
+): Ice2fIndicationPolarity {
+  return value === "opposite" ? "opposite" : "normal";
+}
+
+export function ice2fToggleIndicationPolarity(
+  polarity: Ice2fIndicationPolarity,
+): Ice2fIndicationPolarity {
+  return polarity === "opposite" ? "normal" : "opposite";
+}
 
 export function ice2fPadFactorPlacementMs(_units: number): number {
   return 0;
@@ -299,6 +330,19 @@ export type Ice2fMachineState = {
     hit: Ice2fCriticalHit;
     observationHead: string;
   } | null;
+  /**
+   * Indicação acabada de liquidar — não rearma a mesma chave
+   * (factores + números do par) enquanto o match for o mesmo fantasma.
+   */
+  lastClosedIndicationKey?: string | null;
+  /** Contador monotónico de giros (sobe em cada head novo). */
+  spinIndex?: number;
+  /** normal (default) ou opposite — alterna por gale 4 / gale 3×2. */
+  indicationPolarity?: Ice2fIndicationPolarity;
+  /** Índices de giro em que se entrou em gale 3 (janela de 10). */
+  gale3SpinIndexes?: number[];
+  /** Último motivo de alternância de polaridade (UI). */
+  lastPolarityFlipReason?: "gale4" | "gale3x2" | null;
   zeroDebtUnits?: number;
   zeroRecoveredUnits?: number;
   zeroShift?: number;
@@ -367,10 +411,60 @@ export function defaultIce2fMachineState(): Ice2fMachineState {
     forceImmediateBet: false,
     pendingMatchObservations: {},
     pendingMatchObservation: null,
+    lastClosedIndicationKey: null,
+    spinIndex: 0,
+    indicationPolarity: "normal",
+    gale3SpinIndexes: [],
+    lastPolarityFlipReason: null,
     zeroDebtUnits: 0,
     zeroRecoveredUnits: 0,
     zeroShift: 0,
     zeroRecoveryArmed: false,
+  };
+}
+
+/**
+ * Ao entrar em gale 4 → alterna polaridade.
+ * Ao entrar em gale 3 pela 2ª vez em ≤10 giros → alterna e limpa a janela.
+ */
+export function ice2fApplyPolarityRulesOnRecovery(
+  machine: Ice2fMachineState,
+  nextRecovery: number,
+  spinIndex: number,
+): Ice2fMachineState {
+  const recovery = Math.max(0, Math.floor(nextRecovery));
+  const idx = Math.max(0, Math.floor(spinIndex));
+  let polarity = normalizeIce2fIndicationPolarity(machine.indicationPolarity);
+  let gale3 = Array.isArray(machine.gale3SpinIndexes)
+    ? machine.gale3SpinIndexes
+        .map((n) => Math.floor(Number(n)))
+        .filter((n) => Number.isFinite(n) && n >= 0)
+    : [];
+  let flipReason: Ice2fMachineState["lastPolarityFlipReason"] =
+    machine.lastPolarityFlipReason ?? null;
+
+  if (recovery === ICE_2F_POLARITY_FLIP_GALE) {
+    polarity = ice2fToggleIndicationPolarity(polarity);
+    gale3 = [];
+    flipReason = "gale4";
+  } else if (recovery === ICE_2F_POLARITY_GALE3) {
+    gale3 = [...gale3, idx].filter(
+      (n) => idx - n <= ICE_2F_POLARITY_GALE3_WINDOW_SPINS,
+    );
+    // Evita duplicar o mesmo giro.
+    gale3 = [...new Set(gale3)].sort((a, b) => a - b);
+    if (gale3.length >= 2) {
+      polarity = ice2fToggleIndicationPolarity(polarity);
+      gale3 = [];
+      flipReason = "gale3x2";
+    }
+  }
+
+  return {
+    ...machine,
+    indicationPolarity: polarity,
+    gale3SpinIndexes: gale3,
+    lastPolarityFlipReason: flipReason,
   };
 }
 
@@ -459,9 +553,10 @@ function resolvePendingMatchObservations(
   }
 
   let watch = machine.watch ?? emptyWatch();
+  const polarity = normalizeIce2fIndicationPolarity(machine.indicationPolarity);
   for (const pairId of ids) {
     const obs = pending[pairId]!;
-    const active = ice2fBuildActiveFromHit(obs.hit);
+    const active = ice2fBuildActiveFromHit(obs.hit, polarity);
     const outcome = ice2fClassifyBetRound(resultNumber, active);
     if (outcome === "W") {
       watch = clearPairFailures(watch, pairId);
@@ -551,7 +646,7 @@ export function ice2fToggleAxis(axis: Ice2fCrossingAxis): Ice2fCrossingAxis {
 
 /**
  * Compara duas posições: 2 factores em comum → eixo correspondente;
- * 3 factores → prioriza cor/paridade.
+ * 3 factores → prioriza cor/altura.
  */
 export function ice2fFindHitForPair(
   historyNewestFirst: readonly number[],
@@ -574,7 +669,7 @@ export function ice2fFindHitForPair(
   let factor2: DoisFatoresFactor;
 
   if (sharedCount >= 3) {
-    axis = "cor-paridade";
+    axis = "cor-altura";
     const factors = factorsForNumberOnAxis(numberA, axis);
     if (!factors) return null;
     factor1 = factors[0];
@@ -621,7 +716,7 @@ export function ice2fFindCriticalPosition(
   return null;
 }
 
-function toTapeteActive(active: Ice2fActive): DoisFatoresActive {
+export function ice2fToTapeteActive(active: Ice2fActive): DoisFatoresActive {
   return {
     pairKind: active.pairKind,
     pairKindLabel: active.axis,
@@ -637,6 +732,9 @@ function toTapeteActive(active: Ice2fActive): DoisFatoresActive {
     armingDescription: active.armingDescription,
   };
 }
+
+/** @deprecated Use {@link ice2fToTapeteActive} */
+const toTapeteActive = ice2fToTapeteActive;
 
 export function ice2fClassifyBetRound(
   result: number,
@@ -659,24 +757,36 @@ export function ice2fOppositeBetFactors(
   return [umFatorOppositeFactor(factors[0]), umFatorOppositeFactor(factors[1])];
 }
 
-export function ice2fBuildActiveFromHit(hit: Ice2fCriticalHit): Ice2fActive {
-  const labels = [hit.factor1, hit.factor2]
+export function ice2fBuildActiveFromHit(
+  hit: Ice2fCriticalHit,
+  polarity: Ice2fIndicationPolarity = "normal",
+): Ice2fActive {
+  const mode = normalizeIce2fIndicationPolarity(polarity);
+  const [factor1, factor2] =
+    mode === "opposite"
+      ? ice2fOppositeBetFactors([hit.factor1, hit.factor2])
+      : [hit.factor1, hit.factor2];
+  const matchLabels = [hit.factor1, hit.factor2]
     .map((f) => doisFatoresFactorLabel(f))
     .join(" · ");
-  const tripleHint = hit.sharedCount === 3 ? " · 3F→cor/paridade" : "";
+  const labels = [factor1, factor2]
+    .map((f) => doisFatoresFactorLabel(f))
+    .join(" · ");
+  const tripleHint = hit.sharedCount === 3 ? " · 3F→cor/altura" : "";
   const failHint =
     hit.requiredFailures > 0
       ? ` · após ${hit.requiredFailures} falhas de indicação`
       : "";
+  const polarityHint = mode === "opposite" ? " → oposto " : " → normal ";
   const posLabel = `pos${hit.criticalPosition}/${hit.matchPosition}`;
   return {
     criticalPosition: hit.criticalPosition,
     axis: hit.axis,
-    factor1: hit.factor1,
-    factor2: hit.factor2,
+    factor1,
+    factor2,
     pairKind: pairKindFromCrossingAxis(hit.axis as CrossingAxisKind),
     referenceNumber: hit.triggerNumber,
-    armingDescription: `2F ${posLabel} ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} → ${labels}${tripleHint}${failHint}`,
+    armingDescription: `2F ${posLabel} ${axisLabelPt(hit.axis)}: nº${hit.triggerNumber}·${hit.matchNumber} match ${matchLabels}${polarityHint}${labels}${tripleHint}${failHint}`,
     matchPosition: hit.matchPosition,
     matchNumber: hit.matchNumber,
     triggerNumber: hit.triggerNumber,
@@ -790,7 +900,8 @@ function armCycleFromHit(
   hit: Ice2fCriticalHit,
   recovery: number,
 ): Ice2fMachineState {
-  const active = ice2fBuildActiveFromHit(hit);
+  const polarity = normalizeIce2fIndicationPolarity(machine.indicationPolarity);
+  const active = ice2fBuildActiveFromHit(hit, polarity);
   const immediate =
     recovery > 0 || machine.forceImmediateBet === true;
   const pending = clonePendingObservations(
@@ -819,6 +930,37 @@ function armCycleFromHit(
   };
 }
 
+function indicationKeyFromActive(active: {
+  pairId?: string;
+  axis: Ice2fCrossingAxis;
+  factor1: { kind: string; value: string };
+  factor2: { kind: string; value: string };
+  triggerNumber?: number;
+  matchNumber?: number;
+}): string {
+  return [
+    active.pairId ?? "",
+    active.axis,
+    active.factor1.kind,
+    active.factor1.value,
+    active.factor2.kind,
+    active.factor2.value,
+    active.triggerNumber ?? "",
+    active.matchNumber ?? "",
+  ].join("|");
+}
+
+function indicationKeyFromHit(hit: Ice2fCriticalHit): string {
+  return indicationKeyFromActive({
+    pairId: hit.pairId,
+    axis: hit.axis,
+    factor1: hit.factor1,
+    factor2: hit.factor2,
+    triggerNumber: hit.triggerNumber,
+    matchNumber: hit.matchNumber,
+  });
+}
+
 /**
  * Monitoriza **todos** os pares em paralelo.
  * Arma no primeiro (ordem da lista) com match (e falhas ≥ limiar, se > 0).
@@ -837,6 +979,7 @@ export function tryArmCycleFromWatch(
     machine.pendingMatchObservations,
     machine.pendingMatchObservation,
   );
+  const closedKey = machine.lastClosedIndicationKey ?? null;
 
   let armHit: Ice2fCriticalHit | null = null;
 
@@ -852,6 +995,11 @@ export function tryArmCycleFromWatch(
 
     if (!hit) {
       delete pending[pair.id];
+      continue;
+    }
+
+    // Mesmo match/factores acabados de liquidar → não reabrir (fantasma).
+    if (closedKey && indicationKeyFromHit(hit) === closedKey) {
       continue;
     }
 
@@ -872,6 +1020,7 @@ export function tryArmCycleFromWatch(
         pendingMatchObservations: pending,
         pendingMatchObservation: null,
         betCommitInFlight: false,
+        lastClosedIndicationKey: null,
       },
       head,
       armHit,
@@ -918,7 +1067,9 @@ export function ice2fStakeUnits(recovery: number, zeroShift = 0): number {
 }
 
 export function ice2fDoubleClicks(recovery: number, zeroShift = 0): number {
-  return Math.max(0, Math.floor(recovery)) + Math.max(0, Math.floor(zeroShift));
+  const units = ice2fStakeUnits(recovery, 0);
+  const base = units <= 1 ? 0 : Math.round(Math.log2(units));
+  return base + Math.max(0, Math.floor(zeroShift));
 }
 
 export function ice2fZeroDebtForRecovery(recovery: number, zeroShift = 0): number {
@@ -967,12 +1118,45 @@ function applyWinZeroRecoveryAccounting(
   };
 }
 
-export function ice2fRecoveryAfterWin(_recovery: number): number {
+export function ice2fRecoveryAfterWin(
+  recovery: number,
+  stakeMode: Ice2fStakeMode = "martingale",
+  maxRecovery: number = ICE_2F_MAX_RECOVERY,
+): number {
+  const r = Math.max(0, Math.floor(recovery));
+  if (stakeMode === "positive") {
+    const cap = Math.min(
+      ICE_2F_POSITIVE_MAX_RECOVERY,
+      Math.max(0, Math.floor(maxRecovery)),
+    );
+    return Math.min(cap, r + 1);
+  }
   return 0;
 }
 
-export function ice2fRecoveryAfterLoss(recovery: number): number {
+export function ice2fRecoveryAfterLoss(
+  recovery: number,
+  stakeMode: Ice2fStakeMode = "martingale",
+): number {
+  if (stakeMode === "positive") {
+    return 0;
+  }
   return Math.max(0, Math.floor(recovery)) + 1;
+}
+
+export function ice2fEffectiveMaxRecovery(
+  maxRecovery: number,
+  stakeMode: Ice2fStakeMode = "martingale",
+): number {
+  const cap = Math.max(0, Math.floor(maxRecovery));
+  if (stakeMode === "positive") {
+    return Math.min(ICE_2F_POSITIVE_MAX_RECOVERY, cap);
+  }
+  return cap;
+}
+
+export function normalizeIce2fStakeMode(raw: unknown): Ice2fStakeMode {
+  return raw === "positive" ? "positive" : "martingale";
 }
 
 export function ice2fBetDelayMs(_recovery?: number, immediateBet?: boolean): number {
@@ -1018,7 +1202,9 @@ export function tickIce2fPlacar(
   machine: Ice2fMachineState,
   stats: RotatingRoomSessionStats,
   maxRecovery: number = ICE_2F_MAX_RECOVERY,
+  stakeMode: Ice2fStakeMode = "martingale",
 ): Ice2fTickResult {
+  const effectiveMax = ice2fEffectiveMaxRecovery(maxRecovery, stakeMode);
   const head = spinHead(historyNewestFirst);
   const headChanged = machine.lastSpinHead != null && machine.lastSpinHead !== head;
   let nextMachine: Ice2fMachineState = {
@@ -1028,16 +1214,30 @@ export function tickIce2fPlacar(
     nextEntryAxis: machine.nextEntryAxis ?? "cor-altura",
     lockedPosition: machine.lockedPosition ?? null,
     pendingRecovery: machine.pendingRecovery ?? 0,
+    spinIndex: Math.max(0, Math.floor(machine.spinIndex ?? 0)),
+    indicationPolarity: normalizeIce2fIndicationPolarity(machine.indicationPolarity),
+    gale3SpinIndexes: Array.isArray(machine.gale3SpinIndexes)
+      ? [...machine.gale3SpinIndexes]
+      : [],
+    lastPolarityFlipReason: machine.lastPolarityFlipReason ?? null,
     pendingMatchObservations: clonePendingObservations(
       machine.pendingMatchObservations,
       machine.pendingMatchObservation,
     ),
     pendingMatchObservation: null,
   };
+  if (headChanged) {
+    nextMachine = {
+      ...nextMachine,
+      spinIndex: (nextMachine.spinIndex ?? 0) + 1,
+    };
+  }
+  const spinIndex = nextMachine.spinIndex ?? 0;
   let nextStats = stats;
   let statsChanged = false;
   let flash: Ice2fFlash | null = null;
   let missedBetWindow = false;
+  let justResolvedResult = false;
 
   if (
     headChanged &&
@@ -1076,12 +1276,15 @@ export function tickIce2fPlacar(
     const resultNumber = historyNewestFirst[0]!;
     const outcome = ice2fClassifyBetRound(resultNumber, cycle.active);
     const { active, recovery } = cycle;
+    const closedKey = indicationKeyFromActive(active);
+    justResolvedResult = true;
 
     if (outcome === "W") {
       const wonUnits = ice2fStakeUnits(
         recovery,
         ice2fEffectiveZeroShift(nextMachine),
       );
+      const nextRecovery = ice2fRecoveryAfterWin(recovery, stakeMode, effectiveMax);
       nextStats = recordRotatingRoomSessionWin(nextStats, recovery, maxRecovery);
       nextStats = recordIce2fPairIndication(nextStats, active.pairId, "win");
       nextStats = recordIce2fIndicationOutcome(nextStats, "W");
@@ -1089,9 +1292,12 @@ export function tickIce2fPlacar(
       statsChanged = true;
       nextMachine = ice2fClearCycleKeepGale(
         applyWinZeroRecoveryAccounting(nextMachine, wonUnits),
-        0,
+        nextRecovery,
       );
-      nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "W");
+      nextMachine = {
+        ...applyPairIndicationOutcome(nextMachine, active.pairId, "W"),
+        lastClosedIndicationKey: closedKey,
+      };
       nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
       flash = {
         resultNumber,
@@ -1105,7 +1311,10 @@ export function tickIce2fPlacar(
       };
     } else if (outcome === "continue") {
       // Empate: indicação única fecha; não conta falha; pares continuam em paralelo.
-      nextMachine = insistGateAfterTie(nextMachine, active.pairId, recovery);
+      nextMachine = {
+        ...insistGateAfterTie(nextMachine, active.pairId, recovery),
+        lastClosedIndicationKey: closedKey,
+      };
       flash = {
         resultNumber,
         won: false,
@@ -1117,8 +1326,36 @@ export function tickIce2fPlacar(
         factor2: active.factor2,
       };
     } else {
-      const nextRecovery = ice2fRecoveryAfterLoss(recovery);
-      if (nextRecovery > maxRecovery) {
+      const nextRecovery = ice2fRecoveryAfterLoss(recovery, stakeMode);
+      if (stakeMode === "positive") {
+        // Positivo: cada L fecha a sequência (volta à base) — conta no placar.
+        nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
+        nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
+        nextStats = recordIce2fIndicationOutcome(nextStats, "L");
+        nextStats = recordIce2fClosedOutcome(nextStats, "L");
+        statsChanged = true;
+        nextMachine = {
+          ...ice2fClearCycleKeepGale(nextMachine, 0),
+          lastClosedIndicationKey: closedKey,
+        };
+        nextMachine = ice2fApplyPolarityRulesOnRecovery(
+          nextMachine,
+          nextRecovery,
+          spinIndex,
+        );
+        nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+        nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
+        flash = {
+          resultNumber,
+          won: false,
+          kind: "loss",
+          criticalPosition: active.criticalPosition,
+          axis: active.axis,
+          recovery,
+          factor1: active.factor1,
+          factor2: active.factor2,
+        };
+      } else if (nextRecovery > maxRecovery) {
         nextStats = recordRotatingRoomSessionFinalLoss(nextStats, recovery, maxRecovery);
         nextStats = recordIce2fPairIndication(nextStats, active.pairId, "loss");
         nextStats = recordIce2fIndicationOutcome(nextStats, "L");
@@ -1127,7 +1364,13 @@ export function tickIce2fPlacar(
         nextMachine = {
           ...ice2fClearCycleKeepGale(nextMachine, 0),
           nextEntryAxis: ice2fToggleAxis(active.axis),
+          lastClosedIndicationKey: closedKey,
         };
+        nextMachine = ice2fApplyPolarityRulesOnRecovery(
+          nextMachine,
+          nextRecovery,
+          spinIndex,
+        );
         nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
         nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
         flash = {
@@ -1162,15 +1405,24 @@ export function tickIce2fPlacar(
           nextRecovery,
           active.axis,
         );
-        nextMachine = applyPairIndicationOutcome(nextMachine, active.pairId, "L");
+        nextMachine = {
+          ...applyPairIndicationOutcome(nextMachine, active.pairId, "L"),
+          lastClosedIndicationKey: closedKey,
+        };
+        nextMachine = ice2fApplyPolarityRulesOnRecovery(
+          nextMachine,
+          nextRecovery,
+          spinIndex,
+        );
         nextMachine = advanceGateAfterWinOrLoss(nextMachine, active.pairId);
       }
     }
   }
 
-  // Após W/L/empate: NÃO rearma no mesmo giro (indicação única / anti-fantasma).
+  // Após liquidar um resultado, pode rearmar no mesmo giro se for um match NOVO.
+  // A chave lastClosedIndicationKey bloqueia apenas a repetição fantasma do mesmo 2×4.
   if (
-    !flash &&
+    (!flash || justResolvedResult) &&
     !nextMachine.cycle &&
     headChanged &&
     historyNewestFirst.length >= getIce2fSoftMinHistory()
