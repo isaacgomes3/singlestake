@@ -40,10 +40,9 @@ export const WITHDRAWABLE_BUCKETS: WalletBucket[] = ["rendimentos", "afiliados",
 /** Pools internos da empresa — não expor no extrato do utilizador. */
 export const COMPANY_INTERNAL_BUCKETS: WalletBucket[] = ["empresa", "afiliados", "automacao"];
 
-/** Opções de filtro do extrato para utilizadores (sem pools internos). */
+/** Opções de filtro do extrato para utilizadores (sem pools internos nem binário). */
 export const USER_LEDGER_FILTER_BUCKETS = [
   "rendimentos",
-  "binario",
   "residual",
   "operacoes",
 ] as const satisfies readonly WalletBucket[];

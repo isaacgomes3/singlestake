@@ -104,8 +104,8 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
     label: "Rede",
     path: "/back-office/rede",
     icon: Network,
-    description: "Afiliados, binário e bônus de equipe.",
-    moduleIds: ["afiliados", "rede-binaria", "bonus-equipe"],
+    description: "Afiliados e bônus de equipe.",
+    moduleIds: ["afiliados", "bonus-equipe"],
   },
   {
     id: "financeiro",

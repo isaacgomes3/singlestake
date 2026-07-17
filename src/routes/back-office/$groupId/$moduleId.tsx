@@ -23,6 +23,9 @@ export const Route = createFileRoute("/back-office/$groupId/$moduleId")({
     if (params.moduleId === "relatorios-rede") {
       throw redirect({ to: "/back-office" });
     }
+    if (params.moduleId === "rede-binaria") {
+      throw redirect({ to: "/back-office" });
+    }
     if (params.moduleId === "residual") {
       throw redirect({ to: "/back-office/rede/bonus-equipe" });
     }

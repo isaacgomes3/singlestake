@@ -21,7 +21,13 @@ export function BackOfficeLedgerPanel() {
   const { t } = useI18n();
   const { money, dateTime } = useFormat();
   const isAdmin = getSession()?.user.role === "admin";
-  const filterBuckets = isAdmin ? WALLET_BUCKETS : USER_LEDGER_FILTER_BUCKETS;
+  const filterBuckets = useMemo(
+    () =>
+      (isAdmin ? WALLET_BUCKETS : USER_LEDGER_FILTER_BUCKETS).filter(
+        (bucket) => bucket !== "binario",
+      ),
+    [isAdmin],
+  );
   const [entries, setEntries] = useState<LedgerEntryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [bucketFilter, setBucketFilter] = useState<BucketFilter>("all");

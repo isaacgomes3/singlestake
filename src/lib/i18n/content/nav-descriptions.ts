@@ -2,7 +2,7 @@ export const navDescriptionsContent = {
   pt: {
     groups: {
       produtos: "Pacotes e mensalidades.",
-      rede: "Afiliados, binário, qualificação e bônus.",
+      rede: "Afiliados e bônus.",
       operacoes: "Casino ao vivo e sala rotativa.",
       financeiro: "Carteira, depósitos e saques.",
       administracao: "Painel admin e auditoria.",
@@ -41,7 +41,7 @@ export const navDescriptionsContent = {
   en: {
     groups: {
       produtos: "Packages and subscriptions.",
-      rede: "Affiliates, binary, qualification and bonuses.",
+      rede: "Affiliates and bonuses.",
       operacoes: "Live casino and rotating room.",
       financeiro: "Wallet, deposits and withdrawals.",
       administracao: "Admin panel and audit.",
@@ -80,7 +80,7 @@ export const navDescriptionsContent = {
   es: {
     groups: {
       produtos: "Paquetes y mensualidades.",
-      rede: "Afiliados, binario, calificación y bonos.",
+      rede: "Afiliados y bonos.",
       operacoes: "Casino en vivo y sala rotativa.",
       financeiro: "Cartera, depósitos y retiros.",
       administracao: "Panel admin y auditoría.",

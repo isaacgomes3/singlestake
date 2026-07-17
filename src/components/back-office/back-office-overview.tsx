@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ChevronRight, DollarSign, GitBranch } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { BackOfficeCasinoContent } from "@/components/back-office/back-office-casino-content";
@@ -110,26 +109,6 @@ export function BackOfficeOverviewPage() {
         <DeferredMount delayMs={50}>
           <BackOfficeCasinoContent />
         </DeferredMount>
-      </section>
-
-      <section>
-        <Link
-          to="/back-office/rede/rede-binaria"
-          className="theme-card flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-bg-card-hover"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            <GitBranch className="h-5 w-5" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-text-primary">
-              {t("overview.binaryTreeLinkTitle")}
-            </span>
-            <span className="block text-xs text-text-secondary">
-              {t("overview.binaryTreeLinkDesc")}
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
-        </Link>
       </section>
     </div>
   );

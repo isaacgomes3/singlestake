@@ -12,7 +12,6 @@ import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-off
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
 import { BackOfficeSubscriptionsPanel } from "@/components/back-office/back-office-subscriptions-panel";
 import { BackOfficeAffiliatesPanel } from "@/components/back-office/back-office-affiliates-panel";
-import { BackOfficeBinaryPanel } from "@/components/back-office/back-office-binary-panel";
 import { BackOfficeDepositsPanel } from "@/components/back-office/back-office-deposits-panel";
 import { BackOfficeGlobalAutomationPanel } from "@/components/back-office/back-office-global-automation-panel";
 import { BackOfficeLedgerPanel } from "@/components/back-office/back-office-ledger-panel";
@@ -77,7 +76,7 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
       return <BackOfficeAffiliatesPanel />;
 
     case "rede-binaria":
-      return <BackOfficeBinaryPanel />;
+      return null;
 
     case "bonus-equipe":
       return <BackOfficeTeamBonusPanel />;
