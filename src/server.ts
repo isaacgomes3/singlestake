@@ -1,6 +1,7 @@
 import "./lib/server/bootstrap";
 import "./lib/error-capture";
 import { ensureAutomationYieldScheduler } from "./lib/server/finance/automation-scheduler";
+import { ensureFootballStudioDaemon } from "./lib/server/footballStudio/daemon";
 import { ensureRouletteHubDaemon } from "./lib/server/rouletteHubDaemon";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
@@ -8,6 +9,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { tryServePublicStatic } from "./lib/server/serve-public-static";
 
 ensureRouletteHubDaemon();
+ensureFootballStudioDaemon();
 ensureAutomationYieldScheduler();
 void import("./lib/server/automationSim/ensure-format").then((m) => m.ensureAutomationExtractUpToDate());
 

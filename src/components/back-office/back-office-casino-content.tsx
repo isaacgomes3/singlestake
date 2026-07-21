@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { FootballBlitzTopCardLobbyCard } from "@/components/football-blitz-lobby-card";
+import { FootballStudioLobbyCard } from "@/components/football-studio-lobby-card";
 import { useDgaTableImages } from "@/hooks/useDgaTableImages";
 import { useIce2fSession } from "@/hooks/useIce2fSession";
 import { useLiveSseStatus } from "@/hooks/useLiveSseStatus";
@@ -208,8 +210,7 @@ function CassinoAoVivoRoletasGrid() {
 
   const sortedTableIds = useMemo(() => {
     return [...lobbyCardTableIds].sort((a, b) => {
-      const signal = (tid: number) =>
-        tableHasLocalIce2fSignal(tid, histories[tid] ?? []) ? 1 : 0;
+      const signal = (tid: number) => (tableHasLocalIce2fSignal(tid, histories[tid] ?? []) ? 1 : 0);
       const diff = signal(b) - signal(a);
       if (diff !== 0) return diff;
       if (a === primaryId) return -1;
@@ -242,6 +243,8 @@ function CassinoAoVivoRoletasGrid() {
             />
           );
         })}
+        <FootballBlitzTopCardLobbyCard />
+        <FootballStudioLobbyCard />
       </div>
     </div>
   );

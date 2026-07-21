@@ -26,6 +26,7 @@ import { Route as RegistarRouteImport } from './routes/registar'
 import { Route as PragmaticRunnerRouteImport } from './routes/pragmatic-runner'
 import { Route as Numeros28pctRouteImport } from './routes/numeros-28pct'
 import { Route as MobileRouteImport } from './routes/mobile'
+import { Route as FootballStudioRouteImport } from './routes/football-studio'
 import { Route as FootballBlitzRouteImport } from './routes/football-blitz'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as DoisFatoresRouteImport } from './routes/dois-fatores'
@@ -59,6 +60,8 @@ import { Route as ApiRouletteExtensionSyncRouteImport } from './routes/api/roule
 import { Route as ApiRouletteAutomationSimRouteImport } from './routes/api/roulette/automation-sim'
 import { Route as ApiPragmaticFootballBlitzSpinsRouteImport } from './routes/api/pragmatic/football-blitz-spins'
 import { Route as ApiPragmatic24dSpinSpinsRouteImport } from './routes/api/pragmatic/24d-spin-spins'
+import { Route as ApiEvolutionFootballStudioCardsRouteImport } from './routes/api/evolution/football-studio-cards'
+import { Route as ApiEvolutionFootballStudioRouteImport } from './routes/api/evolution/football-studio'
 import { Route as ApiCronDailyAutomationRouteImport } from './routes/api/cron/daily-automation'
 import { Route as ApiBackOfficeWithdrawalsRouteImport } from './routes/api/back-office/withdrawals'
 import { Route as ApiBackOfficeWalletRouteImport } from './routes/api/back-office/wallet'
@@ -82,6 +85,7 @@ import { Route as ApiRouletteStrategyGlobalStreamRouteImport } from './routes/ap
 import { Route as ApiRouletteStrategyGlobalResetRouteImport } from './routes/api/roulette/strategy-global.reset'
 import { Route as ApiRouletteRotatingRoomStreamRouteImport } from './routes/api/roulette/rotating-room.stream'
 import { Route as ApiRouletteAutomationSimStreamRouteImport } from './routes/api/roulette/automation-sim.stream'
+import { Route as ApiEvolutionFootballStudioStreamRouteImport } from './routes/api/evolution/football-studio.stream'
 import { Route as ApiBackOfficeWithdrawalsWithdrawalIdRouteImport } from './routes/api/back-office/withdrawals.$withdrawalId'
 import { Route as ApiBackOfficeSubscriptionPayRouteImport } from './routes/api/back-office/subscription/pay'
 import { Route as ApiBackOfficeProfilePixKeyRouteImport } from './routes/api/back-office/profile/pix-key'
@@ -206,6 +210,11 @@ const Numeros28pctRoute = Numeros28pctRouteImport.update({
 const MobileRoute = MobileRouteImport.update({
   id: '/mobile',
   path: '/mobile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FootballStudioRoute = FootballStudioRouteImport.update({
+  id: '/football-studio',
+  path: '/football-studio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FootballBlitzRoute = FootballBlitzRouteImport.update({
@@ -379,6 +388,18 @@ const ApiPragmatic24dSpinSpinsRoute =
     path: '/api/pragmatic/24d-spin-spins',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiEvolutionFootballStudioCardsRoute =
+  ApiEvolutionFootballStudioCardsRouteImport.update({
+    id: '/api/evolution/football-studio-cards',
+    path: '/api/evolution/football-studio-cards',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiEvolutionFootballStudioRoute =
+  ApiEvolutionFootballStudioRouteImport.update({
+    id: '/api/evolution/football-studio',
+    path: '/api/evolution/football-studio',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCronDailyAutomationRoute = ApiCronDailyAutomationRouteImport.update({
   id: '/api/cron/daily-automation',
   path: '/api/cron/daily-automation',
@@ -503,6 +524,12 @@ const ApiRouletteAutomationSimStreamRoute =
     id: '/stream',
     path: '/stream',
     getParentRoute: () => ApiRouletteAutomationSimRoute,
+  } as any)
+const ApiEvolutionFootballStudioStreamRoute =
+  ApiEvolutionFootballStudioStreamRouteImport.update({
+    id: '/stream',
+    path: '/stream',
+    getParentRoute: () => ApiEvolutionFootballStudioRoute,
   } as any)
 const ApiBackOfficeWithdrawalsWithdrawalIdRoute =
   ApiBackOfficeWithdrawalsWithdrawalIdRouteImport.update({
@@ -756,6 +783,7 @@ export interface FileRoutesByFullPath {
   '/dois-fatores': typeof DoisFatoresRoute
   '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
+  '/football-studio': typeof FootballStudioRoute
   '/mobile': typeof MobileRouteWithChildren
   '/numeros-28pct': typeof Numeros28pctRoute
   '/pragmatic-runner': typeof PragmaticRunnerRoute
@@ -799,6 +827,8 @@ export interface FileRoutesByFullPath {
   '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
   '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
   '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
+  '/api/evolution/football-studio': typeof ApiEvolutionFootballStudioRouteWithChildren
+  '/api/evolution/football-studio-cards': typeof ApiEvolutionFootballStudioCardsRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
@@ -835,6 +865,7 @@ export interface FileRoutesByFullPath {
   '/api/back-office/profile/pix-key': typeof ApiBackOfficeProfilePixKeyRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/evolution/football-studio/stream': typeof ApiEvolutionFootballStudioStreamRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
   '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
@@ -870,6 +901,7 @@ export interface FileRoutesByTo {
   '/dois-fatores': typeof DoisFatoresRoute
   '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
+  '/football-studio': typeof FootballStudioRoute
   '/numeros-28pct': typeof Numeros28pctRoute
   '/pragmatic-runner': typeof PragmaticRunnerRoute
   '/registar': typeof RegistarRoute
@@ -911,6 +943,8 @@ export interface FileRoutesByTo {
   '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
   '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
   '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
+  '/api/evolution/football-studio': typeof ApiEvolutionFootballStudioRouteWithChildren
+  '/api/evolution/football-studio-cards': typeof ApiEvolutionFootballStudioCardsRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
@@ -947,6 +981,7 @@ export interface FileRoutesByTo {
   '/api/back-office/profile/pix-key': typeof ApiBackOfficeProfilePixKeyRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/evolution/football-studio/stream': typeof ApiEvolutionFootballStudioStreamRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
   '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
@@ -984,6 +1019,7 @@ export interface FileRoutesById {
   '/dois-fatores': typeof DoisFatoresRoute
   '/entrar': typeof EntrarRoute
   '/football-blitz': typeof FootballBlitzRoute
+  '/football-studio': typeof FootballStudioRoute
   '/mobile': typeof MobileRouteWithChildren
   '/numeros-28pct': typeof Numeros28pctRoute
   '/pragmatic-runner': typeof PragmaticRunnerRoute
@@ -1027,6 +1063,8 @@ export interface FileRoutesById {
   '/api/back-office/wallet': typeof ApiBackOfficeWalletRoute
   '/api/back-office/withdrawals': typeof ApiBackOfficeWithdrawalsRouteWithChildren
   '/api/cron/daily-automation': typeof ApiCronDailyAutomationRoute
+  '/api/evolution/football-studio': typeof ApiEvolutionFootballStudioRouteWithChildren
+  '/api/evolution/football-studio-cards': typeof ApiEvolutionFootballStudioCardsRoute
   '/api/pragmatic/24d-spin-spins': typeof ApiPragmatic24dSpinSpinsRoute
   '/api/pragmatic/football-blitz-spins': typeof ApiPragmaticFootballBlitzSpinsRoute
   '/api/roulette/automation-sim': typeof ApiRouletteAutomationSimRouteWithChildren
@@ -1063,6 +1101,7 @@ export interface FileRoutesById {
   '/api/back-office/profile/pix-key': typeof ApiBackOfficeProfilePixKeyRoute
   '/api/back-office/subscription/pay': typeof ApiBackOfficeSubscriptionPayRoute
   '/api/back-office/withdrawals/$withdrawalId': typeof ApiBackOfficeWithdrawalsWithdrawalIdRoute
+  '/api/evolution/football-studio/stream': typeof ApiEvolutionFootballStudioStreamRoute
   '/api/roulette/automation-sim/stream': typeof ApiRouletteAutomationSimStreamRoute
   '/api/roulette/rotating-room/stream': typeof ApiRouletteRotatingRoomStreamRoute
   '/api/roulette/strategy-global/reset': typeof ApiRouletteStrategyGlobalResetRoute
@@ -1101,6 +1140,7 @@ export interface FileRouteTypes {
     | '/dois-fatores'
     | '/entrar'
     | '/football-blitz'
+    | '/football-studio'
     | '/mobile'
     | '/numeros-28pct'
     | '/pragmatic-runner'
@@ -1144,6 +1184,8 @@ export interface FileRouteTypes {
     | '/api/back-office/wallet'
     | '/api/back-office/withdrawals'
     | '/api/cron/daily-automation'
+    | '/api/evolution/football-studio'
+    | '/api/evolution/football-studio-cards'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
@@ -1180,6 +1222,7 @@ export interface FileRouteTypes {
     | '/api/back-office/profile/pix-key'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/evolution/football-studio/stream'
     | '/api/roulette/automation-sim/stream'
     | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
@@ -1215,6 +1258,7 @@ export interface FileRouteTypes {
     | '/dois-fatores'
     | '/entrar'
     | '/football-blitz'
+    | '/football-studio'
     | '/numeros-28pct'
     | '/pragmatic-runner'
     | '/registar'
@@ -1256,6 +1300,8 @@ export interface FileRouteTypes {
     | '/api/back-office/wallet'
     | '/api/back-office/withdrawals'
     | '/api/cron/daily-automation'
+    | '/api/evolution/football-studio'
+    | '/api/evolution/football-studio-cards'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
@@ -1292,6 +1338,7 @@ export interface FileRouteTypes {
     | '/api/back-office/profile/pix-key'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/evolution/football-studio/stream'
     | '/api/roulette/automation-sim/stream'
     | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
@@ -1328,6 +1375,7 @@ export interface FileRouteTypes {
     | '/dois-fatores'
     | '/entrar'
     | '/football-blitz'
+    | '/football-studio'
     | '/mobile'
     | '/numeros-28pct'
     | '/pragmatic-runner'
@@ -1371,6 +1419,8 @@ export interface FileRouteTypes {
     | '/api/back-office/wallet'
     | '/api/back-office/withdrawals'
     | '/api/cron/daily-automation'
+    | '/api/evolution/football-studio'
+    | '/api/evolution/football-studio-cards'
     | '/api/pragmatic/24d-spin-spins'
     | '/api/pragmatic/football-blitz-spins'
     | '/api/roulette/automation-sim'
@@ -1407,6 +1457,7 @@ export interface FileRouteTypes {
     | '/api/back-office/profile/pix-key'
     | '/api/back-office/subscription/pay'
     | '/api/back-office/withdrawals/$withdrawalId'
+    | '/api/evolution/football-studio/stream'
     | '/api/roulette/automation-sim/stream'
     | '/api/roulette/rotating-room/stream'
     | '/api/roulette/strategy-global/reset'
@@ -1444,6 +1495,7 @@ export interface RootRouteChildren {
   DoisFatoresRoute: typeof DoisFatoresRoute
   EntrarRoute: typeof EntrarRoute
   FootballBlitzRoute: typeof FootballBlitzRoute
+  FootballStudioRoute: typeof FootballStudioRoute
   MobileRoute: typeof MobileRouteWithChildren
   Numeros28pctRoute: typeof Numeros28pctRoute
   PragmaticRunnerRoute: typeof PragmaticRunnerRoute
@@ -1480,6 +1532,8 @@ export interface RootRouteChildren {
   ApiBackOfficeWalletRoute: typeof ApiBackOfficeWalletRoute
   ApiBackOfficeWithdrawalsRoute: typeof ApiBackOfficeWithdrawalsRouteWithChildren
   ApiCronDailyAutomationRoute: typeof ApiCronDailyAutomationRoute
+  ApiEvolutionFootballStudioRoute: typeof ApiEvolutionFootballStudioRouteWithChildren
+  ApiEvolutionFootballStudioCardsRoute: typeof ApiEvolutionFootballStudioCardsRoute
   ApiPragmatic24dSpinSpinsRoute: typeof ApiPragmatic24dSpinSpinsRoute
   ApiPragmaticFootballBlitzSpinsRoute: typeof ApiPragmaticFootballBlitzSpinsRoute
   ApiRouletteAutomationSimRoute: typeof ApiRouletteAutomationSimRouteWithChildren
@@ -1631,6 +1685,13 @@ declare module '@tanstack/react-router' {
       path: '/mobile'
       fullPath: '/mobile'
       preLoaderRoute: typeof MobileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/football-studio': {
+      id: '/football-studio'
+      path: '/football-studio'
+      fullPath: '/football-studio'
+      preLoaderRoute: typeof FootballStudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/football-blitz': {
@@ -1864,6 +1925,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPragmatic24dSpinSpinsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/evolution/football-studio-cards': {
+      id: '/api/evolution/football-studio-cards'
+      path: '/api/evolution/football-studio-cards'
+      fullPath: '/api/evolution/football-studio-cards'
+      preLoaderRoute: typeof ApiEvolutionFootballStudioCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/evolution/football-studio': {
+      id: '/api/evolution/football-studio'
+      path: '/api/evolution/football-studio'
+      fullPath: '/api/evolution/football-studio'
+      preLoaderRoute: typeof ApiEvolutionFootballStudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/daily-automation': {
       id: '/api/cron/daily-automation'
       path: '/api/cron/daily-automation'
@@ -2024,6 +2099,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/roulette/automation-sim/stream'
       preLoaderRoute: typeof ApiRouletteAutomationSimStreamRouteImport
       parentRoute: typeof ApiRouletteAutomationSimRoute
+    }
+    '/api/evolution/football-studio/stream': {
+      id: '/api/evolution/football-studio/stream'
+      path: '/stream'
+      fullPath: '/api/evolution/football-studio/stream'
+      preLoaderRoute: typeof ApiEvolutionFootballStudioStreamRouteImport
+      parentRoute: typeof ApiEvolutionFootballStudioRoute
     }
     '/api/back-office/withdrawals/$withdrawalId': {
       id: '/api/back-office/withdrawals/$withdrawalId'
@@ -2422,6 +2504,21 @@ const ApiBackOfficeWithdrawalsRouteWithChildren =
     ApiBackOfficeWithdrawalsRouteChildren,
   )
 
+interface ApiEvolutionFootballStudioRouteChildren {
+  ApiEvolutionFootballStudioStreamRoute: typeof ApiEvolutionFootballStudioStreamRoute
+}
+
+const ApiEvolutionFootballStudioRouteChildren: ApiEvolutionFootballStudioRouteChildren =
+  {
+    ApiEvolutionFootballStudioStreamRoute:
+      ApiEvolutionFootballStudioStreamRoute,
+  }
+
+const ApiEvolutionFootballStudioRouteWithChildren =
+  ApiEvolutionFootballStudioRoute._addFileChildren(
+    ApiEvolutionFootballStudioRouteChildren,
+  )
+
 interface ApiRouletteAutomationSimRouteChildren {
   ApiRouletteAutomationSimStreamRoute: typeof ApiRouletteAutomationSimStreamRoute
 }
@@ -2579,6 +2676,7 @@ const rootRouteChildren: RootRouteChildren = {
   DoisFatoresRoute: DoisFatoresRoute,
   EntrarRoute: EntrarRoute,
   FootballBlitzRoute: FootballBlitzRoute,
+  FootballStudioRoute: FootballStudioRoute,
   MobileRoute: MobileRouteWithChildren,
   Numeros28pctRoute: Numeros28pctRoute,
   PragmaticRunnerRoute: PragmaticRunnerRoute,
@@ -2615,6 +2713,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBackOfficeWalletRoute: ApiBackOfficeWalletRoute,
   ApiBackOfficeWithdrawalsRoute: ApiBackOfficeWithdrawalsRouteWithChildren,
   ApiCronDailyAutomationRoute: ApiCronDailyAutomationRoute,
+  ApiEvolutionFootballStudioRoute: ApiEvolutionFootballStudioRouteWithChildren,
+  ApiEvolutionFootballStudioCardsRoute: ApiEvolutionFootballStudioCardsRoute,
   ApiPragmatic24dSpinSpinsRoute: ApiPragmatic24dSpinSpinsRoute,
   ApiPragmaticFootballBlitzSpinsRoute: ApiPragmaticFootballBlitzSpinsRoute,
   ApiRouletteAutomationSimRoute: ApiRouletteAutomationSimRouteWithChildren,
