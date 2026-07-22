@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "stake37 · Reals Obs cartas (Latino)",
+  "version": "1.0.0",
+  "description": "Top Card Latino (4022) Reals: só a coincidência exacta mais recente; zera no shuffle.",
+  "permissions": ["storage", "windows", "tabs"],
+  "host_permissions": [
+    "https://www.reals.bet.br/*",
+    "https://reals.bet.br/*",
+    "https://*.pragmaticplaylive.net/*",
+    "https://*.pragmaticplay.net/*",
+    "wss://dga.pragmaticplaylive.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.reals.bet.br/*", "https://reals.bet.br/*"],
+      "js": ["content-floating-panel.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Reals · Obs cartas · Latino · coincidência"
+  }
+}

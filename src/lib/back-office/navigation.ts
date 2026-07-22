@@ -15,6 +15,7 @@ import {
   Percent,
   ScrollText,
   Shield,
+  Spade,
   UserCog,
   Users,
   Wallet,
@@ -44,6 +45,7 @@ export type BackOfficeModuleId =
   | "automacao-config"
   | "automacao-estatisticas"
   | "automacao-sequencias"
+  | "automacao-football-blitz"
   | "auditoria";
 export type BackOfficeGroupId =
   | "produtos"
@@ -125,6 +127,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
       "automacao-config",
       "automacao-estatisticas",
       "automacao-sequencias",
+      "automacao-football-blitz",
       "painel-financeiro",
       "gestao-clientes",
       "admin",
@@ -138,7 +141,12 @@ export const OPERACOES_SECTIONS: BackOfficeGroupSection[] = [];
 export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
   {
     key: "automacao",
-    moduleIds: ["automacao-config", "automacao-estatisticas", "automacao-sequencias"],
+    moduleIds: [
+      "automacao-config",
+      "automacao-estatisticas",
+      "automacao-sequencias",
+      "automacao-football-blitz",
+    ],
   },
   {
     key: "gestao",
@@ -234,6 +242,11 @@ const MODULE_META: Record<
     label: "Sequências",
     icon: Activity,
     description: "Monitor cor / altura / paridade por sequência limpa ou suja.",
+  },
+  "automacao-football-blitz": {
+    label: "Football Blitz",
+    icon: Spade,
+    description: "Histórico ao vivo Top Card e Latino (mesas DGA).",
   },
   admin: {
     label: "Painel administrativo",

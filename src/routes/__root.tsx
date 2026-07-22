@@ -11,6 +11,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { LiveRouletteSseBridge } from "@/components/live-roulette-sse-bridge";
+import { LiveFootballBlitzSseBridge } from "@/components/live-football-blitz-sse-bridge";
 import { RouletteAutomationSimSseBridge } from "@/components/roulette-automation-sim-sse-bridge";
 import { StrategyGlobalSseBridge } from "@/hooks/useStrategyGlobalSnapshot";
 import { CasinoCalibrationOverlay } from "@/components/casino-calibration-overlay";
@@ -172,17 +173,25 @@ function RootComponent() {
   const legacyCasino = !isAutomation && isLegacyCasinoPath(pathname);
   const liveCasinoShell = backOfficeApp || legacyCasino;
   const backOfficeOverview =
-    !isAutomation &&
-    backOfficeApp &&
-    (pathname === "/back-office" || pathname === "/back-office/");
+    !isAutomation && backOfficeApp && (pathname === "/back-office" || pathname === "/back-office/");
   /** Motor global + automação — salas rotativas, monitor Sequências e subdomínio automação. */
   const needsGlobalAutomation =
     isAutomation || workspacePath || liveRouletteAdmin || adminAutomation;
   /** SSE roleta — mesas ao vivo (visão geral + salas + Sequências + subdomínio automação). */
   const needsRouletteStream =
-    isAutomation || backOfficeOverview || workspacePath || liveRouletteAdmin || pathname.startsWith("/casino-mesa");
+    isAutomation ||
+    backOfficeOverview ||
+    workspacePath ||
+    liveRouletteAdmin ||
+    pathname.startsWith("/casino-mesa");
   /** Ponte extensão — salas + subdomínio automação. */
   const needsExtensionBridge = isAutomation || workspacePath;
+  const needsFootballBlitzStream =
+    backOfficeOverview ||
+    pathname === "/football-blitz" ||
+    pathname === "/super-trunfo" ||
+    pathname === "/back-office/administracao/automacao-football-blitz" ||
+    pathname.startsWith("/back-office/administracao/automacao-football-blitz/");
 
   const outlet = <Outlet />;
   const automationBridges = needsGlobalAutomation ? (
@@ -216,6 +225,7 @@ function RootComponent() {
                 {automationBridges}
                 {extensionBridge}
                 {rouletteStream}
+                {needsFootballBlitzStream ? <LiveFootballBlitzSseBridge /> : null}
               </RouletteLiveApiProvider>
             </div>
           ) : (

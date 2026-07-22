@@ -31,6 +31,8 @@ export const navDescriptionsContent = {
       "automacao-config": "Stake inicial, pausa manual e rendimento diário dos pacotes.",
       "automacao-estatisticas": "Acerto por gatilho 2 Fatores (3 padrões) e 1 Fator.",
       "automacao-sequencias": "Monitor cor / altura / paridade por sequência limpa ou suja.",
+      "automacao-football-blitz":
+        "Histórico ao vivo Top Card (4001) e Latino (4022) — mesmo catálogo DGA das extensões Obs.",
       auditoria: "Registro de bônus, alterações e logins.",
       "casino-ao-vivo": "Roletas individuais · Cruzamento 2F sem gale.",
     },
@@ -70,6 +72,8 @@ export const navDescriptionsContent = {
       "automacao-config": "Base stake, manual pause and package daily yield.",
       "automacao-estatisticas": "Hit rate per 2 Factors (3 patterns) and 1 Factor trigger.",
       "automacao-sequencias": "Color / height / parity monitor for clean or dirty sequences.",
+      "automacao-football-blitz":
+        "Live history for Top Card (4001) and Latino (4022) — same DGA catalog as Obs extensions.",
       auditoria: "Bonus, change and login records.",
       "casino-ao-vivo": "Live roulettes and 1-factor rotating room.",
     },
@@ -109,6 +113,8 @@ export const navDescriptionsContent = {
       "automacao-config": "Stake inicial, pausa manual y rendimiento diario de paquetes.",
       "automacao-estatisticas": "Acierto por gatillo 2 Factores (3 patrones) y 1 Factor.",
       "automacao-sequencias": "Monitor color / altura / paridad por secuencia limpia o sucia.",
+      "automacao-football-blitz":
+        "Historial en vivo Top Card (4001) y Latino (4022) — mismo catálogo DGA de las extensiones Obs.",
       auditoria: "Registro de bonos, cambios e inicios de sesión.",
       "casino-ao-vivo": "Ruletas en vivo y sala rotativa 1 factor.",
     },
