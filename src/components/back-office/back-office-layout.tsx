@@ -3,7 +3,6 @@ import { Link2, Menu, X } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 
 import { BackOfficeHeader } from "@/components/back-office/back-office-header";
-import { BackOfficeSearchCommand } from "@/components/back-office/back-office-search-command";
 import { BackOfficeSidebarNav } from "@/components/back-office/back-office-sidebar-nav";
 import {
   BackOfficeUtilityRail,
@@ -43,7 +42,6 @@ export function BackOfficeLayout() {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sidebarBoxed, setSidebarBoxed] = useState(true);
   const [utilityPanel, setUtilityPanel] = useState<UtilityPanelId>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
   const {
     notifications,
     unreadCount,
@@ -247,7 +245,6 @@ export function BackOfficeLayout() {
           user={session.user}
           sidebarBoxed={sidebarBoxed}
           onToggleSidebarLayout={toggleSidebarLayout}
-          onOpenSearch={() => setSearchOpen(true)}
           onLogout={() => void handleLogout()}
         />
 
@@ -281,8 +278,6 @@ export function BackOfficeLayout() {
         onMarkAllNotificationsRead={() => void markAllRead()}
         onMarkNotificationRead={(id) => void markRead(id)}
       />
-
-      <BackOfficeSearchCommand open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

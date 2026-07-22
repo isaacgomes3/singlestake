@@ -1,5 +1,4 @@
-import { CheckCheck, Search, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCheck, Sparkles } from "lucide-react";
 
 import { BackOfficeUserMenu } from "@/components/back-office/back-office-user-menu";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -18,7 +17,6 @@ type Props = {
   user: AuthUser;
   sidebarBoxed: boolean;
   onToggleSidebarLayout: () => void;
-  onOpenSearch: () => void;
   onLogout: () => void;
 };
 
@@ -26,43 +24,13 @@ export function BackOfficeHeader({
   user,
   sidebarBoxed,
   onToggleSidebarLayout,
-  onOpenSearch,
   onLogout,
 }: Props) {
   const { t } = useI18n();
-  const [searchShortcut, setSearchShortcut] = useState("⌘K");
-
-  useEffect(() => {
-    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-    setSearchShortcut(isMac ? "⌘K" : "Ctrl+K");
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        onOpenSearch();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onOpenSearch]);
 
   return (
-    <header className="app-top-bar sticky top-0 z-30 flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4 lg:px-5">
-      <button
-        type="button"
-        onClick={onOpenSearch}
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border-color bg-bg-card/80 px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-bg-card-hover hover:text-text-primary sm:max-w-md lg:max-w-xl"
-      >
-        <Search className="size-4 shrink-0 opacity-70" aria-hidden />
-        <span className="truncate">{t("layout.search")}</span>
-        <kbd className="ml-auto hidden rounded-md border border-border-color bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-secondary sm:inline">
-          {searchShortcut}
-        </kbd>
-      </button>
-
-      <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+    <header className="app-top-bar sticky top-0 z-30 flex flex-wrap items-center justify-end gap-2 px-3 py-2.5 sm:px-4 lg:px-5">
+      <div className="flex items-center gap-1 sm:gap-1.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
