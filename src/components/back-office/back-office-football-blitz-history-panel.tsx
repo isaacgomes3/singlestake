@@ -21,7 +21,11 @@ import {
 import { cn } from "@/lib/utils";
 
 const COLOR_HISTORY_LIMIT = 48;
-const CARD_HISTORY_LIMIT = 24;
+const CARD_HISTORY_LIMIT = 36;
+const SHOE_DECKS = 8;
+const SHOE_TOTAL = SHOE_DECKS * 52;
+
+const SUIT_GLYPHS = ["♠", "♥", "♦", "♣"] as const;
 
 type SideTone = {
   chip: string;
@@ -30,6 +34,8 @@ type SideTone = {
   text: string;
   label: string;
   short: string;
+  /** Borda luminosa da carta desse lado no histórico de cartas. */
+  cardGlow: string;
 };
 
 function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinner, SideTone> {
@@ -42,6 +48,7 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
           text: "text-blue-300",
           label: "Azul",
           short: "V",
+          cardGlow: "border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.55)]",
         }
       : {
           chip: "bg-rose-600 text-white border-rose-400/40",
@@ -50,6 +57,7 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
           text: "text-rose-300",
           label: "Vermelho",
           short: "V",
+          cardGlow: "border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.55)]",
         };
   return {
     home: {
@@ -59,17 +67,30 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
       text: "text-amber-300",
       label: "Amarelo",
       short: "C",
+      cardGlow: "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.55)]",
     },
     away,
     draw: {
       chip: "bg-emerald-600 text-white border-emerald-400/40",
-      soft: "bg-amber-700/80 text-amber-50",
-      bar: "bg-amber-600",
-      text: "text-amber-200",
+      soft: "bg-emerald-700/90 text-emerald-50",
+      bar: "bg-emerald-500",
+      text: "text-emerald-300",
       label: "Empate",
       short: "E",
+      cardGlow: "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.45)]",
     },
   };
+}
+
+/** Naipe só visual (DGA não envia naipe) — estável por gameId + lado. */
+function decorativeSuit(gameId: string, side: "home" | "away"): (typeof SUIT_GLYPHS)[number] {
+  let h = side === "home" ? 7 : 13;
+  for (let i = 0; i < gameId.length; i += 1) h = (h * 31 + gameId.charCodeAt(i)) >>> 0;
+  return SUIT_GLYPHS[h % 4]!;
+}
+
+function suitIsRed(glyph: string): boolean {
+  return glyph === "♥" || glyph === "♦";
 }
 
 function useFootballBlitzTableHistory(tableKey: number) {
@@ -236,6 +257,7 @@ function DistributionBars({
   );
 }
 
+/** Chip cor+par (ex. 4/5) — visual do histórico de cor. */
 function ColorHistoryPanel({
   history,
   tones,
@@ -254,69 +276,13 @@ function ColorHistoryPanel({
         </p>
         <p className="text-[11px] text-slate-400">
           Máxima{" "}
-          <span className={cn("font-bold", tones.home.text)}>
-            C {stats.maxHomeStreak}
-          </span>
+          <span className={cn("font-bold", tones.home.text)}>C {stats.maxHomeStreak}</span>
           {" · "}
-          <span className={cn("font-bold", tones.away.text)}>
-            V {stats.maxAwayStreak}
-          </span>
+          <span className={cn("font-bold", tones.away.text)}>V {stats.maxAwayStreak}</span>
         </p>
       </div>
       {rows.length === 0 ? (
         <p className="text-sm text-slate-500">Sem rondas ainda.</p>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {rows.map((round, i) => {
-            const hasAce = roundHasAce(round);
-            const tone = tones[round.winner] ?? tones.draw;
-            return (
-              <span
-                key={`${round.gameId}-${i}`}
-                className={cn(
-                  "relative inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-black",
-                  tone.chip,
-                  i === 0 && "ring-2 ring-amber-300/80 ring-offset-1 ring-offset-[#0d1524]",
-                )}
-                title={`${tone.label}${hasAce ? " · Ás" : ""}`}
-              >
-                {tone.short}
-                {hasAce ? (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-300 text-[8px] font-black text-black">
-                    A
-                  </span>
-                ) : null}
-              </span>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function CardHistoryPanel({
-  history,
-  tones,
-  cardStats,
-}: {
-  history: readonly FootballBlitzRoundStored[];
-  tones: Record<FootballBlitzWinner, SideTone>;
-  cardStats: ReturnType<typeof buildCardStats>;
-}) {
-  const rows = history.slice(0, CARD_HISTORY_LIMIT);
-  return (
-    <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-          Histórico de cartas
-        </p>
-        <p className="text-[11px] tabular-nums text-slate-400">
-          {cardStats.seen} cartas · {cardStats.unique} valores
-        </p>
-      </div>
-      {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">Sem cartas ainda.</p>
       ) : (
         <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
           {rows.map((round, i) => {
@@ -327,18 +293,152 @@ function CardHistoryPanel({
               : footballBlitzCardLabel(Number(round.winningNumber));
             return (
               <span
-                key={`${round.gameId}-card-${i}`}
+                key={`${round.gameId}-color-${i}`}
                 className={cn(
                   "inline-flex min-h-[2.6rem] items-center justify-center rounded-lg border px-1 text-center text-[11px] font-extrabold leading-tight sm:min-h-[2.85rem] sm:text-xs",
                   tone.chip,
                   i === 0 && "ring-2 ring-amber-300/80 ring-offset-1 ring-offset-[#0d1524]",
                 )}
-                title={label}
+                title={`${tone.label} · ${label}`}
               >
                 {label}
               </span>
             );
           })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MiniPlayingCard({
+  label,
+  score,
+  gameId,
+  side,
+  glowClass,
+  highlight,
+}: {
+  label: string;
+  score: number;
+  gameId: string;
+  side: "home" | "away";
+  glowClass: string;
+  highlight?: boolean;
+}) {
+  const suit = decorativeSuit(gameId, side);
+  const red = suitIsRed(suit);
+  const isAce = score === 1;
+  return (
+    <div
+      className={cn(
+        "relative flex h-[4.25rem] w-[3.05rem] shrink-0 flex-col justify-between rounded-md border-2 bg-gradient-to-b from-white to-slate-100 px-1 py-1 shadow-md",
+        glowClass,
+        highlight && "ring-2 ring-amber-300 ring-offset-1 ring-offset-[#0d1524]",
+      )}
+      title={`${label}${suit} · ${side === "home" ? "Casa" : "Visitante"}`}
+    >
+      <div
+        className={cn(
+          "flex flex-col items-start leading-none",
+          red ? "text-rose-600" : "text-slate-900",
+        )}
+      >
+        <span className="text-[13px] font-black tabular-nums">{label}</span>
+        <span className="text-[11px] leading-none">{suit}</span>
+      </div>
+      <div
+        className={cn(
+          "self-center text-lg leading-none",
+          red ? "text-rose-600" : "text-slate-900",
+        )}
+      >
+        {suit}
+      </div>
+      <div
+        className={cn(
+          "flex flex-col items-end leading-none",
+          red ? "text-rose-600" : "text-slate-900",
+        )}
+      >
+        <span className="rotate-180 text-[11px] leading-none">{suit}</span>
+        <span className="rotate-180 text-[13px] font-black tabular-nums">{label}</span>
+      </div>
+      {isAce ? (
+        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-[9px] font-black text-black shadow">
+          A
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Duas filas (casa / visitante) — visual do histórico de cartas. */
+function CardHistoryPanel({
+  history,
+  tones,
+  cardStats,
+}: {
+  history: readonly FootballBlitzRoundStored[];
+  tones: Record<FootballBlitzWinner, SideTone>;
+  cardStats: ReturnType<typeof buildCardStats>;
+}) {
+  const rows = history.slice(0, CARD_HISTORY_LIMIT);
+  const remaining = Math.max(0, SHOE_TOTAL - cardStats.seen);
+
+  return (
+    <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          Histórico de cartas
+        </p>
+        <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
+          {cardStats.seen}/{SHOE_TOTAL} cartas
+          {remaining > 0 ? ` · ${remaining} rest.` : ""}
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">Sem cartas ainda.</p>
+      ) : (
+        <div className="overflow-x-auto pb-1">
+          <div className="inline-flex min-w-full flex-col gap-2">
+            <div className="flex gap-1.5">
+              {rows.map((round, i) => {
+                const exp = expandFootballBlitzRound(round);
+                const label = exp?.home.label ?? "?";
+                const score = exp?.home.score ?? 0;
+                return (
+                  <MiniPlayingCard
+                    key={`${round.gameId}-home-${i}`}
+                    label={label}
+                    score={score}
+                    gameId={round.gameId}
+                    side="home"
+                    glowClass={tones.home.cardGlow}
+                    highlight={i === 0}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex gap-1.5">
+              {rows.map((round, i) => {
+                const exp = expandFootballBlitzRound(round);
+                const label = exp?.away.label ?? "?";
+                const score = exp?.away.score ?? 0;
+                return (
+                  <MiniPlayingCard
+                    key={`${round.gameId}-away-${i}`}
+                    label={label}
+                    score={score}
+                    gameId={round.gameId}
+                    side="away"
+                    glowClass={tones.away.cardGlow}
+                    highlight={i === 0}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
       {cardStats.top.length > 0 ? (
@@ -417,10 +517,8 @@ function TableDashboard({ config }: { config: FootballBlitzTableConfig }) {
         drawPct={colorStats.drawPct}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ColorHistoryPanel history={history} tones={tones} stats={colorStats} />
-        <CardHistoryPanel history={history} tones={tones} cardStats={cardStats} />
-      </div>
+      <ColorHistoryPanel history={history} tones={tones} stats={colorStats} />
+      <CardHistoryPanel history={history} tones={tones} cardStats={cardStats} />
     </div>
   );
 }
