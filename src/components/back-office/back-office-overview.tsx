@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ExternalLink, Lock, Search, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { BackOfficeCasinoContent } from "@/components/back-office/back-office-casino-content";
+import { BackOfficeCasinoContent, useLobbyAnalyzerCount } from "@/components/back-office/back-office-casino-content";
 import { DeferredMount } from "@/components/deferred-mount";
 import { useBackOfficeFinancePoll } from "@/hooks/useBackOfficeFinancePoll";
 import { apiFetchOverview } from "@/lib/auth/api";
@@ -22,6 +22,7 @@ export function BackOfficeOverviewPage() {
   const { money } = useFormat();
   const [overview, setOverview] = useState<BackOfficeOverview | null>(null);
   const [query, setQuery] = useState("");
+  const analyzerCount = useLobbyAnalyzerCount(query);
 
   const reload = useCallback(async () => {
     const data = await apiFetchOverview();
@@ -47,7 +48,10 @@ export function BackOfficeOverviewPage() {
   const missing = Math.max(0, ANALYZER_ACCESS_MIN - balance);
   const hasAccess = missing <= 0;
 
-  const analyzerCountLabel = useMemo(() => t("overview.analyzersAvailable", { count: 5 }), [t]);
+  const analyzerCountLabel = useMemo(
+    () => t("overview.analyzersAvailable", { count: analyzerCount }),
+    [t, analyzerCount],
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -140,7 +144,7 @@ export function BackOfficeOverviewPage() {
           <Zap className="h-4 w-4 text-[var(--brand-orange,#ff6b00)]" aria-hidden />
           <h2 className="text-sm font-bold text-white">{t("overview.analyzersSectionTitle")}</h2>
           <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] font-bold tabular-nums text-neutral-400">
-            5
+            {analyzerCount}
           </span>
         </div>
         <DeferredMount delayMs={50}>

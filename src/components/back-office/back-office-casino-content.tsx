@@ -222,6 +222,49 @@ export function useBackOfficeCasinoLiveData() {
   return { lobbyCardTableIds, histories, primaryId };
 }
 
+function lobbyMatchesQuery(name: string, tid: number, q: string): boolean {
+  if (!q) return true;
+  return name.includes(q) || String(tid).includes(q);
+}
+
+function showBlitzForQuery(q: string): boolean {
+  if (!q) return true;
+  return (
+    "football blitz".includes(q) ||
+    "top card".includes(q) ||
+    "blitz".includes(q) ||
+    q.includes("blitz") ||
+    q.includes("top card")
+  );
+}
+
+function showStudioForQuery(q: string): boolean {
+  if (!q) return true;
+  return (
+    "football studio".includes(q) ||
+    "studio".includes(q) ||
+    "futebol".includes(q) ||
+    q.includes("studio") ||
+    q.includes("futebol")
+  );
+}
+
+/** Quantidade de quadros de jogo visíveis no lobby (roletas + Blitz + Studio). */
+export function useLobbyAnalyzerCount(searchQuery = ""): number {
+  const { lobbyCardTableIds } = useBackOfficeCasinoLiveData();
+  const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
+  const q = searchQuery.trim().toLowerCase();
+
+  return useMemo(() => {
+    const tables = q
+      ? lobbyCardTableIds.filter((tid) =>
+          lobbyMatchesQuery(lobbyTableDisplayName(tid, macaoTid).toLowerCase(), tid, q),
+        ).length
+      : lobbyCardTableIds.length;
+    return tables + (showBlitzForQuery(q) ? 1 : 0) + (showStudioForQuery(q) ? 1 : 0);
+  }, [lobbyCardTableIds, macaoTid, q]);
+}
+
 function CassinoAoVivoRoletasGrid({ searchQuery = "" }: { searchQuery?: string }) {
   const { t } = useI18n();
   useDgaTableImages();
@@ -233,22 +276,13 @@ function CassinoAoVivoRoletasGrid({ searchQuery = "" }: { searchQuery?: string }
   /** Ordem fixa do lobby — não reordenar por sinal/primária. */
   const filteredTableIds = useMemo(() => {
     if (!q) return lobbyCardTableIds;
-    return lobbyCardTableIds.filter((tid) => {
-      const name = lobbyTableDisplayName(tid, macaoTid).toLowerCase();
-      return name.includes(q) || String(tid).includes(q);
-    });
+    return lobbyCardTableIds.filter((tid) =>
+      lobbyMatchesQuery(lobbyTableDisplayName(tid, macaoTid).toLowerCase(), tid, q),
+    );
   }, [lobbyCardTableIds, q, macaoTid]);
 
-  const showBlitz =
-    !q ||
-    "football blitz".includes(q) ||
-    "top card".includes(q) ||
-    "blitz".includes(q);
-  const showStudio =
-    !q ||
-    "football studio".includes(q) ||
-    "studio".includes(q) ||
-    "futebol".includes(q);
+  const showBlitz = showBlitzForQuery(q);
+  const showStudio = showStudioForQuery(q);
 
   return (
     <div className="space-y-4">
