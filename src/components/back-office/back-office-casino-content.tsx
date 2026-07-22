@@ -73,7 +73,7 @@ function CasinoTableCard({
   isPrimary: boolean;
   sseOnline: boolean;
 }) {
-  const session = useIce2fSession(tableId, fullHistory);
+  const session = useIce2fSession(tableId, fullHistory, { observeOnly: true });
   const hasSignal = session.showTapeteSignal;
   const photoBg = lobbyTableCardPhotoUrl(tableId, macaoTableId);
   const photoStyle = lobbyTableCardPhotoStyle(tableId, macaoTableId);
@@ -223,12 +223,13 @@ export function useBackOfficeCasinoLiveData() {
   return { lobbyCardTableIds, histories, primaryId };
 }
 
-function CassinoAoVivoRoletasGrid() {
+function CassinoAoVivoRoletasGrid({ searchQuery = "" }: { searchQuery?: string }) {
   const { t } = useI18n();
   useDgaTableImages();
   const sseStatus = useLiveSseStatus();
   const { lobbyCardTableIds, histories, primaryId } = useBackOfficeCasinoLiveData();
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
+  const q = searchQuery.trim().toLowerCase();
 
   const sortedTableIds = useMemo(() => {
     return [...lobbyCardTableIds].sort((a, b) => {
@@ -241,21 +242,32 @@ function CassinoAoVivoRoletasGrid() {
     });
   }, [lobbyCardTableIds, histories, primaryId]);
 
+  const filteredTableIds = useMemo(() => {
+    if (!q) return sortedTableIds;
+    return sortedTableIds.filter((tid) => {
+      const name = lobbyTableDisplayName(tid, macaoTid).toLowerCase();
+      return name.includes(q) || String(tid).includes(q);
+    });
+  }, [sortedTableIds, q, macaoTid]);
+
+  const showBlitz =
+    !q ||
+    "football blitz".includes(q) ||
+    "top card".includes(q) ||
+    "blitz".includes(q);
+  const showStudio =
+    !q ||
+    "football studio".includes(q) ||
+    "studio".includes(q) ||
+    "futebol".includes(q);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-            {t("casino.liveRoulettesTitle")}
-          </h2>
-          <p className="mt-0.5 text-xs text-neutral-500">{t("casino.liveRoulettesHint")}</p>
-        </div>
-      </div>
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : null}
       <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {sortedTableIds.map((tid) => {
+        {filteredTableIds.map((tid) => {
           const hist = histories[tid] ?? [];
           const recent = hist.slice(0, 6);
           return (
@@ -275,13 +287,16 @@ function CassinoAoVivoRoletasGrid() {
             />
           );
         })}
-        <FootballBlitzTopCardLobbyCard />
-        <FootballStudioLobbyCard />
+        {showBlitz ? <FootballBlitzTopCardLobbyCard /> : null}
+        {showStudio ? <FootballStudioLobbyCard /> : null}
       </div>
+      {filteredTableIds.length === 0 && !showBlitz && !showStudio ? (
+        <p className="text-sm text-neutral-500">{t("casino.searchNoResults")}</p>
+      ) : null}
     </div>
   );
 }
 
-export function BackOfficeCasinoContent() {
-  return <CassinoAoVivoRoletasGrid />;
+export function BackOfficeCasinoContent({ searchQuery }: { searchQuery?: string }) {
+  return <CassinoAoVivoRoletasGrid searchQuery={searchQuery} />;
 }
