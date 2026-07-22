@@ -543,6 +543,59 @@
     0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
+/* Neon a circular na barra de acesso dos analisadores */
+@keyframes neon-access-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.neon-access-frame {
+  position: relative;
+  isolation: isolate;
+  border-radius: 1rem;
+  padding: 2px;
+  overflow: hidden;
+  box-shadow:
+    0 0 18px rgba(206, 255, 5, 0.12),
+    0 0 28px rgba(255, 107, 0, 0.1);
+}
+
+.neon-access-frame::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  z-index: 0;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 240deg,
+    rgba(206, 255, 5, 0.15) 280deg,
+    #ceff05 300deg,
+    #ff6b00 320deg,
+    #ceff05 340deg,
+    transparent 360deg
+  );
+  animation: neon-access-spin 2.8s linear infinite;
+  pointer-events: none;
+}
+
+.neon-access-frame::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: 0;
+  border-radius: calc(1rem - 2px);
+  background: #050505;
+  pointer-events: none;
+}
+
+.neon-access-frame__inner {
+  position: relative;
+  z-index: 1;
+  border-radius: calc(1rem - 2px);
+}
+
 /* Borda amarela pulsante — painel indicação ruas */
 @keyframes street-indication-pulse {
   0%,

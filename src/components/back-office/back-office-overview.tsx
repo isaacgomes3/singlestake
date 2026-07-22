@@ -77,67 +77,68 @@ export function BackOfficeOverviewPage() {
         </label>
       </header>
 
-      <section
-        className={cn(
-          "rounded-2xl border p-4 sm:p-5",
-          hasAccess
-            ? "border-emerald-500/30 bg-emerald-950/20"
-            : "border-[var(--brand-orange,#ff6b00)]/45 bg-gradient-to-br from-[#1a1008] to-[#0a0a0a]",
-        )}
-        aria-label={t("overview.accessBarLabel")}
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span
-              className={cn(
-                "relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                hasAccess ? "bg-emerald-500/20 text-emerald-300" : "bg-orange-500/15 text-orange-300",
-              )}
-            >
-              <Lock className="h-5 w-5" aria-hidden />
-              {!hasAccess ? (
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--brand-orange,#ff6b00)] ring-2 ring-black" />
-              ) : null}
-            </span>
-            <div className="min-w-0">
-              <p className="text-base font-bold text-white">
-                {hasAccess ? t("overview.accessOkTitle") : t("overview.accessDeniedTitle")}
-              </p>
-              <p
+      <div className="neon-access-frame" aria-label={t("overview.accessBarLabel")}>
+        <section
+          className={cn(
+            "neon-access-frame__inner border p-4 sm:p-5",
+            hasAccess
+              ? "border-emerald-500/20 bg-emerald-950/30"
+              : "border-transparent bg-gradient-to-br from-[#1a1008] to-[#0a0a0a]",
+          )}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span
                 className={cn(
-                  "mt-1 text-sm",
-                  hasAccess ? "text-emerald-300/90" : "text-[var(--brand-orange,#ff6b00)]",
+                  "relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                  hasAccess ? "bg-emerald-500/20 text-emerald-300" : "bg-orange-500/15 text-orange-300",
                 )}
               >
-                {hasAccess
-                  ? t("overview.accessOkBody", { balance: money(balance) })
-                  : t("overview.accessDeniedBody", {
-                      min: money(ANALYZER_ACCESS_MIN),
-                      missing: money(missing),
-                    })}
-              </p>
-              <p className="mt-2 rounded-xl border border-amber-500/20 bg-black/40 px-3 py-2 text-xs text-amber-200/90">
-                {t("overview.accessHint")}
-              </p>
+                <Lock className="h-5 w-5" aria-hidden />
+                {!hasAccess ? (
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--brand-orange,#ff6b00)] ring-2 ring-black" />
+                ) : null}
+              </span>
+              <div className="min-w-0">
+                <p className="text-base font-bold text-white">
+                  {hasAccess ? t("overview.accessOkTitle") : t("overview.accessDeniedTitle")}
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-sm",
+                    hasAccess ? "text-emerald-300/90" : "text-[var(--brand-orange,#ff6b00)]",
+                  )}
+                >
+                  {hasAccess
+                    ? t("overview.accessOkBody", { balance: money(balance) })
+                    : t("overview.accessDeniedBody", {
+                        min: money(ANALYZER_ACCESS_MIN),
+                        missing: money(missing),
+                      })}
+                </p>
+                <p className="mt-2 rounded-xl border border-amber-500/20 bg-black/40 px-3 py-2 text-xs text-amber-200/90">
+                  {t("overview.accessHint")}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <Link
+                to={DEPOSIT_PATH}
+                className="inline-flex items-center justify-center rounded-xl bg-[var(--brand-orange,#ff6b00)] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(255,107,0,0.35)] transition hover:bg-[var(--brand-orange-glow,#ff8c00)]"
+              >
+                {t("overview.accessDepositCta")}
+              </Link>
+              <Link
+                to="/back-office/produtos/pacotes"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/35 bg-[#1a1208] px-5 py-2.5 text-sm font-semibold text-amber-200 transition hover:border-amber-400/55"
+              >
+                {t("overview.accessCampaignCta")}
+                <ExternalLink className="h-3.5 w-3.5 opacity-80" aria-hidden />
+              </Link>
             </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <Link
-              to={DEPOSIT_PATH}
-              className="inline-flex items-center justify-center rounded-xl bg-[var(--brand-orange,#ff6b00)] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(255,107,0,0.35)] transition hover:bg-[var(--brand-orange-glow,#ff8c00)]"
-            >
-              {t("overview.accessDepositCta")}
-            </Link>
-            <Link
-              to="/back-office/produtos/pacotes"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/35 bg-[#1a1208] px-5 py-2.5 text-sm font-semibold text-amber-200 transition hover:border-amber-400/55"
-            >
-              {t("overview.accessCampaignCta")}
-              <ExternalLink className="h-3.5 w-3.5 opacity-80" aria-hidden />
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <section aria-label={t("overview.analyzersSectionTitle")}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
