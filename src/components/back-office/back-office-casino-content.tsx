@@ -30,7 +30,6 @@ import {
   ROULETTE_LIVE_TABLE_HISTORY_EVENT,
   type RouletteLiveTableHistoryDetail,
 } from "@/lib/roulette/historyStorage";
-import { tableHasLocalIce2fSignal } from "@/lib/roulette/ice2fTableSession";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n/i18n-provider";
 
@@ -231,24 +230,14 @@ function CassinoAoVivoRoletasGrid({ searchQuery = "" }: { searchQuery?: string }
   const macaoTid = lobbyCardTableIds[LOBBY_MACAO_SLOT_INDEX] ?? ROULETTE_MACAO_TABLE_ID;
   const q = searchQuery.trim().toLowerCase();
 
-  const sortedTableIds = useMemo(() => {
-    return [...lobbyCardTableIds].sort((a, b) => {
-      const signal = (tid: number) => (tableHasLocalIce2fSignal(tid, histories[tid] ?? []) ? 1 : 0);
-      const diff = signal(b) - signal(a);
-      if (diff !== 0) return diff;
-      if (a === primaryId) return -1;
-      if (b === primaryId) return 1;
-      return a - b;
-    });
-  }, [lobbyCardTableIds, histories, primaryId]);
-
+  /** Ordem fixa do lobby — não reordenar por sinal/primária. */
   const filteredTableIds = useMemo(() => {
-    if (!q) return sortedTableIds;
-    return sortedTableIds.filter((tid) => {
+    if (!q) return lobbyCardTableIds;
+    return lobbyCardTableIds.filter((tid) => {
       const name = lobbyTableDisplayName(tid, macaoTid).toLowerCase();
       return name.includes(q) || String(tid).includes(q);
     });
-  }, [sortedTableIds, q, macaoTid]);
+  }, [lobbyCardTableIds, q, macaoTid]);
 
   const showBlitz =
     !q ||
