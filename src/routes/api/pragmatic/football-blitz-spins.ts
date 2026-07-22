@@ -66,6 +66,15 @@ export const Route = createFileRoute("/api/pragmatic/football-blitz-spins")({
                     })),
                   }),
                 );
+              } else if (msg.type === "shuffle") {
+                controller.enqueue(
+                  sseData({
+                    type: "shuffle",
+                    tableKey: msg.tableKey,
+                    detectedAt: msg.detectedAt,
+                    suppressGameIds: msg.suppressGameIds,
+                  }),
+                );
               } else {
                 controller.enqueue(
                   sseData({

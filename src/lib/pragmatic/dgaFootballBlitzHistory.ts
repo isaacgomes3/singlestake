@@ -40,6 +40,10 @@ function lastGameIdKey(tableKey: number): string {
   return `pragmatic.footballBlitz.lastGameId.${tableKey}.v2`;
 }
 
+function suppressGameIdsKey(tableKey: number): string {
+  return `pragmatic.footballBlitz.suppressGameIds.${tableKey}.v1`;
+}
+
 function readLastGameId(tableKey: number): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -58,6 +62,48 @@ function writeLastGameId(tableKey: number, id: string | null) {
   } catch {
     /* */
   }
+}
+
+function readSuppressGameIds(tableKey: number): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = sessionStorage.getItem(suppressGameIdsKey(tableKey));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((id) => String(id)).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSuppressGameIds(tableKey: number, ids: ReadonlySet<string> | readonly string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const list = [...ids].filter(Boolean);
+    const key = suppressGameIdsKey(tableKey);
+    if (list.length === 0) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify(list));
+  } catch {
+    /* */
+  }
+}
+
+function isSuppressedGameId(tableKey: number, gameId: string): boolean {
+  return readSuppressGameIds(tableKey).has(gameId);
+}
+
+/** Zera histórico local (ex.: mudança de baralho DGA). */
+export function clearFootballBlitzHistory(
+  tableKey: number,
+  options?: { suppressGameIds?: readonly string[] },
+) {
+  if (typeof window === "undefined") return;
+  const suppress = options?.suppressGameIds ?? [];
+  writeSuppressGameIds(tableKey, suppress);
+  persistHistory(tableKey, []);
+  writeLastGameId(tableKey, null);
+  dispatchFootballBlitzHistoryChanged(tableKey);
 }
 
 function parseHistoryRows(parsed: unknown): FootballBlitzRoundStored[] {
@@ -196,8 +242,16 @@ export function replaceFootballBlitzHistoryFromBatch(
   }
   if (mapped.length === 0) return;
 
+  const suppress = readSuppressGameIds(tableKey);
+  const fresh = mapped.filter((r) => !suppress.has(r.gameId));
+  // Snapshot só com rondas do baralho antigo — não repor o histórico limpo.
+  if (fresh.length === 0) return;
+
+  // Nova mão após shuffle: deixa de suprimir IDs do baralho anterior.
+  if (suppress.size > 0) writeSuppressGameIds(tableKey, []);
+
   const cur = readFootballBlitzHistory(tableKey);
-  const merged = mergeServerBatchWithLocalHistory(mapped, cur);
+  const merged = mergeServerBatchWithLocalHistory(fresh, cur);
 
   persistHistory(tableKey, merged);
   writeLastGameId(tableKey, merged[0]!.gameId);
@@ -214,9 +268,14 @@ export function appendFootballBlitzFromSse(
     time?: string;
   },
 ) {
+  if (isSuppressedGameId(tableKey, round.gameId)) return;
+
   const last = readLastGameId(tableKey);
   if (last === round.gameId) return;
   writeLastGameId(tableKey, round.gameId);
+
+  // Primeira ronda nova após shuffle — limpa suppress do baralho antigo.
+  if (readSuppressGameIds(tableKey).size > 0) writeSuppressGameIds(tableKey, []);
 
   const cur = readFootballBlitzHistory(tableKey);
   const next = [

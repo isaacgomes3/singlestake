@@ -216,6 +216,90 @@ export function analyzeFootballBlitzCardPatterns(
   };
 }
 
+export type FootballBlitzSidePatternCardStat = {
+  card: number;
+  label: string;
+  hits: number;
+  samples: number;
+  rate: number;
+};
+
+export type FootballBlitzSidePatternAnalysis = {
+  /** Após a carta aparecer, a próxima ronda manteve o mesmo lado vencedor. */
+  maintainSide: FootballBlitzSidePatternCardStat[];
+  /** Após a carta aparecer, a próxima ronda mudou de lado vencedor. */
+  changeSide: FootballBlitzSidePatternCardStat[];
+  transitions: number;
+};
+
+/**
+ * Por cada carta que aparece numa ronda colorida, mede se a ronda seguinte
+ * manteve o mesmo lado (casa/visitante) ou mudou.
+ * Empates (nesta ou na seguinte) não entram na amostra.
+ */
+export function analyzeFootballBlitzSidePatternByCard(
+  historyNewestFirst: readonly FootballBlitzRoundStored[],
+  options?: { top?: number; minSamples?: number },
+): FootballBlitzSidePatternAnalysis {
+  const topN = Math.max(1, Math.floor(Number(options?.top) || 6));
+  const minSamples = Math.max(1, Math.floor(Number(options?.minSamples) || 1));
+  const maintain = new Map<number, { hits: number; samples: number }>();
+  const change = new Map<number, { hits: number; samples: number }>();
+  let transitions = 0;
+
+  const bump = (
+    map: Map<number, { hits: number; samples: number }>,
+    card: number,
+    hit: boolean,
+  ) => {
+    const cur = map.get(card) ?? { hits: 0, samples: 0 };
+    cur.samples += 1;
+    if (hit) cur.hits += 1;
+    map.set(card, cur);
+  };
+
+  for (let index = 1; index < historyNewestFirst.length; index += 1) {
+    const round = historyNewestFirst[index];
+    const next = historyNewestFirst[index - 1];
+    if (!round || !next || !isColoredRound(round) || !isColoredRound(next)) continue;
+
+    const exp = expandFootballBlitzRound(round);
+    if (!exp) continue;
+    const cards = [exp.home.score, exp.away.score].filter(
+      (n) => Number.isInteger(n) && n >= 1 && n <= 13,
+    );
+    if (cards.length === 0) continue;
+
+    const kept = next.winner === round.winner;
+    transitions += 1;
+    for (const card of cards) {
+      bump(maintain, card, kept);
+      bump(change, card, !kept);
+    }
+  }
+
+  const format = (
+    map: Map<number, { hits: number; samples: number }>,
+  ): FootballBlitzSidePatternCardStat[] =>
+    [...map.entries()]
+      .map(([card, stat]) => ({
+        card,
+        label: footballBlitzCardLabel(card),
+        hits: stat.hits,
+        samples: stat.samples,
+        rate: Math.round((stat.hits / stat.samples) * 1000) / 10,
+      }))
+      .filter((row) => row.samples >= minSamples)
+      .sort((a, b) => b.rate - a.rate || b.samples - a.samples || a.card - b.card)
+      .slice(0, topN);
+
+  return {
+    maintainSide: format(maintain),
+    changeSide: format(change),
+    transitions,
+  };
+}
+
 function extractRoundCards(
   round: FootballBlitzRoundStored,
 ): { winningCard: number; losingCard: number } | null {

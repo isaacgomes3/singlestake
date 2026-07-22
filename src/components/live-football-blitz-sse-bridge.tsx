@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { DGA_FOOTBALL_BLITZ_TABLE_KEYS } from "@/lib/pragmatic/dgaFootballBlitzConstants";
 import {
   appendFootballBlitzFromSse,
+  clearFootballBlitzHistory,
   replaceFootballBlitzHistoryFromBatch,
 } from "@/lib/pragmatic/dgaFootballBlitzHistory";
 import { dispatchLiveSseStatus } from "@/lib/roulette/liveSseEvents";
@@ -29,6 +30,12 @@ type SsePayload =
         scoreDiff?: number;
         time?: string;
       }[];
+    }
+  | {
+      type: "shuffle";
+      tableKey?: number;
+      detectedAt?: string;
+      suppressGameIds?: string[];
     }
   | { type: "status"; state?: string; message?: string };
 
@@ -71,7 +78,23 @@ export function LiveFootballBlitzSseBridge() {
           return;
         }
 
-        if (o.type === "round-replay-batch" && Array.isArray(o.rounds) && isKnownTableKey(o.tableKey)) {
+        if (o.type === "shuffle" && isKnownTableKey(o.tableKey)) {
+          const suppress = Array.isArray(o.suppressGameIds)
+            ? o.suppressGameIds.map(String).filter(Boolean)
+            : [];
+          clearFootballBlitzHistory(o.tableKey, { suppressGameIds: suppress });
+          if (import.meta.env.DEV) {
+            console.info("[Football Blitz/SSE] shuffle", o.tableKey, "suppress", suppress.length);
+          }
+          dispatchLiveSseStatus({ status: "open", message: null });
+          return;
+        }
+
+        if (
+          o.type === "round-replay-batch" &&
+          Array.isArray(o.rounds) &&
+          isKnownTableKey(o.tableKey)
+        ) {
           replaceFootballBlitzHistoryFromBatch(o.tableKey, o.rounds);
           dispatchLiveSseStatus({ status: "open", message: null });
           return;

@@ -10,6 +10,12 @@ export type DgaFootballBlitzHubRound = DgaFootballBlitzRound & { tableKey: numbe
 export type DgaFootballBlitzHubMessage =
   | { type: "round"; tableKey: number; round: DgaFootballBlitzRound; replay?: boolean }
   | { type: "round-replay-batch"; tableKey: number; rounds: DgaFootballBlitzRound[] }
+  | {
+      type: "shuffle";
+      tableKey: number;
+      detectedAt: string;
+      suppressGameIds: string[];
+    }
   | { type: "status"; state: "reconnecting"; message: string };
 
 type Listener = (msg: DgaFootballBlitzHubMessage) => void;
@@ -24,6 +30,8 @@ let upstreamShutdownTimer: ReturnType<typeof setTimeout> | null = null;
 
 const lastSnapshotByTable = new Map<number, DgaFootballBlitzRound[]>();
 const lastEmittedByTable = new Map<number, DgaFootballBlitzRound>();
+/** IDs do baralho antigo após shuffle — não reemitir até haver rondas novas. */
+const suppressGameIdsByTable = new Map<number, Set<string>>();
 
 function cancelUpstreamShutdownTimer() {
   if (upstreamShutdownTimer) {
@@ -36,6 +44,15 @@ function broadcast(msg: DgaFootballBlitzHubMessage) {
   for (const listener of listeners) {
     listener(msg);
   }
+}
+
+function filterSuppressed(
+  tableKey: number,
+  rounds: readonly DgaFootballBlitzRound[],
+): DgaFootballBlitzRound[] {
+  const suppress = suppressGameIdsByTable.get(tableKey);
+  if (!suppress || suppress.size === 0) return [...rounds];
+  return rounds.filter((r) => !suppress.has(r.gameId));
 }
 
 function buildReplayMessages(): DgaFootballBlitzHubMessage[] {
@@ -67,6 +84,10 @@ function ensureUpstream() {
   for (const tableKey of DGA_FOOTBALL_BLITZ_TABLE_KEYS) {
     const dispose = startDgaFootballBlitzSocket(
       (round) => {
+        const suppress = suppressGameIdsByTable.get(tableKey);
+        if (suppress?.has(round.gameId)) return;
+        if (suppress && suppress.size > 0) suppressGameIdsByTable.delete(tableKey);
+
         lastEmittedByTable.set(tableKey, round);
         const without = (lastSnapshotByTable.get(tableKey) ?? []).filter(
           (r) => r.gameId !== round.gameId,
@@ -78,10 +99,33 @@ function ensureUpstream() {
         tableKey,
         onTableHistorySnapshot: (rounds) => {
           if (rounds.length === 0) return;
-          const snap = rounds.slice(0, DGA_FOOTBALL_BLITZ_SERVER_ROUNDS);
+          const fresh = filterSuppressed(tableKey, rounds);
+          if (fresh.length === 0) return;
+          if (suppressGameIdsByTable.get(tableKey)?.size) {
+            suppressGameIdsByTable.delete(tableKey);
+          }
+          const snap = fresh.slice(0, DGA_FOOTBALL_BLITZ_SERVER_ROUNDS);
           lastSnapshotByTable.set(tableKey, snap);
           lastEmittedByTable.set(tableKey, snap[0]!);
           broadcast({ type: "round-replay-batch", tableKey, rounds: [...snap] });
+        },
+        onShuffle: (event) => {
+          const suppress = new Set(event.suppressGameIds.filter(Boolean));
+          suppressGameIdsByTable.set(tableKey, suppress);
+          lastSnapshotByTable.delete(tableKey);
+          lastEmittedByTable.delete(tableKey);
+          console.log(
+            "[Football Blitz] hub: shuffle mesa",
+            tableKey,
+            "| suppress",
+            suppress.size,
+          );
+          broadcast({
+            type: "shuffle",
+            tableKey,
+            detectedAt: event.detectedAt,
+            suppressGameIds: [...suppress],
+          });
         },
         onDisconnect: (message) => {
           broadcast({ type: "status", state: "reconnecting", message });
@@ -103,6 +147,7 @@ function shutdownUpstreamIfIdle() {
     upstreamDisposers = [];
     lastSnapshotByTable.clear();
     lastEmittedByTable.clear();
+    suppressGameIdsByTable.clear();
     return;
   }
   upstreamShutdownTimer = setTimeout(() => {
@@ -113,6 +158,7 @@ function shutdownUpstreamIfIdle() {
     upstreamDisposers = [];
     lastSnapshotByTable.clear();
     lastEmittedByTable.clear();
+    suppressGameIdsByTable.clear();
   }, UPSTREAM_IDLE_MS);
 }
 

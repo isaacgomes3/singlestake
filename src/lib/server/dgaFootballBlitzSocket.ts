@@ -30,6 +30,12 @@ export type DgaFootballBlitzSocketOptions = {
   debug?: boolean;
   tableKey?: number;
   onTableHistorySnapshot?: (rounds: DgaFootballBlitzRound[]) => void;
+  /** Mudança de baralho (DGA `shuffle: false → true`). */
+  onShuffle?: (event: {
+    detectedAt: string;
+    tableKey: number;
+    suppressGameIds: string[];
+  }) => void;
 };
 
 type WsGameResultRow = {
@@ -137,6 +143,7 @@ export const startDgaFootballBlitzSocket = (
   let disconnectNotified = false;
   let spinBaselined = false;
   let subscribedThisConnection = false;
+  let shuffleActive = false;
 
   const connect = () => {
     console.log("[Football Blitz] WS →", WS_URL, "| casino:", CASINO_ID, "| key:", tableKey);
@@ -171,6 +178,7 @@ export const startDgaFootballBlitzSocket = (
       disconnectNotified = false;
       spinBaselined = false;
       subscribedThisConnection = false;
+      shuffleActive = false;
       sendAvailable();
       if (subscribeFallbackTimer) clearTimeout(subscribeFallbackTimer);
       subscribeFallbackTimer = setTimeout(() => {
@@ -214,6 +222,23 @@ export const startDgaFootballBlitzSocket = (
 
         if (subscribedThisConnection) {
           const snapshot = parseGameResultSnapshot(parsed);
+
+          // Mudança de baralho (DGA: shuffle false → true)
+          if (typeof parsed.shuffle === "boolean") {
+            const shuffleNow = parsed.shuffle === true;
+            if (shuffleNow && !shuffleActive) {
+              const suppressGameIds = snapshot.map((r) => r.gameId).filter(Boolean);
+              options?.onShuffle?.({
+                detectedAt: new Date().toISOString(),
+                tableKey,
+                suppressGameIds,
+              });
+              lastGameId = null;
+              spinBaselined = false;
+            }
+            shuffleActive = shuffleNow;
+          }
+
           if (snapshot.length > 0 && options?.onTableHistorySnapshot) {
             options.onTableHistorySnapshot(snapshot);
           }

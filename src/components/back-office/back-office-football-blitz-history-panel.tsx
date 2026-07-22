@@ -15,16 +15,13 @@ import {
   type FootballBlitzWinner,
 } from "@/lib/pragmatic/dgaFootballBlitzHistory";
 import {
+  analyzeFootballBlitzSidePatternByCard,
   expandFootballBlitzRound,
   footballBlitzCardLabel,
 } from "@/lib/pragmatic/footballBlitzEcoStrategy";
 import { cn } from "@/lib/utils";
 
 const COLOR_HISTORY_LIMIT = 48;
-/** Uma linha = 8 últimas rodadas (casa em cima, visitante em baixo). */
-const CARD_HISTORY_LIMIT = 8;
-const SHOE_DECKS = 8;
-const SHOE_TOTAL = SHOE_DECKS * 52;
 
 type SideTone = {
   chip: string;
@@ -33,8 +30,6 @@ type SideTone = {
   text: string;
   label: string;
   short: string;
-  /** Borda luminosa da carta desse lado no histórico de cartas. */
-  cardGlow: string;
 };
 
 function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinner, SideTone> {
@@ -47,7 +42,6 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
           text: "text-blue-300",
           label: "Azul",
           short: "V",
-          cardGlow: "border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.55)]",
         }
       : {
           chip: "bg-rose-600 text-white border-rose-400/40",
@@ -56,7 +50,6 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
           text: "text-rose-300",
           label: "Vermelho",
           short: "V",
-          cardGlow: "border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.55)]",
         };
   return {
     home: {
@@ -66,7 +59,6 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
       text: "text-amber-300",
       label: "Amarelo",
       short: "C",
-      cardGlow: "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.55)]",
     },
     away,
     draw: {
@@ -76,7 +68,6 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
       text: "text-emerald-300",
       label: "Empate",
       short: "E",
-      cardGlow: "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.45)]",
     },
   };
 }
@@ -150,29 +141,6 @@ function buildColorStats(history: readonly FootballBlitzRoundStored[]) {
     maxHomeStreak: maxSideStreak(history, "home"),
     maxAwayStreak: maxSideStreak(history, "away"),
   };
-}
-
-function buildCardStats(history: readonly FootballBlitzRoundStored[]) {
-  const ranks = new Map<number, number>();
-  let seen = 0;
-  for (const round of history) {
-    const exp = expandFootballBlitzRound(round);
-    if (!exp) continue;
-    for (const score of [exp.home.score, exp.away.score]) {
-      ranks.set(score, (ranks.get(score) ?? 0) + 1);
-      seen += 1;
-    }
-  }
-  const top = [...ranks.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-    .slice(0, 6)
-    .map(([score, count]) => ({
-      score,
-      label: footballBlitzCardLabel(score),
-      count,
-      pct: seen > 0 ? Math.round((count / seen) * 100) : 0,
-    }));
-  return { seen, unique: ranks.size, top };
 }
 
 function StatTile({
@@ -299,133 +267,94 @@ function ColorHistoryPanel({
   );
 }
 
-/** Carta só com valor — a DGA Football Blitz não envia naipe. */
-function MiniPlayingCard({
-  label,
-  score,
-  side,
-  glowClass,
-  highlight,
+function PatternStatColumn({
+  title,
+  hint,
+  rows,
+  accentClass,
+  barClass,
 }: {
-  label: string;
-  score: number;
-  side: "home" | "away";
-  glowClass: string;
-  highlight?: boolean;
+  title: string;
+  hint: string;
+  rows: Array<{ card: number; label: string; hits: number; samples: number; rate: number }>;
+  accentClass: string;
+  barClass: string;
 }) {
-  const isAce = score === 1;
   return (
-    <div
-      className={cn(
-        "relative flex h-[4.25rem] w-[3.05rem] shrink-0 flex-col items-center justify-between rounded-md border-2 bg-gradient-to-b from-white to-slate-100 px-1 py-1.5 shadow-md",
-        glowClass,
-        highlight && "ring-2 ring-amber-300 ring-offset-1 ring-offset-[#0d1524]",
+    <div className="min-w-0 flex-1">
+      <p className={cn("text-[10px] font-bold uppercase tracking-[0.14em]", accentClass)}>{title}</p>
+      <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500">Sem amostra ainda.</p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {rows.map((row, i) => (
+            <li
+              key={`${title}-${row.card}`}
+              className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#081221] px-2.5 py-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-400">
+                {i + 1}
+              </span>
+              <span className="w-8 text-center text-base font-black text-white">{row.label}</span>
+              <div className="min-w-0 flex-1">
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-900">
+                  <div
+                    className={cn("h-full rounded-full", barClass)}
+                    style={{ width: `${Math.max(row.rate, row.rate > 0 ? 4 : 0)}%` }}
+                  />
+                </div>
+              </div>
+              <span className="shrink-0 text-xs font-bold tabular-nums text-slate-200">
+                {row.rate}%
+              </span>
+              <span className="shrink-0 text-[10px] tabular-nums text-slate-500">
+                {row.hits}/{row.samples}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
-      title={`${label} · ${side === "home" ? "Casa" : "Visitante"}`}
-    >
-      <span className="self-start text-[13px] font-black tabular-nums leading-none text-slate-900">
-        {label}
-      </span>
-      <span className="text-2xl font-black tabular-nums leading-none text-slate-900">{label}</span>
-      <span className="self-end rotate-180 text-[13px] font-black tabular-nums leading-none text-slate-900">
-        {label}
-      </span>
-      {isAce ? (
-        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-[9px] font-black text-black shadow">
-          A
-        </span>
-      ) : null}
     </div>
   );
 }
 
-/** Duas filas (casa / visitante) — visual do histórico de cartas. */
-function CardHistoryPanel({
-  history,
-  tones,
-  cardStats,
-}: {
-  history: readonly FootballBlitzRoundStored[];
-  tones: Record<FootballBlitzWinner, SideTone>;
-  cardStats: ReturnType<typeof buildCardStats>;
-}) {
-  const rows = history.slice(0, CARD_HISTORY_LIMIT);
-  const remaining = Math.max(0, SHOE_TOTAL - cardStats.seen);
+/** Top cartas que mantêm ou mudam o lado (casa/visitante) na ronda seguinte. */
+function SidePatternStatsPanel({ history }: { history: readonly FootballBlitzRoundStored[] }) {
+  const analysis = useMemo(
+    () => analyzeFootballBlitzSidePatternByCard(history, { top: 6, minSamples: 1 }),
+    [history],
+  );
 
   return (
     <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-          Histórico de cartas
+          Padrão de lado por carta
         </p>
         <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
-          {cardStats.seen}/{SHOE_TOTAL} cartas
-          {remaining > 0 ? ` · ${remaining} rest.` : ""}
+          {analysis.transitions} transições
         </span>
       </div>
-      {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">Sem cartas ainda.</p>
-      ) : (
-        <div className="overflow-x-auto pb-1">
-          <div className="inline-flex min-w-full flex-col gap-2">
-            <div className="flex gap-1.5">
-              {rows.map((round, i) => {
-                const exp = expandFootballBlitzRound(round);
-                const label = exp?.home.label ?? "?";
-                const score = exp?.home.score ?? 0;
-                return (
-                  <MiniPlayingCard
-                    key={`${round.gameId}-home-${i}`}
-                    label={label}
-                    score={score}
-                    side="home"
-                    glowClass={tones.home.cardGlow}
-                    highlight={i === 0}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex gap-1.5">
-              {rows.map((round, i) => {
-                const exp = expandFootballBlitzRound(round);
-                const label = exp?.away.label ?? "?";
-                const score = exp?.away.score ?? 0;
-                return (
-                  <MiniPlayingCard
-                    key={`${round.gameId}-away-${i}`}
-                    label={label}
-                    score={score}
-                    side="away"
-                    glowClass={tones.away.cardGlow}
-                    highlight={i === 0}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-      {cardStats.top.length > 0 ? (
-        <div className="mt-4 border-t border-slate-800/80 pt-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-            Cartas mais frequentes
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {cardStats.top.map((row) => (
-              <span
-                key={row.score}
-                className="rounded-lg border border-slate-700 bg-[#081221] px-2.5 py-1.5 text-xs text-slate-300"
-              >
-                <span className="font-bold text-slate-100">{row.label}</span>
-                <span className="text-slate-500"> · </span>
-                <span className="tabular-nums">
-                  {row.count} ({row.pct}%)
-                </span>
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <p className="mb-4 text-xs text-slate-500">
+        Após a carta sair: manter = mesmo lado vencedor na seguinte · mudar = lado oposto.
+      </p>
+      <div className="grid gap-5 md:grid-cols-2">
+        <PatternStatColumn
+          title="Mais mudam o padrão"
+          hint="Lado vencedor troca na ronda seguinte"
+          rows={analysis.changeSide}
+          accentClass="text-rose-300"
+          barClass="bg-rose-500"
+        />
+        <PatternStatColumn
+          title="Mais mantêm o padrão"
+          hint="Mesmo lado vencedor na ronda seguinte"
+          rows={analysis.maintainSide}
+          accentClass="text-emerald-300"
+          barClass="bg-emerald-500"
+        />
+      </div>
     </section>
   );
 }
@@ -434,7 +363,6 @@ function TableDashboard({ config }: { config: FootballBlitzTableConfig }) {
   const history = useFootballBlitzTableHistory(config.tableKey);
   const tones = useMemo(() => sideTones(config.variant), [config.variant]);
   const colorStats = useMemo(() => buildColorStats(history), [history]);
-  const cardStats = useMemo(() => buildCardStats(history), [history]);
 
   return (
     <div className="space-y-4">
@@ -482,7 +410,7 @@ function TableDashboard({ config }: { config: FootballBlitzTableConfig }) {
       />
 
       <ColorHistoryPanel history={history} tones={tones} stats={colorStats} />
-      <CardHistoryPanel history={history} tones={tones} cardStats={cardStats} />
+      <SidePatternStatsPanel history={history} />
     </div>
   );
 }
