@@ -21,11 +21,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const COLOR_HISTORY_LIMIT = 48;
-const CARD_HISTORY_LIMIT = 36;
+/** Uma linha = 8 últimas rodadas (casa em cima, visitante em baixo). */
+const CARD_HISTORY_LIMIT = 8;
 const SHOE_DECKS = 8;
 const SHOE_TOTAL = SHOE_DECKS * 52;
-
-const SUIT_GLYPHS = ["♠", "♥", "♦", "♣"] as const;
 
 type SideTone = {
   chip: string;
@@ -80,17 +79,6 @@ function sideTones(variant: FootballBlitzTableVariant): Record<FootballBlitzWinn
       cardGlow: "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.45)]",
     },
   };
-}
-
-/** Naipe só visual (DGA não envia naipe) — estável por gameId + lado. */
-function decorativeSuit(gameId: string, side: "home" | "away"): (typeof SUIT_GLYPHS)[number] {
-  let h = side === "home" ? 7 : 13;
-  for (let i = 0; i < gameId.length; i += 1) h = (h * 31 + gameId.charCodeAt(i)) >>> 0;
-  return SUIT_GLYPHS[h % 4]!;
-}
-
-function suitIsRed(glyph: string): boolean {
-  return glyph === "♥" || glyph === "♦";
 }
 
 function useFootballBlitzTableHistory(tableKey: number) {
@@ -311,59 +299,37 @@ function ColorHistoryPanel({
   );
 }
 
+/** Carta só com valor — a DGA Football Blitz não envia naipe. */
 function MiniPlayingCard({
   label,
   score,
-  gameId,
   side,
   glowClass,
   highlight,
 }: {
   label: string;
   score: number;
-  gameId: string;
   side: "home" | "away";
   glowClass: string;
   highlight?: boolean;
 }) {
-  const suit = decorativeSuit(gameId, side);
-  const red = suitIsRed(suit);
   const isAce = score === 1;
   return (
     <div
       className={cn(
-        "relative flex h-[4.25rem] w-[3.05rem] shrink-0 flex-col justify-between rounded-md border-2 bg-gradient-to-b from-white to-slate-100 px-1 py-1 shadow-md",
+        "relative flex h-[4.25rem] w-[3.05rem] shrink-0 flex-col items-center justify-between rounded-md border-2 bg-gradient-to-b from-white to-slate-100 px-1 py-1.5 shadow-md",
         glowClass,
         highlight && "ring-2 ring-amber-300 ring-offset-1 ring-offset-[#0d1524]",
       )}
-      title={`${label}${suit} · ${side === "home" ? "Casa" : "Visitante"}`}
+      title={`${label} · ${side === "home" ? "Casa" : "Visitante"}`}
     >
-      <div
-        className={cn(
-          "flex flex-col items-start leading-none",
-          red ? "text-rose-600" : "text-slate-900",
-        )}
-      >
-        <span className="text-[13px] font-black tabular-nums">{label}</span>
-        <span className="text-[11px] leading-none">{suit}</span>
-      </div>
-      <div
-        className={cn(
-          "self-center text-lg leading-none",
-          red ? "text-rose-600" : "text-slate-900",
-        )}
-      >
-        {suit}
-      </div>
-      <div
-        className={cn(
-          "flex flex-col items-end leading-none",
-          red ? "text-rose-600" : "text-slate-900",
-        )}
-      >
-        <span className="rotate-180 text-[11px] leading-none">{suit}</span>
-        <span className="rotate-180 text-[13px] font-black tabular-nums">{label}</span>
-      </div>
+      <span className="self-start text-[13px] font-black tabular-nums leading-none text-slate-900">
+        {label}
+      </span>
+      <span className="text-2xl font-black tabular-nums leading-none text-slate-900">{label}</span>
+      <span className="self-end rotate-180 text-[13px] font-black tabular-nums leading-none text-slate-900">
+        {label}
+      </span>
       {isAce ? (
         <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-[9px] font-black text-black shadow">
           A
@@ -412,7 +378,6 @@ function CardHistoryPanel({
                     key={`${round.gameId}-home-${i}`}
                     label={label}
                     score={score}
-                    gameId={round.gameId}
                     side="home"
                     glowClass={tones.home.cardGlow}
                     highlight={i === 0}
@@ -430,7 +395,6 @@ function CardHistoryPanel({
                     key={`${round.gameId}-away-${i}`}
                     label={label}
                     score={score}
-                    gameId={round.gameId}
                     side="away"
                     glowClass={tones.away.cardGlow}
                     highlight={i === 0}
