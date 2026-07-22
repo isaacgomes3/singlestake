@@ -57,7 +57,9 @@ function CasinoTableCard({
   fullHistory,
   noSpinsLabel,
   signalActiveLabel,
+  openLabel,
   isPrimary,
+  sseOnline,
 }: {
   tableId: number;
   macaoTableId: number;
@@ -67,43 +69,60 @@ function CasinoTableCard({
   fullHistory: number[];
   noSpinsLabel: string;
   signalActiveLabel: string;
+  openLabel: string;
   isPrimary: boolean;
+  sseOnline: boolean;
 }) {
   const session = useIce2fSession(tableId, fullHistory);
   const hasSignal = session.showTapeteSignal;
   const photoBg = lobbyTableCardPhotoUrl(tableId, macaoTableId);
   const photoStyle = lobbyTableCardPhotoStyle(tableId, macaoTableId);
   const cardClass = cn(
-    "theme-card flex flex-col overflow-hidden rounded-2xl p-0 transition hover:border-border-color",
-    hasSignal
-      ? "border-warning/55 ring-2 ring-warning/30"
-      : isPrimary
-        ? "border-info/40"
-        : "border-border-color",
+    "theme-lobby-card flex flex-col p-0 transition",
+    hasSignal && "ring-2 ring-[var(--brand-orange,#ff6b00)]/40",
+    isPrimary && !hasSignal && "border-[var(--brand-orange,#ff6b00)]/35",
   );
   const cardBody = (
     <article className="flex h-full flex-col">
       <div
-        className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-gradient-to-b from-slate-800 to-slate-950"
+        className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-gradient-to-b from-neutral-800 to-black"
         style={photoBg ? undefined : { background: lobbyTableCardFallbackBg() }}
       >
         {photoStyle ? (
           <div className="absolute inset-0 bg-cover bg-no-repeat" style={photoStyle} aria-hidden />
         ) : null}
         <div
-          className={cn("absolute inset-0", photoBg ? "opacity-[0.22]" : "opacity-35")}
+          className={cn("absolute inset-0", photoBg ? "opacity-[0.28]" : "opacity-40")}
           style={{
             backgroundImage: photoBg
-              ? "linear-gradient(180deg, rgba(8,13,24,0.28) 0%, transparent 48%, rgba(8,13,24,0.78) 100%), radial-gradient(ellipse 90% 55% at 50% 35%, rgba(0,0,0,0.12), transparent 52%)"
-              : "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(6,182,212,0.15), transparent), linear-gradient(180deg, rgba(15,23,42,0.95) 0%, transparent 50%)",
+              ? "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 48%, rgba(0,0,0,0.85) 100%)"
+              : "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(255,107,0,0.12), transparent), linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 50%)",
           }}
           aria-hidden
         />
-        {hasSignal ? (
-          <span className="absolute left-2 top-2 z-[3] inline-flex rounded-full bg-cyan-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-200 ring-1 ring-cyan-400/40 backdrop-blur-sm">
-            {signalActiveLabel}
+        <div className="absolute left-2 top-2 z-[3] flex items-center gap-1.5">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide backdrop-blur-sm",
+              sseOnline
+                ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40"
+                : "bg-neutral-800/80 text-neutral-400 ring-1 ring-neutral-600/50",
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                sseOnline ? "bg-emerald-400" : "bg-neutral-500",
+              )}
+            />
+            {sseOnline ? "Online" : "Offline"}
           </span>
-        ) : null}
+          {hasSignal ? (
+            <span className="inline-flex rounded-full bg-[var(--brand-orange,#ff6b00)]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-200 ring-1 ring-orange-400/40 backdrop-blur-sm">
+              {signalActiveLabel}
+            </span>
+          ) : null}
+        </div>
         <div className="absolute inset-x-0 bottom-0 z-[4] flex flex-col bg-gradient-to-t from-black via-black/85 to-transparent px-1.5 pb-2 pt-5">
           <div className="flex flex-nowrap justify-center gap-0.5 overflow-x-auto">
             {recent.length > 0 ? (
@@ -113,22 +132,25 @@ function CasinoTableCard({
                 </span>
               ))
             ) : (
-              <span className="text-[9px] font-medium text-slate-500">{noSpinsLabel}</span>
+              <span className="text-[9px] font-medium text-neutral-500">{noSpinsLabel}</span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-start justify-between gap-2 border-t border-border-color/80 px-3 py-2">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-neutral-800 px-3 py-2.5">
         <div className="min-w-0">
-          <h2 className="truncate text-xs font-bold text-white">{title}</h2>
-          <p className="mt-0.5 truncate text-[10px] text-slate-500">{tableLabel}</p>
+          <h2 className="truncate text-sm font-bold text-white">{title}</h2>
+          <p className="mt-0.5 truncate text-[10px] text-neutral-500">{tableLabel}</p>
         </div>
+        <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-950/80 py-2 text-[11px] font-bold uppercase tracking-wide text-neutral-200 transition group-hover:border-[var(--brand-orange,#ff6b00)]/50 group-hover:text-white">
+          {openLabel}
+        </span>
       </div>
     </article>
   );
 
   return (
-    <Link to="/casino-mesa" search={{ mesa: tableId }} className={cardClass}>
+    <Link to="/casino-mesa" search={{ mesa: tableId }} className={cn(cardClass, "group")}>
       {cardBody}
     </Link>
   );
@@ -221,6 +243,14 @@ function CassinoAoVivoRoletasGrid() {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-white sm:text-xl">
+            {t("casino.liveRoulettesTitle")}
+          </h2>
+          <p className="mt-0.5 text-xs text-neutral-500">{t("casino.liveRoulettesHint")}</p>
+        </div>
+      </div>
       {sseStatus.status === "error" ? (
         <p className="text-sm text-amber-300">{t("casino.sseProxyError")}</p>
       ) : null}
@@ -239,7 +269,9 @@ function CassinoAoVivoRoletasGrid() {
               fullHistory={hist}
               noSpinsLabel={t("casino.noSpins")}
               signalActiveLabel={t("casino.signalActive")}
+              openLabel={t("casino.openTable")}
               isPrimary={tid === primaryId}
+              sseOnline={sseStatus.status === "open"}
             />
           );
         })}

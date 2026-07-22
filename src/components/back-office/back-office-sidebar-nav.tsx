@@ -9,6 +9,7 @@ import {
   isGroupActive,
   type BackOfficeGroup,
   type BackOfficeGroupId,
+  type BackOfficeModuleId,
   type BackOfficeNavItem,
 } from "@/lib/back-office/navigation";
 import { getSession } from "@/lib/auth/session";
@@ -22,6 +23,12 @@ type Props = {
   onNavigate?: () => void;
   onLogout?: () => void;
 };
+
+/** Módulos recentes — borda laranja + badge NOVO (referência DinhuTech). */
+const NOVO_MODULE_IDS = new Set<BackOfficeModuleId>([
+  "automacao-football-blitz",
+  "automacao-sequencias",
+]);
 
 function activeGroupIdFromPath(pathname: string): BackOfficeGroupId | null {
   for (const entry of backOfficeSidebarNav()) {
@@ -44,18 +51,25 @@ function ModuleLink({
   onNavigate?: () => void;
 }) {
   const Icon = mod.icon;
+  const isNovo = NOVO_MODULE_IDS.has(mod.id);
   return (
     <Link
       to={mod.path}
       onClick={() => onNavigate?.()}
       className={cn(
-        "theme-sidebar-item flex items-center gap-2 rounded-lg py-2 pl-4 pr-3 text-[13px] font-medium",
-        "ml-2 border-l-2 border-sidebar-border-fixed",
+        "theme-sidebar-item flex items-center gap-2 rounded-full py-2 pl-3 pr-2 text-[11px]",
+        "ml-1",
         active && "theme-sidebar-item-active",
+        !active && isNovo && "theme-sidebar-item-novo",
       )}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-      <span className="truncate">{label}</span>
+      <Icon className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {isNovo && !active ? (
+        <span className="shrink-0 rounded-full bg-[var(--brand-orange,#ff6b00)] px-1.5 py-0.5 text-[8px] font-black tracking-wide text-black">
+          NOVO
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -93,12 +107,13 @@ function GroupNav({
   };
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-1">
+      <p className="theme-sidebar-section px-3 pt-3 pb-1">{groupLabel}</p>
       <button
         type="button"
         onClick={handleGroupClick}
         className={cn(
-          "theme-sidebar-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium",
+          "theme-sidebar-item flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-left text-[12px]",
           active && !expanded && "theme-sidebar-item-active",
         )}
       >
@@ -112,7 +127,7 @@ function GroupNav({
       </button>
 
       {expanded ? (
-        <div className="flex flex-col gap-0.5 pb-1">
+        <div className="flex flex-col gap-1 pb-1">
           {sections
             ? sections.map((section) => {
                 const sectionModules = section.moduleIds
@@ -121,9 +136,9 @@ function GroupNav({
                 if (sectionModules.length === 0) return null;
                 const showSectionLabel = sections.length > 1;
                 return (
-                  <div key={section.key} className="flex flex-col gap-0.5">
+                  <div key={section.key} className="flex flex-col gap-1">
                     {showSectionLabel ? (
-                      <p className="ml-4 mt-1 px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-fg-muted">
+                      <p className="theme-sidebar-section ml-2 mt-1 px-2">
                         {navSectionLabel(messages, section.key)}
                       </p>
                     ) : null}
@@ -155,7 +170,7 @@ function GroupNav({
 }
 
 export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
-  const { messages, t } = useI18n();
+  const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [expandedGroups, setExpandedGroups] = useState<Set<BackOfficeGroupId>>(() => {
     const active = activeGroupIdFromPath(pathname);
@@ -190,7 +205,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
 
   return (
     <nav
-      className={cn("flex flex-col gap-0.5", mobile ? "p-4" : "px-3 py-2")}
+      className={cn("flex flex-col gap-1", mobile ? "p-4" : "px-2 py-2")}
       aria-label="Back office"
     >
       {items.map((entry) => {
@@ -204,7 +219,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
               to={item.path}
               onClick={() => onNavigate?.()}
               className={cn(
-                "theme-sidebar-item flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium",
+                "theme-sidebar-item flex items-center gap-2.5 rounded-full px-3 py-2.5 text-[12px]",
                 active && "theme-sidebar-item-active",
               )}
             >
@@ -236,7 +251,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
             to={item.path}
             onClick={() => onNavigate?.()}
             className={cn(
-              "theme-sidebar-item flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium",
+              "theme-sidebar-item flex items-center gap-2.5 rounded-full px-3 py-2.5 text-[12px]",
               active && "theme-sidebar-item-active",
             )}
           >
@@ -252,7 +267,7 @@ export function BackOfficeSidebarNav({ mobile, onNavigate, onLogout }: Props) {
             onNavigate?.();
             onLogout();
           }}
-          className="theme-sidebar-item mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium"
+          className="theme-sidebar-item mt-2 flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-[12px]"
         >
           <LogOut className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
           <span className="truncate">{t("common.logout")}</span>

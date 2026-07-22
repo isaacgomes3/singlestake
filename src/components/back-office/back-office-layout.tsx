@@ -139,19 +139,32 @@ export function BackOfficeLayout() {
         <BackOfficeSidebarNav onLogout={() => void handleLogout()} />
       </div>
       <div className="hidden border-t border-sidebar-border-fixed p-3 xl:block">
-        <div className="rounded-lg border border-sidebar-border-fixed bg-bg-card-hover/60 p-3">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-sidebar-fg-muted">
-            <Link2 className="size-3" aria-hidden />
-            {t("common.affiliateLink")}
-          </p>
-          <div className="mt-2">
-            <ReferralLinkField
-              referralCode={session.user.referralCode}
-              referralLink={session.user.referralLink}
-              showCode={false}
-              compact
-              inputClassName="text-xs"
-            />
+        <div className="rounded-2xl border border-sidebar-border-fixed bg-[#0a0a0a] p-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-lime,#ceff05)] text-sm font-black text-black">
+              {(session.user.name ?? session.user.email ?? "?").trim().charAt(0).toUpperCase() || "?"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-white">
+                {session.user.name ?? session.user.email}
+              </p>
+              <p className="mt-0.5 truncate text-[10px] text-sidebar-fg-muted">{session.user.email}</p>
+            </div>
+          </div>
+          <div className="mt-3 border-t border-sidebar-border-fixed pt-3">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-olive,#8b8b4b)]">
+              <Link2 className="size-3" aria-hidden />
+              {t("common.affiliateLink")}
+            </p>
+            <div className="mt-2">
+              <ReferralLinkField
+                referralCode={session.user.referralCode}
+                referralLink={session.user.referralLink}
+                showCode={false}
+                compact
+                inputClassName="text-xs"
+              />
+            </div>
           </div>
         </div>
       </div>

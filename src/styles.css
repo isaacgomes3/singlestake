@@ -83,55 +83,61 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  /* Sidebar — alinhada ao painel de automação (#28282b) */
-  --sidebar-bg: #28282b;
-  --sidebar-active: #323235;
-  --sidebar-active-ring: #22d3ee;
-  --sidebar-border: #3f3f46;
-  --sidebar-fg: #f4f4f5;
-  --sidebar-fg-muted: #a1a1aa;
-  --sidebar-hover: #323235;
-  --sidebar-active-fg: #22d3ee;
+  /* Brand — Analisadores / DinhuTech */
+  --brand-lime: #ceff05;
+  --brand-orange: #ff6b00;
+  --brand-orange-glow: #ff8c00;
+  --brand-olive: #8b8b4b;
+
+  /* Sidebar — preto + lima activo */
+  --sidebar-bg: #000000;
+  --sidebar-active: #ceff05;
+  --sidebar-active-ring: #ceff05;
+  --sidebar-border: #1a1a1a;
+  --sidebar-fg: #ffffff;
+  --sidebar-fg-muted: #a3a3a3;
+  --sidebar-hover: #141414;
+  --sidebar-active-fg: #000000;
 }
 
 :root[data-theme="dark"] {
-  /* Grafite — fundo sólido único (#28282b), sem degradê */
-  --bg-primary: #28282b;
-  --bg-secondary: #1f1f22;
-  --bg-card: #323235;
-  --bg-card-hover: #3a3a3e;
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --border-color: #3f3f46;
-  --border-subtle: #323235;
-  --success: #34d399;
+  /* Preto sólido + laranja CTA + lima nav */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #141414;
+  --bg-card-hover: #1c1c1c;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --border-color: #262626;
+  --border-subtle: #1a1a1a;
+  --success: #22c55e;
   --warning: #fbbf24;
   --danger: #f87171;
-  --info: #22d3ee;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.35);
-  --overlay: rgba(0, 0, 0, 0.68);
-  --kpi-green: #34d399;
+  --info: #ff6b00;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.65), 0 2px 10px rgba(0, 0, 0, 0.45);
+  --overlay: rgba(0, 0, 0, 0.75);
+  --kpi-green: #ceff05;
   --kpi-blue: #38bdf8;
   --kpi-teal: #2dd4bf;
-  --kpi-slate: #52525b;
-  --accent-automation-title: #a3e635;
+  --kpi-slate: #404040;
+  --accent-automation-title: #ceff05;
   --accent-education: #2dd4bf;
   --accent-referral: #fb7185;
-  --accent-cta: #fb923c;
-  --accent-cta-hover: #f97316;
-  --kpi-foreground: #ffffff;
+  --accent-cta: #ff6b00;
+  --accent-cta-hover: #ff8c00;
+  --kpi-foreground: #000000;
 
-  --sidebar-bg: #28282b;
-  --sidebar-active: rgba(34, 211, 238, 0.12);
-  --sidebar-active-ring: #22d3ee;
-  --sidebar-active-fg: #22d3ee;
-  --sidebar-border: #3f3f46;
-  --sidebar-fg: #f4f4f5;
-  --sidebar-fg-muted: #a1a1aa;
-  --sidebar-hover: #323235;
+  --sidebar-bg: #000000;
+  --sidebar-active: #ceff05;
+  --sidebar-active-ring: #ceff05;
+  --sidebar-active-fg: #000000;
+  --sidebar-border: #1a1a1a;
+  --sidebar-fg: #ffffff;
+  --sidebar-fg-muted: #a3a3a3;
+  --sidebar-hover: #141414;
 
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
@@ -139,31 +145,31 @@
   --card-foreground: var(--text-primary);
   --popover: var(--bg-card);
   --popover-foreground: var(--text-primary);
-  --primary: #22d3ee;
-  --primary-foreground: #0c1118;
+  --primary: #ff6b00;
+  --primary-foreground: #ffffff;
   --secondary: var(--bg-secondary);
   --secondary-foreground: var(--text-primary);
   --muted: var(--bg-card-hover);
   --muted-foreground: var(--text-secondary);
-  --accent: var(--sidebar-active);
+  --accent: rgba(206, 255, 5, 0.12);
   --accent-foreground: var(--text-primary);
   --destructive: var(--danger);
   --destructive-foreground: #ffffff;
   --border: var(--border-color);
   --input: var(--border-color);
-  --ring: #52525b;
-  --chart-1: #22d3ee;
+  --ring: #ff6b00;
+  --chart-1: #ff6b00;
   --chart-2: var(--success);
-  --chart-3: var(--warning);
+  --chart-3: #ceff05;
   --chart-4: var(--danger);
-  --chart-5: #71717a;
+  --chart-5: #737373;
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: var(--sidebar-fg);
-  --sidebar-primary: #22d3ee;
-  --sidebar-primary-foreground: #0c1118;
-  --sidebar-accent: var(--sidebar-active);
+  --sidebar-primary: #ceff05;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: var(--sidebar-hover);
   --sidebar-accent-foreground: var(--sidebar-fg);
-  --sidebar-ring: #52525b;
+  --sidebar-ring: #ceff05;
 }
 
 :root[data-theme="light"] {
@@ -378,55 +384,55 @@
   background: var(--overlay);
 }
 
-/* Barra superior — mesma cor do painel de automação */
+/* Barra superior — preto + borda subtil */
 .app-top-bar {
-  --bg-secondary: #1f1f22;
-  --bg-card: #28282b;
-  --bg-card-hover: #323235;
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --border-color: #3f3f46;
-  background: #28282b;
-  border-bottom: 1px solid #3f3f46;
-  color: #f4f4f5;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+  --bg-secondary: #0a0a0a;
+  --bg-card: #141414;
+  --bg-card-hover: #1c1c1c;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --border-color: #262626;
+  background: #000000;
+  border-bottom: 1px solid #262626;
+  color: #ffffff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="dark"] .app-top-bar,
 :root:not([data-theme]) .app-top-bar {
-  --bg-secondary: #1f1f22;
-  --bg-card: #28282b;
-  --bg-card-hover: #323235;
-  background: #28282b;
-  border-bottom-color: #3f3f46;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #141414;
+  --bg-card-hover: #1c1c1c;
+  background: #000000;
+  border-bottom-color: #262626;
 }
 
-/* Painel de automação — grafite fixo */
+/* Painel de automação — preto */
 .automation-panel {
-  --bg-card: #28282b;
-  --bg-secondary: #1f1f22;
-  --bg-card-hover: #323235;
-  --bg-primary: #28282b;
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --border-color: #3f3f46;
-  --success: #34d399;
-  background: #28282b;
-  color: #f4f4f5;
-  border: 1px solid #3f3f46;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+  --bg-card: #141414;
+  --bg-secondary: #0a0a0a;
+  --bg-card-hover: #1c1c1c;
+  --bg-primary: #000000;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --border-color: #262626;
+  --success: #22c55e;
+  background: #141414;
+  color: #ffffff;
+  border: 1px solid #262626;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.4);
   border-radius: 1rem;
 }
 
-/* Sala rotativa / iframe casino — mesmo grafite do back-office */
+/* Sala rotativa / iframe casino */
 .rotating-room-page {
-  --bg-primary: #28282b;
-  --bg-secondary: #1f1f22;
-  --bg-card: #323235;
-  --bg-card-hover: #3a3a3e;
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --border-color: #3f3f46;
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #141414;
+  --bg-card-hover: #1c1c1c;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --border-color: #262626;
   background: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -466,12 +472,20 @@
   background: var(--sidebar-bg);
   border-color: var(--sidebar-border);
   color: var(--sidebar-fg);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .theme-sidebar-item {
-  color: var(--sidebar-fg-muted);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  color: var(--sidebar-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .theme-sidebar-item:hover {
@@ -482,7 +496,51 @@
 .theme-sidebar-item-active {
   background: var(--sidebar-active);
   color: var(--sidebar-active-fg);
-  box-shadow: inset 3px 0 0 var(--sidebar-active-ring);
+  box-shadow: none;
+  font-weight: 800;
+}
+
+.theme-sidebar-item-novo {
+  border: 1px solid var(--brand-orange-glow, #ff8c00);
+  box-shadow: 0 0 12px rgba(255, 140, 0, 0.35);
+}
+
+.theme-sidebar-section {
+  color: var(--brand-olive, #8b8b4b);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.theme-lobby-card {
+  background: #141414;
+  border: 1px solid #262626;
+  border-radius: 1rem;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.theme-lobby-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, #38bdf8, #ff6b00, #fb7185);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.theme-lobby-card:hover {
+  border-color: rgba(255, 107, 0, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(255, 107, 0, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
 /* Borda amarela pulsante — painel indicação ruas */

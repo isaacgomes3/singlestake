@@ -94,10 +94,8 @@ export function FootballBlitzLobbyCard({ variant }: FootballBlitzLobbyCardProps)
   const article = (
     <article
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-visible rounded-2xl border bg-[#0d1524] shadow-xl transition hover:opacity-[0.98]",
-        hasEntry
-          ? "border-amber-400/70 shadow-[0_0_22px_rgba(245,158,11,0.22)]"
-          : "border-slate-800/80",
+        "theme-lobby-card flex h-full min-h-0 flex-col",
+        hasEntry && "ring-2 ring-[var(--brand-orange,#ff6b00)]/45",
       )}
     >
       <div className="relative z-20 grid min-h-[2.25rem] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b border-transparent bg-transparent px-1.5 py-1 sm:min-h-[2.5rem] sm:gap-x-1.5 sm:px-2 sm:py-1.5">

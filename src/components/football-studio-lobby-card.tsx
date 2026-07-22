@@ -34,8 +34,8 @@ export function FootballStudioLobbyCard() {
   const article = (
     <article
       className={cn(
-        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-[#0d1524] shadow-lg shadow-black/30",
-        head ? "border-emerald-700/40" : "border-slate-800/80",
+        "theme-lobby-card relative flex h-full min-h-0 flex-col",
+        head && "ring-1 ring-emerald-500/30",
       )}
     >
       <div className="relative z-20 grid min-h-[2.25rem] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1 border-b border-transparent px-1.5 py-1 sm:min-h-[2.5rem] sm:px-2 sm:py-1.5">
