@@ -76,6 +76,7 @@ const shell: Omit<Messages, keyof ReturnType<typeof buildPanelMessages> | "nav">
       "automacao-estatisticas": "Estatísticas automação",
       "automacao-sequencias": "Sequências",
       "automacao-football-blitz": "Football Blitz",
+      "automacao-football-studio": "Football Studio",
       auditoria: "Auditoria e logs",
       "casino-ao-vivo": "Cassino ao vivo",
     },

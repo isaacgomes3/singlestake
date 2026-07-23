@@ -33,6 +33,8 @@ export const navDescriptionsContent = {
       "automacao-sequencias": "Monitor cor / altura / paridade por sequência limpa ou suja.",
       "automacao-football-blitz":
         "Histórico ao vivo Top Card (4001) e Latino (4022) — mesmo catálogo DGA das extensões Obs.",
+      "automacao-football-studio":
+        "Histórico ao vivo Football Studio via hub Dinhutech — padrão de lado por carta.",
       auditoria: "Registro de bônus, alterações e logins.",
       "casino-ao-vivo": "Roletas individuais · Cruzamento 2F sem gale.",
     },
@@ -74,6 +76,8 @@ export const navDescriptionsContent = {
       "automacao-sequencias": "Color / height / parity monitor for clean or dirty sequences.",
       "automacao-football-blitz":
         "Live history for Top Card (4001) and Latino (4022) — same DGA catalog as Obs extensions.",
+      "automacao-football-studio":
+        "Live Football Studio history via Dinhutech hub — side pattern by card.",
       auditoria: "Bonus, change and login records.",
       "casino-ao-vivo": "Live roulettes and 1-factor rotating room.",
     },
@@ -115,6 +119,8 @@ export const navDescriptionsContent = {
       "automacao-sequencias": "Monitor color / altura / paridad por secuencia limpia o sucia.",
       "automacao-football-blitz":
         "Historial en vivo Top Card (4001) y Latino (4022) — mismo catálogo DGA de las extensiones Obs.",
+      "automacao-football-studio":
+        "Historial en vivo Football Studio vía hub Dinhutech — patrón de lado por carta.",
       auditoria: "Registro de bonos, cambios e inicios de sesión.",
       "casino-ao-vivo": "Ruletas en vivo y sala rotativa 1 factor.",
     },

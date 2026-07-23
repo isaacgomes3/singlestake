@@ -46,6 +46,7 @@ export type BackOfficeModuleId =
   | "automacao-estatisticas"
   | "automacao-sequencias"
   | "automacao-football-blitz"
+  | "automacao-football-studio"
   | "auditoria";
 export type BackOfficeGroupId =
   | "produtos"
@@ -128,6 +129,7 @@ export const BACK_OFFICE_GROUPS: BackOfficeGroup[] = [
       "automacao-estatisticas",
       "automacao-sequencias",
       "automacao-football-blitz",
+      "automacao-football-studio",
       "painel-financeiro",
       "gestao-clientes",
       "admin",
@@ -146,6 +148,7 @@ export const ADMINISTRACAO_SECTIONS: BackOfficeGroupSection[] = [
       "automacao-estatisticas",
       "automacao-sequencias",
       "automacao-football-blitz",
+      "automacao-football-studio",
     ],
   },
   {
@@ -247,6 +250,11 @@ const MODULE_META: Record<
     label: "Football Blitz",
     icon: Spade,
     description: "Histórico ao vivo Top Card e Latino (mesas DGA).",
+  },
+  "automacao-football-studio": {
+    label: "Football Studio",
+    icon: Spade,
+    description: "Histórico ao vivo Football Studio (hub Dinhutech).",
   },
   admin: {
     label: "Painel administrativo",

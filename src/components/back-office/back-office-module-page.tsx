@@ -8,6 +8,7 @@ import { BackOfficeAutomationConfigPanel } from "@/components/back-office/back-o
 import { BackOfficeAutomationStatsPanel } from "@/components/back-office/back-office-automation-stats-panel";
 import { BackOfficeSequenciasMonitorPanel } from "@/components/back-office/back-office-sequencias-monitor-panel";
 import { BackOfficeFootballBlitzHistoryPanel } from "@/components/back-office/back-office-football-blitz-history-panel";
+import { BackOfficeFootballStudioHistoryPanel } from "@/components/back-office/back-office-football-studio-history-panel";
 import { BackOfficeClientManagement } from "@/components/back-office/back-office-client-management";
 import { BackOfficePaymentGatewayPanel } from "@/components/back-office/back-office-payment-gateway-panel";
 import { BackOfficePackagesPanel } from "@/components/back-office/back-office-packages-panel";
@@ -138,6 +139,8 @@ function ModuleBody({ moduleId }: { moduleId: BackOfficeModuleId }) {
 
     case "automacao-football-blitz":
       return <BackOfficeFootballBlitzHistoryPanel />;
+    case "automacao-football-studio":
+      return <BackOfficeFootballStudioHistoryPanel />;
 
     case "painel-financeiro":
       return <BackOfficeCompanyFinancialPanel />;

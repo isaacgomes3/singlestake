@@ -7,6 +7,7 @@ export const BACK_OFFICE_ADMIN_ONLY_MODULE_IDS = new Set<BackOfficeModuleId>([
   "automacao-estatisticas",
   "automacao-sequencias",
   "automacao-football-blitz",
+  "automacao-football-studio",
   "painel-financeiro",
   "gestao-clientes",
   "admin",

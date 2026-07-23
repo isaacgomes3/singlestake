@@ -27,6 +27,7 @@ type Props = {
 /** Módulos recentes — borda laranja + badge NOVO (referência DinhuTech). */
 const NOVO_MODULE_IDS = new Set<BackOfficeModuleId>([
   "automacao-football-blitz",
+  "automacao-football-studio",
   "automacao-sequencias",
 ]);
 
