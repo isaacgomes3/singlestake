@@ -4,14 +4,9 @@ import { useLayoutEffect, useState } from "react";
 
 import { BackOfficeHeader } from "@/components/back-office/back-office-header";
 import { BackOfficeSidebarNav } from "@/components/back-office/back-office-sidebar-nav";
-import {
-  BackOfficeUtilityRail,
-  type UtilityPanelId,
-} from "@/components/back-office/back-office-utility-rail";
 import { ReferralLinkField } from "@/components/back-office/referral-link-field";
 import { SinglestakeLogo } from "@/components/singlestake-logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import { useBackOfficeNotifications } from "@/hooks/useBackOfficeNotifications";
 import { apiFetchMe, apiLogout } from "@/lib/auth/api";
 import {
   clearSession,
@@ -41,15 +36,6 @@ export function BackOfficeLayout() {
   const [booted, setBooted] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sidebarBoxed, setSidebarBoxed] = useState(true);
-  const [utilityPanel, setUtilityPanel] = useState<UtilityPanelId>(null);
-  const {
-    notifications,
-    unreadCount,
-    loading: notificationsLoading,
-    markAllRead,
-    markRead,
-    reload: reloadNotifications,
-  } = useBackOfficeNotifications(booted && session != null);
 
   useLayoutEffect(() => {
     setSidebarBoxed(readSidebarBoxed());
@@ -174,7 +160,6 @@ export function BackOfficeLayout() {
       className={cn(
         "app-shell flex min-h-screen bg-bg-primary text-text-primary",
         sidebarBoxed ? "app-shell--boxed" : "app-shell--edge",
-        utilityPanel ? "app-shell--panel-open" : null,
       )}
       style={{ "--app-sidebar-width": sidebarBoxed ? "292px" : "260px" } as React.CSSProperties}
     >
@@ -228,7 +213,7 @@ export function BackOfficeLayout() {
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col pr-14">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="app-top-bar flex items-center gap-2 border-b border-border-color px-3 py-2 lg:hidden">
           <button
             type="button"
@@ -254,30 +239,10 @@ export function BackOfficeLayout() {
           </div>
         ) : null}
 
-        <main
-          className={cn(
-            "flex-1 overflow-x-hidden p-4 transition-[padding] sm:p-6 lg:p-8",
-            utilityPanel ? "lg:pr-[calc(2rem+380px)]" : null,
-          )}
-        >
+        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
-
-      <BackOfficeUtilityRail
-        activePanel={utilityPanel}
-        onSelectPanel={(id) => {
-          setUtilityPanel(id);
-          if (id === "notifications") void reloadNotifications();
-        }}
-        referralCode={session.user.referralCode}
-        referralLink={session.user.referralLink}
-        notifications={notifications}
-        notificationsLoading={notificationsLoading}
-        unreadCount={unreadCount}
-        onMarkAllNotificationsRead={() => void markAllRead()}
-        onMarkNotificationRead={(id) => void markRead(id)}
-      />
     </div>
   );
 }

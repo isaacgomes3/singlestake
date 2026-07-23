@@ -17,6 +17,7 @@ import {
 import {
   analyzeFootballBlitzSidePatternByCard,
   expandFootballBlitzRound,
+  findFootballBlitzSidePatternAlert,
   footballBlitzCardLabel,
 } from "@/lib/pragmatic/footballBlitzEcoStrategy";
 import { cn } from "@/lib/utils";
@@ -320,11 +321,22 @@ function PatternStatColumn({
 }
 
 /** Top cartas que mantêm ou mudam o lado (casa/visitante) na ronda seguinte. */
-function SidePatternStatsPanel({ history }: { history: readonly FootballBlitzRoundStored[] }) {
+function SidePatternStatsPanel({
+  history,
+  tones,
+}: {
+  history: readonly FootballBlitzRoundStored[];
+  tones: Record<FootballBlitzWinner, SideTone>;
+}) {
   const analysis = useMemo(
     () => analyzeFootballBlitzSidePatternByCard(history, { top: 6, minSamples: 1 }),
     [history],
   );
+  const alert = useMemo(
+    () => findFootballBlitzSidePatternAlert(history, { minSamples: 2 }),
+    [history],
+  );
+  const indicationTone = alert ? tones[alert.indication] : null;
 
   return (
     <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
@@ -337,8 +349,67 @@ function SidePatternStatsPanel({ history }: { history: readonly FootballBlitzRou
         </span>
       </div>
       <p className="mb-4 text-xs text-slate-500">
-        Após a carta sair: manter = mesmo lado vencedor na seguinte · mudar = lado oposto.
+        Após a carta sair: manter = mesmo lado vencedor na seguinte · mudar = lado oposto. Alerta
+        quando a última ronda junta duas cartas 100% manter ou duas 100% mudar (≥2 amostras).
       </p>
+
+      {alert && indicationTone ? (
+        <div
+          className="mb-4 rounded-2xl border border-cyan-500/40 bg-cyan-950/35 px-4 py-3"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300">
+                Alerta · encontro 100% {alert.mode === "maintain" ? "mantém" : "muda"}
+              </p>
+              <p className="mt-1 text-sm text-slate-200">
+                <span
+                  className={cn(
+                    "font-bold",
+                    alert.mode === "maintain" ? "text-emerald-300" : "text-rose-300",
+                  )}
+                >
+                  {alert.homeLabel}
+                </span>
+                <span className="text-slate-500"> ({alert.homeSamples}×)</span>
+                <span className="mx-1.5 text-slate-600">/</span>
+                <span
+                  className={cn(
+                    "font-bold",
+                    alert.mode === "maintain" ? "text-emerald-300" : "text-rose-300",
+                  )}
+                >
+                  {alert.awayLabel}
+                </span>
+                <span className="text-slate-500"> ({alert.awaySamples}×)</span>
+                <span className="text-slate-400">
+                  {" "}
+                  · ambas {alert.mode === "maintain" ? "mantêm" : "mudam"} 100%
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                {alert.mode === "maintain"
+                  ? "Próxima ronda tende a repetir o lado vencedor actual"
+                  : "Próxima ronda tende a inverter o lado vencedor actual"}
+              </p>
+            </div>
+            <div
+              className={cn(
+                "shrink-0 rounded-xl px-4 py-2 text-center shadow-lg",
+                indicationTone.soft,
+              )}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
+                Indica
+              </p>
+              <p className="text-lg font-black leading-tight">{indicationTone.label}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-5 md:grid-cols-2">
         <PatternStatColumn
           title="Mais mudam o padrão"
@@ -410,7 +481,7 @@ function TableDashboard({ config }: { config: FootballBlitzTableConfig }) {
       />
 
       <ColorHistoryPanel history={history} tones={tones} stats={colorStats} />
-      <SidePatternStatsPanel history={history} />
+      <SidePatternStatsPanel history={history} tones={tones} />
     </div>
   );
 }

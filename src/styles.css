@@ -888,9 +888,8 @@
   animation: click-bot-learning-flash 0.65s ease-out;
 }
 
-/* App shell — sidebar boxed + utility rail */
+/* App shell — sidebar boxed */
 .app-shell {
-  --utility-rail-width: 3.5rem;
   background-color: var(--bg-primary);
   background-image: none;
 }
@@ -899,35 +898,4 @@
 .app-shell--edge {
   background-color: var(--bg-primary);
   background-image: none;
-}
-
-.utility-rail {
-  background: #28282b;
-  border-left-color: #3f3f46;
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.28);
-}
-
-.utility-panel {
-  background: #28282b;
-  border-left-color: #3f3f46;
-}
-
-.utility-panel-backdrop {
-  animation: utility-fade-in 0.2s ease-out;
-}
-
-@keyframes utility-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (max-width: 1023px) {
-  .app-shell--panel-open main {
-    filter: blur(2px);
-    pointer-events: none;
-  }
 }

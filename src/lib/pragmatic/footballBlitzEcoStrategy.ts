@@ -232,17 +232,26 @@ export type FootballBlitzSidePatternAnalysis = {
   transitions: number;
 };
 
-/**
- * Por cada carta que aparece numa ronda colorida, mede se a ronda seguinte
- * manteve o mesmo lado (casa/visitante) ou mudou.
- * Empates (nesta ou na seguinte) não entram na amostra.
- */
-export function analyzeFootballBlitzSidePatternByCard(
-  historyNewestFirst: readonly FootballBlitzRoundStored[],
-  options?: { top?: number; minSamples?: number },
-): FootballBlitzSidePatternAnalysis {
-  const topN = Math.max(1, Math.floor(Number(options?.top) || 6));
-  const minSamples = Math.max(1, Math.floor(Number(options?.minSamples) || 1));
+export type FootballBlitzSidePatternAlert = {
+  triggerGameId: string;
+  triggerWinner: FootballBlitzEcoColor;
+  homeCard: number;
+  homeLabel: string;
+  awayCard: number;
+  awayLabel: string;
+  homeSamples: number;
+  awaySamples: number;
+  /** As duas cartas concordam: manter o lado actual ou mudar para o oposto. */
+  mode: "maintain" | "change";
+  /** Lado indicado para a ronda seguinte. */
+  indication: FootballBlitzEcoColor;
+};
+
+function collectSidePatternMaps(historyNewestFirst: readonly FootballBlitzRoundStored[]): {
+  maintain: Map<number, { hits: number; samples: number }>;
+  change: Map<number, { hits: number; samples: number }>;
+  transitions: number;
+} {
   const maintain = new Map<number, { hits: number; samples: number }>();
   const change = new Map<number, { hits: number; samples: number }>();
   let transitions = 0;
@@ -278,6 +287,33 @@ export function analyzeFootballBlitzSidePatternByCard(
     }
   }
 
+  return { maintain, change, transitions };
+}
+
+function perfectSidePatternCards(
+  map: Map<number, { hits: number; samples: number }>,
+  minSamples: number,
+): Map<number, { hits: number; samples: number }> {
+  const out = new Map<number, { hits: number; samples: number }>();
+  for (const [card, stat] of map) {
+    if (stat.samples >= minSamples && stat.hits === stat.samples) out.set(card, stat);
+  }
+  return out;
+}
+
+/**
+ * Por cada carta que aparece numa ronda colorida, mede se a ronda seguinte
+ * manteve o mesmo lado (casa/visitante) ou mudou.
+ * Empates (nesta ou na seguinte) não entram na amostra.
+ */
+export function analyzeFootballBlitzSidePatternByCard(
+  historyNewestFirst: readonly FootballBlitzRoundStored[],
+  options?: { top?: number; minSamples?: number },
+): FootballBlitzSidePatternAnalysis {
+  const topN = Math.max(1, Math.floor(Number(options?.top) || 6));
+  const minSamples = Math.max(1, Math.floor(Number(options?.minSamples) || 1));
+  const { maintain, change, transitions } = collectSidePatternMaps(historyNewestFirst);
+
   const format = (
     map: Map<number, { hits: number; samples: number }>,
   ): FootballBlitzSidePatternCardStat[] =>
@@ -297,6 +333,78 @@ export function analyzeFootballBlitzSidePatternByCard(
     maintainSide: format(maintain),
     changeSide: format(change),
     transitions,
+  };
+}
+
+/**
+ * Alerta quando a última ronda colorida é um encontro de **duas** cartas
+ * com o mesmo padrão a 100%:
+ * - ambas 100% manter → indica o mesmo lado vencedor;
+ * - ambas 100% mudar → indica o lado oposto.
+ */
+export function findFootballBlitzSidePatternAlert(
+  historyNewestFirst: readonly FootballBlitzRoundStored[],
+  options?: { minSamples?: number },
+): FootballBlitzSidePatternAlert | null {
+  const minSamples = Math.max(1, Math.floor(Number(options?.minSamples) || 2));
+  const trigger = historyNewestFirst[0];
+  if (!isColoredRound(trigger)) return null;
+
+  const exp = expandFootballBlitzRound(trigger);
+  if (!exp) return null;
+  const homeCard = exp.home.score;
+  const awayCard = exp.away.score;
+  if (
+    !Number.isInteger(homeCard) ||
+    !Number.isInteger(awayCard) ||
+    homeCard < 1 ||
+    homeCard > 13 ||
+    awayCard < 1 ||
+    awayCard > 13 ||
+    homeCard === awayCard
+  ) {
+    return null;
+  }
+
+  const { maintain, change } = collectSidePatternMaps(historyNewestFirst);
+  const perfectMaintain = perfectSidePatternCards(maintain, minSamples);
+  const perfectChange = perfectSidePatternCards(change, minSamples);
+
+  const homeMaintain = perfectMaintain.get(homeCard);
+  const awayMaintain = perfectMaintain.get(awayCard);
+  const homeChange = perfectChange.get(homeCard);
+  const awayChange = perfectChange.get(awayCard);
+
+  let mode: "maintain" | "change";
+  let homeSamples: number;
+  let awaySamples: number;
+
+  if (homeMaintain && awayMaintain) {
+    mode = "maintain";
+    homeSamples = homeMaintain.samples;
+    awaySamples = awayMaintain.samples;
+  } else if (homeChange && awayChange) {
+    mode = "change";
+    homeSamples = homeChange.samples;
+    awaySamples = awayChange.samples;
+  } else {
+    return null;
+  }
+
+  const opposite: FootballBlitzEcoColor = trigger.winner === "home" ? "away" : "home";
+  const indication: FootballBlitzEcoColor = mode === "maintain" ? trigger.winner : opposite;
+
+  return {
+    triggerGameId: trigger.gameId,
+    triggerWinner: trigger.winner,
+    homeCard,
+    homeLabel: footballBlitzCardLabel(homeCard),
+    awayCard,
+    awayLabel: footballBlitzCardLabel(awayCard),
+    homeSamples,
+    awaySamples,
+    mode,
+    indication,
   };
 }
 
