@@ -6,7 +6,7 @@ import {
   normalizeBridgeRound,
   type FootballStudioRound,
 } from "@/lib/evolution/footballStudioSidePatterns";
-import { findFootballStudioEcoSignal } from "@/lib/evolution/footballStudioEcoStrategy";
+import { findFootballStudioEcoSignal, type FootballStudioEcoSignal } from "@/lib/evolution/footballStudioEcoStrategy";
 import { parseTopCardEvoMessage, formatTopCardLabel, suitLabelFor } from "@/lib/evolution/topCardEvoParser";
 import type { TopCardParsedCard } from "@/lib/evolution/topCardEvoParser";
 
@@ -38,6 +38,12 @@ type FootballStudioHubRuntime = {
   channel: string;
   persistTimer: ReturnType<typeof setTimeout> | null;
   hydrated: boolean;
+  ecoWins: number;
+  ecoLosses: number;
+  ecoPending: FootballStudioEcoSignal | null;
+  suitEcoWins: number;
+  suitEcoLosses: number;
+  suitEcoPending: FootballStudioEcoSignal | null;
 };
 
 const g = globalThis as typeof globalThis & {
@@ -56,6 +62,12 @@ const R: FootballStudioHubRuntime = (g.__singlestakeFootballStudioHub ??= {
   channel: "evolution.football-studio",
   persistTimer: null,
   hydrated: false,
+  ecoWins: 0,
+  ecoLosses: 0,
+  ecoPending: null,
+  suitEcoWins: 0,
+  suitEcoLosses: 0,
+  suitEcoPending: null,
 });
 
 function broadcast(msg: FootballStudioHubMessage) {
@@ -98,6 +110,49 @@ function hasCardLabels(round: {
   away?: { label?: string; rank?: string; suit?: string; code?: string } | null;
 }) {
   return Boolean(formatTopCardLabel(round?.home) && formatTopCardLabel(round?.away));
+}
+
+/** Recalcula placar Eco (ranks) e 100% naipe a partir do histórico. */
+function rebuildEcoStats() {
+  if (typeof R.ecoWins !== "number") R.ecoWins = 0;
+  if (typeof R.ecoLosses !== "number") R.ecoLosses = 0;
+  if (typeof R.suitEcoWins !== "number") R.suitEcoWins = 0;
+  if (typeof R.suitEcoLosses !== "number") R.suitEcoLosses = 0;
+
+  const newestFirst = R.cardHistory.filter((r) => hasCardLabels(r));
+  let wins = 0;
+  let losses = 0;
+  let suitWins = 0;
+  let suitLosses = 0;
+  let pending: FootballStudioEcoSignal | null = null;
+  let suitPending: FootballStudioEcoSignal | null = null;
+
+  for (let headIdx = newestFirst.length - 1; headIdx >= 0; headIdx -= 1) {
+    const slice = newestFirst.slice(headIdx);
+    const head = slice[0];
+    if (!head) continue;
+
+    if (pending && head.gameId !== pending.triggerGameId) {
+      if (head.winner === pending.indication) wins += 1;
+      else losses += 1;
+      pending = null;
+    }
+    if (suitPending && head.gameId !== suitPending.triggerGameId) {
+      if (head.winner === suitPending.indication) suitWins += 1;
+      else suitLosses += 1;
+      suitPending = null;
+    }
+
+    pending = findFootballStudioEcoSignal(slice);
+    suitPending = findFootballStudioEcoSignal(slice, { requireSuits: true });
+  }
+
+  R.ecoWins = wins;
+  R.ecoLosses = losses;
+  R.ecoPending = pending;
+  R.suitEcoWins = suitWins;
+  R.suitEcoLosses = suitLosses;
+  R.suitEcoPending = suitPending;
 }
 
 function buildDisplayRounds(): FootballStudioDisplayRound[] {
@@ -144,6 +199,7 @@ export function getFootballStudioHubSnapshot(): FootballStudioHubSnapshot {
   const cardsWithSuits = displayRounds.filter((r) => hasCardLabels(r)).length;
   const ecoSource = R.cardHistory.filter((r) => hasCardLabels(r));
   const ecoSignal = findFootballStudioEcoSignal(ecoSource);
+  const suitEcoSignal = findFootballStudioEcoSignal(ecoSource, { requireSuits: true });
   // Com cartas: history do snapshot = lados das cartas (não Bridge).
   const sideHistory =
     ecoSource.length > 0
@@ -166,6 +222,15 @@ export function getFootballStudioHubSnapshot(): FootballStudioHubSnapshot {
     cardsWithSuits,
     note: snapshotNote(displayRounds),
     ecoSignal,
+    ecoStats: {
+      wins: Number(R.ecoWins) || 0,
+      losses: Number(R.ecoLosses) || 0,
+    },
+    suitEcoSignal,
+    suitEcoStats: {
+      wins: Number(R.suitEcoWins) || 0,
+      losses: Number(R.suitEcoLosses) || 0,
+    },
   };
 }
 
@@ -201,6 +266,12 @@ async function persistHubState() {
           history: R.history.slice(0, MAX_HISTORY),
           cardHistory: R.cardHistory.slice(0, MAX_CARDS),
           lastCards: R.lastCards,
+          ecoWins: R.ecoWins,
+          ecoLosses: R.ecoLosses,
+          ecoPending: R.ecoPending,
+          suitEcoWins: R.suitEcoWins,
+          suitEcoLosses: R.suitEcoLosses,
+          suitEcoPending: R.suitEcoPending,
         },
         null,
         2,
@@ -212,13 +283,25 @@ async function persistHubState() {
   }
 }
 
-export async function hydrateFootballStudioHub(): Promise<void> {
+export async function hydrateFootballStudioHub(options?: { force?: boolean }): Promise<void> {
+  const force = options?.force === true;
+  // Já hidratado com cartas → não sobrescrever feed ao vivo com disco antigo.
+  if (!force && R.hydrated && R.cardHistory.length > 0) {
+    return;
+  }
+  // force ou memória vazia: permitir ler o disco de novo.
+  if (force || (R.hydrated && R.cardHistory.length === 0)) {
+    R.hydrated = false;
+  }
   if (R.hydrated) return;
   R.hydrated = true;
+
   // Já há cartas ao vivo (ingest antes do hydrate) — não sobrescrever com disco antigo.
   if (R.cardHistory.length > 0 && R.lastCards) {
+    syncHistoryFromCards();
+    rebuildEcoStats();
     console.log(
-      `[Football Studio] hub: mantém ${R.cardHistory.length} cartas em memória (skip disco)`,
+      `[Football Studio] hub: mantém ${R.cardHistory.length} cartas em memória (skip disco) · Eco ${R.ecoWins}V/${R.ecoLosses}D`,
     );
     return;
   }
@@ -230,6 +313,9 @@ export async function hydrateFootballStudioHub(): Promise<void> {
       history?: FootballStudioRound[];
       cardHistory?: FootballStudioHubCardRound[];
       lastCards?: FootballStudioHubCardRound | null;
+      ecoWins?: number;
+      ecoLosses?: number;
+      ecoPending?: FootballStudioEcoSignal | null;
     };
     if (typeof parsed.channel === "string" && parsed.channel.trim()) {
       R.channel = parsed.channel.trim();
@@ -248,11 +334,36 @@ export async function hydrateFootballStudioHub(): Promise<void> {
     if (!R.lastCards && R.cardHistory[0]) R.lastCards = R.cardHistory[0];
     R.updatedAt = parsed.updatedAt ?? null;
     R.cardsFeedSource = "dinhutech";
+    syncHistoryFromCards();
+    // Recalcula placar a partir do histórico (fonte de verdade).
+    rebuildEcoStats();
     console.log(
-      `[Football Studio] hub: restaurado ${R.history.length} lados · ${R.cardHistory.length} cartas`,
+      `[Football Studio] hub: restaurado ${R.history.length} lados · ${R.cardHistory.length} cartas · Eco ${R.ecoWins}V/${R.ecoLosses}D`,
     );
   } catch {
     /* sem ficheiro ainda */
+  }
+}
+
+/** Garante history[] alinhado com as cartas (painel BO / padrões). */
+function syncHistoryFromCards() {
+  if (R.cardHistory.length === 0) return;
+  const fromCards: FootballStudioRound[] = [];
+  const seen = new Set<string>();
+  for (const card of R.cardHistory) {
+    if (!card?.gameId || seen.has(card.gameId)) continue;
+    if (!isFootballStudioSide(card.winner)) continue;
+    seen.add(card.gameId);
+    fromCards.push({
+      gameId: card.gameId,
+      winner: card.winner,
+      time: typeof card.at === "number" ? new Date(card.at).toISOString() : undefined,
+    });
+  }
+  if (fromCards.length === 0) return;
+  // Preferir cartas quando history está vazio ou muito mais curto.
+  if (R.history.length < Math.min(20, fromCards.length)) {
+    R.history = fromCards.slice(0, MAX_HISTORY);
   }
 }
 
@@ -336,6 +447,11 @@ export function ingestFootballStudioCards(
   }
   if (hasCardLabels(next)) R.lastCards = next;
 
+  // Actualiza placar Eco quando a cabeça do histórico muda (ou cards novos).
+  if (R.lastCards?.gameId !== prevHeadId || idx < 0) {
+    rebuildEcoStats();
+  }
+
   const nextHeadKey = R.lastCards
     ? `${R.lastCards.gameId}|${R.lastCards.winner}|${R.lastCards.home?.rank}|${R.lastCards.away?.rank}`
     : "";
@@ -374,6 +490,7 @@ export function ingestFootballStudioEvoText(text: string, at = Date.now()): Foot
         at: R.cardHistory[idx].at ?? at,
       };
       if (R.lastCards?.gameId === parsed.gameId) R.lastCards = { ...R.cardHistory[idx] };
+      rebuildEcoStats();
       schedulePersist();
       broadcast({ type: "cards", round: R.cardHistory[idx]! });
       const snap = getFootballStudioHubSnapshot();

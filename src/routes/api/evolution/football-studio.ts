@@ -7,11 +7,18 @@ export const Route = createFileRoute("/api/evolution/football-studio")({
         const { waitForFootballStudioDaemon } = await import(
           "@/lib/server/footballStudio/daemon"
         );
-        const { getFootballStudioHubSnapshot, getFootballStudioSidePatterns } = await import(
-          "@/lib/server/footballStudio/hub"
-        );
+        const {
+          getFootballStudioHubSnapshot,
+          getFootballStudioSidePatterns,
+          hydrateFootballStudioHub,
+        } = await import("@/lib/server/footballStudio/hub");
         await waitForFootballStudioDaemon(8_000);
-        const snapshot = getFootballStudioHubSnapshot();
+        let snapshot = getFootballStudioHubSnapshot();
+        // Memória vazia após HMR/restart: força reload do hub-state.json.
+        if ((snapshot.cardHistory?.length ?? 0) === 0) {
+          await hydrateFootballStudioHub({ force: true });
+          snapshot = getFootballStudioHubSnapshot();
+        }
         return Response.json({
           ...snapshot,
           patterns: getFootballStudioSidePatterns(2),

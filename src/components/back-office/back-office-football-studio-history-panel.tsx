@@ -444,6 +444,10 @@ export function BackOfficeFootballStudioHistoryPanel() {
   const colorStats = useMemo(() => buildColorStats(history), [history]);
   const liveLabel =
     live === "live" ? "ao vivo" : live === "connecting" ? "a ligar…" : "offline";
+  const feedHint =
+    colorStats.total === 0
+      ? " · sem cartas no hub — corre npm run feeder:football-studio:dinhutech"
+      : "";
 
   return (
     <div className="space-y-4">
@@ -459,6 +463,7 @@ export function BackOfficeFootballStudioHistoryPanel() {
             <p className="text-xs text-slate-500">
               Dinhutech · {colorStats.total} rondas · hub {liveLabel}
               {snap?.bridgeStatus ? ` · bridge ${snap.bridgeStatus}` : ""}
+              {feedHint}
             </p>
           </div>
         </div>
