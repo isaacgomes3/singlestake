@@ -408,6 +408,55 @@ export function findFootballBlitzSidePatternAlert(
   };
 }
 
+export type FootballBlitzSidePatternAlertStats = {
+  wins: number;
+  losses: number;
+  /** Indicações já liquidadas (W+L). */
+  settled: number;
+  /** Alerta ainda à espera da ronda seguinte. */
+  pending: FootballBlitzSidePatternAlert | null;
+  outcomes: Array<"W" | "L">;
+};
+
+/**
+ * Percorre o histórico (mais antigo → mais novo) e liquida cada alerta
+ * «encontro 100%» na ronda colorida seguinte: W se bate a indicação, L caso contrário (inclui empate).
+ */
+export function scoreFootballBlitzSidePatternAlerts(
+  historyNewestFirst: readonly FootballBlitzRoundStored[],
+  options?: { minSamples?: number },
+): FootballBlitzSidePatternAlertStats {
+  const minSamples = Math.max(1, Math.floor(Number(options?.minSamples) || 2));
+  let wins = 0;
+  let losses = 0;
+  const outcomes: Array<"W" | "L"> = [];
+  let pending: FootballBlitzSidePatternAlert | null = null;
+
+  for (let headIdx = historyNewestFirst.length - 1; headIdx >= 0; headIdx -= 1) {
+    const slice = historyNewestFirst.slice(headIdx);
+    const head = slice[0];
+    if (!head) continue;
+
+    if (pending && head.gameId !== pending.triggerGameId) {
+      const outcome: "W" | "L" = head.winner === pending.indication ? "W" : "L";
+      if (outcome === "W") wins += 1;
+      else losses += 1;
+      outcomes.push(outcome);
+      pending = null;
+    }
+
+    pending = findFootballBlitzSidePatternAlert(slice, { minSamples });
+  }
+
+  return {
+    wins,
+    losses,
+    settled: wins + losses,
+    pending,
+    outcomes,
+  };
+}
+
 function extractRoundCards(
   round: FootballBlitzRoundStored,
 ): { winningCard: number; losingCard: number } | null {

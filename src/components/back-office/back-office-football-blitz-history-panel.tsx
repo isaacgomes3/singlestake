@@ -19,6 +19,7 @@ import {
   expandFootballBlitzRound,
   findFootballBlitzSidePatternAlert,
   footballBlitzCardLabel,
+  scoreFootballBlitzSidePatternAlerts,
 } from "@/lib/pragmatic/footballBlitzEcoStrategy";
 import { cn } from "@/lib/utils";
 
@@ -336,7 +337,15 @@ function SidePatternStatsPanel({
     () => findFootballBlitzSidePatternAlert(history, { minSamples: 2 }),
     [history],
   );
+  const alertPlacar = useMemo(
+    () => scoreFootballBlitzSidePatternAlerts(history, { minSamples: 2 }),
+    [history],
+  );
   const indicationTone = alert ? tones[alert.indication] : null;
+  const hitRate =
+    alertPlacar.settled > 0
+      ? Math.round((alertPlacar.wins / alertPlacar.settled) * 1000) / 10
+      : null;
 
   return (
     <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
@@ -344,13 +353,26 @@ function SidePatternStatsPanel({
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
           Padrão de lado por carta
         </p>
-        <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
-          {analysis.transitions} transições
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-300">
+            {alertPlacar.wins}V
+          </span>
+          <span className="rounded-full border border-rose-700/50 bg-rose-950/40 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-rose-300">
+            {alertPlacar.losses}D
+          </span>
+          <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
+            {alertPlacar.settled} ind.
+            {hitRate != null ? ` · ${hitRate}%` : ""}
+          </span>
+          <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
+            {analysis.transitions} transições
+          </span>
+        </div>
       </div>
       <p className="mb-4 text-xs text-slate-500">
         Após a carta sair: manter = mesmo lado vencedor na seguinte · mudar = lado oposto. Alerta
         quando a última ronda junta duas cartas 100% manter ou duas 100% mudar (≥2 amostras).
+        Placar: cada indicação liquidada na ronda seguinte (empate = derrota).
       </p>
 
       {alert && indicationTone ? (
@@ -363,6 +385,7 @@ function SidePatternStatsPanel({
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300">
                 Alerta · encontro 100% {alert.mode === "maintain" ? "mantém" : "muda"}
+                {alertPlacar.pending?.triggerGameId === alert.triggerGameId ? " · pendente" : ""}
               </p>
               <p className="mt-1 text-sm text-slate-200">
                 <span
@@ -408,6 +431,22 @@ function SidePatternStatsPanel({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {alertPlacar.outcomes.length > 0 ? (
+        <p className="mb-4 flex flex-wrap gap-1 text-[11px] font-semibold tabular-nums tracking-wide">
+          {alertPlacar.outcomes.map((o, i) => (
+            <span
+              key={`${o}-${i}`}
+              className={cn(
+                "rounded px-1.5 py-0.5",
+                o === "W" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300",
+              )}
+            >
+              {o}
+            </span>
+          ))}
+        </p>
       ) : null}
 
       <div className="grid gap-5 md:grid-cols-2">
