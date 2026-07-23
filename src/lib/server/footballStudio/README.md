@@ -2,8 +2,9 @@
 
 Backend independente da UI:
 
-1. **Bridge** (poll ~2s) → cores Casa/Visitante/Empate sempre
-2. **Ingest POST** → cartas + naipes (alimentador Playwright ou extensão Obs)
+1. **Bridge Evolution** (poll ~2s) → **verdade**: ordem + cores Casa/Visitante/Empate
+2. **DinhuTech** (poller interno) → **só cartas/naipes** (casadas por winner + tempo; IDs ≠ Bridge)
+3. **Ingest POST** (opcional) → cartas da Obs/feeder Playwright
 
 ## APIs
 
@@ -72,18 +73,23 @@ Letras gravadas em `data/football-studio/dinhutech-letters.txt` (`C`=Casa, `V`=V
 
 Alternativa: extensão Obs com a mesa aberta (POST automático para o mesmo endpoint).
 
-A Bridge **não** envia naipe — só cores. Cartas/naipes vêm só do feeder ou da Obs.
+### Fontes: Bridge = verdade · DinhuTech = cartas
 
-### Fonte única (anti-oscilação)
+| Fonte | Papel |
+|-------|--------|
+| **Bridge Evolution** (`bridge.brbet.partners`) | Ordem + vencedor (Player→home, Banker→away) |
+| **DinhuTech** (poller interno) | Só ranks/suits — IDs ≠ Bridge; casa por winner + tempo |
 
-Por defeito o hub **não** liga a Bridge e **só aceita** ingest `source: "dinhutech"`:
+Por defeito:
 
 ```
-FOOTBALL_STUDIO_BRIDGE=0          # default — Bridge desligada
-FOOTBALL_STUDIO_CARDS_SOURCE=dinhutech   # default — rejeita Obs/WS
+FOOTBALL_STUDIO_BRIDGE=1                 # default — Bridge ON (verdade)
+FOOTBALL_STUDIO_DINHUTECH_POLL=1         # default — cartas embutidas no daemon
+FOOTBALL_STUDIO_CARDS_SOURCE=dinhutech   # default — rejeita Obs/WS misturados
 ```
 
-Para voltar a misturar: `FOOTBALL_STUDIO_BRIDGE=1` e `FOOTBALL_STUDIO_CARDS_SOURCE=any`.
+Desligar Bridge (fallback só cartas): `FOOTBALL_STUDIO_BRIDGE=0`.  
+Aceitar Obs/WS também: `FOOTBALL_STUDIO_CARDS_SOURCE=any`.
 
 Estado persistido em `data/football-studio/hub-state.json`.
 

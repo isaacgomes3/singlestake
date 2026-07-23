@@ -25,11 +25,21 @@ const PERSIST_FILE = path.join(PERSIST_DIR, "hub-state.json");
 
 type Listener = (msg: FootballStudioHubMessage) => void;
 
+type StickyCardAttach = {
+  home: TopCardParsedCard;
+  away: TopCardParsedCard;
+  winner?: FootballStudioHubCardRound["winner"] | null;
+  at?: number;
+  evoGameId?: string | null;
+};
+
 /** Estado em globalThis — sobrevive ao HMR do Vite (senão o painel “para” de receber). */
 type FootballStudioHubRuntime = {
   listeners: Set<Listener>;
   history: FootballStudioRound[];
   cardHistory: FootballStudioHubCardRound[];
+  /** Bridge gameId → cartas DinhuTech já casadas (não re-atribuir). */
+  stickyCards: Record<string, StickyCardAttach>;
   lastCards: FootballStudioHubCardRound | null;
   cardsFeedSource: string | null;
   bridgeStatus: FootballStudioHubSnapshot["bridgeStatus"];
@@ -54,6 +64,7 @@ const R: FootballStudioHubRuntime = (g.__singlestakeFootballStudioHub ??= {
   listeners: new Set<Listener>(),
   history: [],
   cardHistory: [],
+  stickyCards: {},
   lastCards: null,
   cardsFeedSource: null,
   bridgeStatus: "idle",
@@ -69,6 +80,8 @@ const R: FootballStudioHubRuntime = (g.__singlestakeFootballStudioHub ??= {
   suitEcoLosses: 0,
   suitEcoPending: null,
 });
+
+if (!R.stickyCards) R.stickyCards = {};
 
 function broadcast(msg: FootballStudioHubMessage) {
   for (const listener of R.listeners) {
@@ -119,7 +132,23 @@ function rebuildEcoStats() {
   if (typeof R.suitEcoWins !== "number") R.suitEcoWins = 0;
   if (typeof R.suitEcoLosses !== "number") R.suitEcoLosses = 0;
 
-  const newestFirst = R.cardHistory.filter((r) => hasCardLabels(r));
+  // Com Bridge: avalia com winners Evolution + cartas casadas.
+  const newestFirst: FootballStudioHubCardRound[] =
+    R.history.length > 0
+      ? buildDisplayRounds()
+          .filter((r) => hasCardLabels(r) && r.home && r.away)
+          .map(
+            (r) =>
+              ({
+                gameId: String(r.evoGameId || r.gameId),
+                winner: r.winner,
+                home: r.home!,
+                away: r.away!,
+                at: r.at,
+                source: "history" as const,
+              }) satisfies FootballStudioHubCardRound,
+          )
+      : R.cardHistory.filter((r) => hasCardLabels(r));
   let wins = 0;
   let losses = 0;
   let suitWins = 0;
@@ -155,67 +184,193 @@ function rebuildEcoStats() {
   R.suitEcoPending = suitPending;
 }
 
+function cardTimestamp(card: { at?: number; time?: string } | null | undefined): number {
+  if (typeof card?.at === "number" && Number.isFinite(card.at)) return card.at;
+  if (card?.time) {
+    const parsed = Date.parse(card.time);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Number.NaN;
+}
+
+/**
+ * Bridge = verdade (cor + ordem). DinhuTech = só cartas.
+ * Casa cartas por winner + tempo (IDs Bridge ≠ IDs Evolution).
+ */
+function findCardsForBridgeRound(
+  bridgeRound: FootballStudioRound,
+  usedEvoIds: Set<string>,
+): FootballStudioHubCardRound | null {
+  const bridgeAt = bridgeRound.time ? Date.parse(bridgeRound.time) : Number.NaN;
+  let best: FootballStudioHubCardRound | null = null;
+  let bestScore = Infinity;
+  for (const card of R.cardHistory) {
+    if (!hasCardLabels(card)) continue;
+    const evoId = card.gameId ? String(card.gameId) : "";
+    if (evoId && usedEvoIds.has(evoId)) continue;
+    if (card.winner && bridgeRound.winner && card.winner !== bridgeRound.winner) continue;
+    const cardAt = cardTimestamp(card);
+    if (Number.isFinite(bridgeAt) && Number.isFinite(cardAt)) {
+      if (cardAt < bridgeAt - 300_000 || cardAt > bridgeAt + 180_000) continue;
+      const delta = Math.abs(cardAt - bridgeAt);
+      if (delta < bestScore) {
+        bestScore = delta;
+        best = card;
+      }
+      continue;
+    }
+    if (!best) best = card;
+  }
+  return best;
+}
+
+function rememberSticky(bridgeId: string, cards: FootballStudioHubCardRound) {
+  const home = repairParsedCard(cards.home);
+  const away = repairParsedCard(cards.away);
+  if (!bridgeId || !home || !away) return;
+  R.stickyCards[bridgeId] = {
+    home,
+    away,
+    winner: cards.winner,
+    at: cardTimestamp(cards),
+    evoGameId: cards.gameId ?? null,
+  };
+}
+
+function applyCardsOntoBridge(
+  bridge: FootballStudioRound,
+  cards: StickyCardAttach | FootballStudioHubCardRound | null,
+): FootballStudioDisplayRound {
+  if (!cards || !hasCardLabels(cards)) {
+    return {
+      ...bridge,
+      home: null,
+      away: null,
+      bridgeOnly: true,
+    };
+  }
+  const home = repairParsedCard(cards.home);
+  const away = repairParsedCard(cards.away);
+  if (!home || !away) {
+    return {
+      ...bridge,
+      home: null,
+      away: null,
+      bridgeOnly: true,
+    };
+  }
+  return {
+    ...bridge,
+    // Winner sempre da Bridge Evolution.
+    winner: bridge.winner,
+    home,
+    away,
+    at: cardTimestamp(cards) || (bridge.time ? Date.parse(bridge.time) : undefined),
+    evoGameId:
+      ("evoGameId" in cards ? cards.evoGameId : null) ||
+      ("gameId" in cards ? cards.gameId : null) ||
+      null,
+    bridgeOnly: false,
+  };
+}
+
 function buildDisplayRounds(): FootballStudioDisplayRound[] {
-  // Fonte única quando há cartas (DinhuTech / Obs): não misturar Bridge.
-  const cards = R.cardHistory.filter((c) => hasCardLabels(c));
-  if (cards.length > 0) {
-    return cards.slice(0, 64).map((c) => {
-      const home = repairParsedCard(c.home);
-      const away = repairParsedCard(c.away);
-      return {
+  const bridges = R.history.slice(0, 64);
+  if (bridges.length === 0) {
+    // Sem Bridge ainda: fallback só cartas (arranque / poller).
+    return R.cardHistory
+      .filter((c) => hasCardLabels(c))
+      .slice(0, 64)
+      .map((c) => ({
         gameId: String(c.gameId),
         winner: c.winner,
-        home,
-        away,
+        home: repairParsedCard(c.home),
+        away: repairParsedCard(c.away),
         evoGameId: c.gameId,
         bridgeOnly: false as const,
         at: c.at,
-      };
-    });
+      }));
   }
 
-  // Sem cartas: só cores Bridge (sem naipe).
-  return R.history.slice(0, 64).map((bridge) => ({
-    ...bridge,
-    home: null,
-    away: null,
-    bridgeOnly: true as const,
-  }));
+  const usedEvo = new Set<string>();
+  for (const bridge of bridges) {
+    const sticky = R.stickyCards[String(bridge.gameId)];
+    const eid = sticky?.evoGameId;
+    if (eid && sticky && (!sticky.winner || sticky.winner === bridge.winner)) {
+      usedEvo.add(String(eid));
+    }
+  }
+
+  const out: FootballStudioDisplayRound[] = [];
+  for (const bridge of bridges) {
+    if (!bridge?.gameId) continue;
+    const bid = String(bridge.gameId);
+    let sticky: StickyCardAttach | undefined = R.stickyCards[bid];
+    if (sticky && sticky.winner && sticky.winner !== bridge.winner) {
+      delete R.stickyCards[bid];
+      sticky = undefined;
+    }
+    if (!sticky || !hasCardLabels(sticky)) {
+      const pick = findCardsForBridgeRound(bridge, usedEvo);
+      if (pick) {
+        rememberSticky(bid, pick);
+        const eid = pick.gameId ? String(pick.gameId) : "";
+        if (eid) usedEvo.add(eid);
+        sticky = R.stickyCards[bid];
+      }
+    } else {
+      const eid = sticky.evoGameId ? String(sticky.evoGameId) : "";
+      if (eid) usedEvo.add(eid);
+    }
+    out.push(applyCardsOntoBridge(bridge, sticky ?? null));
+  }
+  return out;
 }
 
 function snapshotNote(display: FootballStudioDisplayRound[]): string {
   const withCards = display.filter((r) => !r.bridgeOnly).length;
+  const total = display.length;
+  if (R.bridgeStatus === "ok" && total > 0) {
+    return `Evolution Bridge (verdade) · ${total} rodadas · DinhuTech cartas em ${withCards}`;
+  }
   if (withCards > 0) {
-    return `DinhuTech/cartas ao vivo · ${withCards} rodadas (sem misturar Bridge)`;
+    return `DinhuTech cartas · ${withCards} (à espera da Bridge Evolution)`;
   }
   if (R.bridgeStatus !== "ok") {
-    return "A ligar Bridge… (ou inicia o feeder DinhuTech para cartas)";
+    return "A ligar Bridge Evolution… DinhuTech fornece cartas por rodada.";
   }
-  return "Bridge ao vivo (só cores). Para cartas: npm run feeder:football-studio:dinhutech";
+  return "Bridge ao vivo (só cores). Cartas via DinhuTech em breve.";
 }
 
 export function getFootballStudioHubSnapshot(): FootballStudioHubSnapshot {
   const displayRounds = buildDisplayRounds();
   const cardsWithSuits = displayRounds.filter((r) => hasCardLabels(r)).length;
-  const ecoSource = R.cardHistory.filter((r) => hasCardLabels(r));
+  // Eco: cartas DinhuTech com winner alinhado à Bridge quando possível.
+  const ecoSource = displayRounds
+    .filter((r): r is FootballStudioDisplayRound & { home: TopCardParsedCard; away: TopCardParsedCard } =>
+      Boolean(hasCardLabels(r) && r.home && r.away),
+    )
+    .map(
+      (r) =>
+        ({
+          gameId: String(r.evoGameId || r.gameId),
+          winner: r.winner,
+          home: r.home,
+          away: r.away,
+          at: r.at,
+          source: "history" as const,
+        }) satisfies FootballStudioHubCardRound,
+    );
   const ecoSignal = findFootballStudioEcoSignal(ecoSource);
   const suitEcoSignal = findFootballStudioEcoSignal(ecoSource, { requireSuits: true });
-  // Com cartas: history do snapshot = lados das cartas (não Bridge).
-  const sideHistory =
-    ecoSource.length > 0
-      ? ecoSource.map((c) => ({
-          gameId: String(c.gameId),
-          winner: c.winner,
-          time: typeof c.at === "number" ? new Date(c.at).toISOString() : undefined,
-        }))
-      : R.history.slice(0, MAX_HISTORY);
   return {
     ok: true,
     channel: R.channel,
     bridgeStatus: R.bridgeStatus,
     lastError: R.lastError,
     updatedAt: R.updatedAt,
-    history: sideHistory,
+    // Verdade = Bridge Evolution.
+    history: R.history.slice(0, MAX_HISTORY),
     displayRounds,
     cardHistory: R.cardHistory.slice(0, 80),
     lastCards: R.lastCards,
@@ -235,15 +390,8 @@ export function getFootballStudioHubSnapshot(): FootballStudioHubSnapshot {
 }
 
 export function getFootballStudioSidePatterns(minSamples = 2) {
-  const ecoSource = R.cardHistory.filter((r) => hasCardLabels(r));
-  const sideHistory =
-    ecoSource.length > 0
-      ? ecoSource.map((c) => ({
-          gameId: String(c.gameId),
-          winner: c.winner,
-        }))
-      : R.history;
-  return analyzeFootballStudioSidePatterns(sideHistory, { minSamples });
+  // Padrões de lado: Bridge como fonte de verdade.
+  return analyzeFootballStudioSidePatterns(R.history, { minSamples });
 }
 
 function schedulePersist() {
@@ -265,6 +413,7 @@ async function persistHubState() {
           updatedAt: R.updatedAt,
           history: R.history.slice(0, MAX_HISTORY),
           cardHistory: R.cardHistory.slice(0, MAX_CARDS),
+          stickyCards: R.stickyCards,
           lastCards: R.lastCards,
           ecoWins: R.ecoWins,
           ecoLosses: R.ecoLosses,
@@ -312,6 +461,7 @@ export async function hydrateFootballStudioHub(options?: { force?: boolean }): P
       updatedAt?: string | null;
       history?: FootballStudioRound[];
       cardHistory?: FootballStudioHubCardRound[];
+      stickyCards?: Record<string, StickyCardAttach>;
       lastCards?: FootballStudioHubCardRound | null;
       ecoWins?: number;
       ecoLosses?: number;
@@ -327,6 +477,9 @@ export async function hydrateFootballStudioHub(options?: { force?: boolean }): P
       R.cardHistory = parsed.cardHistory
         .map((r) => repairCardRound(r))
         .filter((r): r is FootballStudioHubCardRound => Boolean(r?.gameId));
+    }
+    if (parsed.stickyCards && typeof parsed.stickyCards === "object") {
+      R.stickyCards = parsed.stickyCards;
     }
     R.lastCards = parsed.lastCards
       ? repairCardRound(parsed.lastCards)
@@ -345,8 +498,12 @@ export async function hydrateFootballStudioHub(options?: { force?: boolean }): P
   }
 }
 
-/** Garante history[] alinhado com as cartas (painel BO / padrões). */
+/**
+ * Só preenche history a partir de cartas se a Bridge ainda não trouxe dados.
+ * Nunca sobrescreve a sequência Evolution.
+ */
 function syncHistoryFromCards() {
+  if (R.history.length > 0) return;
   if (R.cardHistory.length === 0) return;
   const fromCards: FootballStudioRound[] = [];
   const seen = new Set<string>();
@@ -361,9 +518,21 @@ function syncHistoryFromCards() {
     });
   }
   if (fromCards.length === 0) return;
-  // Preferir cartas quando history está vazio ou muito mais curto.
-  if (R.history.length < Math.min(20, fromCards.length)) {
-    R.history = fromCards.slice(0, MAX_HISTORY);
+  R.history = fromCards.slice(0, MAX_HISTORY);
+}
+
+function pruneStickyCards() {
+  const keep = new Set(R.history.slice(0, 80).map((r) => String(r.gameId)));
+  for (const id of Object.keys(R.stickyCards)) {
+    if (!keep.has(id)) {
+      delete R.stickyCards[id];
+      continue;
+    }
+    const bridge = R.history.find((r) => String(r.gameId) === id);
+    const sticky = R.stickyCards[id];
+    if (bridge && sticky?.winner && sticky.winner !== bridge.winner) {
+      delete R.stickyCards[id];
+    }
   }
 }
 
@@ -380,14 +549,15 @@ export function applyBridgeHistory(rows: unknown[], nextUpdatedAt?: string | nul
     next.push(normalized);
   }
   const prevHead = R.history[0]?.gameId ?? null;
+  const prevKey = R.history.map((r) => `${r.gameId}:${r.winner}`).join("|");
   R.history = next.slice(0, MAX_HISTORY);
   R.bridgeStatus = "ok";
   R.lastError = null;
+  pruneStickyCards();
 
-  // Com cartas DinhuTech/Obs o painel usa só cartas — não actualizar updatedAt
-  // nem emitir SSE (era isto que fazia o visor oscilar a cada ~2s).
-  const hasCards = R.cardHistory.some((c) => hasCardLabels(c));
-  if (hasCards) {
+  const nextKey = R.history.map((r) => `${r.gameId}:${r.winner}`).join("|");
+  // Sem mudança na verdade Bridge → não emitir SSE (evita oscilar a cada poll).
+  if (prevKey === nextKey && prevHead === (R.history[0]?.gameId ?? null)) {
     schedulePersist();
     return;
   }

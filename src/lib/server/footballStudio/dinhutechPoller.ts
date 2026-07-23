@@ -138,19 +138,28 @@ export function startFootballStudioDinhutechPoller(): void {
     const rounds = collectRounds(state);
     if (rounds.length === 0) return;
 
-    // Primeiro tick: injeta histórico recente (até 80) para o painel não ficar vazio.
+    // Primeiro tick: injeta histórico recente (até 80) só como cartas.
+    // Timestamps escalonados → matching por tempo com a Bridge (IDs diferem).
     if (!bootstrapped) {
       bootstrapped = true;
       const recent = rounds.slice(-80);
-      for (const round of recent) {
+      const now = Date.now();
+      const ROUND_GAP_MS = 35_000;
+      for (let i = 0; i < recent.length; i += 1) {
+        const round = recent[i]!;
+        const ageFromNewest = recent.length - 1 - i;
         ingestFootballStudioCards(
-          { ...round, at: Date.now(), source: "history" },
+          {
+            ...round,
+            at: now - ageFromNewest * ROUND_GAP_MS,
+            source: "history",
+          },
           { feed: "dinhutech" },
         );
         seen.add(round.gameId);
       }
       console.log(
-        `[Football Studio] dinhutech: bootstrap ${recent.length} rodadas · launchId ${launchId}`,
+        `[Football Studio] dinhutech: bootstrap ${recent.length} cartas · launchId ${launchId}`,
       );
       return;
     }

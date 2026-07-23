@@ -141,9 +141,16 @@ function useFootballStudioHubHistory() {
   }, []);
 
   const history = useMemo(() => {
-    const display = (snap?.displayRounds ?? []).filter((r) =>
-      Boolean(r.home?.rank && r.away?.rank),
-    );
+    const display = (snap?.displayRounds ?? [])
+      .filter((r) => Boolean(r.home?.rank && r.away?.rank && r.home && r.away))
+      .map((r) => ({
+        gameId: String(r.evoGameId || r.gameId),
+        winner: r.winner,
+        home: r.home!,
+        away: r.away!,
+        at: r.at,
+        source: "history" as const,
+      }));
     if (display.length > 0) return display;
     const cards = snap?.cardHistory ?? [];
     if (cards.length > 0) return cards;

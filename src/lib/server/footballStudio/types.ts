@@ -14,6 +14,11 @@ export type FootballStudioDisplayRound = FootballStudioRound & {
   at?: number;
 };
 
+export type FootballStudioEcoStats = {
+  wins: number;
+  losses: number;
+};
+
 export type FootballStudioHubSnapshot = {
   ok: true;
   channel: string;
@@ -26,8 +31,14 @@ export type FootballStudioHubSnapshot = {
   lastCards: FootballStudioHubCardRound | null;
   cardsWithSuits: number;
   note: string;
-  /** Alerta Eco: cor à esquerda da coincidência (2 ocorrências 100%). */
+  /** Alerta Eco: cor à esquerda da ocorrência exacta mais recente (ranks). */
   ecoSignal: FootballStudioEcoSignal | null;
+  /** Placar Eco por ranks (próxima rodada vs indicação). */
+  ecoStats: FootballStudioEcoStats;
+  /** Alerta 100% naipe (ranks + suits). */
+  suitEcoSignal: FootballStudioEcoSignal | null;
+  /** Placar das coincidências 100% (mesmo rank + naipe). */
+  suitEcoStats: FootballStudioEcoStats;
 };
 
 export type FootballStudioHubMessage =

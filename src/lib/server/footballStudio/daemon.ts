@@ -4,22 +4,24 @@ import { startFootballStudioDinhutechPoller } from "./dinhutechPoller";
 
 let bootPromise: Promise<void> | null = null;
 
-/** Bridge só se FOOTBALL_STUDIO_BRIDGE=1 — por defeito só cartas (DinhuTech/Obs ingest). */
+/** Bridge ON por defeito (verdade Evolution). FOOTBALL_STUDIO_BRIDGE=0 desliga. */
 function bridgeEnabled(): boolean {
-  return String(process.env.FOOTBALL_STUDIO_BRIDGE ?? "0").trim() === "1";
+  return String(process.env.FOOTBALL_STUDIO_BRIDGE ?? "1").trim() !== "0";
 }
 
 function startDaemon(): Promise<void> {
   return (async () => {
     await hydrateFootballStudioHub();
-    // Poller interno: alimenta o hub sem script feeder externo.
+    // Cartas/naipes (enriquecimento) — não é a timeline oficial.
     startFootballStudioDinhutechPoller();
     if (bridgeEnabled()) {
       startFootballStudioBridgePoller();
-      console.log("[Football Studio] daemon: Bridge ON · cartas via POST ingest");
+      console.log(
+        "[Football Studio] daemon: Bridge ON (verdade) · DinhuTech só cartas",
+      );
     } else {
       console.log(
-        "[Football Studio] daemon: Bridge OFF · cartas DinhuTech (poller interno + ingest).",
+        "[Football Studio] daemon: Bridge OFF · só cartas DinhuTech (fallback).",
       );
     }
   })();
