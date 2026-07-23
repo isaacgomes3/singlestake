@@ -1,5 +1,6 @@
 import { hydrateFootballStudioHub } from "./hub";
 import { startFootballStudioBridgePoller } from "./bridgePoller";
+import { startFootballStudioDinhutechPoller } from "./dinhutechPoller";
 
 let bootPromise: Promise<void> | null = null;
 
@@ -11,12 +12,14 @@ function bridgeEnabled(): boolean {
 function startDaemon(): Promise<void> {
   return (async () => {
     await hydrateFootballStudioHub();
+    // Poller interno: alimenta o hub sem script feeder externo.
+    startFootballStudioDinhutechPoller();
     if (bridgeEnabled()) {
       startFootballStudioBridgePoller();
       console.log("[Football Studio] daemon: Bridge ON · cartas via POST ingest");
     } else {
       console.log(
-        "[Football Studio] daemon: Bridge OFF · só cartas (DinhuTech). FOOTBALL_STUDIO_BRIDGE=1 para activar Bridge.",
+        "[Football Studio] daemon: Bridge OFF · cartas DinhuTech (poller interno + ingest).",
       );
     }
   })();

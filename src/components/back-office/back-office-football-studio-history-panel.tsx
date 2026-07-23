@@ -55,6 +55,7 @@ const SIDE_TONES: Record<FootballStudioSide, SideTone> = {
 function useFootballStudioHubHistory() {
   const [snap, setSnap] = useState<FootballStudioHubSnapshot | null>(null);
   const [live, setLive] = useState<"connecting" | "live" | "error">("connecting");
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +64,30 @@ function useFootballStudioHubHistory() {
 
     const applySnapshot = (next: FootballStudioHubSnapshot) => {
       if (cancelled) return;
-      setSnap(next);
+      setSnap((prev) => {
+        const nextCards = next.cardHistory?.length ?? 0;
+        const nextDisplay = next.displayRounds?.length ?? 0;
+        const prevCards = prev?.cardHistory?.length ?? 0;
+        const prevDisplay = prev?.displayRounds?.length ?? 0;
+        // Nunca trocar um snapshot com dados por um vazio (SSE race / HMR).
+        if (prev && (prevCards > 0 || prevDisplay > 0) && nextCards === 0 && nextDisplay === 0) {
+          return {
+            ...prev,
+            bridgeStatus: next.bridgeStatus ?? prev.bridgeStatus,
+            lastError: next.lastError ?? prev.lastError,
+            updatedAt: next.updatedAt ?? prev.updatedAt,
+          };
+        }
+        if (
+          prev?.updatedAt &&
+          next.updatedAt &&
+          Date.parse(next.updatedAt) < Date.parse(prev.updatedAt) &&
+          nextCards <= prevCards
+        ) {
+          return prev;
+        }
+        return next;
+      });
     };
 
     const bootstrap = async () => {
@@ -72,9 +96,15 @@ function useFootballStudioHubHistory() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as FootballStudioHubSnapshot;
         applySnapshot(data);
-        if (!cancelled) setLive("live");
-      } catch {
-        if (!cancelled) setLive("error");
+        if (!cancelled) {
+          setLive("live");
+          setFetchError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLive("error");
+          setFetchError(error instanceof Error ? error.message : "Falha ao ler o hub");
+        }
       }
     };
 
@@ -101,7 +131,7 @@ function useFootballStudioHubHistory() {
       }
     };
 
-    pollTimer = setInterval(() => void bootstrap(), 12_000);
+    pollTimer = setInterval(() => void bootstrap(), 5_000);
 
     return () => {
       cancelled = true;
@@ -111,12 +141,16 @@ function useFootballStudioHubHistory() {
   }, []);
 
   const history = useMemo(() => {
+    const display = (snap?.displayRounds ?? []).filter((r) =>
+      Boolean(r.home?.rank && r.away?.rank),
+    );
+    if (display.length > 0) return display;
     const cards = snap?.cardHistory ?? [];
     if (cards.length > 0) return cards;
-    return (snap?.displayRounds ?? []).filter((r) => Boolean(r.home?.rank && r.away?.rank));
+    return [];
   }, [snap]);
 
-  return { history, snap, live };
+  return { history, snap, live, fetchError };
 }
 
 function maxSideStreak(
@@ -440,13 +474,13 @@ function SidePatternStatsPanel({ history }: { history: readonly TopCardRound[] }
 
 /** Painel Automação → Football Studio: histórico Dinhutech idêntico ao Blitz. */
 export function BackOfficeFootballStudioHistoryPanel() {
-  const { history, snap, live } = useFootballStudioHubHistory();
+  const { history, snap, live, fetchError } = useFootballStudioHubHistory();
   const colorStats = useMemo(() => buildColorStats(history), [history]);
   const liveLabel =
     live === "live" ? "ao vivo" : live === "connecting" ? "a ligar…" : "offline";
   const feedHint =
     colorStats.total === 0
-      ? " · sem cartas no hub — corre npm run feeder:football-studio:dinhutech"
+      ? " · à espera do poller Dinhutech (reinicia o npm run dev se continuar vazio)"
       : "";
 
   return (
@@ -455,6 +489,11 @@ export function BackOfficeFootballStudioHistoryPanel() {
         Visor ao vivo Football Studio via hub Dinhutech — histórico de cor e padrão de lado por
         carta. Sem área de stream.
       </p>
+      {fetchError ? (
+        <p className="rounded-xl border border-rose-900/50 bg-rose-950/40 px-3 py-2 text-xs text-rose-200">
+          Hub: {fetchError}
+        </p>
+      ) : null}
 
       <div className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
