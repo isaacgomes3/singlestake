@@ -21,7 +21,7 @@ import {
 } from "@/lib/pragmatic/footballBlitzEcoStrategy";
 import { cn } from "@/lib/utils";
 
-const COLOR_HISTORY_LIMIT = 48;
+const COLOR_HISTORY_LIMIT = 45; // grade 5×9
 
 type SideTone = {
   chip: string;
@@ -240,13 +240,24 @@ function ColorHistoryPanel({
       {rows.length === 0 ? (
         <p className="text-sm text-slate-500">Sem rondas ainda.</p>
       ) : (
-        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
-          {rows.map((round, i) => {
+        <div className="grid grid-cols-9 gap-1.5">
+          {Array.from({ length: COLOR_HISTORY_LIMIT }, (_, i) => {
+            const round = rows[i];
+            if (!round) {
+              return (
+                <span
+                  key={`empty-color-${i}`}
+                  className="inline-flex min-h-[2.6rem] items-center justify-center rounded-lg border border-dashed border-slate-700/80 bg-[#081221] px-1 text-center text-[11px] font-semibold text-slate-600 sm:min-h-[2.85rem]"
+                >
+                  ·
+                </span>
+              );
+            }
             const exp = expandFootballBlitzRound(round);
             const tone = tones[round.winner] ?? tones.draw;
             const label = exp
               ? `${exp.home.label}/${exp.away.label}`
-              : footballBlitzCardLabel(Number(round.winningNumber));
+              : String(round.winningNumber ?? tone.short);
             return (
               <span
                 key={`${round.gameId}-color-${i}`}
