@@ -231,3 +231,92 @@ export function findFootballStudioSidePatternAlert(
 export function footballStudioRoundHasAce(round: TopCardRound): boolean {
   return normalizeRank(round.home?.rank) === "A" || normalizeRank(round.away?.rank) === "A";
 }
+
+export type FootballStudioEncounterNeighbor = {
+  gameId: string;
+  winner: TopCardSide;
+  homeLabel: string;
+  awayLabel: string;
+  pairLabel: string;
+};
+
+export type FootballStudioEncounterCoincidence = {
+  /** Índice no histórico newest-first. */
+  index: number;
+  match: FootballStudioEncounterNeighbor;
+  /** Vizinho à esquerda (mais recente que o match). */
+  left: FootballStudioEncounterNeighbor | null;
+  /** Vizinho à direita (mais antigo que o match). */
+  right: FootballStudioEncounterNeighbor | null;
+};
+
+export type FootballStudioEncounterCoincidenceAnalysis = {
+  trigger: FootballStudioEncounterNeighbor | null;
+  coincidences: FootballStudioEncounterCoincidence[];
+  /** Quantas ocorrências anteriores exactas existem (mesmo par + cor). */
+  totalMatches: number;
+};
+
+function toNeighbor(round: TopCardRound | undefined): FootballStudioEncounterNeighbor | null {
+  if (!round?.gameId) return null;
+  const winner = resolveWinner(round);
+  if (!winner) return null;
+  const ranks = roundRanks(round);
+  const homeLabel = ranks?.home ?? round.home?.label ?? "?";
+  const awayLabel = ranks?.away ?? round.away?.label ?? "?";
+  return {
+    gameId: String(round.gameId),
+    winner,
+    homeLabel,
+    awayLabel,
+    pairLabel: `${homeLabel}/${awayLabel}`,
+  };
+}
+
+function sameEncounter(a: TopCardRound, b: TopCardRound): boolean {
+  const wa = resolveWinner(a);
+  const wb = resolveWinner(b);
+  if (!wa || !wb || wa !== wb) return false;
+  const ra = roundRanks(a);
+  const rb = roundRanks(b);
+  if (!ra || !rb) return false;
+  return ra.home === rb.home && ra.away === rb.away;
+}
+
+/**
+ * Para o último encontro (cartas + cor), devolve as N coincidências anteriores
+ * mais recentes com vizinhos à esquerda e à direita no histórico.
+ */
+export function findFootballStudioEncounterCoincidences(
+  historyNewestFirst: readonly TopCardRound[],
+  options?: { limit?: number },
+): FootballStudioEncounterCoincidenceAnalysis {
+  const limit = Math.max(1, Math.floor(Number(options?.limit) || 2));
+  const newest = historyNewestFirst[0];
+  const trigger = toNeighbor(newest);
+  if (!newest || !trigger) {
+    return { trigger: null, coincidences: [], totalMatches: 0 };
+  }
+
+  const coincidences: FootballStudioEncounterCoincidence[] = [];
+  let totalMatches = 0;
+
+  for (let index = 1; index < historyNewestFirst.length; index += 1) {
+    const matchRound = historyNewestFirst[index];
+    if (!matchRound || !sameEncounter(matchRound, newest)) continue;
+    totalMatches += 1;
+    if (coincidences.length >= limit) continue;
+
+    const match = toNeighbor(matchRound);
+    if (!match) continue;
+    coincidences.push({
+      index,
+      match,
+      left: toNeighbor(historyNewestFirst[index - 1]),
+      right: toNeighbor(historyNewestFirst[index + 1]),
+    });
+  }
+
+  return { trigger, coincidences, totalMatches };
+}
+

@@ -15,11 +15,9 @@ import {
   type FootballBlitzWinner,
 } from "@/lib/pragmatic/dgaFootballBlitzHistory";
 import {
-  analyzeFootballBlitzSidePatternByCard,
   expandFootballBlitzRound,
-  findFootballBlitzSidePatternAlert,
-  footballBlitzCardLabel,
-  scoreFootballBlitzSidePatternAlerts,
+  findFootballBlitzEncounterCoincidences,
+  type FootballBlitzEncounterNeighbor,
 } from "@/lib/pragmatic/footballBlitzEcoStrategy";
 import { cn } from "@/lib/utils";
 
@@ -269,60 +267,89 @@ function ColorHistoryPanel({
   );
 }
 
-function PatternStatColumn({
+function NeighborChip({
+  neighbor,
+  tones,
+  emphasize,
+}: {
+  neighbor: FootballBlitzEncounterNeighbor | null;
+  tones: Record<FootballBlitzWinner, SideTone>;
+  emphasize?: boolean;
+}) {
+  if (!neighbor) {
+    return (
+      <span className="inline-flex min-h-[3rem] min-w-[4.5rem] flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700 bg-[#081221] px-2 text-[11px] text-slate-600">
+        —
+      </span>
+    );
+  }
+  const tone = tones[neighbor.winner] ?? tones.draw;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-[3rem] min-w-[4.5rem] flex-1 flex-col items-center justify-center rounded-xl border px-2 text-center",
+        tone.chip,
+        emphasize && "ring-2 ring-amber-300/90 ring-offset-1 ring-offset-[#0d1524]",
+      )}
+      title={`${tone.label} · ${neighbor.pairLabel}`}
+    >
+      <span className="text-[10px] font-bold uppercase opacity-80">{tone.short}</span>
+      <span className="text-sm font-black leading-tight">{neighbor.pairLabel}</span>
+    </span>
+  );
+}
+
+function CoincidenceColumn({
   title,
   hint,
-  rows,
-  accentClass,
-  barClass,
+  coincidence,
+  tones,
 }: {
   title: string;
   hint: string;
-  rows: Array<{ card: number; label: string; hits: number; samples: number; rate: number }>;
-  accentClass: string;
-  barClass: string;
+  coincidence: {
+    match: FootballBlitzEncounterNeighbor;
+    left: FootballBlitzEncounterNeighbor | null;
+    right: FootballBlitzEncounterNeighbor | null;
+  } | null;
+  tones: Record<FootballBlitzWinner, SideTone>;
 }) {
   return (
-    <div className="min-w-0 flex-1">
-      <p className={cn("text-[10px] font-bold uppercase tracking-[0.14em]", accentClass)}>{title}</p>
+    <div className="min-w-0 flex-1 rounded-2xl border border-slate-800 bg-[#081221] p-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300">{title}</p>
       <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p>
-      {rows.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Sem amostra ainda.</p>
+      {!coincidence ? (
+        <p className="mt-4 text-sm text-slate-500">Sem coincidência nesta posição.</p>
       ) : (
-        <ul className="mt-3 space-y-1.5">
-          {rows.map((row, i) => (
-            <li
-              key={`${title}-${row.card}`}
-              className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#081221] px-2.5 py-2"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-400">
-                {i + 1}
-              </span>
-              <span className="w-8 text-center text-base font-black text-white">{row.label}</span>
-              <div className="min-w-0 flex-1">
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-900">
-                  <div
-                    className={cn("h-full rounded-full", barClass)}
-                    style={{ width: `${Math.max(row.rate, row.rate > 0 ? 4 : 0)}%` }}
-                  />
-                </div>
-              </div>
-              <span className="shrink-0 text-xs font-bold tabular-nums text-slate-200">
-                {row.rate}%
-              </span>
-              <span className="shrink-0 text-[10px] tabular-nums text-slate-500">
-                {row.hits}/{row.samples}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3 flex items-center gap-1.5 sm:gap-2">
+          <div className="min-w-0 flex-1 text-center">
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+              Esquerda
+            </p>
+            <NeighborChip neighbor={coincidence.left} tones={tones} />
+          </div>
+          <span className="shrink-0 text-slate-600">←</span>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-amber-300/90">
+              Match
+            </p>
+            <NeighborChip neighbor={coincidence.match} tones={tones} emphasize />
+          </div>
+          <span className="shrink-0 text-slate-600">→</span>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+              Direita
+            </p>
+            <NeighborChip neighbor={coincidence.right} tones={tones} />
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-/** Top cartas que mantêm ou mudam o lado (casa/visitante) na ronda seguinte. */
-function SidePatternStatsPanel({
+/** Duas últimas coincidências do encontro actual (cartas + cor) com vizinhos. */
+function EncounterCoincidencePanel({
   history,
   tones,
 }: {
@@ -330,139 +357,56 @@ function SidePatternStatsPanel({
   tones: Record<FootballBlitzWinner, SideTone>;
 }) {
   const analysis = useMemo(
-    () => analyzeFootballBlitzSidePatternByCard(history, { top: 6, minSamples: 1 }),
+    () => findFootballBlitzEncounterCoincidences(history, { limit: 2 }),
     [history],
   );
-  const alert = useMemo(
-    () => findFootballBlitzSidePatternAlert(history, { minSamples: 2 }),
-    [history],
-  );
-  const alertPlacar = useMemo(
-    () => scoreFootballBlitzSidePatternAlerts(history, { minSamples: 2 }),
-    [history],
-  );
-  const indicationTone = alert ? tones[alert.indication] : null;
-  const hitRate =
-    alertPlacar.settled > 0
-      ? Math.round((alertPlacar.wins / alertPlacar.settled) * 1000) / 10
-      : null;
+  const triggerTone = analysis.trigger ? tones[analysis.trigger.winner] : null;
 
   return (
     <section className="rounded-3xl border border-slate-800/80 bg-[#0d1524] p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-          Padrão de lado por carta
+          Coincidências do encontro
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-emerald-700/50 bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-300">
-            {alertPlacar.wins}V
-          </span>
-          <span className="rounded-full border border-rose-700/50 bg-rose-950/40 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-rose-300">
-            {alertPlacar.losses}D
-          </span>
-          <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
-            {alertPlacar.settled} ind.
-            {hitRate != null ? ` · ${hitRate}%` : ""}
-          </span>
-          <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
-            {analysis.transitions} transições
-          </span>
-        </div>
+        <span className="rounded-full border border-slate-700 bg-[#081221] px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">
+          {analysis.totalMatches} no histórico
+        </span>
       </div>
       <p className="mb-4 text-xs text-slate-500">
-        Após a carta sair: manter = mesmo lado vencedor na seguinte · mudar = lado oposto. Alerta
-        quando a última ronda junta duas cartas 100% manter ou duas 100% mudar (≥2 amostras).
-        Placar: cada indicação liquidada na ronda seguinte (empate = derrota).
+        Últimas duas ocorrências do mesmo encontro (cartas + cor), com vizinhos à esquerda e à
+        direita. Sem alerta estatístico.
       </p>
 
-      {alert && indicationTone ? (
-        <div
-          className="mb-4 rounded-2xl border border-cyan-500/40 bg-cyan-950/35 px-4 py-3"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300">
-                Alerta · encontro 100% {alert.mode === "maintain" ? "mantém" : "muda"}
-                {alertPlacar.pending?.triggerGameId === alert.triggerGameId ? " · pendente" : ""}
-              </p>
-              <p className="mt-1 text-sm text-slate-200">
-                <span
-                  className={cn(
-                    "font-bold",
-                    alert.mode === "maintain" ? "text-emerald-300" : "text-rose-300",
-                  )}
-                >
-                  {alert.homeLabel}
-                </span>
-                <span className="text-slate-500"> ({alert.homeSamples}×)</span>
-                <span className="mx-1.5 text-slate-600">/</span>
-                <span
-                  className={cn(
-                    "font-bold",
-                    alert.mode === "maintain" ? "text-emerald-300" : "text-rose-300",
-                  )}
-                >
-                  {alert.awayLabel}
-                </span>
-                <span className="text-slate-500"> ({alert.awaySamples}×)</span>
-                <span className="text-slate-400">
-                  {" "}
-                  · ambas {alert.mode === "maintain" ? "mantêm" : "mudam"} 100%
-                </span>
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                {alert.mode === "maintain"
-                  ? "Próxima ronda tende a repetir o lado vencedor actual"
-                  : "Próxima ronda tende a inverter o lado vencedor actual"}
-              </p>
-            </div>
-            <div
-              className={cn(
-                "shrink-0 rounded-xl px-4 py-2 text-center shadow-lg",
-                indicationTone.soft,
-              )}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
-                Indica
-              </p>
-              <p className="text-lg font-black leading-tight">{indicationTone.label}</p>
-            </div>
-          </div>
+      {analysis.trigger && triggerTone ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-[#081221] px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            Encontro actual
+          </span>
+          <span
+            className={cn(
+              "rounded-lg border px-2.5 py-1 text-sm font-black",
+              triggerTone.chip,
+            )}
+          >
+            {analysis.trigger.pairLabel} · {triggerTone.label}
+          </span>
         </div>
-      ) : null}
+      ) : (
+        <p className="mb-4 text-sm text-slate-500">À espera de um encontro com cartas.</p>
+      )}
 
-      {alertPlacar.outcomes.length > 0 ? (
-        <p className="mb-4 flex flex-wrap gap-1 text-[11px] font-semibold tabular-nums tracking-wide">
-          {alertPlacar.outcomes.map((o, i) => (
-            <span
-              key={`${o}-${i}`}
-              className={cn(
-                "rounded px-1.5 py-0.5",
-                o === "W" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300",
-              )}
-            >
-              {o}
-            </span>
-          ))}
-        </p>
-      ) : null}
-
-      <div className="grid gap-5 md:grid-cols-2">
-        <PatternStatColumn
-          title="Mais mudam o padrão"
-          hint="Lado vencedor troca na ronda seguinte"
-          rows={analysis.changeSide}
-          accentClass="text-rose-300"
-          barClass="bg-rose-500"
+      <div className="grid gap-4 md:grid-cols-2">
+        <CoincidenceColumn
+          title="Coincidência 1"
+          hint="Mais recente no histórico"
+          coincidence={analysis.coincidences[0] ?? null}
+          tones={tones}
         />
-        <PatternStatColumn
-          title="Mais mantêm o padrão"
-          hint="Mesmo lado vencedor na ronda seguinte"
-          rows={analysis.maintainSide}
-          accentClass="text-emerald-300"
-          barClass="bg-emerald-500"
+        <CoincidenceColumn
+          title="Coincidência 2"
+          hint="Segunda mais recente"
+          coincidence={analysis.coincidences[1] ?? null}
+          tones={tones}
         />
       </div>
     </section>
@@ -520,7 +464,7 @@ function TableDashboard({ config }: { config: FootballBlitzTableConfig }) {
       />
 
       <ColorHistoryPanel history={history} tones={tones} stats={colorStats} />
-      <SidePatternStatsPanel history={history} tones={tones} />
+      <EncounterCoincidencePanel history={history} tones={tones} />
     </div>
   );
 }
@@ -530,7 +474,7 @@ export function BackOfficeFootballBlitzHistoryPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-400">
-        Visor ao vivo das mesas DGA — histórico de cor e de cartas com estatísticas. Sem área de
+        Visor ao vivo das mesas DGA — histórico de cor e coincidências do encontro. Sem área de
         stream.
       </p>
       <Tabs defaultValue="top-card" className="w-full">

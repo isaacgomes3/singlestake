@@ -457,6 +457,100 @@ export function scoreFootballBlitzSidePatternAlerts(
   };
 }
 
+export type FootballBlitzEncounterNeighbor = {
+  gameId: string;
+  winner: FootballBlitzWinner;
+  homeLabel: string;
+  awayLabel: string;
+  pairLabel: string;
+};
+
+export type FootballBlitzEncounterCoincidence = {
+  index: number;
+  match: FootballBlitzEncounterNeighbor;
+  left: FootballBlitzEncounterNeighbor | null;
+  right: FootballBlitzEncounterNeighbor | null;
+};
+
+export type FootballBlitzEncounterCoincidenceAnalysis = {
+  trigger: FootballBlitzEncounterNeighbor | null;
+  coincidences: FootballBlitzEncounterCoincidence[];
+  totalMatches: number;
+};
+
+function blitzToNeighbor(
+  round: FootballBlitzRoundStored | undefined,
+): FootballBlitzEncounterNeighbor | null {
+  if (!round?.gameId || !round.winner) return null;
+  const exp = expandFootballBlitzRound(round);
+  const homeLabel = exp?.home.label ?? (round.winner === "draw" ? "—" : "?");
+  const awayLabel = exp?.away.label ?? (round.winner === "draw" ? "—" : "?");
+  return {
+    gameId: String(round.gameId),
+    winner: round.winner,
+    homeLabel,
+    awayLabel,
+    pairLabel: exp ? `${exp.home.label}/${exp.away.label}` : String(round.winningNumber ?? "—"),
+  };
+}
+
+function sameBlitzEncounter(
+  a: FootballBlitzRoundStored,
+  b: FootballBlitzRoundStored,
+): boolean {
+  if (a.winner !== b.winner) return false;
+  if (!isColoredRound(a) || !isColoredRound(b)) {
+    // Empate: exige mesmas cartas se disponíveis
+    if (a.winner !== "draw" || b.winner !== "draw") return false;
+  }
+  const ea = expandFootballBlitzRound(a);
+  const eb = expandFootballBlitzRound(b);
+  if (ea && eb) {
+    return ea.home.score === eb.home.score && ea.away.score === eb.away.score;
+  }
+  return (
+    Number(a.winningNumber) === Number(b.winningNumber) &&
+    Number(a.scoreDiff) === Number(b.scoreDiff)
+  );
+}
+
+/**
+ * Para o último encontro (cartas + cor), as N coincidências anteriores mais
+ * recentes com vizinhos esquerda/direita.
+ */
+export function findFootballBlitzEncounterCoincidences(
+  historyNewestFirst: readonly FootballBlitzRoundStored[],
+  options?: { limit?: number },
+): FootballBlitzEncounterCoincidenceAnalysis {
+  const limit = Math.max(1, Math.floor(Number(options?.limit) || 2));
+  const newest = historyNewestFirst[0];
+  const trigger = blitzToNeighbor(newest);
+  if (!newest || !trigger) {
+    return { trigger: null, coincidences: [], totalMatches: 0 };
+  }
+
+  const coincidences: FootballBlitzEncounterCoincidence[] = [];
+  let totalMatches = 0;
+
+  for (let index = 1; index < historyNewestFirst.length; index += 1) {
+    const matchRound = historyNewestFirst[index];
+    if (!matchRound || !sameBlitzEncounter(matchRound, newest)) continue;
+    totalMatches += 1;
+    if (coincidences.length >= limit) continue;
+
+    const match = blitzToNeighbor(matchRound);
+    if (!match) continue;
+    coincidences.push({
+      index,
+      match,
+      left: blitzToNeighbor(historyNewestFirst[index - 1]),
+      right: blitzToNeighbor(historyNewestFirst[index + 1]),
+    });
+  }
+
+  return { trigger, coincidences, totalMatches };
+}
+
 function extractRoundCards(
   round: FootballBlitzRoundStored,
 ): { winningCard: number; losingCard: number } | null {
